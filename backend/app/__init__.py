@@ -16,8 +16,10 @@ logger = logging.getLogger(__name__)
 
 def create_app():
     app = Flask(__name__)
-
-    # --- Configuration ---
+    # 禁用 ASCII 转义
+    app.config["JSON_AS_ASCII"] = False
+    # 默认 UTF-8 # --- Configuration ---
+    app.config["JSONIFY_MIMETYPE"] = "application/json; charset=utf-8"
     # You should configure your database URI here or load it from a config file.
     # Example: app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///site.db'
     # app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False # Recommended to disable this for performance
