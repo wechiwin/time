@@ -32,7 +32,7 @@ export default function FundTable() {
         try {
             await post('/api/holdings', form);
             setForm({fund_name: '', fund_code: '', fund_type: 'ETF'}); // 重置为默认值'ETF'
-            await refetch();
+            // await refetch();
             setShowSuccess(true);
             setTimeout(() => setShowSuccess(false), 3000);
         } catch (err) {
@@ -44,7 +44,7 @@ export default function FundTable() {
     const handleDelete = async (id) => {
         try {
             await del(`/api/holdings/${id}`);
-            await refetch();
+            // await refetch();
             setShowSuccess(true);
             setTimeout(() => setShowSuccess(false), 3000);
         } catch (err) {

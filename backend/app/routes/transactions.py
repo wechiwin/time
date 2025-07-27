@@ -34,8 +34,8 @@ def create_transaction():
     new_transaction = Transaction(**data)
     db.session.add(new_transaction)
     db.session.commit()
-    return Response.error(code=400, message="缺少必要字段")
-    # return Response.success(message="交易添加成功")
+    # return Response.error(code=400, message="缺少必要字段")
+    return Response.success(message="交易添加成功")
 
 
 @transactions_bp.route('/<int:id>', methods=['GET'])

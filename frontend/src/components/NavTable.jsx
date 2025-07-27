@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import useApi from '../hooks/useApi';
 import {CheckCircleIcon, ChevronUpDownIcon} from '@heroicons/react/24/outline';
 import DeleteConfirmation from './DeleteConfirmation';
@@ -15,6 +15,10 @@ export default function NavTable() {
     const [fundOptions, setFundOptions] = useState([]);
     const [searchInput, setSearchInput] = useState('');
     const [showDropdown, setShowDropdown] = useState(false);
+    const [isComposing, setIsComposing] = useState(false);
+    // 使用防抖后的搜索值
+    const debouncedSearchInput = useDebounce(searchInput, 1000);
+    const inputRef = useRef(null);
 
     // 使用自定义Hook获取数据
     const {
@@ -27,31 +31,56 @@ export default function NavTable() {
         request
     } = useApi('/api/net_values');
 
-    // 获取基金列表的函数
-    const fetchFunds = async () => {
-        try {
-            const data = await request(`/api/holdings/search?q=${searchInput}`, 'GET');
-            setFundOptions(data);
-        } catch (err) {
-            console.error('获取基金列表失败:', err);
+    // 获取基金列表
+    useEffect(() => {
+        const fetchFunds = async () => {
+            try {
+                if (debouncedSearchInput.length > 0) {
+                    const data = await request(`/api/holdings/search?q=${debouncedSearchInput}`, 'GET');
+                    setFundOptions(data);
+                    setTimeout(() => {
+                        if (inputRef.current) {
+                            inputRef.current.focus();
+                        }
+                    }, 0);
+                } else {
+                    setFundOptions([]);
+                }
+            } catch (err) {
+                console.error('获取基金列表失败:', err);
+                setFundOptions([]);
+            }
+        };
+
+        fetchFunds();
+    }, [debouncedSearchInput, request]);
+
+    // 处理输入变化
+    const handleInputChange = (e) => {
+        const value = e.target.value;
+        setForm(prev => ({...prev, fund_code: value}));
+        // setSearchInput(value); // 触发防抖查询
+        if (!isComposing) {
+            console.log('输入变化发请求')
+            setSearchInput(value);
         }
     };
 
-    // 使用防抖Hook
-    useDebounce(() => {
-        if (searchInput.length > 0) {
-            fetchFunds();
-        } else {
-            setFundOptions([]);
-        }
-    }, [searchInput, request]);
+    const handleCompositionEnd = (e) => {
+        console.log('结束', e)
+        setIsComposing(false);
+        // 组合结束时手动触发更新
+        setForm(prev => ({...prev, fund_code: e.target.value}));
+        setSearchInput(e.target.value);
+    }
 
-    // 选中基金后填充数据
+    // 选中基金
     const handleSelectFund = (fund) => {
         setForm({
             ...form,
             fund_code: fund.fund_code,
         });
+        setSearchInput(fund.fund_code); // 同步搜索输入
         setShowDropdown(false);
     };
 
@@ -65,7 +94,7 @@ export default function NavTable() {
                 unit_net_value: '',
                 accumulated_net_value: ''
             });
-            await refetch();
+            // await refetch();
             setShowSuccess(true);
             setTimeout(() => setShowSuccess(false), 3000);
         } catch (err) {
@@ -76,7 +105,7 @@ export default function NavTable() {
     const handleDelete = async (id) => {
         try {
             await del(`/api/net_values/${id}`);
-            await refetch();
+            // await refetch();
             setShowSuccess(true);
             setTimeout(() => setShowSuccess(false), 3000);
         } catch (err) {
@@ -96,15 +125,17 @@ export default function NavTable() {
                     <div className="relative">
                         <div className="relative">
                             <input
+                                ref={inputRef}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 placeholder="搜索基金代码"
                                 value={form.fund_code}
-                                onChange={(e) => {
-                                    setForm({...form, fund_code: e.target.value});
-                                    setSearchInput(e.target.value);
-                                }}
+                                onChange={handleInputChange}
                                 onFocus={() => setShowDropdown(true)}
                                 onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                                onCompositionStart={() => {
+                                    setIsComposing(true)
+                                }}
+                                onCompositionEnd={(e) => handleCompositionEnd(e)}
                                 required
                             />
                             <ChevronUpDownIcon
@@ -113,6 +144,7 @@ export default function NavTable() {
                             />
                         </div>
 
+                        {/* 下拉框 */}
                         {showDropdown && (
                             <div
                                 className="absolute z-50 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-auto">

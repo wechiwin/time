@@ -47,27 +47,30 @@ export default function useApi(endpoint) {
     }, [endpoint, request]);
 
     // POST 请求
-    const post = useCallback(async (url = endpoint, body) => {
+    const post = useCallback(async (url = endpoint, body, autoRefresh = true) => {
         const result = await request(url, 'POST', body);
-        setData(prev => Array.isArray(prev) ? [...prev, result] : result);
+        // 不依赖返回的数据，直接重新获取一次最新数据
+        if (autoRefresh) {
+            await get();
+        }
         return result;
-    }, [endpoint, request]);
+    }, [endpoint, request, get]);
 
     // PUT 请求
-    const put = useCallback(async (url = endpoint, body) => {
+    const put = useCallback(async (url = endpoint, body, autoRefresh = true) => {
         const result = await request(url, 'PUT', body);
         setData(result);
+        // 不依赖返回的数据，直接重新获取一次最新数据
+        if (autoRefresh) {
+            await get();
+        }
         return result;
-    }, [endpoint, request]);
+    }, [endpoint, request, get]);
 
     // DELETE 请求
-    const del = useCallback(async (url = endpoint) => {
+    const del = useCallback(async (url = endpoint, autoRefresh = true) => {
         const result = await request(url, 'DELETE');
-        // 更安全的处理方式
-        if (result && result.id) {
-            setData(prev => Array.isArray(prev) ? prev.filter(item => item.id !== result.id) : null);
-        } else {
-            // 如果没有返回ID，直接重新获取数据
+        if (autoRefresh) {
             await get();
         }
         return result;

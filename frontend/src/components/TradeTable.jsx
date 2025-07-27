@@ -99,7 +99,7 @@ export default function TradeTable() {
                 transaction_shares: '',
                 transaction_fee: ''
             });
-            await refetch();
+            // await refetch();
             setShowSuccess(true);
             setTimeout(() => setShowSuccess(false), 3000);
         } catch (err) {
@@ -110,7 +110,7 @@ export default function TradeTable() {
     const handleDelete = async (id) => {
         try {
             await del(`/api/transactions/${id}`);
-            await refetch();
+            // await refetch();
             setShowSuccess(true);
             setTimeout(() => setShowSuccess(false), 3000);
         } catch (err) {
@@ -119,7 +119,7 @@ export default function TradeTable() {
     };
 
     // if (loading) return <div className="p-8 text-center text-gray-500">加载中...</div>;
-    if (error) return <div className="p-8 text-center text-red-500">错误: {error}</div>;
+    // if (error) return <div className="p-8 text-center text-red-500">错误: {error}</div>;
 
     // console.log('Dropdown state:', {
     //     showDropdown,
