@@ -1,0 +1,5 @@
+.idea
+backend/venv
+frontend/dist
+frontend/node_modules
+test.py
