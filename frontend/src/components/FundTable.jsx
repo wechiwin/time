@@ -2,14 +2,15 @@ import React, {useState} from 'react';
 import useApi from '../hooks/useApi';
 import {CheckCircleIcon} from '@heroicons/react/24/outline';
 import DeleteConfirmation from './DeleteConfirmation';
+import {TOAST_TYPE, TOAST_MESSAGE, useToast} from './toast/ToastContext';  // 引入全局Toast
 
 export default function FundTable() {
+    const {showSuccessToast, showErrorToast} = useToast();
     const [form, setForm] = useState({
         fund_name: '',
         fund_code: '',
         fund_type: 'ETF' // Default to ETF
     });
-    const [showSuccess, setShowSuccess] = useState(false); // 删除成功提示
     // 使用自定义hook获取数据
     const {
         data: funds,
@@ -32,11 +33,12 @@ export default function FundTable() {
         try {
             await post('/api/holdings', form);
             setForm({fund_name: '', fund_code: '', fund_type: 'ETF'}); // 重置为默认值'ETF'
-            // await refetch();
-            setShowSuccess(true);
-            setTimeout(() => setShowSuccess(false), 3000);
+            // showToast(TOAST_TYPE.SUCCESS, TOAST_MESSAGE.SUCCESS);
+            showSuccessToast();
         } catch (err) {
             console.error('添加基金失败:', err);
+            // showToast(TOAST_TYPE.ERROR, TOAST_MESSAGE.FAILURE + err);
+            showErrorToast(err.message);
         }
     };
 
@@ -44,16 +46,14 @@ export default function FundTable() {
     const handleDelete = async (id) => {
         try {
             await del(`/api/holdings/${id}`);
-            // await refetch();
-            setShowSuccess(true);
-            setTimeout(() => setShowSuccess(false), 3000);
+            // showToast(TOAST_TYPE.SUCCESS, TOAST_MESSAGE.SUCCESS);
+            showSuccessToast();
         } catch (err) {
             console.error('删除失败:', err);
+            // showToast(TOAST_TYPE.ERROR, TOAST_MESSAGE.FAILURE + err);
+            showErrorToast(err.message);
         }
     };
-
-    if (loading) return <div className="p-8 text-center text-gray-500">加载中...</div>;
-    if (error) return <div className="p-8 text-center text-red-500">错误: {error}</div>;
 
     return (
         <div className="space-y-6">
@@ -123,16 +123,6 @@ export default function FundTable() {
                     </tbody>
                 </table>
             </div>
-
-            {/* 操作成功提示 */}
-            {showSuccess && (
-                <div className="fixed bottom-4 right-4 z-50 animate-fade-in">
-                    <div className="bg-green-500 text-white px-4 py-2 rounded-md shadow-lg flex items-center">
-                        <CheckCircleIcon className="w-5 h-5 mr-2"/>
-                        操作成功
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
