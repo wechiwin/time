@@ -52,7 +52,6 @@ export default function FundTable() {
         }
     };
 
-    if (loading) return <div className="p-8 text-center text-gray-500">加载中...</div>;
     if (error) return <div className="p-8 text-center text-red-500">错误: {error}</div>;
 
     return (

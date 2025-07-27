@@ -18,7 +18,10 @@ export default function NavTable() {
     const [isComposing, setIsComposing] = useState(false);
     // 使用防抖后的搜索值
     const debouncedSearchInput = useDebounce(searchInput, 1000);
-    const inputRef = useRef(null);
+    const [focusedInput, setFocusedInput] = useState(null);
+    const stockFundCodeInputRef = useRef(null);
+    const unitNetValueInputRef = useRef(null);
+    const accumulatedNetValueInputRef = useRef(null);
 
     // 使用自定义Hook获取数据
     const {
@@ -39,8 +42,8 @@ export default function NavTable() {
                     const data = await request(`/api/holdings/search?q=${debouncedSearchInput}`, 'GET');
                     setFundOptions(data);
                     setTimeout(() => {
-                        if (inputRef.current) {
-                            inputRef.current.focus();
+                        if (stockFundCodeInputRef.current) {
+                            focusedInput.current.focus();
                         }
                     }, 0);
                 } else {
@@ -72,6 +75,11 @@ export default function NavTable() {
         // 组合结束时手动触发更新
         setForm(prev => ({...prev, fund_code: e.target.value}));
         setSearchInput(e.target.value);
+    }
+
+    const handleFundCodeFocus =()=>{
+        setFocusedInput(stockFundCodeInputRef)
+        setShowDropdown(true)
     }
 
     // 选中基金
@@ -113,7 +121,6 @@ export default function NavTable() {
         }
     };
 
-    if (loading) return <div className="p-8 text-center text-gray-500">加载中...</div>;
     if (error) return <div className="p-8 text-center text-red-500">错误: {error}</div>;
 
     return (
@@ -125,12 +132,12 @@ export default function NavTable() {
                     <div className="relative">
                         <div className="relative">
                             <input
-                                ref={inputRef}
+                                ref={stockFundCodeInputRef}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 placeholder="搜索基金代码"
                                 value={form.fund_code}
                                 onChange={handleInputChange}
-                                onFocus={() => setShowDropdown(true)}
+                                onFocus={handleFundCodeFocus}
                                 onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
                                 onCompositionStart={() => {
                                     setIsComposing(true)
@@ -183,16 +190,20 @@ export default function NavTable() {
                         required
                     />
                     <input
+                        ref={unitNetValueInputRef}
                         className="input-field"
                         placeholder="单位净值"
                         value={form.unit_net_value}
+                        onFocus={()=>{setFocusedInput(unitNetValueInputRef)}}
                         onChange={e => setForm({...form, unit_net_value: e.target.value})}
                         required
                     />
                     <input
+                        ref={accumulatedNetValueInputRef}
                         className="input-field"
                         placeholder="累计净值"
                         value={form.accumulated_net_value}
+                        onFocus={()=>{setFocusedInput(accumulatedNetValueInputRef)}}
                         onChange={e => setForm({...form, accumulated_net_value: e.target.value})}
                         required
                     />
