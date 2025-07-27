@@ -76,6 +76,32 @@ npm install
 npm run dev
 ```
 
+windows如果启动虚拟环境遇到报错
+
+```
+.\venv\Scripts\activate : 无法加载文件 C:\Users\Administrator\Documents\PycharmProject\stock_fund_tool\venv\Scripts\Activate.ps1，因为在此系统上禁止运行脚本。有关详细信息，请参阅 https:/go.m
+icrosoft.com/fwlink/?LinkID=135170 中的 about_Execution_Policies。
+所在位置 行:1 字符: 1
++ .\venv\Scripts\activate
++ ~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : SecurityError: (:) []，PSSecurityException
+    + FullyQualifiedErrorId : UnauthorizedAccess
+
+```
+
+这是 **PowerShell 的执行策略限制** 导致你无法激活虚拟环境。Windows 默认出于安全原因**禁止运行 `.ps1` 脚本**，但你可以按照下面方法轻松解决
+
+方法一：临时更改当前会话的执行策略（推荐）
+```
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
+```
+方法二：永久允许（需管理员权限，不推荐日常使用）
+```
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+# 你会看到提示，输入 `Y` 确认。
+```
+
+
 ## 📦 Docker 启动
 
 ```bash
