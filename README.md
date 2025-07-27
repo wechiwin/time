@@ -5,19 +5,38 @@
 ## 项目结构
 
 ```
-frontend/
-├── public/
-│   └── index.html
-├── src/
-│   ├── App.jsx
-│   ├── components/
-│   │   ├── FundTable.jsx
-│   │   ├── TradeTable.jsx
-│   │   └── NavTable.jsx
-│   ├── index.css
-│   └── main.jsx
-├── package.json
-├── vite.config.js (或 webpack.config.js)
+├── Dockerfile
+├── README.md
+├── backend
+│   ├── app
+│   │   ├── __init__.py
+│   │   ├── database.py
+│   │   ├── framework
+│   │   │   └── response.py
+│   │   ├── models.py
+│   │   └── routes
+│   │       ├── __init__.py
+│   │       ├── holdings.py
+│   │       ├── net_values.py
+│   │       └── transactions.py
+│   ├── instance
+│   ├── requirements.txt
+│   └── run.py
+├── docker-compose.yml
+├── frontend
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── public
+│   │   └── index.html
+│   ├── src
+│   │   ├── App.jsx
+│   │   ├── components
+│   │   │   ├── FundTable.jsx
+│   │   │   ├── NavTable.jsx
+│   │   │   └── TradeTable.jsx
+│   │   ├── index.css
+│   │   └── main.jsx
+│   └── vite.config.js
 
 ```
 
@@ -32,10 +51,23 @@ frontend/
 ```bash
 # 启动后端（需要 Python3.11）
 cd backend
+# 使用python虚拟环境
+python -m venv venv
+# 启动虚拟环境
+# windows
+.\venv\Scripts\activate
+# macos linux
+source venv/bin/activate
+# 启动虚拟环境成功标志
+# 命令行前缀变成这样：
+# (venv) PS C:\Users\Administrator\Documents\stock_fund_tool>
+# 虚拟环境启动完之后需要在idea里配置python解释器
 pip install -r requirements.txt
-flask db init
-flask db migrate -m "init"
-flask db upgrade
+# flask暂时不用管
+#flask db init
+#flask db migrate -m "init"
+#flask db upgrade
+# 启动python 或者右键debug运行run.py
 python run.py
 
 # 启动前端
