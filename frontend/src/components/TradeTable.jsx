@@ -3,6 +3,7 @@ import useApi from '../hooks/useApi';
 import {CheckCircleIcon, ChevronUpDownIcon} from '@heroicons/react/24/outline';
 import DeleteConfirmation from './DeleteConfirmation';
 import {useDebounce} from '../hooks/useDebounce';
+import {useToast} from './toast/ToastContext';
 
 export default function TradeTable() {
     const [form, setForm] = useState({
@@ -26,6 +27,7 @@ export default function TradeTable() {
     const transitionSharesInputRef = useRef(null);
     const transitionFeeInputRef = useRef(null);
     const stockFundCodeInputRef = useRef(null);
+    const {showSuccessToast, showErrorToast} = useToast();
 
     // 使用自定义Hook获取交易数据
     const {
@@ -56,6 +58,7 @@ export default function TradeTable() {
             } catch (err) {
                 console.error('获取基金列表失败:', err);
                 setFundOptions([]);
+                showErrorToast(err.message);
             }
         };
 
@@ -109,10 +112,12 @@ export default function TradeTable() {
                 transaction_fee: ''
             });
             // await refetch();
-            setShowSuccess(true);
-            setTimeout(() => setShowSuccess(false), 3000);
+            showSuccessToast();
+            // setShowSuccess(true);
+            // setTimeout(() => setShowSuccess(false), 3000);
         } catch (err) {
             console.error('提交交易数据失败:', err);
+            showErrorToast(err.message);
         }
     };
 
@@ -120,22 +125,14 @@ export default function TradeTable() {
         try {
             await del(`/api/transactions/${id}`);
             // await refetch();
-            setShowSuccess(true);
-            setTimeout(() => setShowSuccess(false), 3000);
+            showSuccessToast();
+            // setShowSuccess(true);
+            // setTimeout(() => setShowSuccess(false), 3000);
         } catch (err) {
             console.error('删除交易记录失败:', err);
+            showErrorToast(err.message);
         }
     };
-
-    // if (loading) return <div className="p-8 text-center text-gray-500">加载中...</div>;
-    // if (error) return <div className="p-8 text-center text-red-500">错误: {error}</div>;
-
-    // console.log('Dropdown state:', {
-    //     showDropdown,
-    //     fundOptions,
-    //     searchInput,
-    //     formValue: form.fund_code
-    // });
 
     return (
         <div className="space-y-6">

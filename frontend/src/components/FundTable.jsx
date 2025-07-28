@@ -2,7 +2,7 @@ import React, {useState} from 'react';
 import useApi from '../hooks/useApi';
 import {CheckCircleIcon} from '@heroicons/react/24/outline';
 import DeleteConfirmation from './DeleteConfirmation';
-import {TOAST_TYPE, TOAST_MESSAGE, useToast} from './toast/ToastContext';  // 引入全局Toast
+import {useToast} from './toast/ToastContext';  // 引入全局Toast
 
 export default function FundTable() {
     const {showSuccessToast, showErrorToast} = useToast();
@@ -33,11 +33,9 @@ export default function FundTable() {
         try {
             await post('/api/holdings', form);
             setForm({fund_name: '', fund_code: '', fund_type: 'ETF'}); // 重置为默认值'ETF'
-            // showToast(TOAST_TYPE.SUCCESS, TOAST_MESSAGE.SUCCESS);
             showSuccessToast();
         } catch (err) {
             console.error('添加基金失败:', err);
-            // showToast(TOAST_TYPE.ERROR, TOAST_MESSAGE.FAILURE + err);
             showErrorToast(err.message);
         }
     };
@@ -46,11 +44,9 @@ export default function FundTable() {
     const handleDelete = async (id) => {
         try {
             await del(`/api/holdings/${id}`);
-            // showToast(TOAST_TYPE.SUCCESS, TOAST_MESSAGE.SUCCESS);
             showSuccessToast();
         } catch (err) {
             console.error('删除失败:', err);
-            // showToast(TOAST_TYPE.ERROR, TOAST_MESSAGE.FAILURE + err);
             showErrorToast(err.message);
         }
     };

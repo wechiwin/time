@@ -3,6 +3,7 @@ import useApi from '../hooks/useApi';
 import {CheckCircleIcon, ChevronUpDownIcon} from '@heroicons/react/24/outline';
 import DeleteConfirmation from './DeleteConfirmation';
 import {useDebounce} from '../hooks/useDebounce';
+import {useToast} from './toast/ToastContext';
 
 export default function NavTable() {
     const [form, setForm] = useState({
@@ -11,7 +12,6 @@ export default function NavTable() {
         unit_net_value: '',
         accumulated_net_value: ''
     });
-    const [showSuccess, setShowSuccess] = useState(false);
     const [fundOptions, setFundOptions] = useState([]);
     const [searchInput, setSearchInput] = useState('');
     const [showDropdown, setShowDropdown] = useState(false);
@@ -22,6 +22,7 @@ export default function NavTable() {
     const stockFundCodeInputRef = useRef(null);
     const unitNetValueInputRef = useRef(null);
     const accumulatedNetValueInputRef = useRef(null);
+    const {showSuccessToast, showErrorToast} = useToast();
 
     // 使用自定义Hook获取数据
     const {
@@ -52,6 +53,7 @@ export default function NavTable() {
             } catch (err) {
                 console.error('获取基金列表失败:', err);
                 setFundOptions([]);
+                showErrorToast(err.message);
             }
         };
 
@@ -77,7 +79,7 @@ export default function NavTable() {
         setSearchInput(e.target.value);
     }
 
-    const handleFundCodeFocus =()=>{
+    const handleFundCodeFocus = () => {
         setFocusedInput(stockFundCodeInputRef)
         setShowDropdown(true)
     }
@@ -103,10 +105,10 @@ export default function NavTable() {
                 accumulated_net_value: ''
             });
             // await refetch();
-            setShowSuccess(true);
-            setTimeout(() => setShowSuccess(false), 3000);
+            showSuccessToast();
         } catch (err) {
             console.error('提交净值数据失败:', err);
+            showErrorToast(err.message);
         }
     };
 
@@ -114,14 +116,12 @@ export default function NavTable() {
         try {
             await del(`/api/net_values/${id}`);
             // await refetch();
-            setShowSuccess(true);
-            setTimeout(() => setShowSuccess(false), 3000);
+            showSuccessToast();
         } catch (err) {
             console.error('删除净值记录失败:', err);
+            showErrorToast(err.message);
         }
     };
-
-    if (error) return <div className="p-8 text-center text-red-500">错误: {error}</div>;
 
     return (
         <div className="space-y-6">
@@ -175,13 +175,6 @@ export default function NavTable() {
                         )}
                     </div>
 
-                    {/*<input*/}
-                    {/*    className="input-field"*/}
-                    {/*    placeholder="基金代码"*/}
-                    {/*    value={form.fund_code}*/}
-                    {/*    onChange={e => setForm({...form, fund_code: e.target.value})}*/}
-                    {/*    required*/}
-                    {/*/>*/}
                     <input
                         type="date"
                         className="input-field"
@@ -194,7 +187,9 @@ export default function NavTable() {
                         className="input-field"
                         placeholder="单位净值"
                         value={form.unit_net_value}
-                        onFocus={()=>{setFocusedInput(unitNetValueInputRef)}}
+                        onFocus={() => {
+                            setFocusedInput(unitNetValueInputRef)
+                        }}
                         onChange={e => setForm({...form, unit_net_value: e.target.value})}
                         required
                     />
@@ -203,7 +198,9 @@ export default function NavTable() {
                         className="input-field"
                         placeholder="累计净值"
                         value={form.accumulated_net_value}
-                        onFocus={()=>{setFocusedInput(accumulatedNetValueInputRef)}}
+                        onFocus={() => {
+                            setFocusedInput(accumulatedNetValueInputRef)
+                        }}
                         onChange={e => setForm({...form, accumulated_net_value: e.target.value})}
                         required
                     />
@@ -245,16 +242,6 @@ export default function NavTable() {
                     </tbody>
                 </table>
             </div>
-
-            {/* 操作成功提示 */}
-            {showSuccess && (
-                <div className="fixed bottom-4 right-4 z-50 animate-fade-in">
-                    <div className="bg-green-500 text-white px-4 py-2 rounded-md shadow-lg flex items-center">
-                        <CheckCircleIcon className="w-5 h-5 mr-2"/>
-                        操作成功
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
