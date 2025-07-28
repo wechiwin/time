@@ -1,17 +1,10 @@
-# backend/app/__init__.py
-import logging
-
-# Import the db instance from your database module
 from app.database import db
-from flask import Flask, jsonify
+from app.framework.log_config import setup_logging
+from flask import Flask, jsonify, request, make_response
 
 from .routes.holdings import holdings_bp
 from .routes.net_values import net_values_bp
 from .routes.transactions import transactions_bp
-
-# 配置日志
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 def create_app():
@@ -25,6 +18,10 @@ def create_app():
     # app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False # Recommended to disable this for performance
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///site.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['SQLALCHEMY_ECHO'] = True
+
+    # 初始化日志
+    setup_logging(app)
 
     # Initialize the SQLAlchemy instance with the Flask app
     # This is the crucial step to connect Flask-SQLAlchemy to your app
@@ -57,5 +54,16 @@ def create_app():
         A health check endpoint to verify the application's status.
         """
         return jsonify({"status": "healthy", "message": "API is running."}), 200
+
+    # 请求日志
+    @app.before_request
+    def log_request():
+        app.logger.info(f"[Request] {request.method} {request.path} {request.args}")
+
+    # 异常日志
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        app.logger.exception("An error occurred:")
+        return {"error": "Internal Server Error"}, 500
 
     return app
