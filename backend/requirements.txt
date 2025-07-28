@@ -2,3 +2,6 @@ flask
 flask_sqlalchemy
 flask_migrate
 flask_cors
+pandas
+openpyxl
+xlsxwriter
