@@ -7,10 +7,10 @@ class TimestampMixin:
     混入类：为继承它的所有模型统一增加
     created_at 和 updated_at 两个时间戳字段
     """
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now(), nullable=False)
     updated_at = db.Column(db.DateTime,
-                           default=datetime.utcnow,
-                           onupdate=datetime.utcnow,
+                           default=datetime.now(),
+                           onupdate=datetime.now(),
                            nullable=False)
 
 
