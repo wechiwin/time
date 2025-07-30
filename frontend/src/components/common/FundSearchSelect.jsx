@@ -2,7 +2,7 @@
 import {useEffect, useRef, useState} from 'react';
 import SearchBox from '../search/SearchBox';
 import {useDebouncedSearch} from '../../hooks/useDebouncedSearch';
-import useFundList from "../../hooks/useFundList";
+import useFundList from "../../hooks/api/useFundList";
 
 export default function FundSearchSelect({value, onChange, placeholder = '搜索基金'}) {
     const [list, setList] = useState([]);

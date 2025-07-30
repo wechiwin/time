@@ -1,6 +1,6 @@
 // src/hooks/useFundList.js
 import {useCallback} from 'react';
-import useApi from './useApi';
+import useApi from '../useApi';
 
 export default function useFundList() {
     // 把 /api/holdings 交给 useApi 托管

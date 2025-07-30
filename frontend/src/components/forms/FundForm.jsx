@@ -1,14 +1,13 @@
 // src/components/forms/FundForm.jsx
 import {useState} from 'react';
 import {useToast} from '../toast/ToastContext';
-import FundSearchSelect from "../common/FundSearchSelect";
 
 const fundTypeOptions = [
     {value: 'ETF', label: 'ETF'},
     {value: 'LOF', label: 'LOF'},
 ];
 
-export default function FundForm({onSubmit}) {
+export default function FundForm({onSubmit, onClose}) {
     const [form, setForm] = useState({fund_code: '', fund_name: '', fund_type: 'ETF'});
     const {showSuccessToast, showErrorToast} = useToast();
 
@@ -24,21 +23,22 @@ export default function FundForm({onSubmit}) {
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4 p-4 page-bg rounded-lg">
-            <h2 className="text-lg font-medium text-gray-800">添加新基金</h2>
+        // <form onSubmit={handleSubmit} className="space-y-4 p-4 page-bg rounded-lg">
+        //     <h2 className="text-lg font-medium text-gray-800">添加新基金</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FundSearchSelect
-                    value={form.fund_code}
-                    onChange={(code) => setForm(prev => ({ ...prev, fund_code: code }))}
-                    placeholder="搜索基金"
-                />
-                {/* <input */}
-                {/*     placeholder="基金代码" */}
+                {/* <FundSearchSelect */}
                 {/*     value={form.fund_code} */}
-                {/*     onChange={(e) => setForm({...form, fund_code: e.target.value})} */}
-                {/*     required */}
-                {/*     className="input-field" */}
+                {/*     onChange={(code) => setForm(prev => ({...prev, fund_code: code}))} */}
+                {/*     placeholder="搜索基金" */}
                 {/* /> */}
+                <input
+                    placeholder="基金代码"
+                    value={form.fund_code}
+                    onChange={(e) => setForm({...form, fund_code: e.target.value})}
+                    required
+                    className="input-field"
+                />
                 <input
                     placeholder="基金名称"
                     value={form.fund_name}
@@ -56,9 +56,14 @@ export default function FundForm({onSubmit}) {
                     ))}
                 </select>
             </div>
-            <button type="submit" className="btn-primary">
-                添加基金
-            </button>
+            <div className="flex justify-end space-x-2 pt-2">
+                <button type="button" className="btn-secondary" onClick={onClose}>
+                    取消
+                </button>
+                <button type="submit" className="btn-primary">
+                    确认添加
+                </button>
+            </div>
         </form>
     );
 }

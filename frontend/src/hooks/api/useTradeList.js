@@ -1,6 +1,6 @@
 // src/hooks/useTradeList.js
-import { useCallback } from 'react';
-import useApi from './useApi';
+import {useCallback} from 'react';
+import useApi from '../useApi';
 
 export default function useTradeList() {
     const { data, loading, error, post, del, get: fetch } = useApi('/api/transactions');
