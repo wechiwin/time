@@ -1,9 +1,10 @@
+from io import BytesIO
+
+import pandas as pd
 from app.framework.response import Response
 from app.models import db, Holding
 from flask import Blueprint, request, send_file
 from sqlalchemy import or_
-import pandas as pd
-from io import BytesIO
 
 holdings_bp = Blueprint('holdings', __name__, url_prefix='/api/holdings')
 
@@ -18,7 +19,7 @@ def get_holdings():
     if fund_code:
         query = query.filter_by(fund_code=fund_code)
     if fund_name:
-        query = query.filter(Holding.fund_name.contains(fund_name))
+        query = query.filter_by(fund_name=fund_name)
     if fund_type:
         query = query.filter_by(fund_type=fund_code)
 
@@ -96,11 +97,11 @@ def search_holdings():
         q: 搜索关键词(基金代码或名称)
         limit: 返回结果数量(默认10)
     """
-    search_term = request.args.get('q', '').strip()
+    search_term = request.args.get('keyword', '').strip()
     limit = min(int(request.args.get('limit', 10)), 50)  # 限制最大返回50条
 
-    if not search_term:
-        return Response.error(code=400, message="请输入搜索关键词")
+    # if not search_term:
+    #     return Response.success(data=[])
 
     # 执行模糊查询
     holdings = Holding.query.filter(

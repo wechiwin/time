@@ -1,6 +1,5 @@
 // src/components/common/FundSearchSelect.jsx
-import {useState} from 'react';
-import axios from 'axios';
+import {useEffect, useRef, useState} from 'react';
 import SearchBox from '../search/SearchBox';
 import {useDebouncedSearch} from '../../hooks/useDebouncedSearch';
 import useFundList from "../../hooks/useFundList";
@@ -9,6 +8,26 @@ export default function FundSearchSelect({value, onChange, placeholder = '搜索
     const [list, setList] = useState([]);
     const [open, setOpen] = useState(false);
     const {data, loading, add, remove, search} = useFundList();
+    const [keyword, setKeyword] = useDebouncedSearch(search, 500);
+    const wrapperRef = useRef(null);
+
+    //  监听点击外部
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            console.log('click outside check', event.target);
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+                console.log('close dropdown');
+                setOpen(false);
+            }
+        };
+        document.addEventListener('click', handleClickOutside, true);   // 捕获阶段
+        return () => document.removeEventListener('click', handleClickOutside, true);
+    }, []);
+
+    // 每次 data 更新，刷新 list
+    useEffect(() => {
+        setList(data);
+    }, [data]);
 
     // 防抖搜索函数
     const handleSearch = async (keyword) => {
@@ -24,10 +43,9 @@ export default function FundSearchSelect({value, onChange, placeholder = '搜索
         }
     };
 
-    const [keyword, setKeyword] = useDebouncedSearch(search, 500);
 
     return (
-        <div className="relative">
+        <div className="relative" ref={wrapperRef}>
             <SearchBox
                 value={keyword}
                 onChange={(val) => {
@@ -35,11 +53,7 @@ export default function FundSearchSelect({value, onChange, placeholder = '搜索
                     setOpen(true);
                 }}
                 placeholder={placeholder}
-                onSearchNow={() => search(keyword)}
-                inputProps={{
-                    onFocus: () => setOpen(true),
-                    onBlur: () => setTimeout(() => setOpen(false), 150),
-                }}
+                onSearchNow={() => handleSearch(keyword)}
             />
 
             {open && (

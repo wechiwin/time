@@ -4,7 +4,6 @@ import FundForm from '../components/forms/FundForm';
 import FundTable from '../components/tables/FundTable';
 import useFundList from '../hooks/useFundList';
 import useDeleteWithToast from '../hooks/useDeleteWithToast';
-import SearchBox from '../components/search/SearchBox';
 import {useDebouncedSearch} from "../hooks/useDebouncedSearch";
 
 export default function FundPage() {
