@@ -17,7 +17,7 @@ export default function DeleteButton({ onConfirm, description }) {
             <Dialog open={open} onClose={() => setOpen(false)} className="relative z-50">
                 <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
                 <div className="fixed inset-0 flex items-center justify-center p-4">
-                    <Dialog.Panel className="bg-white rounded p-6 max-w-sm w-full">
+                    <Dialog.Panel className="card rounded p-6 max-w-sm w-full">
                         <Dialog.Title className="font-semibold mb-2">确认删除</Dialog.Title>
                         <p className="text-sm text-gray-600 mb-4">{description}</p>
                         <div className="flex justify-end space-x-2">

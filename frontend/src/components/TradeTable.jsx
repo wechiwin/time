@@ -137,7 +137,7 @@ export default function TradeTable() {
     return (
         <div className="space-y-6">
             {/* 添加交易表单 */}
-            <form onSubmit={handleSubmit} className="space-y-4 p-4 bg-gray-50 rounded-lg">
+            <form onSubmit={handleSubmit} className="space-y-4 p-4 page-bg rounded-lg">
                 <h2 className="text-lg font-medium text-gray-800">添加新交易</h2>
                 <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
 
@@ -166,7 +166,7 @@ export default function TradeTable() {
                         {/* 下拉框 */}
                         {showDropdown && (
                             <div
-                                className="absolute z-50 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-auto">
+                                className="absolute z-50 mt-1 w-full card shadow-lg rounded-md border card max-h-60 overflow-auto">
                                 {fundOptions.length > 0 ? (
                                     fundOptions.map((fund) => (
                                         <div
@@ -250,9 +250,9 @@ export default function TradeTable() {
                         <th className="table-header">操作</th>
                     </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="card divide-y divide-gray-200">
                     {trades?.map(trade => (
-                        <tr key={trade.id} className="hover:bg-gray-50">
+                        <tr key={trade.id} className="hover:page-bg">
                             <td className="table-cell hidden">{trade.id}</td>
                             <td className="table-cell font-medium text-gray-900">{trade.fund_code}</td>
                             <td className="table-cell">

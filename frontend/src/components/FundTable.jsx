@@ -54,7 +54,7 @@ export default function FundTable() {
     return (
         <div className="space-y-6">
             {/* 添加基金表单 */}
-            <form onSubmit={handleSubmit} className="space-y-4 p-4 bg-gray-50 rounded-lg">
+            <form onSubmit={handleSubmit} className="space-y-4 p-4 page-bg rounded-lg">
                 <h2 className="text-lg font-medium text-gray-800">添加新基金</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <input
@@ -101,9 +101,9 @@ export default function FundTable() {
                         <th className="table-header">基金操作</th>
                     </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="card divide-y divide-gray-200">
                     {funds.map(fund => (
-                        <tr key={fund.id} className="hover:bg-gray-50">
+                        <tr key={fund.id} className="hover:page-bg">
                             <td className="table-cell hidden">{fund.id}</td>
                             <td className="table-cell">{fund.fund_code}</td>
                             <td className="table-cell font-medium text-gray-900">{fund.fund_name}</td>

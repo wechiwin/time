@@ -28,3 +28,56 @@
 .table-cell {
     @apply px-6 py-4 whitespace-nowrap text-sm text-gray-500;
 }
+
+@layer components {
+    /* 卡片或页面背景 */
+    .page-bg {
+        @apply bg-gray-50 dark:bg-gray-900;
+    }
+
+    /* 卡片 */
+    .card {
+        @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700;
+    }
+
+    /* 表单输入框 */
+    .input-field {
+        @apply w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600
+        rounded-md shadow-sm focus:ring-2 focus:ring-blue-500
+        focus:border-blue-500 bg-white dark:bg-gray-800
+        text-gray-900 dark:text-gray-100;
+    }
+
+    /* 主按钮 */
+    .btn-primary {
+        @apply px-4 py-2 bg-blue-600 text-white rounded-md
+        hover:bg-blue-700
+        focus:outline-none focus:ring-2 focus:ring-blue-500;
+    }
+
+    /* 危险按钮 */
+    .btn-danger {
+        @apply px-4 py-2 bg-red-600 text-white rounded-md
+        hover:bg-red-700
+        focus:outline-none focus:ring-2 focus:ring-red-500;
+    }
+
+    /* 表格容器 */
+    .table-container {
+        @apply overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg;
+    }
+
+    /* 表头 */
+    .table-header {
+        @apply px-6 py-3 text-left text-xs font-medium
+        text-gray-500 dark:text-gray-400 uppercase tracking-wider
+        bg-gray-50 dark:bg-gray-700;
+    }
+
+    /* 单元格 */
+    .table-cell {
+        @apply px-6 py-4 whitespace-nowrap
+        text-sm text-gray-900 dark:text-gray-100
+        border-b border-gray-200 dark:border-gray-700;
+    }
+}

@@ -1,6 +1,7 @@
 module.exports = {
     darkMode: 'class', // 启用手动切换暗黑模式
     content: [
+        "./index.html",
         "./src/**/*.{js,jsx,ts,tsx}",
         "./node_modules/@heroicons/react/**/*.{js,ts,jsx,tsx}"
     ],

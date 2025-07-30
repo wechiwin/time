@@ -66,7 +66,7 @@ export default function DeleteConfirmation({
                             leaveTo="opacity-0 scale-95"
                             className="w-full max-w-md"
                         >
-                            <Dialog.Panel className="bg-white rounded-lg shadow-xl overflow-hidden">
+                            <Dialog.Panel className="card rounded-lg shadow-xl overflow-hidden">
                                 <div className="p-6">
                                     <div className="flex items-start">
                                         <div className="flex-shrink-0">
@@ -89,11 +89,11 @@ export default function DeleteConfirmation({
                                     </div>
                                 </div>
 
-                                <div className="bg-gray-50 px-6 py-4 flex justify-end space-x-3">
+                                <div className="page-bg px-6 py-4 flex justify-end space-x-3">
                                     <button
                                         type="button"
                                         onClick={handleCancel}
-                                        className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors text-sm"
+                                        className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:page-bg transition-colors text-sm"
                                     >
                                         {cancelText}
                                     </button>

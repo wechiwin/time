@@ -15,7 +15,7 @@ const navigation = [
 
 export default function Sidebar() {
     return (
-        <div className="w-64 bg-white shadow-md flex flex-col">
+        <div className="w-64 card dark:bg-gray-800 shadow-md flex flex-col">
             {/* Logo */}
             <div className="h-16 flex items-center px-6 border-b">
         <span className="text-lg font-bold text-blue-600">
@@ -32,8 +32,8 @@ export default function Sidebar() {
                         className={({isActive}) =>
                             `flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                                 isActive
-                                    ? 'bg-blue-50 text-blue-700'
-                                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                                    ? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                                    : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
                             }`
                         }
                     >

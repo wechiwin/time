@@ -26,7 +26,7 @@ export default function NetValueForm({ onSubmit }) {
     };
 
     return (
-        <form onSubmit={submit} className="space-y-4 p-4 bg-gray-50 rounded-lg">
+        <form onSubmit={submit} className="space-y-4 p-4 page-bg rounded-lg">
             <h2 className="text-lg font-medium text-gray-800">添加净值记录</h2>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <FundSearchSelect
