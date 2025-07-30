@@ -2,7 +2,7 @@
 import NetValueSearchBox from '../components/search/NetValueSearchBox';
 import NetValueForm from '../components/forms/NetValueForm';
 import NetValueTable from '../components/tables/NetValueTable';
-import useNetValueList from '../hooks/useNetValueList';
+import useNetValueList from '../hooks/api/useNetValueList';
 import useDeleteWithToast from '../hooks/useDeleteWithToast';
 
 export default function NetValuePage() {

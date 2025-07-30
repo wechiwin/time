@@ -2,7 +2,7 @@
 import TradeSearchBox from '../components/search/TradeSearchBox';
 import TradeForm from '../components/forms/TradeForm';
 import TradeTable from '../components/tables/TradeTable';
-import useTradeList from '../hooks/useTradeList';
+import useTradeList from '../hooks/api/useTradeList';
 import useDeleteWithToast from '../hooks/useDeleteWithToast';
 
 export default function TradePage() {
