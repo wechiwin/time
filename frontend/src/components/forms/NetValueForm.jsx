@@ -12,7 +12,7 @@ const init = {
 
 export default function NetValueForm({ onSubmit }) {
     const [form, setForm] = useState(init);
-    const { showErrorToast } = useToast();
+    const { showSuccessToast,showErrorToast } = useToast();
 
     const submit = async (e) => {
         e.preventDefault();

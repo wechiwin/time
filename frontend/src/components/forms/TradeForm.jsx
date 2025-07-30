@@ -14,7 +14,7 @@ const init = {
 
 export default function TradeForm({onSubmit}) {
     const [form, setForm] = useState(init);
-    const {showErrorToast} = useToast();
+    const {showSuccessToast,showErrorToast} = useToast();
 
     const submit = async (e) => {
         e.preventDefault();

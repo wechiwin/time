@@ -1,10 +1,11 @@
 # stock_fund_tool
 
-一个基于 Flask + React 的个人基金管理工具。
+一个基于 Flask + React + TailwindCSS的个人基金管理工具。
 
 ## 项目结构
 
 ```
+├── .gitignore
 ├── Dockerfile
 ├── README.md
 ├── backend
@@ -12,6 +13,7 @@
 │   │   ├── __init__.py
 │   │   ├── database.py
 │   │   ├── framework
+│   │   │   ├── log_config.py
 │   │   │   └── response.py
 │   │   ├── models.py
 │   │   └── routes
@@ -20,23 +22,64 @@
 │   │       ├── net_values.py
 │   │       └── transactions.py
 │   ├── instance
+│   │   └── site.db
 │   ├── requirements.txt
 │   └── run.py
 ├── docker-compose.yml
-├── frontend
-│   ├── package-lock.json
-│   ├── package.json
-│   ├── public
-│   │   └── index.html
-│   ├── src
-│   │   ├── App.jsx
-│   │   ├── components
-│   │   │   ├── FundTable.jsx
-│   │   │   ├── NavTable.jsx
-│   │   │   └── TradeTable.jsx
-│   │   ├── index.css
-│   │   └── main.jsx
-│   └── vite.config.js
+└── frontend
+    ├── index.html
+    ├── package-lock.json
+    ├── package.json
+    ├── postcss.config.js
+    ├── public
+    │   └── manifest.json
+    ├── src
+    │   ├── App.jsx
+    │   ├── api
+    │   │   └── client.js
+    │   ├── components
+    │   │   ├── common
+    │   │   │   ├── DeleteButton.jsx
+    │   │   │   └── FundSearchSelect.jsx
+    │   │   ├── forms
+    │   │   │   ├── FundForm.jsx
+    │   │   │   ├── NetValueForm.jsx
+    │   │   │   └── TradeForm.jsx
+    │   │   ├── layout
+    │   │   │   ├── DarkToggle.jsx
+    │   │   │   ├── Header.jsx
+    │   │   │   ├── Layout.jsx
+    │   │   │   └── Sidebar.jsx
+    │   │   ├── search
+    │   │   │   ├── FundSearchBox.jsx
+    │   │   │   ├── NetValueSearchBox.jsx
+    │   │   │   └── TradeSearchBox.jsx
+    │   │   ├── tables
+    │   │   │   ├── FundTable.jsx
+    │   │   │   ├── NetValueTable.jsx
+    │   │   │   └── TradeTable.jsx
+    │   │   └── toast
+    │   │       ├── Toast.jsx
+    │   │       └── ToastContext.jsx
+    │   ├── constants
+    │   │   └── common.js
+    │   ├── context
+    │   ├── hooks
+    │   │   ├── useApi.js
+    │   │   ├── useDarkMode.js
+    │   │   ├── useDebounce.js
+    │   │   ├── useFundList.js
+    │   │   ├── useNetValueList.js
+    │   │   └── useTradeList.js
+    │   ├── index.css
+    │   ├── main.jsx
+    │   └── pages
+    │       ├── Dashboard.jsx
+    │       ├── FundPage.jsx
+    │       ├── NetValuePage.jsx
+    │       └── TradePage.jsx
+    ├── tailwind.config.js
+    └── vite.config.js
 
 ```
 
