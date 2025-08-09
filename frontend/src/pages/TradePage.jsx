@@ -13,7 +13,7 @@ export default function TradePage() {
             <h1 className="text-2xl font-bold">交易管理</h1>
             <TradeSearchBox onSearch={search} />
             <TradeForm onSubmit={add} />
-            <TradeTable data={data} loading={loading} onDelete={handleDelete} />
+            <TradeTable data={data} onDelete={handleDelete} />
         </div>
     );
 }

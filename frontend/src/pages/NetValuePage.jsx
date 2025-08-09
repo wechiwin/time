@@ -13,7 +13,7 @@ export default function NetValuePage() {
             <h1 className="text-2xl font-bold">净值历史</h1>
             <NetValueSearchBox onSearch={search} />
             <NetValueForm onSubmit={add} />
-            <NetValueTable data={data} loading={loading} onDelete={handleDelete} />
+            <NetValueTable data={data} onDelete={handleDelete} />
         </div>
     );
 }

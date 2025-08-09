@@ -28,7 +28,7 @@ export default function FundPage() {
                 </button>
             </div>
             {/* <FundForm onSubmit={add}/> */}
-            <FundTable data={data} loading={loading} onDelete={handleDelete}/>
+            <FundTable data={data} onDelete={handleDelete}/>
             {/* 模态框 */}
             <FormModal
                 title="添加新基金"
