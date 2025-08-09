@@ -4,7 +4,7 @@ import useApi from '../useApi';
 
 export default function useFundList() {
     // 把 /api/holdings 交给 useApi 托管
-    const {data, loading, error, post, del, get: fetch} = useApi('/api/holdings');
+    const {data, loading, error, post, del, put, get: fetch} = useApi('/api/holdings');
 
     const getByParam = useCallback(
         ({fund_name, fund_code, fund_type}) => {
@@ -36,5 +36,11 @@ export default function useFundList() {
         [del]
     );
 
-    return {data, loading, error, add, remove, search, getByParam};
+    // 更新
+    const update = useCallback(
+        ({ id, ...body }) => put(`/api/holdings/${id}`, body),
+        [put]
+    );
+
+    return {data, loading, error, add, remove, search, update, getByParam};
 }

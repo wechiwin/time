@@ -59,7 +59,7 @@ export default function useApi(endpoint) {
     // PUT 请求
     const put = useCallback(async (url = endpoint, body, autoRefresh = true) => {
         const result = await request(url, 'PUT', body);
-        setData(result);
+        // setData(result);
         // 不依赖返回的数据，直接重新获取一次最新数据
         if (autoRefresh) {
             await get();

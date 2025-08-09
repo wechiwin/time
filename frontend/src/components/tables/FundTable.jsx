@@ -1,8 +1,8 @@
 // src/components/tables/FundTable.jsx
 import DeleteButton from '../common/DeleteButton';
 
-export default function FundTable({ data = [], loading, onDelete }) {
-    if (loading) return <p className="text-sm text-gray-500">加载中…</p>;
+export default function FundTable({data = [], onDelete, onEdit}) {
+    // if (loading) return <p className="text-sm text-gray-500">加载中…</p>;
 
     return (
         <div className="overflow-x-auto">
@@ -21,11 +21,19 @@ export default function FundTable({ data = [], loading, onDelete }) {
                         <td className="table-cell">{f.fund_code}</td>
                         <td className="table-cell font-medium">{f.fund_name}</td>
                         <td className="table-cell">{f.fund_type}</td>
-                        <td className="table-cell text-right">
-                            <DeleteButton
-                                onConfirm={() => onDelete(f.id)}
-                                description={`确定删除基金 ${f.fund_name} (${f.fund_code}) 吗？`}
-                            />
+                        <td className="table-cell">
+                            <div className="flex items-center space-x-2">
+                                <button
+                                    className="btn-secondary"
+                                    onClick={() => onEdit(f)}
+                                >
+                                    修改
+                                </button>
+                                <DeleteButton
+                                    onConfirm={() => onDelete(f.id)}
+                                    description={`确定删除基金 ${f.fund_name} (${f.fund_code}) 吗？`}
+                                />
+                            </div>
                         </td>
                     </tr>
                 ))}

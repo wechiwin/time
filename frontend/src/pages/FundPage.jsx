@@ -9,11 +9,30 @@ import {useState} from 'react';
 import FormModal from "../components/common/FormModal";
 
 export default function FundPage() {
-    const {data, loading, add, remove, search} = useFundList();
+    const {data, loading, add, remove, search, update} = useFundList();
     const handleDelete = useDeleteWithToast(remove, '基金');
-    const [keyword, setKeyword] = useDebouncedSearch(search, 300);
-    // 控制模态框开关
+    // const [keyword, setKeyword] = useDebouncedSearch(search, 300);
+    // 模态框控制
     const [showModal, setShowModal] = useState(false);
+    const [modalTitle, setModalTitle] = useState("添加新基金");
+    const [modalSubmit, setModalSubmit] = useState(() => add);
+    const [initialValues, setInitialValues] = useState({});
+
+    const openAddModal = () => {
+        setModalTitle("添加新基金");
+        setModalSubmit(() => add);
+        setInitialValues({});
+        setShowModal(true);
+    };
+
+    const openEditModal = (fund) => {
+        console.log(fund)
+        setModalTitle("修改基金");
+        setModalSubmit(() => update);
+        setInitialValues(fund);
+        setShowModal(true);
+    };
+
     return (
         <div className="space-y-6">
             <h1 className="text-2xl font-bold">基金管理</h1>
@@ -21,36 +40,23 @@ export default function FundPage() {
             {/* 添加按钮 */}
             <div className="text-left">
                 <button
-                    onClick={() => setShowModal(true)}
+                    onClick={openAddModal}
                     className="btn-primary"
                 >
                     添加基金
                 </button>
             </div>
             {/* <FundForm onSubmit={add}/> */}
-            <FundTable data={data} onDelete={handleDelete}/>
+            <FundTable data={data} onDelete={handleDelete} onEdit={openEditModal}/>
             {/* 模态框 */}
             <FormModal
-                title="添加新基金"
+                title={modalTitle}
                 show={showModal}
                 onClose={() => setShowModal(false)}
-                onSubmit={add}
+                onSubmit={modalSubmit}
                 FormComponent={FundForm}
+                initialValues={initialValues}
             />
-            {/* {showModal && ( */}
-            {/*     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"> */}
-            {/*         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg p-6"> */}
-            {/*             <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">添加新基金</h2> */}
-            {/*             <FundForm */}
-            {/*                 onSubmit={async (values) => { */}
-            {/*                     await add(values); */}
-            {/*                     setShowModal(false); // 成功后关闭 */}
-            {/*                 }} */}
-            {/*                 onClose={() => setShowModal(false)} */}
-            {/*             /> */}
-            {/*         </div> */}
-            {/*     </div> */}
-            {/* )} */}
         </div>
     );
 }

@@ -1,5 +1,5 @@
 // src/components/forms/FundForm.jsx
-import {useState} from 'react';
+import {useEffect, useState} from 'react';
 import {useToast} from '../toast/ToastContext';
 
 const fundTypeOptions = [
@@ -7,8 +7,13 @@ const fundTypeOptions = [
     {value: 'LOF', label: 'LOF'},
 ];
 
-export default function FundForm({onSubmit, onClose}) {
-    const [form, setForm] = useState({fund_code: '', fund_name: '', fund_type: 'ETF'});
+export default function FundForm({onSubmit, onClose, initialValues}) {
+    const [form, setForm] = useState({
+        id: '',
+        fund_code: '',
+        fund_name: '',
+        fund_type: 'ETF'
+    });
     const {showSuccessToast, showErrorToast} = useToast();
 
     const handleSubmit = async (e) => {
@@ -22,16 +27,21 @@ export default function FundForm({onSubmit, onClose}) {
         }
     };
 
+    // 当 initialValues 变化时，回显到表单
+    useEffect(() => {
+        if (initialValues) {
+            setForm({
+                id: initialValues.id,
+                fund_code: initialValues.fund_code || '',
+                fund_name: initialValues.fund_name || '',
+                fund_type: initialValues.fund_type || '',
+            });
+        }
+    }, [initialValues]);
+
     return (
-        // <form onSubmit={handleSubmit} className="space-y-4 p-4 page-bg rounded-lg">
-        //     <h2 className="text-lg font-medium text-gray-800">添加新基金</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* <FundSearchSelect */}
-                {/*     value={form.fund_code} */}
-                {/*     onChange={(code) => setForm(prev => ({...prev, fund_code: code}))} */}
-                {/*     placeholder="搜索基金" */}
-                {/* /> */}
                 <input
                     placeholder="基金代码"
                     value={form.fund_code}
@@ -61,7 +71,7 @@ export default function FundForm({onSubmit, onClose}) {
                     取消
                 </button>
                 <button type="submit" className="btn-primary">
-                    确认添加
+                    确认
                 </button>
             </div>
         </form>
