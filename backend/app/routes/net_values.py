@@ -1,5 +1,5 @@
 from app.framework.response import Response
-from app.models import db, NetValue
+from app.models import db, NetValue, Holding
 from flask import Blueprint, request
 
 net_values_bp = Blueprint('net_values', __name__, url_prefix='/api/net_values')
@@ -8,17 +8,24 @@ net_values_bp = Blueprint('net_values', __name__, url_prefix='/api/net_values')
 @net_values_bp.route('', methods=['GET'])
 def get_net_values():
     fund_code = request.args.get('fund_code')
-    query = NetValue.query
+
+    # 基础查询：左连接 Holding 表
+    query = db.session.query(NetValue, Holding.fund_name).outerjoin(
+        Holding, NetValue.fund_code == Holding.fund_code
+    )
+
+    # query = NetValue.query
     if fund_code:
         query = query.filter_by(fund_code=fund_code)
-    net_values = query.order_by(NetValue.date).all() or []
+    results = query.order_by(NetValue.date).all() or []
     data = [{
         'id': nv.id,
         'fund_code': nv.fund_code,
+        'fund_name': fund_name,
         'date': nv.date,
         'unit_net_value': nv.unit_net_value,
         'accumulated_net_value': nv.accumulated_net_value
-    } for nv in net_values]
+    } for nv, fund_name in results]
     return Response.success(data=data)
 
 

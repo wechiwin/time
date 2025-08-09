@@ -1,8 +1,7 @@
 // src/components/tables/TradeTable.jsx
 import DeleteButton from '../common/DeleteButton';
 
-export default function TradeTable({ data = [], loading, onDelete }) {
-    if (loading) return <p className="text-sm text-gray-500">加载中…</p>;
+export default function TradeTable({data = [], onDelete, onEdit}) {
 
     return (
         <div className="overflow-x-auto">
@@ -38,10 +37,18 @@ export default function TradeTable({ data = [], loading, onDelete }) {
                         <td className="table-cell">{t.transaction_shares}</td>
                         <td className="table-cell">{t.transaction_fee}</td>
                         <td className="table-cell text-right">
-                            <DeleteButton
-                                onConfirm={() => onDelete(t.id)}
-                                description={`删除 ${t.fund_code} 的这条交易？`}
-                            />
+                            <div className="flex items-center space-x-2">
+                                <button
+                                    className="btn-secondary"
+                                    onClick={() => onEdit(t)}
+                                >
+                                    修改
+                                </button>
+                                <DeleteButton
+                                    onConfirm={() => onDelete(t.id)}
+                                    description={`删除 ${t.fund_code} 的这条交易？`}
+                                />
+                            </div>
                         </td>
                     </tr>
                 ))}

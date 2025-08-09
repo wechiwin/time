@@ -2,8 +2,6 @@
 import DeleteButton from '../common/DeleteButton';
 
 export default function FundTable({data = [], onDelete, onEdit}) {
-    // if (loading) return <p className="text-sm text-gray-500">加载中…</p>;
-
     return (
         <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">

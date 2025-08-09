@@ -42,29 +42,38 @@ export default function FundForm({onSubmit, onClose, initialValues}) {
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <input
-                    placeholder="基金代码"
-                    value={form.fund_code}
-                    onChange={(e) => setForm({...form, fund_code: e.target.value})}
-                    required
-                    className="input-field"
-                />
-                <input
-                    placeholder="基金名称"
-                    value={form.fund_name}
-                    onChange={(e) => setForm({...form, fund_name: e.target.value})}
-                    required
-                    className="input-field"
-                />
-                <select
-                    value={form.fund_type}
-                    onChange={(e) => setForm({...form, fund_type: e.target.value})}
-                    className="input-field"
-                >
-                    {fundTypeOptions.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                </select>
+                <div className="flex flex-col">
+                    <label className="text-sm font-medium mb-1">基金代码</label>
+                    <input
+                        placeholder="基金代码"
+                        value={form.fund_code}
+                        onChange={(e) => setForm({...form, fund_code: e.target.value})}
+                        required
+                        className="input-field"
+                    />
+                </div>
+                <div className="flex flex-col">
+                    <label className="text-sm font-medium mb-1">基金名称</label>
+                    <input
+                        placeholder="基金名称"
+                        value={form.fund_name}
+                        onChange={(e) => setForm({...form, fund_name: e.target.value})}
+                        required
+                        className="input-field"
+                    />
+                </div>
+                <div className="flex flex-col">
+                    <label className="text-sm font-medium mb-1">基金类型</label>
+                    <select
+                        value={form.fund_type}
+                        onChange={(e) => setForm({...form, fund_type: e.target.value})}
+                        className="input-field"
+                    >
+                        {fundTypeOptions.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                    </select>
+                </div>
             </div>
             <div className="flex justify-end space-x-2 pt-2">
                 <button type="button" className="btn-secondary" onClick={onClose}>

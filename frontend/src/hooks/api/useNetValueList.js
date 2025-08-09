@@ -3,7 +3,7 @@ import {useCallback} from 'react';
 import useApi from '../useApi';
 
 export default function useNetValueList() {
-    const { data, loading, error, post, del, get: fetch } = useApi('/api/net_values');
+    const {data, loading, error, post, put, del, get: fetch} = useApi('/api/net_values');
 
     const search = useCallback(
         (keyword) => fetch(keyword ? `/api/net_values?q=${encodeURIComponent(keyword)}` : '/api/net_values'),
@@ -20,5 +20,10 @@ export default function useNetValueList() {
         [del]
     );
 
-    return { data, loading, error, add, remove, search };
+    const update = useCallback(
+        ({id, ...body}) => put(`/api/net_values/${id}`, body),
+        [put]
+    );
+
+    return {data, loading, error, add, remove, update, search};
 }

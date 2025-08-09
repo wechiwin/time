@@ -11,7 +11,6 @@ import FormModal from "../components/common/FormModal";
 export default function FundPage() {
     const {data, loading, add, remove, search, update} = useFundList();
     const handleDelete = useDeleteWithToast(remove, '基金');
-    // const [keyword, setKeyword] = useDebouncedSearch(search, 300);
     // 模态框控制
     const [showModal, setShowModal] = useState(false);
     const [modalTitle, setModalTitle] = useState("添加新基金");
@@ -26,7 +25,6 @@ export default function FundPage() {
     };
 
     const openEditModal = (fund) => {
-        console.log(fund)
         setModalTitle("修改基金");
         setModalSubmit(() => update);
         setInitialValues(fund);
@@ -46,7 +44,6 @@ export default function FundPage() {
                     添加基金
                 </button>
             </div>
-            {/* <FundForm onSubmit={add}/> */}
             <FundTable data={data} onDelete={handleDelete} onEdit={openEditModal}/>
             {/* 模态框 */}
             <FormModal

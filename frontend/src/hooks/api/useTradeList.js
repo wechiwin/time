@@ -3,7 +3,7 @@ import {useCallback} from 'react';
 import useApi from '../useApi';
 
 export default function useTradeList() {
-    const { data, loading, error, post, del, get: fetch } = useApi('/api/transactions');
+    const {data, loading, error, post, del, put, get: fetch} = useApi('/api/transactions');
 
     const search = useCallback(
         (keyword) => fetch(keyword ? `/api/transactions?q=${encodeURIComponent(keyword)}` : '/api/transactions'),
@@ -20,5 +20,10 @@ export default function useTradeList() {
         [del]
     );
 
-    return { data, loading, error, add, remove, search };
+    const update = useCallback(
+        ({id, ...body}) => put(`/api/transactions/${id}`, body),
+        [put]
+    );
+
+    return {data, loading, error, add, remove, update, search};
 }

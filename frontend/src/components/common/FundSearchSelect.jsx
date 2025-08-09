@@ -11,12 +11,19 @@ export default function FundSearchSelect({value, onChange, placeholder = '搜索
     const [keyword, setKeyword] = useDebouncedSearch(search, 500);
     const wrapperRef = useRef(null);
 
+    // 每次外部传入的 value 变化时，同步到 keyword（用于回显）
+    useEffect(() => {
+        if (value !== undefined && value !== null) {
+            setKeyword(value);
+        }
+    }, [value]);
+
     //  监听点击外部
     useEffect(() => {
         const handleClickOutside = (event) => {
-            console.log('click outside check', event.target);
+            // console.log('click outside check', event.target);
             if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-                console.log('close dropdown');
+                // console.log('close dropdown');
                 setOpen(false);
             }
         };

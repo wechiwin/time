@@ -1,8 +1,7 @@
 // src/components/tables/NetValueTable.jsx
 import DeleteButton from '../common/DeleteButton';
 
-export default function NetValueTable({ data = [], loading, onDelete }) {
-    if (loading) return <p className="text-sm text-gray-500">加载中…</p>;
+export default function NetValueTable({data = [], onDelete, onEdit}) {
 
     return (
         <div className="overflow-x-auto">
@@ -24,10 +23,18 @@ export default function NetValueTable({ data = [], loading, onDelete }) {
                         <td className="table-cell">{n.unit_net_value}</td>
                         <td className="table-cell">{n.accumulated_net_value}</td>
                         <td className="table-cell text-right">
-                            <DeleteButton
-                                onConfirm={() => onDelete(n.id)}
-                                description={`删除 ${n.fund_code} 在 ${n.date} 的记录？`}
-                            />
+                            <div className="flex items-center space-x-2">
+                                <button
+                                    className="btn-secondary"
+                                    onClick={() => onEdit(n)}
+                                >
+                                    修改
+                                </button>
+                                <DeleteButton
+                                    onConfirm={() => onDelete(n.id)}
+                                    description={`删除 ${n.fund_code} 在 ${n.date} 的记录？`}
+                                />
+                            </div>
                         </td>
                     </tr>
                 ))}

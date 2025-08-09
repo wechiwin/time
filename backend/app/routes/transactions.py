@@ -12,7 +12,10 @@ def get_transactions():
     fund_code = request.args.get('fund_code')
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
-    query = Transaction.query
+    # query = Transaction.query
+    query = db.session.query(Transaction, Holding.fund_name).outerjoin(
+        Holding, Transaction.fund_code == Holding.fund_code
+    )
     if fund_code:
         query = query.filter_by(fund_code=fund_code)
     if start_date:
@@ -24,12 +27,13 @@ def get_transactions():
     data = [{
         'id': t.id,
         'fund_code': t.fund_code,
+        'fund_name': fund_name,
         'transaction_type': t.transaction_type,
         'transaction_date': t.transaction_date,
         'transaction_net_value': t.transaction_net_value,
         'transaction_shares': t.transaction_shares,
         'transaction_fee': t.transaction_fee
-    } for t in transactions]
+    } for t, fund_name in transactions]
     return Response.success(data=data)
 
 
