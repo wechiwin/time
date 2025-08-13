@@ -29,6 +29,7 @@ class Transaction(TimestampMixin, db.Model):
     transaction_net_value = db.Column(db.Float)
     transaction_shares = db.Column(db.Float)
     transaction_fee = db.Column(db.Float)
+    transaction_amount = db.Column(db.Float)
 
 
 class NetValue(db.Model):

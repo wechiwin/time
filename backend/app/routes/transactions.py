@@ -4,6 +4,8 @@ from flask import Blueprint, request, send_file
 import pandas as pd
 from io import BytesIO
 
+from sqlalchemy import desc
+
 transactions_bp = Blueprint('transactions', __name__, url_prefix='/api/transactions')
 
 
@@ -23,6 +25,7 @@ def get_transactions():
     if end_date:
         query = query.filter(Transaction.transaction_date <= end_date)
 
+    query = query.order_by(desc(Transaction.transaction_date))
     transactions = query.all() or []
     data = [{
         'id': t.id,
@@ -32,7 +35,8 @@ def get_transactions():
         'transaction_date': t.transaction_date,
         'transaction_net_value': t.transaction_net_value,
         'transaction_shares': t.transaction_shares,
-        'transaction_fee': t.transaction_fee
+        'transaction_fee': t.transaction_fee,
+        'transaction_amount': t.transaction_amount
     } for t, fund_name in transactions]
     return Response.success(data=data)
 
@@ -41,7 +45,7 @@ def get_transactions():
 def create_transaction():
     data = request.get_json()
     required_fields = ['fund_code', 'transaction_type', 'transaction_date', 'transaction_net_value',
-                       'transaction_shares', 'transaction_fee']
+                       'transaction_shares', 'transaction_fee', 'transaction_amount']
     if not all(field in data for field in required_fields):
         return Response.error(code=400, message="缺少必要字段")
     new_transaction = Transaction(**data)
@@ -61,7 +65,8 @@ def get_transaction(id):
         'transaction_date': t.transaction_date,
         'transaction_net_value': t.transaction_net_value,
         'transaction_shares': t.transaction_shares,
-        'transaction_fee': t.transaction_fee
+        'transaction_fee': t.transaction_fee,
+        'transaction_amount': t.transaction_amount
     }
     return Response.success(data=data)
 
@@ -76,6 +81,7 @@ def update_transaction(id):
     t.transaction_net_value = data.get('transaction_net_value', t.transaction_net_value)
     t.transaction_shares = data.get('transaction_shares', t.transaction_shares)
     t.transaction_fee = data.get('transaction_fee', t.transaction_fee)
+    t.transaction_amount = data.get('transaction_amount', t.transaction_amount)
     db.session.commit()
     return Response.success(message="交易更新成功")
 
@@ -97,7 +103,8 @@ def export_transactions():
         '交易日期': t.transaction_date,
         '交易净值': t.transaction_net_value,
         '交易份数': t.transaction_shares,
-        '手续费': t.transaction_fee
+        '手续费': t.transaction_fee,
+        '交易金额': t.transaction_amount
     } for t in transactions])
 
     output = BytesIO()
@@ -123,7 +130,8 @@ def download_template():
         '交易日期',
         '交易净值',
         '交易份数',
-        '手续费'
+        '手续费',
+        '交易金额',
     ])
 
     # 添加示例数据（使用concat替代append）
@@ -133,7 +141,8 @@ def download_template():
         '交易日期': '2023-01-01',
         '交易净值': 1.0,
         '交易份数': 100,
-        '手续费': 0.1
+        '手续费': 0.1,
+        '交易金额': 100.1
     }])
 
     df = pd.concat([df, example_data], ignore_index=True)
@@ -172,8 +181,8 @@ def import_transactions():
         return Response.error(code=400, message="没有选择文件")
 
     try:
-        df = pd.read_excel(file)
-        required_columns = ['基金代码', '交易类型', '交易日期', '交易净值', '交易份数', '手续费']
+        df = pd.read_excel(file, dtype={'基金代码': str})
+        required_columns = ['基金代码', '交易类型', '交易日期', '交易净值', '交易份数', '手续费', '交易金额']
         if not all(col in df.columns for col in required_columns):
             return Response.error(code=400, message="Excel缺少必要列")
 
@@ -193,12 +202,12 @@ def import_transactions():
         df['交易日期'] = df['交易日期'].dt.strftime('%Y-%m-%d')  # 处理Timestamp类型
 
         # 转换数值列为float（防止整数被识别为其他类型）
-        numeric_cols = ['交易净值', '交易份数', '手续费']
+        numeric_cols = ['交易净值', '交易份数', '手续费', '交易金额']
         for col in numeric_cols:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
         # 开始事务
-        db.session.begin()
+        # db.session.begin()
         for _, row in df.iterrows():
             transaction = Transaction(
                 fund_code=str(row['基金代码']),  # 确保是字符串
@@ -206,7 +215,8 @@ def import_transactions():
                 transaction_date=str(row['交易日期']),  # 已转换为字符串
                 transaction_net_value=float(row['交易净值']),
                 transaction_shares=float(row['交易份数']),
-                transaction_fee=float(row['手续费'])
+                transaction_fee=float(row['手续费']),
+                transaction_amount=float(row['交易金额'])
             )
             db.session.add(transaction)
 
@@ -214,4 +224,5 @@ def import_transactions():
         return Response.success(message=f"成功导入 {len(df)} 条交易记录")
     except Exception as e:
         db.session.rollback()
-    return Response.error(code=500, message=f"导入失败: {str(e)}")
+        error_message = str(e)
+    return Response.error(code=500, message=f"导入失败: {error_message}")

@@ -11,6 +11,7 @@ const init = {
     transaction_net_value: '',
     transaction_shares: '',
     transaction_fee: '',
+    transaction_amount: '',
 };
 
 export default function TradeForm({onSubmit, onClose, initialValues}) {
@@ -38,7 +39,8 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                 transaction_date: initialValues.transaction_date || '',
                 transaction_net_value: initialValues.transaction_net_value || '',
                 transaction_shares: initialValues.transaction_shares || '',
-                transaction_fee: initialValues.transaction_fee || ''
+                transaction_fee: initialValues.transaction_fee || '',
+                transaction_amount: initialValues.transaction_amount || ''
             });
         }
     }, [initialValues]);
@@ -101,6 +103,16 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                         required
                         value={form.transaction_fee}
                         onChange={(e) => setForm({...form, transaction_fee: e.target.value})}
+                        className="input-field"
+                    />
+                </div>
+                <div className="flex flex-col">
+                    <label className="text-sm font-medium mb-1">交易金额</label>
+                    <input
+                        placeholder="交易金额"
+                        required
+                        value={form.transaction_amount}
+                        onChange={(e) => setForm({...form, transaction_amount: e.target.value})}
                         className="input-field"
                     />
                 </div>

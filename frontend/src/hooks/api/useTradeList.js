@@ -25,5 +25,21 @@ export default function useTradeList() {
         [put]
     );
 
-    return {data, loading, error, add, remove, update, search};
+    // 下载模板
+    const downloadTemplate = useCallback(() => {
+        window.location.href = '/api/transactions/template';
+    }, []);
+
+    const importData = useCallback(async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        return post('/api/transactions/import', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+    }, [post]);
+
+    return {data, loading, error, add, remove, update, search, downloadTemplate, importData};
 }

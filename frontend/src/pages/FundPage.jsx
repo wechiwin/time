@@ -4,7 +4,6 @@ import FundForm from '../components/forms/FundForm';
 import FundTable from '../components/tables/FundTable';
 import useFundList from '../hooks/api/useFundList';
 import useDeleteWithToast from '../hooks/useDeleteWithToast';
-import {useDebouncedSearch} from "../hooks/useDebouncedSearch";
 import {useState} from 'react';
 import FormModal from "../components/common/FormModal";
 import {useToast} from "../components/toast/ToastContext";

@@ -9,11 +9,12 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                 <thead className="page-bg">
                 <tr>
                     <th className="table-header">基金代码</th>
-                    <th className="table-header">类型</th>
-                    <th className="table-header">日期</th>
-                    <th className="table-header">净值</th>
-                    <th className="table-header">份数</th>
+                    <th className="table-header">交易类型</th>
+                    <th className="table-header">交易日期</th>
+                    <th className="table-header">交易净值</th>
+                    <th className="table-header">交易份数</th>
                     <th className="table-header">手续费</th>
+                    <th className="table-header">交易金额</th>
                     <th className="table-header text-right">操作</th>
                 </tr>
                 </thead>
@@ -36,6 +37,7 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                         <td className="table-cell">{t.transaction_net_value}</td>
                         <td className="table-cell">{t.transaction_shares}</td>
                         <td className="table-cell">{t.transaction_fee}</td>
+                        <td className="table-cell">{t.transaction_amount}</td>
                         <td className="table-cell text-right">
                             <div className="flex items-center space-x-2">
                                 <button
