@@ -38,9 +38,25 @@ export default function useFundList() {
 
     // 更新
     const update = useCallback(
-        ({ id, ...body }) => put(`/api/holdings/${id}`, body),
+        ({id, ...body}) => put(`/api/holdings/${id}`, body),
         [put]
     );
 
-    return {data, loading, error, add, remove, search, update, getByParam};
+    // 下载模板
+    const downloadTemplate = useCallback(() => {
+        window.location.href = '/api/holdings/template';
+    }, []);
+
+    const importData = useCallback(async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        return post('/api/holdings/import', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+    }, [post]);
+
+    return {data, loading, error, add, remove, search, update, getByParam, downloadTemplate, importData};
 }

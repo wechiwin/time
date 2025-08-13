@@ -7,15 +7,17 @@ import useDeleteWithToast from '../hooks/useDeleteWithToast';
 import {useDebouncedSearch} from "../hooks/useDebouncedSearch";
 import {useState} from 'react';
 import FormModal from "../components/common/FormModal";
+import {useToast} from "../components/toast/ToastContext";
 
 export default function FundPage() {
-    const {data, loading, add, remove, search, update} = useFundList();
+    const {data, loading, add, remove, search, update, importData, downloadTemplate} = useFundList();
     const handleDelete = useDeleteWithToast(remove, '基金');
     // 模态框控制
     const [showModal, setShowModal] = useState(false);
     const [modalTitle, setModalTitle] = useState("添加新基金");
     const [modalSubmit, setModalSubmit] = useState(() => add);
     const [initialValues, setInitialValues] = useState({});
+    const {showSuccessToast, showErrorToast} = useToast();
 
     const openAddModal = () => {
         setModalTitle("添加新基金");
@@ -31,6 +33,23 @@ export default function FundPage() {
         setShowModal(true);
     };
 
+    // 导入数据
+    const handleImport = async () => {
+        try {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.xlsx, .xls';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                await importData(file);
+                showSuccessToast();
+            };
+            input.click();
+        } catch (err) {
+            showErrorToast(err.message);
+        }
+    };
+
     return (
         <div className="space-y-6">
             <h1 className="text-2xl font-bold">基金管理</h1>
@@ -42,6 +61,18 @@ export default function FundPage() {
                     className="btn-primary"
                 >
                     添加基金
+                </button>
+                <button
+                    onClick={downloadTemplate}
+                    className="btn-secondary ml-2"
+                >
+                    下载模板
+                </button>
+                <button
+                    onClick={handleImport}
+                    className="btn-secondary ml-2"
+                >
+                    导入数据
                 </button>
             </div>
             <FundTable data={data} onDelete={handleDelete} onEdit={openEditModal}/>

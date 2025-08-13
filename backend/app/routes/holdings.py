@@ -161,12 +161,6 @@ def download_template():
         workbook = writer.book
         worksheet = writer.sheets['基金导入模板']
 
-        # 为交易类型列添加下拉验证
-        worksheet.data_validation('B2:B100', {
-            'validate': 'list',
-            'source': ['买入', '卖出']
-        })
-
     output.seek(0)
 
     return send_file(
@@ -187,7 +181,7 @@ def import_holdings():
         return Response.error(code=400, message="没有选择文件")
 
     try:
-        df = pd.read_excel(file)
+        df = pd.read_excel(file, dtype={'基金代码': str})
         required_columns = ['基金代码',
                             '基金名称',
                             '基金类型']
@@ -205,12 +199,12 @@ def import_holdings():
             )
 
         # 开始事务
-        db.session.begin()
+        # db.session.begin()
         for _, row in df.iterrows():
             holding = Holding(
                 fund_code=str(row['基金代码']),
-                fund_name=str(row['交易类型']),
-                fund_type=str(row['交易日期']),
+                fund_name=str(row['基金名称']),
+                fund_type=str(row['基金类型']),
             )
             db.session.add(holding)
 
@@ -218,4 +212,5 @@ def import_holdings():
         return Response.success(message=f"成功导入 {len(df)} 条记录")
     except Exception as e:
         db.session.rollback()
-    return Response.error(code=500, message=f"导入失败: {str(e)}")
+        error_message = str(e)
+    return Response.error(code=500, message=f"导入失败: {error_message}")
