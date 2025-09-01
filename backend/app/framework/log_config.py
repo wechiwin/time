@@ -22,7 +22,11 @@ def setup_logging(app):
     console_handler.setFormatter(formatter)
     app.logger.addHandler(console_handler)
 
-    file_handler = RotatingFileHandler('logs/app.log', maxBytes=10240, backupCount=5)
+    file_handler = RotatingFileHandler("logs/app.log",
+                                       maxBytes=10 * 1024 * 1024,
+                                       backupCount=5,
+                                       encoding='utf-8',
+                                       delay=True)
     file_handler.setFormatter(formatter)
     file_handler.setLevel(logging.INFO)
     file_handler.suffix = '%Y-%m-%d'  # 按日期命名日志文件
