@@ -32,7 +32,9 @@ export default function useApi(endpoint) {
 
             return response;
         } catch (err) {
-            setError(err.message);
+            const msg = err.message || '请求失败';
+            setError(msg);
+            console.error(`[useApi] 请求错误: ${msg}`, err);
             throw err;
         } finally {
             setLoading(false);
@@ -51,7 +53,7 @@ export default function useApi(endpoint) {
         const result = await request(url, 'POST', body);
         // 不依赖返回的数据，直接重新获取一次最新数据
         if (autoRefresh) {
-            await get();
+            try { await get(); } catch (err) { console.warn('刷新数据失败:', err.message); }
         }
         return result;
     }, [endpoint, request, get]);
@@ -62,7 +64,7 @@ export default function useApi(endpoint) {
         // setData(result);
         // 不依赖返回的数据，直接重新获取一次最新数据
         if (autoRefresh) {
-            await get();
+            try { await get(); } catch (err) { console.warn('刷新数据失败:', err.message); }
         }
         return result;
     }, [endpoint, request, get]);
@@ -71,7 +73,7 @@ export default function useApi(endpoint) {
     const del = useCallback(async (url = endpoint, autoRefresh = true) => {
         const result = await request(url, 'DELETE');
         if (autoRefresh) {
-            await get();
+            try { await get(); } catch (err) { console.warn('刷新数据失败:', err.message); }
         }
         return result;
     }, [endpoint, request, get]);
