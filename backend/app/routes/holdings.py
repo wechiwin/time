@@ -1,5 +1,5 @@
 from io import BytesIO
-
+import requests
 import pandas as pd
 from app.framework.response import Response
 from app.models import db, Holding
@@ -214,3 +214,35 @@ def import_holdings():
         db.session.rollback()
         error_message = str(e)
     return Response.error(code=500, message=f"导入失败: {error_message}")
+
+
+@holdings_bp.route('/crawl', methods=['POST'])
+def get_fund_info():
+    fund_code = request.form.get('fund_code')  # 表单
+    # url = "https://fundmobapi.eastmoney.com/FundMNewApi/FundMNFInfo"
+    url_api = "https://fundmobapi.eastmoney.com/FundMNewApi/FundMNDetailInformation"
+    params = {
+        "FCODE": fund_code,
+        "deviceid": "pc",
+        "plat": "web",
+        "product": "EFund",
+        "version": "2.0.0"
+    }
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Referer": f"http://fund.eastmoney.com/{fund_code}.html"
+    }
+    resp = requests.get(url_api, params=params, headers=headers)
+    print("接口返回内容：", resp.json())
+    data = resp.json().get("Datas", {})
+    if not data:
+        return Response.error()
+    return {
+        "fund_code": data.get("FCODE"),
+        "fund_name": data.get("SHORTNAME"),
+        "fund_type": data.get("FTYPE"),
+        "company": data.get("JJGS"),
+        "establish_date": data.get("CLRQ"),
+        "latest_net_value": data.get("ENDNAV"),
+        "risk_level": data.get("RISKLEVEL"),
+    }
