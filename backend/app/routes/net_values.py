@@ -11,6 +11,8 @@ net_values_bp = Blueprint('net_values', __name__, url_prefix='/api/net_values')
 @net_values_bp.route('', methods=['GET'])
 def get_net_values():
     fund_code = request.args.get('fund_code')
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
 
     # 基础查询：左连接 Holding 表
     query = db.session.query(NetValue, Holding.fund_name).outerjoin(
@@ -20,7 +22,15 @@ def get_net_values():
     # query = NetValue.query
     if fund_code:
         query = query.filter_by(fund_code=fund_code)
-    results = query.order_by(NetValue.date).all() or []
+
+    # 分页查询
+    pagination = query.order_by(NetValue.date.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+
+    # results = query.order_by(NetValue.date).all() or []
+    results = pagination.items or []
+
     data = [{
         'id': nv.id,
         'fund_code': nv.fund_code,
@@ -29,7 +39,17 @@ def get_net_values():
         'unit_net_value': nv.unit_net_value,
         'accumulated_net_value': nv.accumulated_net_value
     } for nv, fund_name in results]
-    return Response.success(data=data)
+
+    # return Response.success(data=data)
+    return Response.success(data={
+        'items': data,
+        'pagination': {
+            'page': page,
+            'per_page': per_page,
+            'total': pagination.total,
+            'pages': pagination.pages
+        }
+    })
 
 
 @net_values_bp.route('', methods=['POST'])
@@ -91,7 +111,7 @@ def crawl_net_values():
         return Response.error(code=400, message="缺少基金代码")
 
     try:
-        data = crawl_fund_history(fund_code,start_date,end_date)
+        data = crawl_fund_history(fund_code, start_date, end_date)
         if not data:
             return Response.error(message="未获取到数据")
 

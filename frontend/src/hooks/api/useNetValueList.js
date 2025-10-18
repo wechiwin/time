@@ -5,8 +5,20 @@ import useApi from '../useApi';
 export default function useNetValueList() {
     const {data, loading, error, post, put, del, get: fetch} = useApi('/api/net_values');
 
+    // const search = useCallback(
+    //     (keyword) => fetch(keyword ? `/api/net_values?q=${encodeURIComponent(keyword)}` : '/api/net_values'),
+    //     [fetch]
+    // );
+
     const search = useCallback(
-        (keyword) => fetch(keyword ? `/api/net_values?q=${encodeURIComponent(keyword)}` : '/api/net_values'),
+        (keyword, page = 1, perPage = 10) => {
+            const params = new URLSearchParams();
+            if (keyword) params.append('fund_code', keyword);
+            params.append('page', page);
+            params.append('per_page', perPage);
+
+            return fetch(`/api/net_values?${params.toString()}`);
+        },
         [fetch]
     );
 
