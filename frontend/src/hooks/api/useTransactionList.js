@@ -1,8 +1,8 @@
-// src/hooks/useNetValueList.js
+// src/hooks/useTransactionList.js
 import {useCallback, useEffect, useState} from 'react';
 import useApi from '../useApi';
 
-export default function useNetValueList(options = {}) {
+export default function useTransactionList(options = {}) {
     const {
         keyword = '',
         page = 1,
@@ -14,14 +14,13 @@ export default function useNetValueList(options = {}) {
     const [data, setData] = useState(null);
     const {loading, error, get, post, put, del} = useApi();
 
-    // 修改search方法，接收查询字符串
     const search = useCallback(async (searchKeyword = '', currentPage = 1, currentPerPage = 10) => {
         const params = new URLSearchParams({
             keyword: encodeURIComponent(searchKeyword),
             page: currentPage.toString(),
             per_page: currentPerPage.toString()
         }).toString();
-        const result = await get(`/api/net_values?${params}`);
+        const result = await get(`/api/transactions?${params}`);
         setData(result);  // 业务逻辑设置 data
         return result;
     }, [get]);
@@ -34,22 +33,38 @@ export default function useNetValueList(options = {}) {
     }, [keyword, page, perPage, autoLoad, search]);
 
     const add = useCallback(async (body) => {
-        const result = await post('/api/net_values', body);
+        const result = await post('/api/transactions', body);
         await search(keyword, page, perPage);
         return result;
     }, [post, search, keyword, page, perPage]);
 
     const remove = useCallback(async (id) => {
-        const result = await del(`/api/net_values/${id}`);
+        const result = await del(`/api/transactions/${id}`);
         await search(keyword, page, perPage);
         return result;
     }, [del, search, keyword, page, perPage]);
 
     const update = useCallback(async ({id, ...body}) => {
-        const result = await put(`/api/net_values/${id}`, body);
+        const result = await put(`/api/transactions/${id}`, body);
         await search(keyword, page, perPage);
         return result;
     }, [put, search, keyword, page, perPage]);
 
-    return {data, loading, error, add, remove, update, search};
+    // 下载模板
+    const downloadTemplate = useCallback(() => {
+        window.location.href = '/api/transactions/template';
+    }, []);
+
+    const importData = useCallback(async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        return post('/api/transactions/import', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+    }, [post]);
+
+    return {data, loading, error, add, remove, update, search, downloadTemplate, importData};
 }

@@ -15,6 +15,10 @@ def get_holdings():
     fund_name = request.args.get('fund_name')
     fund_type = request.args.get('fund_type')
 
+    # 添加分页参数
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+
     query = Holding.query
     if fund_code:
         query = query.filter_by(fund_code=fund_code)
@@ -23,14 +27,29 @@ def get_holdings():
     if fund_type:
         query = query.filter_by(fund_type=fund_code)
 
-    holdings = query.all() or []
+    # 使用分页查询
+    pagination = query.paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+
+    holdings = pagination.items or []
     data = [{
         'id': h.id,
         'fund_name': h.fund_name,
         'fund_code': h.fund_code,
         'fund_type': h.fund_type
     } for h in holdings]
-    return Response.success(data=data)
+
+    # 返回分页信息
+    return Response.success(data={
+        'items': data,
+        'pagination': {
+            'page': page,
+            'per_page': per_page,
+            'total': pagination.total,
+            'pages': pagination.pages
+        }
+    })
 
 
 @holdings_bp.route('', methods=['POST'])
@@ -94,23 +113,31 @@ def search_holdings():
     """
     基金模糊搜索API
     参数:
-        q: 搜索关键词(基金代码或名称)
+        keyword: 搜索关键词(基金代码或名称)
         limit: 返回结果数量(默认10)
+        page: 页码(默认1)
+        per_page: 每页数量(默认10)
     """
     search_term = request.args.get('keyword', '').strip()
-    limit = min(int(request.args.get('limit', 10)), 50)  # 限制最大返回50条
+    page = request.args.get('page', 1, type=int)
+    per_page = int(request.args.get('per_page', 10))
 
-    # if not search_term:
-    #     return Response.success(data=[])
+    query = Holding.query
 
-    # 执行模糊查询
-    holdings = Holding.query.filter(
-        or_(
-            Holding.fund_code.ilike(f'%{search_term}%'),
-            Holding.fund_name.ilike(f'%{search_term}%')
+    if search_term:
+        query = query.filter(
+            or_(
+                Holding.fund_code.ilike(f'%{search_term}%'),
+                Holding.fund_name.ilike(f'%{search_term}%')
+            )
         )
-    ).limit(limit).all()
 
+    # 使用分页查询
+    pagination = query.paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+
+    holdings = pagination.items or []
     results = [{
         'id': h.id,
         'fund_code': h.fund_code,
@@ -118,7 +145,15 @@ def search_holdings():
         'fund_type': h.fund_type
     } for h in holdings]
 
-    return Response.success(data=results)
+    return Response.success(data={
+        'items': results,
+        'pagination': {
+            'page': page,
+            'per_page': per_page,
+            'total': pagination.total,
+            'pages': pagination.pages
+        }
+    })
 
 
 @holdings_bp.route('/export', methods=['GET'])

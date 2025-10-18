@@ -1,7 +1,7 @@
-// src/components/forms/TradeForm.jsx
+// src/components/forms/TransactionForm.jsx
 import {useEffect, useState} from 'react';
 import {useToast} from '../toast/ToastContext';
-import FundSearchSelect from '../common/FundSearchSelect'; // 复用基金下拉
+import HoldingSearchSelect from '../search/HoldingSearchSelect'; // 复用基金下拉
 
 const init = {
     id: '',
@@ -14,7 +14,7 @@ const init = {
     transaction_amount: '',
 };
 
-export default function TradeForm({onSubmit, onClose, initialValues}) {
+export default function TransactionForm({onSubmit, onClose, initialValues}) {
     const [form, setForm] = useState(init);
     const {showSuccessToast, showErrorToast} = useToast();
 
@@ -50,7 +50,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
             <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                 <div className="flex flex-col">
                     <label className="text-sm font-medium mb-1">基金代码</label>
-                    <FundSearchSelect
+                    <HoldingSearchSelect
                         value={form.fund_code}
                         onChange={(code) => setForm({...form, fund_code: code})}
                     />

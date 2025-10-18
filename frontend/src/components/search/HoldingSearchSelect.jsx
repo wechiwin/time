@@ -1,13 +1,13 @@
-// src/components/common/FundSearchSelect.jsx
+// src/components/search/HoldingSearchSelect.jsx
 import {useEffect, useRef, useState} from 'react';
-import SearchBox from '../search/SearchBox';
+import SearchBox from './SearchBox';
 import {useDebouncedSearch} from '../../hooks/useDebouncedSearch';
-import useFundList from "../../hooks/api/useFundList";
+import useHoldingList from "../../hooks/api/useHoldingList";
 
-export default function FundSearchSelect({value, onChange, placeholder = '搜索基金'}) {
+export default function HoldingSearchSelect({value, onChange, placeholder = '搜索基金'}) {
     const [list, setList] = useState([]);
     const [open, setOpen] = useState(false);
-    const {data, loading, add, remove, search} = useFundList();
+    const {data, loading, add, remove, search} = useHoldingList();
     const [keyword, setKeyword] = useDebouncedSearch(search, 500);
     const wrapperRef = useRef(null);
 

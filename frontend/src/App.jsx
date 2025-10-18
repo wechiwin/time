@@ -1,8 +1,8 @@
 import {Routes, Route, Navigate} from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import Dashboard from './pages/Dashboard';
-import FundPage from './pages/FundPage';
-import TradePage from './pages/TradePage';
+import FundPage from './pages/HoldingPage';
+import TradePage from './pages/TransactionPage';
 import NetValuePage from './pages/NetValuePage';
 import {ToastProvider} from './components/toast/ToastContext';
 

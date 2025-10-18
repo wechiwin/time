@@ -1,15 +1,24 @@
-// src/pages/TradePage.jsx
-import TradeSearchBox from '../components/search/TradeSearchBox';
-import TradeForm from '../components/forms/TradeForm';
+// src/pages/TransactionPage.jsx
+import TransactionSearchBox from '../components/search/TransactionSearchBox';
+import TransactionForm from '../components/forms/TransactionForm';
 import TradeTable from '../components/tables/TradeTable';
-import useTradeList from '../hooks/api/useTradeList';
+import useTransactionList from '../hooks/api/useTransactionList';
 import useDeleteWithToast from '../hooks/useDeleteWithToast';
 import FormModal from "../components/common/FormModal";
-import {useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import {useToast} from "../components/toast/ToastContext";
+import withPagination from '../components/common/withPagination';
+import Pagination from "../components/common/Pagination";
+import useHoldingList from "../hooks/api/useHoldingList";
 
-export default function TradePage() {
-    const {data, loading, add, remove, search, update, importData, downloadTemplate} = useTradeList();
+function TransactionPage({pagination}) {
+    const {data, loading, error, add, remove, search, update, importData, downloadTemplate} = useTransactionList({
+        keyword: pagination.searchKeyword,
+        page: pagination.currentPage,
+        perPage: pagination.perPage,
+        autoLoad: true
+    });
+
     const handleDelete = useDeleteWithToast(remove);
     // 模态框控制
     const [showModal, setShowModal] = useState(false);
@@ -17,6 +26,21 @@ export default function TradePage() {
     const [modalSubmit, setModalSubmit] = useState(() => add);
     const [initialValues, setInitialValues] = useState({});
     const {showSuccessToast, showErrorToast} = useToast();
+
+    // 搜索处理
+    const handleSearch = useCallback((keyword) => {
+        pagination.handleSearch(keyword);
+    }, [pagination]);
+
+    // 处理页码变化
+    const handlePageChange = useCallback((newPage) => {
+        pagination.handlePageChange(newPage);
+    }, [pagination]);
+
+    // 处理每页数量变化
+    const handlePerPageChange = useCallback((newPerPage) => {
+        pagination.handlePerPageChange(newPerPage);
+    }, [pagination]);
 
     const openAddModal = () => {
         setModalTitle("添加新交易");
@@ -52,7 +76,7 @@ export default function TradePage() {
     return (
         <div className="space-y-6">
             <h1 className="text-2xl font-bold">交易管理</h1>
-            <TradeSearchBox onSearch={search}/>
+            <TransactionSearchBox onSearch={handleSearch}/>
             <div className="text-left">
                 <button
                     onClick={openAddModal}
@@ -73,16 +97,26 @@ export default function TradePage() {
                     导入数据
                 </button>
             </div>
-            {/* <TradeForm onSubmit={add}/> */}
-            <TradeTable data={data} onDelete={handleDelete} onEdit={openEditModal}/>
+            {/* 数据表格 */}
+            <TradeTable data={data?.items || []} onDelete={handleDelete} onEdit={openEditModal}/>
+            {/* 分页 */}
+            {data?.pagination && (
+                <Pagination
+                    pagination={data.pagination}
+                    onPageChange={handlePageChange}
+                    onPerPageChange={handlePerPageChange}
+                />
+            )}
             <FormModal
                 title={modalTitle}
                 show={showModal}
                 onClose={() => setShowModal(false)}
                 onSubmit={modalSubmit}
-                FormComponent={TradeForm}
+                FormComponent={TransactionForm}
                 initialValues={initialValues}
             />
         </div>
     );
 }
+
+export default withPagination(TransactionPage, {defaultPerPage: 10});

@@ -5,11 +5,18 @@ import NetValueTable from '../components/tables/NetValueTable';
 import useNetValueList from '../hooks/api/useNetValueList';
 import useDeleteWithToast from '../hooks/useDeleteWithToast';
 import FormModal from "../components/common/FormModal";
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import Pagination from "../components/common/Pagination";
+import withPagination from '../components/common/withPagination';
+import useTransactionList from "../hooks/api/useTransactionList";
 
-export default function NetValuePage() {
-    const {data, loading, add, remove, update, search} = useNetValueList();
+function NetValuePage({pagination}) {
+    const {data, loading, add, remove, update, search} = useNetValueList({
+        keyword: pagination.searchKeyword,
+        page: pagination.currentPage,
+        perPage: pagination.perPage,
+        autoLoad: true
+    });
     const handleDelete = useDeleteWithToast(remove);
 
     // 模态框控制
@@ -18,36 +25,20 @@ export default function NetValuePage() {
     const [modalSubmit, setModalSubmit] = useState(() => add);
     const [initialValues, setInitialValues] = useState({});
 
-    // 分页和搜索状态
-    const [currentPage, setCurrentPage] = useState(1);
-    const [searchKeyword, setSearchKeyword] = useState('');
-    const [perPage, setPerPage] = useState(10);
+    // 搜索处理
+    const handleSearch = useCallback((keyword) => {
+        pagination.handleSearch(keyword);
+    }, [pagination]);
 
-    // 搜索函数
-    const handleSearch = (keyword = searchKeyword, page = 1, pageSize = perPage) => {
-        setSearchKeyword(keyword);
-        setCurrentPage(page);
-        search(keyword, page, pageSize);
-    };
+    // 处理页码变化
+    const handlePageChange = useCallback((newPage) => {
+        pagination.handlePageChange(newPage);
+    }, [pagination]);
 
-    // 页码改变
-    const handlePageChange = (newPage) => {
-        setCurrentPage(newPage);
-        search(searchKeyword, newPage, perPage);
-    };
-
-    // 每页数量改变
-    const handlePerPageChange = (newPerPage) => {
-        setPerPage(newPerPage);
-        setCurrentPage(1); // 重置到第一页
-        search(searchKeyword, 1, newPerPage);
-    };
-
-
-    // 初始化加载数据
-    useEffect(() => {
-        handleSearch('', 1, perPage);
-    }, []);
+    // 处理每页数量变化
+    const handlePerPageChange = useCallback((newPerPage) => {
+        pagination.handlePerPageChange(newPerPage);
+    }, [pagination]);
 
     const openAddModal = () => {
         setModalTitle("添加净值");
@@ -63,17 +54,18 @@ export default function NetValuePage() {
         setShowModal(true);
     };
 
-    const handleFormSubmit = async (formData) => {
-        await modalSubmit(formData);
-        setShowModal(false);
-        // 重新加载当前页数据
-        handleSearch(searchKeyword, currentPage, perPage);
-    };
+    // const handleFormSubmit = async (formData) => {
+    //     await modalSubmit(formData);
+    //     setShowModal(false);
+    //     // 重新加载当前页数据
+    //     const queryString = pagination.buildQueryString();
+    //     await search(queryString);
+    // };
 
     return (
         <div className="space-y-6">
             <h1 className="text-2xl font-bold">净值历史</h1>
-            <NetValueSearchBox onSearch={search}/>
+            <NetValueSearchBox onSearch={handleSearch}/>
             <div className="text-left">
                 <button
                     onClick={openAddModal}
@@ -108,3 +100,6 @@ export default function NetValuePage() {
         </div>
     );
 }
+
+// 使用高阶组件包装，设置默认每页显示10条
+export default withPagination(NetValuePage, {defaultPerPage: 10});
