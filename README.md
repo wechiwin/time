@@ -1,6 +1,6 @@
 # stock_fund_tool
 
-一个基于 Flask + React + TailwindCSS的个人基金管理工具。
+一个基于 Flask + React + TailwindCSS的轻量持仓管理工具。
 
 ## 项目结构
 
@@ -53,7 +53,7 @@
     │   │   │   ├── Header.jsx
     │   │   │   ├── Layout.jsx
     │   │   │   └── Sidebar.jsx
-    │   │   ├── search
+    │   │   ├── searchList
     │   │   │   ├── HoldingSearchBox.jsx
     │   │   │   ├── HoldingSearchSelect.jsx
     │   │   │   ├── NetValueSearchBox.jsx
@@ -67,7 +67,7 @@
     │   │       ├── Toast.jsx
     │   │       └── ToastContext.jsx
     │   ├── constants
-    │   │   └── common.js
+    │   │   └── sysConst.js
     │   ├── context
     │   ├── hooks
     │   │   ├── api

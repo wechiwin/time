@@ -1,12 +1,13 @@
 // src/hooks/useNetValueList.js
 import {useCallback, useEffect, useState} from 'react';
 import useApi from '../useApi';
+import {DEFAULT_PAGE_SIZE} from "../../constants/sysConst";
 
 export default function useNetValueList(options = {}) {
     const {
         keyword = '',
         page = 1,
-        perPage = 10,
+        perPage = DEFAULT_PAGE_SIZE,
         autoLoad = true
     } = options;
 
@@ -17,7 +18,7 @@ export default function useNetValueList(options = {}) {
     // 修改search方法，接收查询字符串
     const search = useCallback(async (searchKeyword = '', currentPage = 1, currentPerPage = 10) => {
         const params = new URLSearchParams({
-            keyword: encodeURIComponent(searchKeyword),
+            keyword: searchKeyword,
             page: currentPage.toString(),
             per_page: currentPerPage.toString()
         }).toString();
@@ -51,5 +52,11 @@ export default function useNetValueList(options = {}) {
         return result;
     }, [put, search, keyword, page, perPage]);
 
-    return {data, loading, error, add, remove, update, search};
+    const crawl = useCallback(async (body) => {
+        const result = await post('/api/net_values/crawl', body);
+        await search(keyword, page, perPage);
+        return result;
+    }, [post, search, keyword, page, perPage]);
+
+    return {data, loading, error, add, remove, update, search, crawl};
 }

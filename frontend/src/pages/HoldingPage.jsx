@@ -4,19 +4,29 @@ import HoldingForm from '../components/forms/HoldingForm';
 import HoldingTable from '../components/tables/HoldingTable';
 import useHoldingList from '../hooks/api/useHoldingList';
 import useDeleteWithToast from '../hooks/useDeleteWithToast';
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useState} from 'react';
 import FormModal from "../components/common/FormModal";
 import {useToast} from "../components/toast/ToastContext";
-import withPagination from '../components/common/withPagination';
 import Pagination from "../components/common/Pagination";
+import {usePaginationState} from "../hooks/usePaginationState";
 
-function HoldingPage({pagination}) {
+export default function HoldingPage() {
+    // 分页
+    const {
+        page,
+        perPage,
+        handlePageChange,
+        handlePerPageChange
+    } = usePaginationState();
+
+    const [keyword, setKeyword] = useState("");
+
     // 使用参数驱动的数据获取
     const {data, loading, error, add, remove, search, update, importData, downloadTemplate} = useHoldingList({
-        keyword: pagination.searchKeyword,
-        page: pagination.currentPage,
-        perPage: pagination.perPage,
-        autoLoad: true
+        page,
+        perPage,
+        keyword,
+        autoLoad: true,
     });
 
     // // 添加调试信息
@@ -70,18 +80,9 @@ function HoldingPage({pagination}) {
 
     // 搜索处理
     const handleSearch = useCallback((keyword) => {
-        pagination.handleSearch(keyword);
-    }, [pagination]);
-
-    // 处理页码变化
-    const handlePageChange = useCallback((newPage) => {
-        pagination.handlePageChange(newPage);
-    }, [pagination]);
-
-    // 处理每页数量变化
-    const handlePerPageChange = useCallback((newPerPage) => {
-        pagination.handlePerPageChange(newPerPage);
-    }, [pagination]);
+        setKeyword(keyword);
+        handlePageChange(1);
+    }, [handlePageChange]);
 
     return (
         <div className="space-y-6">
@@ -112,7 +113,12 @@ function HoldingPage({pagination}) {
             {/* 分页 */}
             {data?.pagination && (
                 <Pagination
-                    pagination={data.pagination}
+                    pagination={{
+                        page,
+                        per_page: perPage,
+                        total: data.pagination.total,
+                        pages: data.pagination.pages,
+                    }}
                     onPageChange={handlePageChange}
                     onPerPageChange={handlePerPageChange}
                 />
@@ -129,5 +135,3 @@ function HoldingPage({pagination}) {
         </div>
     );
 }
-
-export default withPagination(HoldingPage, {defaultPerPage: 10});

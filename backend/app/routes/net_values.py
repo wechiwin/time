@@ -104,9 +104,10 @@ def delete_net_value(id):
 
 @net_values_bp.route('/crawl', methods=['POST'])
 def crawl_net_values():
-    fund_code = request.form.get("fund_code")
-    start_date = request.form.get("start_date")
-    end_date = request.form.get("end_date")
+    data = request.get_json()  # 改为获取 JSON 数据
+    fund_code = data.get("fund_code")
+    start_date = data.get("start_date")
+    end_date = data.get("end_date")
     if not fund_code:
         return Response.error(code=400, message="缺少基金代码")
 
@@ -115,37 +116,46 @@ def crawl_net_values():
         if not data:
             return Response.error(message="未获取到数据")
 
-        save_net_values_to_db(data)
+        save_net_values_to_db(data, fund_code, start_date, end_date)
         return Response.success(message=f"成功新增 {len(data)} 条历史净值")
     except Exception as e:
         db.session.rollback()
         return Response.error(code=500, message=f"爬取失败: {e}")
 
 
-def save_net_values_to_db(data_list):
+def save_net_values_to_db(data_list, fund_code, start_date, end_date):
+    # 查询日期内的数据
+    result = NetValue.query.filter(
+        NetValue.fund_code == fund_code,
+        NetValue.date >= start_date,
+        NetValue.date <= end_date
+    ).all()
+    # key:date val:identity
+    result_map = {item.date: item for item in result}
+
     """
     将爬取的数据存入数据库，避免重复插入
     """
     for item in data_list:
         # 检查是否已存在该基金+日期的记录
-        exists = NetValue.query.filter_by(fund_code=item['fund_code'], date=item['date']).first()
-        if not exists:
+        net_val_db = result_map.get(item['date'])
+        if net_val_db:
+            # 检查数据是否有变化，避免不必要的更新
+            if (net_val_db.unit_net_value != item['unit_net_value'] or
+                    net_val_db.accumulated_net_value != item['accumulated_net_value']):
+                net_val_db.unit_net_value = item['unit_net_value']
+                net_val_db.accumulated_net_value = item['accumulated_net_value']
+        else:
             nv = NetValue(
                 fund_code=item['fund_code'],
                 date=item['date'],
                 unit_net_value=item['unit_net_value'],
                 accumulated_net_value=item['accumulated_net_value']
             )
-            db.session.add(nv)
-        else:
-            # 可选：更新现有记录
-            # exists.unit_net_value = item['unit_net_value']
-            # exists.accumulated_net_value = item['accumulated_net_value']
-            pass
+        db.session.add(nv)
 
     try:
         db.session.commit()
-        print(f"成功保存 {len(data_list)} 条净值数据")
     except Exception as e:
         db.session.rollback()
         print(f"保存失败: {e}")

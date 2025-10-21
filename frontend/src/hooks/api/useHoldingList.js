@@ -23,7 +23,7 @@ export default function useHoldingList(options = {}) {
                     Object.entries({fund_name, fund_code, fund_type}).filter(([, v]) => v)
                 )
             }).toString();
-            const result = await get(`/api/holdings?${params}`);
+            const result = await get(`/api/holdings/searchPage?${params}`);
             setData(result);
             return result;
         },
@@ -31,15 +31,23 @@ export default function useHoldingList(options = {}) {
     );
 
     // 搜索函数 - 业务层设置数据
-    const search = useCallback(async (searchKeyword = '', currentPage = 1, currentPerPage = 10) => {
+    const searchList = useCallback(async (searchKeyword = '') => {
+        const params = new URLSearchParams({
+            keyword: searchKeyword
+        }).toString();
+        const result = await get(`/api/holdings/searchList?${params}`);
+        setData(result);  // 业务逻辑设置 data
+        return result;
+    }, [get]);
+
+    // 搜索函数 - 业务层设置数据
+    const searchPage = useCallback(async (searchKeyword = '', currentPage = 1, currentPerPage = 10) => {
         const params = new URLSearchParams({
             keyword: encodeURIComponent(searchKeyword),
             page: currentPage.toString(),
             per_page: currentPerPage.toString()
         }).toString();
-        // console.log('搜索参数:', { searchKeyword, currentPage, currentPerPage });
-        const result = await get(`/api/holdings/search?${params}`);
-        // console.log('API返回数据:', result); // 添加调试
+        const result = await get(`/api/holdings/searchPage?${params}`);
         setData(result);  // 业务逻辑设置 data
         return result;
     }, [get]);
@@ -47,33 +55,33 @@ export default function useHoldingList(options = {}) {
     // 自动根据参数变化加载数据
     useEffect(() => {
         if (autoLoad) {
-            search(keyword, page, perPage);
+            searchPage(keyword, page, perPage);
         }
-    }, [keyword, page, perPage, autoLoad, search]);
+    }, [keyword, page, perPage, autoLoad, searchPage]);
 
     // 添加基金
     const add = useCallback(async (body) => {
         const result = await post('/api/holdings', body);
         // 添加成功后重新搜索当前页面
-        await search(keyword, page, perPage);
+        await searchPage(keyword, page, perPage);
         return result;
-    }, [post, search, keyword, page, perPage]);
+    }, [post, searchPage, keyword, page, perPage]);
 
     // 删除基金
     const remove = useCallback(async (id) => {
         const result = await del(`/api/holdings/${id}`);
         // 删除成功后重新搜索当前页面
-        await search(keyword, page, perPage);
+        await searchPage(keyword, page, perPage);
         return result;
-    }, [del, search, keyword, page, perPage]);
+    }, [del, searchPage, keyword, page, perPage]);
 
     // 更新基金
     const update = useCallback(async ({id, ...body}) => {
         const result = await put(`/api/holdings/${id}`, body);
         // 更新成功后重新搜索当前页面
-        await search(keyword, page, perPage);
+        await searchPage(keyword, page, perPage);
         return result;
-    }, [put, search, keyword, page, perPage]);
+    }, [put, searchPage, keyword, page, perPage]);
 
     // 下载模板
     const downloadTemplate = useCallback(() => {
@@ -87,9 +95,21 @@ export default function useHoldingList(options = {}) {
             headers: {'Content-Type': 'multipart/form-data'},
         });
         // 导入成功后重新搜索
-        await search(keyword, page, perPage);
+        await searchPage(keyword, page, perPage);
         return result;
-    }, [post, search, keyword, page, perPage]);
+    }, [post, searchPage, keyword, page, perPage]);
 
-    return {data, loading, error, add, remove, search, update, getByParam, downloadTemplate, importData};
+    return {
+        data,
+        loading,
+        error,
+        add,
+        remove,
+        searchPage,
+        searchList,
+        update,
+        getByParam,
+        downloadTemplate,
+        importData
+    };
 }

@@ -7,13 +7,13 @@ import useHoldingList from "../../hooks/api/useHoldingList";
 export default function HoldingSearchSelect({value, onChange, placeholder = '搜索基金'}) {
     const [list, setList] = useState([]);
     const [open, setOpen] = useState(false);
-    const {data, loading, add, remove, search} = useHoldingList();
-    const [keyword, setKeyword] = useDebouncedSearch(search, 500);
+    const {data, loading, add, remove, searchPage} = useHoldingList({autoLoad: false});
+    const [keyword, setKeyword] = useDebouncedSearch(searchPage, 500);
     const wrapperRef = useRef(null);
 
     // 每次外部传入的 value 变化时，同步到 keyword（用于回显）
     useEffect(() => {
-        if (value !== undefined && value !== null) {
+        if (value !== undefined && value !== null && value !== '') {
             setKeyword(value);
         }
     }, [value]);
@@ -33,6 +33,7 @@ export default function HoldingSearchSelect({value, onChange, placeholder = '搜
 
     // 每次 data 更新，刷新 list
     useEffect(() => {
+        console.log('data 更新:', data);
         setList(data);
     }, [data]);
 
@@ -43,7 +44,7 @@ export default function HoldingSearchSelect({value, onChange, placeholder = '搜
             return;
         }
         try {
-            await search(keyword);
+            await searchPage(keyword);
         } catch (err) {
             console.error('搜索基金失败', err);
             setList([]);

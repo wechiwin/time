@@ -2,22 +2,63 @@ from io import BytesIO
 import requests
 import pandas as pd
 from app.framework.response import Response
+from app.framework.constant import DEFAULT_PAGE_SIZE
 from app.models import db, Holding
 from flask import Blueprint, request, send_file
+
 from sqlalchemy import or_
 
 holdings_bp = Blueprint('holdings', __name__, url_prefix='/api/holdings')
 
 
-@holdings_bp.route('', methods=['GET'])
-def get_holdings():
+@holdings_bp.route('/searchList', methods=['GET'])
+def search_list():
+    """
+    参数:
+        keyword: 搜索关键词(基金代码或名称)
+    """
+    keyword = request.args.get('keyword', '').strip()
+
+    from urllib.parse import unquote
+    keyword = unquote(keyword)
+
+    query = Holding.query
+
+    # 执行模糊查询
+    holdings = Holding.query.filter(
+        or_(
+            Holding.fund_code.ilike(f'%{keyword}%'),
+            Holding.fund_name.ilike(f'%{keyword}%')
+        )
+    ).all()
+
+    results = [{
+        'id': h.id,
+        'fund_code': h.fund_code,
+        'fund_name': h.fund_name,
+        'fund_type': h.fund_type
+    } for h in holdings]
+
+    return Response.success(data=results)
+
+
+@holdings_bp.route('searchPage', methods=['GET'])
+def search_page():
+    """
+    基金模糊搜索API
+    参数:
+    keyword: 搜索关键词(基金代码或名称)
+    page: 页码(默认1)
+    per_page: 每页数量(默认10)
+    """
     fund_code = request.args.get('fund_code')
     fund_name = request.args.get('fund_name')
     fund_type = request.args.get('fund_type')
+    keyword = request.args.get('keyword')
 
     # 添加分页参数
     page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 10, type=int)
+    per_page = request.args.get('per_page', DEFAULT_PAGE_SIZE, type=int)
 
     query = Holding.query
     if fund_code:
@@ -25,7 +66,14 @@ def get_holdings():
     if fund_name:
         query = query.filter_by(fund_name=fund_name)
     if fund_type:
-        query = query.filter_by(fund_type=fund_code)
+        query = query.filter_by(fund_type=fund_type)
+    if keyword:
+        query = query.filter(
+            or_(
+                Holding.fund_code.ilike(f'%{keyword}%'),
+                Holding.fund_name.ilike(f'%{keyword}%')
+            )
+        )
 
     # 使用分页查询
     pagination = query.paginate(
@@ -106,54 +154,6 @@ def delete_holding(id):
     db.session.delete(h)
     db.session.commit()
     return Response.success()
-
-
-@holdings_bp.route('/search', methods=['GET'])
-def search_holdings():
-    """
-    基金模糊搜索API
-    参数:
-        keyword: 搜索关键词(基金代码或名称)
-        limit: 返回结果数量(默认10)
-        page: 页码(默认1)
-        per_page: 每页数量(默认10)
-    """
-    search_term = request.args.get('keyword', '').strip()
-    page = request.args.get('page', 1, type=int)
-    per_page = int(request.args.get('per_page', 10))
-
-    query = Holding.query
-
-    if search_term:
-        query = query.filter(
-            or_(
-                Holding.fund_code.ilike(f'%{search_term}%'),
-                Holding.fund_name.ilike(f'%{search_term}%')
-            )
-        )
-
-    # 使用分页查询
-    pagination = query.paginate(
-        page=page, per_page=per_page, error_out=False
-    )
-
-    holdings = pagination.items or []
-    results = [{
-        'id': h.id,
-        'fund_code': h.fund_code,
-        'fund_name': h.fund_name,
-        'fund_type': h.fund_type
-    } for h in holdings]
-
-    return Response.success(data={
-        'items': results,
-        'pagination': {
-            'page': page,
-            'per_page': per_page,
-            'total': pagination.total,
-            'pages': pagination.pages
-        }
-    })
 
 
 @holdings_bp.route('/export', methods=['GET'])

@@ -5,18 +5,27 @@ import TradeTable from '../components/tables/TradeTable';
 import useTransactionList from '../hooks/api/useTransactionList';
 import useDeleteWithToast from '../hooks/useDeleteWithToast';
 import FormModal from "../components/common/FormModal";
-import {useCallback, useEffect, useState} from "react";
+import {useCallback, useState} from "react";
 import {useToast} from "../components/toast/ToastContext";
-import withPagination from '../components/common/withPagination';
 import Pagination from "../components/common/Pagination";
-import useHoldingList from "../hooks/api/useHoldingList";
+import {usePaginationState} from "../hooks/usePaginationState";
 
-function TransactionPage({pagination}) {
+export default function TransactionPage() {
+    // 分页
+    const {
+        page,
+        perPage,
+        handlePageChange,
+        handlePerPageChange
+    } = usePaginationState();
+
+    const [keyword, setKeyword] = useState("");
+
     const {data, loading, error, add, remove, search, update, importData, downloadTemplate} = useTransactionList({
-        keyword: pagination.searchKeyword,
-        page: pagination.currentPage,
-        perPage: pagination.perPage,
-        autoLoad: true
+        page,
+        perPage,
+        keyword,
+        autoLoad: true,
     });
 
     const handleDelete = useDeleteWithToast(remove);
@@ -29,18 +38,9 @@ function TransactionPage({pagination}) {
 
     // 搜索处理
     const handleSearch = useCallback((keyword) => {
-        pagination.handleSearch(keyword);
-    }, [pagination]);
-
-    // 处理页码变化
-    const handlePageChange = useCallback((newPage) => {
-        pagination.handlePageChange(newPage);
-    }, [pagination]);
-
-    // 处理每页数量变化
-    const handlePerPageChange = useCallback((newPerPage) => {
-        pagination.handlePerPageChange(newPerPage);
-    }, [pagination]);
+        setKeyword(keyword);
+        handlePageChange(1); // 搜索时重置到第一页
+    }, [handlePageChange]);
 
     const openAddModal = () => {
         setModalTitle("添加新交易");
@@ -102,7 +102,12 @@ function TransactionPage({pagination}) {
             {/* 分页 */}
             {data?.pagination && (
                 <Pagination
-                    pagination={data.pagination}
+                    pagination={{
+                        page,
+                        per_page: perPage,
+                        total: data.pagination.total,
+                        pages: data.pagination.pages,
+                    }}
                     onPageChange={handlePageChange}
                     onPerPageChange={handlePerPageChange}
                 />
@@ -118,5 +123,3 @@ function TransactionPage({pagination}) {
         </div>
     );
 }
-
-export default withPagination(TransactionPage, {defaultPerPage: 10});
