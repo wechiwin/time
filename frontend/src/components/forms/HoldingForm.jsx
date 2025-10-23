@@ -1,4 +1,4 @@
-// src/components/forms/FundForm.jsx
+// src/components/forms/HoldingForm.jsx
 import {useEffect, useState} from 'react';
 import {useToast} from '../toast/ToastContext';
 
@@ -7,7 +7,7 @@ const fundTypeOptions = [
     {value: 'LOF', label: 'LOF'},
 ];
 
-export default function FundForm({onSubmit, onClose, initialValues}) {
+export default function HoldingForm({onSubmit, onClose, initialValues}) {
     const [form, setForm] = useState({
         id: '',
         fund_code: '',

@@ -1,15 +1,44 @@
-// src/pages/FundPage.jsx
-import FundSearchBox from '../components/search/FundSearchBox';
-import FundForm from '../components/forms/FundForm';
-import FundTable from '../components/tables/FundTable';
-import useFundList from '../hooks/api/useFundList';
+// src/pages/HoldingPage.jsx
+import HoldingSearchBox from '../components/search/HoldingSearchBox';
+import HoldingForm from '../components/forms/HoldingForm';
+import HoldingTable from '../components/tables/HoldingTable';
+import useHoldingList from '../hooks/api/useHoldingList';
 import useDeleteWithToast from '../hooks/useDeleteWithToast';
-import {useState} from 'react';
+import {useCallback, useState} from 'react';
 import FormModal from "../components/common/FormModal";
 import {useToast} from "../components/toast/ToastContext";
+import Pagination from "../components/common/Pagination";
+import {usePaginationState} from "../hooks/usePaginationState";
 
-export default function FundPage() {
-    const {data, loading, add, remove, search, update, importData, downloadTemplate} = useFundList();
+export default function HoldingPage() {
+    // 分页
+    const {
+        page,
+        perPage,
+        handlePageChange,
+        handlePerPageChange
+    } = usePaginationState();
+
+    const [keyword, setKeyword] = useState("");
+
+    // 使用参数驱动的数据获取
+    const {data, loading, error, add, remove, search, update, importData, downloadTemplate} = useHoldingList({
+        page,
+        perPage,
+        keyword,
+        autoLoad: true,
+    });
+
+    // // 添加调试信息
+    // console.log('HoldingPage数据:', {
+    //     data,
+    //     loading,
+    //     error,
+    //     hasData: !!data,
+    //     itemsCount: data?.items?.length,
+    //     pagination: data?.pagination
+    // });
+
     const handleDelete = useDeleteWithToast(remove, '基金');
     // 模态框控制
     const [showModal, setShowModal] = useState(false);
@@ -49,10 +78,16 @@ export default function FundPage() {
         }
     };
 
+    // 搜索处理
+    const handleSearch = useCallback((keyword) => {
+        setKeyword(keyword);
+        handlePageChange(1);
+    }, [handlePageChange]);
+
     return (
         <div className="space-y-6">
             <h1 className="text-2xl font-bold">基金管理</h1>
-            <FundSearchBox onSearch={search}/>
+            <HoldingSearchBox onSearch={handleSearch}/>
             {/* 添加按钮 */}
             <div className="text-left">
                 <button
@@ -74,14 +109,27 @@ export default function FundPage() {
                     导入数据
                 </button>
             </div>
-            <FundTable data={data} onDelete={handleDelete} onEdit={openEditModal}/>
+            <HoldingTable data={data?.items || []} onDelete={handleDelete} onEdit={openEditModal}/>
+            {/* 分页 */}
+            {data?.pagination && (
+                <Pagination
+                    pagination={{
+                        page,
+                        per_page: perPage,
+                        total: data.pagination.total,
+                        pages: data.pagination.pages,
+                    }}
+                    onPageChange={handlePageChange}
+                    onPerPageChange={handlePerPageChange}
+                />
+            )}
             {/* 模态框 */}
             <FormModal
                 title={modalTitle}
                 show={showModal}
                 onClose={() => setShowModal(false)}
                 onSubmit={modalSubmit}
-                FormComponent={FundForm}
+                FormComponent={HoldingForm}
                 initialValues={initialValues}
             />
         </div>

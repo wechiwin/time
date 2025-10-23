@@ -32,8 +32,8 @@ def make_response(data=None, code=0, message="ok"):
 class Response:
     @staticmethod
     def success(data=None, message="ok"):
-        return make_response(data=data, code=0, message=message)
+        return make_response(data=data, code=200, message=message)
 
     @staticmethod
-    def error(code=1, message="error"):
+    def error(code=400, message="error"):
         return make_response(data=None, code=code, message=message)

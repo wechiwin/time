@@ -14,7 +14,10 @@ def get_transactions():
     fund_code = request.args.get('fund_code')
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
-    # query = Transaction.query
+    # 添加分页参数
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+
     query = db.session.query(Transaction, Holding.fund_name).outerjoin(
         Holding, Transaction.fund_code == Holding.fund_code
     )
@@ -25,8 +28,11 @@ def get_transactions():
     if end_date:
         query = query.filter(Transaction.transaction_date <= end_date)
 
-    query = query.order_by(desc(Transaction.transaction_date))
-    transactions = query.all() or []
+    # 使用分页查询
+    pagination = query.order_by(desc(Transaction.transaction_date)).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    transactions = pagination.items or []
     data = [{
         'id': t.id,
         'fund_code': t.fund_code,
@@ -38,7 +44,16 @@ def get_transactions():
         'transaction_fee': t.transaction_fee,
         'transaction_amount': t.transaction_amount
     } for t, fund_name in transactions]
-    return Response.success(data=data)
+    # 返回分页信息
+    return Response.success(data={
+        'items': data,
+        'pagination': {
+            'page': page,
+            'per_page': per_page,
+            'total': pagination.total,
+            'pages': pagination.pages
+        }
+    })
 
 
 @transactions_bp.route('', methods=['POST'])

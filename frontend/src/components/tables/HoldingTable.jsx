@@ -1,7 +1,7 @@
 // src/components/tables/FundTable.jsx
 import DeleteButton from '../common/DeleteButton';
 
-export default function FundTable({data = [], onDelete, onEdit}) {
+export default function HoldingTable({data = [], onDelete, onEdit}) {
     return (
         <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">

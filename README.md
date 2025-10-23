@@ -1,6 +1,6 @@
 # stock_fund_tool
 
-一个基于 Flask + React + TailwindCSS的个人基金管理工具。
+一个基于 Flask + React + TailwindCSS的轻量持仓管理工具。
 
 ## 项目结构
 
@@ -40,44 +40,52 @@
     │   ├── components
     │   │   ├── common
     │   │   │   ├── DeleteButton.jsx
-    │   │   │   └── FundSearchSelect.jsx
+    │   │   │   ├── FormModal.jsx
+    │   │   │   ├── Modal.jsx
+    │   │   │   ├── Pagination.jsx
+    │   │   │   └── withPagination.jsx
     │   │   ├── forms
-    │   │   │   ├── FundForm.jsx
+    │   │   │   ├── HoldingForm.jsx
     │   │   │   ├── NetValueForm.jsx
-    │   │   │   └── TradeForm.jsx
+    │   │   │   └── TransactionForm.jsx
     │   │   ├── layout
     │   │   │   ├── DarkToggle.jsx
     │   │   │   ├── Header.jsx
     │   │   │   ├── Layout.jsx
     │   │   │   └── Sidebar.jsx
-    │   │   ├── search
-    │   │   │   ├── FundSearchBox.jsx
+    │   │   ├── searchList
+    │   │   │   ├── HoldingSearchBox.jsx
+    │   │   │   ├── HoldingSearchSelect.jsx
     │   │   │   ├── NetValueSearchBox.jsx
-    │   │   │   └── TradeSearchBox.jsx
+    │   │   │   ├── SearchBox.jsx
+    │   │   │   └── TransactionSearchBox.jsx
     │   │   ├── tables
-    │   │   │   ├── FundTable.jsx
+    │   │   │   ├── HoldingTable.jsx
     │   │   │   ├── NetValueTable.jsx
     │   │   │   └── TradeTable.jsx
     │   │   └── toast
     │   │       ├── Toast.jsx
     │   │       └── ToastContext.jsx
     │   ├── constants
-    │   │   └── common.js
+    │   │   └── sysConst.js
     │   ├── context
     │   ├── hooks
+    │   │   ├── api
+    │   │   │   ├── useHoldingList.js
+    │   │   │   ├── useNetValueList.js
+    │   │   │   └── useTransactionList.js
     │   │   ├── useApi.js
     │   │   ├── useDarkMode.js
-    │   │   ├── useDebounce.js
-    │   │   ├── useFundList.js
-    │   │   ├── useNetValueList.js
-    │   │   └── useTradeList.js
+    │   │   ├── useDebouncedSearch.js
+    │   │   ├── useDeleteWithToast.js
+    │   │   └── usePagination.js
     │   ├── index.css
     │   ├── main.jsx
     │   └── pages
     │       ├── Dashboard.jsx
-    │       ├── FundPage.jsx
+    │       ├── HoldingPage.jsx
     │       ├── NetValuePage.jsx
-    │       └── TradePage.jsx
+    │       └── TransactionPage.jsx
     ├── tailwind.config.js
     └── vite.config.js
 
@@ -87,7 +95,7 @@
 
 - 添加/查看基金持仓
 - 添加/编辑/删除交易明细
-- 获取并显示基金净值历史
+- 爬虫获取并显示基金净值历史
 
 ## 🚀 快速开始
 

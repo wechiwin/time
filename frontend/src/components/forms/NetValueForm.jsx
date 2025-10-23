@@ -1,7 +1,7 @@
 // src/components/forms/NetValueForm.jsx
 import {useEffect, useState} from 'react';
 import {useToast} from '../toast/ToastContext';
-import FundSearchSelect from '../common/FundSearchSelect';
+import HoldingSearchSelect from '../search/HoldingSearchSelect';
 
 const init = {
     id: '',
@@ -44,7 +44,7 @@ export default function NetValueForm({onSubmit, onClose, initialValues}) {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="flex flex-col">
                     <label className="text-sm font-medium mb-1">基金代码</label>
-                    <FundSearchSelect
+                    <HoldingSearchSelect
                         value={form.fund_code}
                         onChange={(code) => setForm({...form, fund_code: code})}
                     />

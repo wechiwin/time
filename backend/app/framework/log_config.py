@@ -1,5 +1,5 @@
 import logging
-from logging.handlers import RotatingFileHandler
+from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
 import os
 
 
@@ -22,7 +22,13 @@ def setup_logging(app):
     console_handler.setFormatter(formatter)
     app.logger.addHandler(console_handler)
 
-    file_handler = RotatingFileHandler('logs/app.log', maxBytes=10240, backupCount=5)
+    file_handler = TimedRotatingFileHandler(filename='logs/app.log',  # 自动生成 app.log.2025-10-23 等文件
+                                            when='midnight',  # 每天凌晨轮转
+                                            interval=1,  # 间隔 1 天
+                                            backupCount=7,  # 最多保留 7 天日志
+                                            encoding='utf-8',
+                                            delay=True
+                                            )
     file_handler.setFormatter(formatter)
     file_handler.setLevel(logging.INFO)
     file_handler.suffix = '%Y-%m-%d'  # 按日期命名日志文件
@@ -36,5 +42,17 @@ def setup_logging(app):
     werkzeug_logger.setLevel(logging.WARNING)
     for handler in werkzeug_logger.handlers[:]:
         werkzeug_logger.removeHandler(handler)
+
+    # SQLAlchemy 引擎日志（记录 SQL）
+    sqlalchemy_engine_logger = logging.getLogger('sqlalchemy.engine')
+    sqlalchemy_engine_logger.setLevel(logging.INFO if not app.debug else logging.DEBUG)
+    sqlalchemy_engine_logger.addHandler(file_handler)
+    sqlalchemy_engine_logger.addHandler(console_handler)
+
+    # Flask-SQLAlchemy ORM 层日志
+    flask_sqlalchemy_logger = logging.getLogger('flask_sqlalchemy')
+    flask_sqlalchemy_logger.setLevel(logging.INFO)
+    flask_sqlalchemy_logger.addHandler(file_handler)
+    flask_sqlalchemy_logger.addHandler(console_handler)
 
     app.logger.info('Application logging initialized')
