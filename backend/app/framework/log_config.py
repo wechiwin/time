@@ -1,5 +1,5 @@
 import logging
-from logging.handlers import RotatingFileHandler
+from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
 import os
 
 
@@ -22,11 +22,13 @@ def setup_logging(app):
     console_handler.setFormatter(formatter)
     app.logger.addHandler(console_handler)
 
-    file_handler = RotatingFileHandler("logs/app.log",
-                                       maxBytes=10 * 1024 * 1024,
-                                       backupCount=5,
-                                       encoding='utf-8',
-                                       delay=True)
+    file_handler = TimedRotatingFileHandler(filename='logs/app.log',  # 自动生成 app.log.2025-10-23 等文件
+                                            when='midnight',  # 每天凌晨轮转
+                                            interval=1,  # 间隔 1 天
+                                            backupCount=7,  # 最多保留 7 天日志
+                                            encoding='utf-8',
+                                            delay=True
+                                            )
     file_handler.setFormatter(formatter)
     file_handler.setLevel(logging.INFO)
     file_handler.suffix = '%Y-%m-%d'  # 按日期命名日志文件
