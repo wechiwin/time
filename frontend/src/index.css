@@ -88,4 +88,15 @@
         focus:outline-none focus:ring-2 focus:ring-gray-400;
     }
 
+    /* 搜索区容器：flex 布局、间距、右端按钮组自动靠右 */
+    .search-bar {
+        @apply flex items-center gap-2;
+    }
+
+    /* 搜索输入框：宽度、圆角、边框、focus 状态 */
+    .search-input {
+        @apply w-96 px-3 py-2 border border-gray-300 rounded-md
+        focus:outline-none focus:ring-2 focus:ring-blue-500
+        dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100;
+    }
 }

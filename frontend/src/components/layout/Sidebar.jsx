@@ -8,7 +8,7 @@ import {
 
 const navigation = [
     {name: 'Dashboard', href: '/dashboard', icon: HomeIcon},
-    {name: '基金管理', href: '/funds', icon: TableCellsIcon},
+    {name: '持仓管理', href: '/funds', icon: TableCellsIcon},
     {name: '交易管理', href: '/trades', icon: ArrowsRightLeftIcon},
     {name: '净值历史', href: '/netvalue', icon: ChartBarIcon},
 ];
@@ -19,7 +19,7 @@ export default function Sidebar() {
             {/* Logo */}
             <div className="h-16 flex items-center px-6 border-b">
         <span className="text-lg font-bold text-blue-600">
-          基金投资管理系统
+          投资持仓管理系统
         </span>
             </div>
 

@@ -84,30 +84,43 @@ export default function HoldingPage() {
         handlePageChange(1);
     }, [handlePageChange]);
 
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            handleSearch(keyword);
+        }
+    };
+
     return (
         <div className="space-y-6">
-            <h1 className="text-2xl font-bold">基金管理</h1>
-            <HoldingSearchBox onSearch={handleSearch}/>
-            {/* 添加按钮 */}
-            <div className="text-left">
+            {/* 搜索 + 按钮行 */}
+            <div className="search-bar">
+                <input
+                    type="text"
+                    value={keyword}
+                    onChange={(e) => setKeyword(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="请输入名称或代码"
+                    className="search-input"
+                />
                 <button
-                    onClick={openAddModal}
+                    onClick={() => handleSearch(keyword)}
                     className="btn-primary"
                 >
-                    添加基金
+                    查询
                 </button>
-                <button
-                    onClick={downloadTemplate}
-                    className="btn-secondary ml-2"
-                >
-                    下载模板
-                </button>
-                <button
-                    onClick={handleImport}
-                    className="btn-secondary ml-2"
-                >
-                    导入数据
-                </button>
+
+                {/* 右侧按钮组 */}
+                <div className="ml-auto flex items-center gap-2">
+                    <button onClick={openAddModal} className="btn-primary">
+                        添加基金
+                    </button>
+                    <button onClick={downloadTemplate} className="btn-secondary">
+                        下载模板
+                    </button>
+                    <button onClick={handleImport} className="btn-secondary">
+                        导入数据
+                    </button>
+                </div>
             </div>
             <HoldingTable data={data?.items || []} onDelete={handleDelete} onEdit={openEditModal}/>
             {/* 分页 */}

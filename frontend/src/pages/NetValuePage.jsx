@@ -76,34 +76,41 @@ export default function NetValuePage() {
         }
     };
 
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            handleSearch(keyword);
+        }
+    };
+
     return (
         <div className="space-y-6">
-            <h1 className="text-2xl font-bold">净值历史</h1>
             {/* 搜索 */}
-            <NetValueSearchBox onSearch={handleSearch}/>
-
-            {/* 操作按钮 */}
-            <div className="text-left">
-                {/* <button */}
-                {/*     onClick={openAddModal} */}
-                {/*     className="btn-primary" */}
-                {/* > */}
-                {/*     添加净值 */}
-                {/* </button> */}
+            <div className="search-bar">
+                <input
+                    type="text"
+                    value={keyword}
+                    onChange={(e) => setKeyword(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="请输入名称或代码"
+                    className="search-input"
+                />
                 <button
-                    onClick={handleCrawlAll}
+                    onClick={() => handleSearch(keyword)}
                     className="btn-primary"
                 >
-                    爬取所有净值
+                    查询
                 </button>
-                <button
-                    onClick={openCrawlModal}
-                    className="btn-primary"
-                >
-                    拉取单个净值
-                </button>
+                {/* 右侧按钮组 */}
+                <div className="ml-auto flex items-center gap-2">
+                    <button onClick={handleCrawlAll} className="btn-primary">
+                        爬取所有净值
+                    </button>
+                    <button onClick={openCrawlModal} className="btn-secondary">
+                        拉取单个净值
+                    </button>
+                </div>
             </div>
-            {/* <NetValueForm onSubmit={add}/> */}
+
             <NetValueTable
                 data={data?.items || []}
                 onDelete={handleDelete}

@@ -73,30 +73,43 @@ export default function TransactionPage() {
         }
     };
 
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            handleSearch(keyword);
+        }
+    };
+
     return (
         <div className="space-y-6">
-            <h1 className="text-2xl font-bold">交易管理</h1>
-            <TransactionSearchBox onSearch={handleSearch}/>
-            <div className="text-left">
+            <div className="search-bar">
+                <input
+                    type="text"
+                    value={keyword}
+                    onChange={(e) => setKeyword(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="请输入名称或代码"
+                    className="search-input"
+                />
                 <button
-                    onClick={openAddModal}
+                    onClick={() => handleSearch(keyword)}
                     className="btn-primary"
                 >
-                    添加交易
+                    查询
                 </button>
-                <button
-                    onClick={downloadTemplate}
-                    className="btn-secondary ml-2"
-                >
-                    下载模板
-                </button>
-                <button
-                    onClick={handleImport}
-                    className="btn-secondary ml-2"
-                >
-                    导入数据
-                </button>
+                {/* 右侧按钮组 */}
+                <div className="ml-auto flex items-center gap-2">
+                    <button onClick={openAddModal} className="btn-primary">
+                        添加交易
+                    </button>
+                    <button onClick={downloadTemplate} className="btn-secondary">
+                        下载模板
+                    </button>
+                    <button onClick={handleImport} className="btn-secondary">
+                        导入数据
+                    </button>
+                </div>
             </div>
+
             {/* 数据表格 */}
             <TradeTable data={data?.items || []} onDelete={handleDelete} onEdit={openEditModal}/>
             {/* 分页 */}
