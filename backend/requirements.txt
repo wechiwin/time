@@ -2,6 +2,7 @@ flask
 flask_sqlalchemy
 flask_migrate
 flask_cors
+flask-apscheduler
 pandas
 openpyxl
 xlsxwriter

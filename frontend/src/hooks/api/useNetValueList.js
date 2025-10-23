@@ -58,5 +58,10 @@ export default function useNetValueList(options = {}) {
         return result;
     }, [post, search, keyword, page, perPage]);
 
-    return {data, loading, error, add, remove, update, search, crawl};
+    const crawl_all = useCallback(async () => {
+        const result = await post('/api/net_values/crawl_all');
+        return result;
+    }, [post, search, keyword, page, perPage]);
+
+    return {data, loading, error, add, remove, update, search, crawl, crawl_all};
 }

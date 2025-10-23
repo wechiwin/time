@@ -41,4 +41,16 @@ def setup_logging(app):
     for handler in werkzeug_logger.handlers[:]:
         werkzeug_logger.removeHandler(handler)
 
+    # SQLAlchemy 引擎日志（记录 SQL）
+    sqlalchemy_engine_logger = logging.getLogger('sqlalchemy.engine')
+    sqlalchemy_engine_logger.setLevel(logging.INFO if not app.debug else logging.DEBUG)
+    sqlalchemy_engine_logger.addHandler(file_handler)
+    sqlalchemy_engine_logger.addHandler(console_handler)
+
+    # Flask-SQLAlchemy ORM 层日志
+    flask_sqlalchemy_logger = logging.getLogger('flask_sqlalchemy')
+    flask_sqlalchemy_logger.setLevel(logging.INFO)
+    flask_sqlalchemy_logger.addHandler(file_handler)
+    flask_sqlalchemy_logger.addHandler(console_handler)
+
     app.logger.info('Application logging initialized')

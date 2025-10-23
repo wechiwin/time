@@ -1,9 +1,10 @@
+import time
+from datetime import datetime, timedelta
+import requests
 from app.framework.response import Response
 from app.models import db, NetValue, Holding
-from flask import Blueprint, request
-import requests
-from datetime import datetime
-import time
+from flask import Blueprint, request, current_app
+from sqlalchemy import func
 
 net_values_bp = Blueprint('net_values', __name__, url_prefix='/api/net_values')
 
@@ -116,6 +117,7 @@ def crawl_net_values():
         if not data:
             return Response.error(message="未获取到数据")
 
+        print(f"爬取基金 {len(data)} 条")
         save_net_values_to_db(data, fund_code, start_date, end_date)
         return Response.success(message=f"成功新增 {len(data)} 条历史净值")
     except Exception as e:
@@ -221,3 +223,51 @@ def crawl_fund_history(fund_code, start_date=None, end_date=None):
             break
 
     return all_data
+
+
+def crawl_missing_net_values():
+    # 查询所有基金的最近一条净值记录
+    # 先找到每个fund_code的最大date
+    subquery = db.session.query(
+        NetValue.fund_code,
+        func.max(NetValue.date).label('max_date')
+    ).group_by(NetValue.fund_code).subquery()
+
+    # 然后关联查询获取完整记录
+    results = db.session.query(NetValue).join(
+        subquery,
+        db.and_(
+            NetValue.fund_code == subquery.c.fund_code,
+            NetValue.date == subquery.c.max_date
+        )
+    ).all()
+
+    yesterday = datetime.now() - timedelta(days=1)
+    yesterday_str = yesterday.strftime('%Y-%m-%d')
+
+    total_inserted = 0
+    errors = []
+
+    for item in results:
+        if item.date < yesterday_str:
+            try:
+                data = crawl_fund_history(item.fund_code, item.date, yesterday_str)
+                if data:
+                    save_net_values_to_db(data, item.fund_code, item.date, yesterday_str)
+                    total_inserted += len(data)
+                time.sleep(0.5)
+            except Exception as e:
+                db.session.rollback()
+                errors.append(f"{item.fund_code}: {e}")
+
+    # print(f"inserted: {total_inserted}, 'errors': {errors}")
+    current_app.logger.info(f"crawl_missing_net_values：inserted: {total_inserted}, 'errors': {errors}")
+    return {'inserted': total_inserted, 'errors': errors}
+
+
+@net_values_bp.route('/crawl_all', methods=['POST'])
+def crawl_all_funds():
+    result = crawl_missing_net_values()  # 纯函数
+    if result['errors']:
+        return Response.error(code=500, message='; '.join(result['errors']))
+    return Response.success(message=f"成功新增 {result['inserted']} 条历史净值")

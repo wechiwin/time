@@ -1,10 +1,14 @@
 from app.database import db
 from app.framework.log_config import setup_logging
-from flask import Flask, jsonify, request, make_response
+from flask import Flask, jsonify, request
+from flask_apscheduler import APScheduler
 
 from .routes.holdings import holdings_bp
 from .routes.net_values import net_values_bp
 from .routes.transactions import transactions_bp
+from .scheduler import init_scheduler
+
+scheduler = APScheduler()
 
 
 def create_app():
@@ -31,6 +35,9 @@ def create_app():
     app.register_blueprint(holdings_bp)
     app.register_blueprint(transactions_bp)
     app.register_blueprint(net_values_bp)
+
+    # 初始化调度器
+    init_scheduler(app, scheduler)
 
     # --- Add a root route for basic testing/info ---
     @app.route('/')

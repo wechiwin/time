@@ -9,6 +9,7 @@ import {useCallback, useState} from "react";
 import Pagination from "../components/common/Pagination";
 import CrawlNetValueForm from "../components/forms/CrawlNetValueForm";
 import {usePaginationState} from "../hooks/usePaginationState";
+import {useToast} from "../components/toast/ToastContext";
 
 export default function NetValuePage() {
     // 分页
@@ -22,7 +23,7 @@ export default function NetValuePage() {
     const [keyword, setKeyword] = useState("");
 
     // 数据操作
-    const {data, add, remove, update, crawl} = useNetValueList({
+    const {data, add, remove, update, crawl, crawl_all} = useNetValueList({
         page,
         perPage,
         keyword,
@@ -36,6 +37,8 @@ export default function NetValuePage() {
     const [modalTitle, setModalTitle] = useState("添加净值");
     const [modalSubmit, setModalSubmit] = useState(() => add);
     const [initialValues, setInitialValues] = useState({});
+
+    const {showSuccessToast, showErrorToast} = useToast();
 
     // 搜索处理
     const handleSearch = useCallback((kw) => {
@@ -64,6 +67,15 @@ export default function NetValuePage() {
         setShowCrawlModal(false);
     };
 
+    const handleCrawlAll = async () => {
+        try {
+            await crawl_all();
+            showSuccessToast();
+        } catch (err) {
+            showErrorToast(err.message);
+        }
+    };
+
     return (
         <div className="space-y-6">
             <h1 className="text-2xl font-bold">净值历史</h1>
@@ -79,10 +91,16 @@ export default function NetValuePage() {
                 {/*     添加净值 */}
                 {/* </button> */}
                 <button
+                    onClick={handleCrawlAll}
+                    className="btn-primary"
+                >
+                    爬取所有净值
+                </button>
+                <button
                     onClick={openCrawlModal}
                     className="btn-primary"
                 >
-                    爬取净值
+                    拉取单个净值
                 </button>
             </div>
             {/* <NetValueForm onSubmit={add}/> */}
