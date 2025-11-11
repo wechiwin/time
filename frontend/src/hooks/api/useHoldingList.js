@@ -35,7 +35,7 @@ export default function useHoldingList(options = {}) {
         const params = new URLSearchParams({
             keyword: searchKeyword
         }).toString();
-        const result = await get(`/api/holdings/searchList?${params}`);
+        const result = await get(`/api/holdings/search_list?${params}`);
         setData(result);  // 业务逻辑设置 data
         return result;
     }, [get]);
@@ -47,7 +47,7 @@ export default function useHoldingList(options = {}) {
             page: currentPage.toString(),
             per_page: currentPerPage.toString()
         }).toString();
-        const result = await get(`/api/holdings/searchPage?${params}`);
+        const result = await get(`/api/holdings/search_page?${params}`);
         setData(result);  // 业务逻辑设置 data
         return result;
     }, [get]);
@@ -99,6 +99,15 @@ export default function useHoldingList(options = {}) {
         return result;
     }, [post, searchPage, keyword, page, perPage]);
 
+    const getByCode = useCallback(async (fund_code = '') => {
+        const params = new URLSearchParams({
+            fund_code: fund_code
+        }).toString();
+        const result = await get(`/api/holdings/${params}`);
+        setData(result);  // 业务逻辑设置 data
+        return result;
+    }, [get]);
+
     return {
         data,
         loading,
@@ -110,6 +119,7 @@ export default function useHoldingList(options = {}) {
         update,
         getByParam,
         downloadTemplate,
-        importData
+        importData,
+        getByCode
     };
 }

@@ -1,4 +1,4 @@
-from app.routes.net_values import crawl_missing_net_values
+from app.routes.net_value_bp import crawl_missing_net_values
 from flask import current_app
 
 

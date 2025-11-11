@@ -1,8 +1,8 @@
 from flask import Flask
 
-from .holdings import holdings_bp
-from .net_values import net_values_bp
-from .transactions import transactions_bp
+from .holding_bp import holdings_bp
+from .net_value_bp import net_values_bp
+from .transactions_bp import transactions_bp
 
 
 def register_routes(app: Flask):

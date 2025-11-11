@@ -1,17 +1,21 @@
 from io import BytesIO
-import requests
-import pandas as pd
-from app.framework.response import Response
-from app.framework.constant import DEFAULT_PAGE_SIZE
-from app.models import db, Holding
-from flask import Blueprint, request, send_file
 
+import pandas as pd
+import requests
+from app.framework.exceptions import BizException
+from app.framework.sys_constant import DEFAULT_PAGE_SIZE
+from app.models import db, Holding
+from app.schemas import HoldingSchema
+# from app.schemas import FundBase
+from app.service.net_value_service import NetValueService
+from app.service.transaction_service import TransactionService
+from flask import Blueprint, request, send_file
 from sqlalchemy import or_
 
 holdings_bp = Blueprint('holdings', __name__, url_prefix='/api/holdings')
 
 
-@holdings_bp.route('/searchList', methods=['GET'])
+@holdings_bp.route('/search_list', methods=['GET'])
 def search_list():
     """
     参数:
@@ -39,10 +43,10 @@ def search_list():
         'fund_type': h.fund_type
     } for h in holdings]
 
-    return Response.success(data=results)
+    return results
 
 
-@holdings_bp.route('searchPage', methods=['GET'])
+@holdings_bp.route('search_page', methods=['GET'])
 def search_page():
     """
     基金模糊搜索API
@@ -89,7 +93,7 @@ def search_page():
     } for h in holdings]
 
     # 返回分页信息
-    return Response.success(data={
+    return {
         'items': data,
         'pagination': {
             'page': page,
@@ -97,18 +101,18 @@ def search_page():
             'total': pagination.total,
             'pages': pagination.pages
         }
-    })
+    }
 
 
 @holdings_bp.route('', methods=['POST'])
 def create_holding():
     data = request.get_json()
     if not data.get('fund_name') or not data.get('fund_code'):
-        return Response.error(code=400, message="缺少必要字段")
+        raise BizException(code=400, msg="缺少必要字段")
 
-        # 检查基金代码是否已存在
+    # 检查基金代码是否已存在
     if Holding.query.filter_by(fund_code=data['fund_code']).first():
-        return Response.error(code=400, message="基金代码已存在")
+        raise BizException(code=400, msg="基金代码已存在")
 
     new_holding = Holding(
         fund_name=data['fund_name'],
@@ -117,43 +121,48 @@ def create_holding():
     )
     db.session.add(new_holding)
     db.session.commit()
-    return Response.success()
+    return None
 
 
 @holdings_bp.route('/<int:id>', methods=['GET'])
 def get_holding(id):
     h = Holding.query.get_or_404(id)
+    # fund_code = h.fund_code
+    # net_val_list = NetValueService.search_list(fund_code)
+    # transaction_list = TransactionService.list_transaction(fund_code)
     data = {
         'id': h.id,
         'fund_name': h.fund_name,
         'fund_code': h.fund_code,
-        'fund_type': h.fund_type
+        'fund_type': h.fund_type,
+        # 'net_value_list': net_val_list,
+        # 'transaction_list': transaction_list
     }
-    return Response.success(data=data)
+    return data
 
 
-@holdings_bp.route('/<int:id>', methods=['PUT'])
+@holdings_bp.route('/<id>', methods=['PUT'])
 def update_holding(id):
     h = Holding.query.get_or_404(id)
     data = request.get_json()
     # 检查基金代码是否与其他记录冲突
     if 'fund_code' in data and data['fund_code'] != h.fund_code:
         if Holding.query.filter(Holding.fund_code == data['fund_code'], Holding.id != id).first():
-            return Response.error(code=400, message="基金代码已存在")
+            raise BizException(code=400, msg="基金代码已存在")
 
     h.fund_name = data.get('fund_name', h.fund_name)
     h.fund_code = data.get('fund_code', h.fund_code)
     h.fund_type = data.get('fund_type', h.fund_type)
     db.session.commit()
-    return Response.success()
+    return None
 
 
-@holdings_bp.route('/<int:id>', methods=['DELETE'])
+@holdings_bp.route('/<id>', methods=['DELETE'])
 def delete_holding(id):
     h = Holding.query.get_or_404(id)
     db.session.delete(h)
     db.session.commit()
-    return Response.success()
+    return None
 
 
 @holdings_bp.route('/export', methods=['GET'])
@@ -209,11 +218,11 @@ def download_template():
 @holdings_bp.route('/import', methods=['POST'])
 def import_holdings():
     if 'file' not in request.files:
-        return Response.error(code=400, message="没有上传文件")
+        raise BizException(code=400, msg="没有上传文件")
 
     file = request.files['file']
     if file.filename == '':
-        return Response.error(code=400, message="没有选择文件")
+        raise BizException(code=400, msg="没有选择文件")
 
     try:
         df = pd.read_excel(file, dtype={'基金代码': str})
@@ -221,16 +230,16 @@ def import_holdings():
                             '基金名称',
                             '基金类型']
         if not all(col in df.columns for col in required_columns):
-            return Response.error(code=400, message="Excel缺少必要列")
+            raise BizException(code=400, msg="Excel缺少必要列")
 
         # 检查fund_code是否存在
         fund_codes = df['基金代码'].unique()
         existing_holdings = Holding.query.filter(Holding.fund_code.in_(fund_codes)).all()
         existing_codes = {h.fund_code for h in existing_holdings}
         if existing_codes:
-            return Response.error(
+            raise BizException(
                 code=400,
-                message=f"以下基金已存在: {', '.join(map(str, existing_codes))}"
+                msg=f"以下基金已存在: {', '.join(map(str, existing_codes))}"
             )
 
         # 开始事务
@@ -244,11 +253,11 @@ def import_holdings():
             db.session.add(holding)
 
         db.session.commit()
-        return Response.success(message=f"成功导入 {len(df)} 条记录")
+        return None
     except Exception as e:
         db.session.rollback()
         error_message = str(e)
-    return Response.error(code=500, message=f"导入失败: {error_message}")
+    raise BizException(code=500, msg=f"导入失败: {error_message}")
 
 
 @holdings_bp.route('/crawl', methods=['POST'])
@@ -271,7 +280,7 @@ def get_fund_info():
     print("接口返回内容：", resp.json())
     data = resp.json().get("Datas", {})
     if not data:
-        return Response.error()
+        raise BizException(msg="未爬取到相关信息")
     return {
         "fund_code": data.get("FCODE"),
         "fund_name": data.get("SHORTNAME"),
@@ -281,3 +290,13 @@ def get_fund_info():
         "latest_net_value": data.get("ENDNAV"),
         "risk_level": data.get("RISKLEVEL"),
     }
+
+
+@holdings_bp.route('/fund_code=<fund_code>', methods=['GET'])
+def get_by_code(fund_code):
+    if not fund_code or not fund_code.strip():
+        return None
+
+    h = Holding.query.filter_by(fund_code=fund_code).first()
+    return HoldingSchema().dump(h)
+    # return FundBase.from_orm(h).dict()

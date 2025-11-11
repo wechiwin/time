@@ -1,11 +1,13 @@
 from app.database import db
 from app.framework.log_config import setup_logging
+from app.framework.error_handler import register_error_handler
+from app.framework.interceptor import register_response_interceptor
 from flask import Flask, jsonify, request
 from flask_apscheduler import APScheduler
 
-from .routes.holdings import holdings_bp
-from .routes.net_values import net_values_bp
-from .routes.transactions import transactions_bp
+from .routes.holding_bp import holdings_bp
+from .routes.net_value_bp import net_values_bp
+from .routes.transactions_bp import transactions_bp
 from .scheduler import init_scheduler
 
 scheduler = APScheduler()
@@ -38,6 +40,10 @@ def create_app():
 
     # 初始化调度器
     init_scheduler(app, scheduler)
+
+    # 统一响应/异常
+    register_error_handler(app)
+    register_response_interceptor(app)
 
     # --- Add a root route for basic testing/info ---
     @app.route('/')

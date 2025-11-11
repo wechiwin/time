@@ -63,5 +63,14 @@ export default function useNetValueList(options = {}) {
         return result;
     }, [post, search, keyword, page, perPage]);
 
-    return {data, loading, error, add, remove, update, search, crawl, crawl_all};
+    const searchList = useCallback(async (fund_code = '') => {
+        const params = new URLSearchParams({
+            fund_code: fund_code
+        }).toString();
+        const result = await get(`/api/net_values/search_list?${params}`);
+        setData(result);  // 业务逻辑设置 data
+        return result;
+    }, [get]);
+
+    return {data, loading, error, add, remove, update, search, crawl, crawl_all, searchList};
 }

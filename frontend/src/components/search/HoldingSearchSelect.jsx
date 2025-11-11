@@ -33,7 +33,7 @@ export default function HoldingSearchSelect({value, onChange, placeholder = '搜
 
     // 每次 data 更新，刷新 list
     useEffect(() => {
-        console.log('data 更新:', data);
+        // console.log('data 更新:', data);
         setList(data);
     }, [data]);
 

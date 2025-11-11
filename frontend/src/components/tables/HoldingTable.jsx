@@ -1,7 +1,15 @@
 // src/components/tables/FundTable.jsx
 import DeleteButton from '../common/DeleteButton';
+import {useNavigate} from 'react-router-dom';
 
 export default function HoldingTable({data = [], onDelete, onEdit}) {
+
+    const navigate = useNavigate();
+
+    const handleRowClick = (fund) => {
+        navigate(`/holding/${fund.fund_code}`);
+    };
+
     return (
         <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -16,7 +24,14 @@ export default function HoldingTable({data = [], onDelete, onEdit}) {
                 <tbody className="card divide-y divide-gray-200">
                 {data.map((f) => (
                     <tr key={f.id} className="hover:page-bg">
-                        <td className="table-cell">{f.fund_code}</td>
+                        <td className="table-cell">
+                            <button
+                                className="text-blue-600 hover:text-blue-800 underline cursor-pointer"
+                                onClick={() => handleRowClick(f)}
+                            >
+                                {f.fund_code}
+                            </button>
+                        </td>
                         <td className="table-cell font-medium">{f.fund_name}</td>
                         <td className="table-cell">{f.fund_type}</td>
                         <td className="table-cell">

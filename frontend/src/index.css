@@ -18,7 +18,8 @@
 
 /* 表格样式 */
 .table-container {
-    @apply overflow-x-auto border border-gray-200 rounded-lg;
+    @apply overflow-x-auto border border-gray-200 rounded-lg
+    max-w-full;
 }
 
 .table-header {
@@ -37,7 +38,8 @@
 
     /* 卡片 */
     .card {
-        @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700;
+        @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700
+        rounded-lg shadow-sm hover:shadow-md transition-shadow;
     }
 
     /* 表单输入框 */
@@ -98,5 +100,21 @@
         @apply w-96 px-3 py-2 border border-gray-300 rounded-md
         focus:outline-none focus:ring-2 focus:ring-blue-500
         dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100;
+    }
+
+    /* 对比基金标签 */
+    .tag {
+        @apply inline-flex items-center px-2 py-1 rounded-full text-sm
+        bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200;
+    }
+    .tag .remove {
+        @apply ml-1 text-blue-600 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-100;
+    }
+
+    .chart-box {
+        @apply w-full min-h-[400px] flex items-center justify-center;
+    }
+    .chart-box .loading {
+        @apply text-gray-500 dark:text-gray-400 text-sm;
     }
 }

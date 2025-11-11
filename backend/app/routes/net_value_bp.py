@@ -1,8 +1,10 @@
 import time
 from datetime import datetime, timedelta
+
 import requests
-from app.framework.response import Response
+from app.framework.exceptions import BizException
 from app.models import db, NetValue, Holding
+from app.service.net_value_service import NetValueService
 from flask import Blueprint, request, current_app
 from sqlalchemy import func
 
@@ -41,8 +43,7 @@ def get_net_values():
         'accumulated_net_value': nv.accumulated_net_value
     } for nv, fund_name in results]
 
-    # return Response.success(data=data)
-    return Response.success(data={
+    return {
         'items': data,
         'pagination': {
             'page': page,
@@ -50,7 +51,14 @@ def get_net_values():
             'total': pagination.total,
             'pages': pagination.pages
         }
-    })
+    }
+
+
+@net_values_bp.route('search_list', methods=['GET'])
+def search_list():
+    fund_code = request.args.get('fund_code')
+    data = NetValueService.search_list(fund_code)
+    return data
 
 
 @net_values_bp.route('', methods=['POST'])
@@ -58,7 +66,7 @@ def create_net_value():
     data = request.get_json()
     required_fields = ['fund_code', 'date', 'unit_net_value']
     if not all(field in data for field in required_fields):
-        return Response.error(code=400, message="缺少必要字段")
+        raise BizException(code=400, message="缺少必要字段")
     new_nv = NetValue(
         fund_code=data['fund_code'],
         date=data['date'],
@@ -67,7 +75,7 @@ def create_net_value():
     )
     db.session.add(new_nv)
     db.session.commit()
-    return Response.success(message="净值添加成功")
+    return None
 
 
 @net_values_bp.route('/<int:id>', methods=['GET'])
@@ -80,7 +88,7 @@ def get_net_value(id):
         'unit_net_value': nv.unit_net_value,
         'accumulated_net_value': nv.accumulated_net_value
     }
-    return Response.success(data=data)
+    return data
 
 
 @net_values_bp.route('/<int:id>', methods=['PUT'])
@@ -92,7 +100,7 @@ def update_net_value(id):
     nv.unit_net_value = data.get('unit_net_value', nv.unit_net_value)
     nv.accumulated_net_value = data.get('accumulated_net_value', nv.accumulated_net_value)
     db.session.commit()
-    return Response.success(message="净值更新成功")
+    return None
 
 
 @net_values_bp.route('/<int:id>', methods=['DELETE'])
@@ -100,7 +108,7 @@ def delete_net_value(id):
     nv = NetValue.query.get_or_404(id)
     db.session.delete(nv)
     db.session.commit()
-    return Response.success(message="净值删除成功")
+    return None
 
 
 @net_values_bp.route('/crawl', methods=['POST'])
@@ -110,19 +118,19 @@ def crawl_net_values():
     start_date = data.get("start_date")
     end_date = data.get("end_date")
     if not fund_code:
-        return Response.error(code=400, message="缺少基金代码")
+        raise BizException(code=400, message="缺少基金代码")
 
     try:
         data = crawl_fund_history(fund_code, start_date, end_date)
         if not data:
-            return Response.error(message="未获取到数据")
+            raise BizException(message="未获取到数据")
 
         print(f"爬取基金 {len(data)} 条")
         save_net_values_to_db(data, fund_code, start_date, end_date)
-        return Response.success(message=f"成功新增 {len(data)} 条历史净值")
+        return None
     except Exception as e:
         db.session.rollback()
-        return Response.error(code=500, message=f"爬取失败: {e}")
+        raise BizException(code=500, message=f"爬取失败: {e}")
 
 
 def save_net_values_to_db(data_list, fund_code, start_date, end_date):
@@ -267,7 +275,8 @@ def crawl_missing_net_values():
 
 @net_values_bp.route('/crawl_all', methods=['POST'])
 def crawl_all_funds():
-    result = crawl_missing_net_values()  # 纯函数
+    result = crawl_missing_net_values()
     if result['errors']:
-        return Response.error(code=500, message='; '.join(result['errors']))
-    return Response.success(message=f"成功新增 {result['inserted']} 条历史净值")
+        raise BizException(code=500, message='; '.join(result['errors']))
+    return None
+

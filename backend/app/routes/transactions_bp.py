@@ -1,10 +1,11 @@
-from app.framework.response import Response
-from app.models import db, Transaction, Holding
-from flask import Blueprint, request, send_file
-import pandas as pd
 from io import BytesIO
 
+import pandas as pd
+from app.framework.exceptions import BizException
+from app.models import db, Transaction, Holding
+from flask import Blueprint, request, send_file
 from sqlalchemy import desc
+from app.schemas import TransactionSchema
 
 transactions_bp = Blueprint('transactions', __name__, url_prefix='/api/transactions')
 
@@ -45,7 +46,7 @@ def get_transactions():
         'transaction_amount': t.transaction_amount
     } for t, fund_name in transactions]
     # 返回分页信息
-    return Response.success(data={
+    return {
         'items': data,
         'pagination': {
             'page': page,
@@ -53,7 +54,7 @@ def get_transactions():
             'total': pagination.total,
             'pages': pagination.pages
         }
-    })
+    }
 
 
 @transactions_bp.route('', methods=['POST'])
@@ -62,12 +63,11 @@ def create_transaction():
     required_fields = ['fund_code', 'transaction_type', 'transaction_date', 'transaction_net_value',
                        'transaction_shares', 'transaction_fee', 'transaction_amount']
     if not all(field in data for field in required_fields):
-        return Response.error(code=400, message="缺少必要字段")
+        raise BizException(code=400, message="缺少必要字段")
     new_transaction = Transaction(**data)
     db.session.add(new_transaction)
     db.session.commit()
-    # return Response.error(code=400, message="缺少必要字段")
-    return Response.success(message="交易添加成功")
+    return None
 
 
 @transactions_bp.route('/<int:id>', methods=['GET'])
@@ -83,7 +83,7 @@ def get_transaction(id):
         'transaction_fee': t.transaction_fee,
         'transaction_amount': t.transaction_amount
     }
-    return Response.success(data=data)
+    return data
 
 
 @transactions_bp.route('/<int:id>', methods=['PUT'])
@@ -98,7 +98,7 @@ def update_transaction(id):
     t.transaction_fee = data.get('transaction_fee', t.transaction_fee)
     t.transaction_amount = data.get('transaction_amount', t.transaction_amount)
     db.session.commit()
-    return Response.success(message="交易更新成功")
+    return None
 
 
 @transactions_bp.route('/<int:id>', methods=['DELETE'])
@@ -106,7 +106,7 @@ def delete_transaction(id):
     t = Transaction.query.get_or_404(id)
     db.session.delete(t)
     db.session.commit()
-    return Response.success(message="交易删除成功")
+    return None
 
 
 @transactions_bp.route('/export', methods=['GET'])
@@ -189,17 +189,17 @@ def download_template():
 @transactions_bp.route('/import', methods=['POST'])
 def import_transactions():
     if 'file' not in request.files:
-        return Response.error(code=400, message="没有上传文件")
+        raise BizException(code=400, message="没有上传文件")
 
     file = request.files['file']
     if file.filename == '':
-        return Response.error(code=400, message="没有选择文件")
+        raise BizException(code=400, message="没有选择文件")
 
     try:
         df = pd.read_excel(file, dtype={'基金代码': str})
         required_columns = ['基金代码', '交易类型', '交易日期', '交易净值', '交易份数', '手续费', '交易金额']
         if not all(col in df.columns for col in required_columns):
-            return Response.error(code=400, message="Excel缺少必要列")
+            raise BizException(code=400, message="Excel缺少必要列")
 
         # 检查fund_code是否存在
         fund_codes = df['基金代码'].unique()
@@ -208,7 +208,7 @@ def import_transactions():
 
         missing_codes = set(fund_codes) - existing_codes
         if missing_codes:
-            return Response.error(
+            raise BizException(
                 code=400,
                 message=f"以下基金代码不存在于持仓表中: {', '.join(map(str, missing_codes))}"
             )
@@ -236,8 +236,17 @@ def import_transactions():
             db.session.add(transaction)
 
         db.session.commit()
-        return Response.success(message=f"成功导入 {len(df)} 条交易记录")
+        return None
     except Exception as e:
         db.session.rollback()
         error_message = str(e)
-    return Response.error(code=500, message=f"导入失败: {error_message}")
+    raise BizException(code=500, message=f"导入失败: {error_message}")
+
+
+@transactions_bp.route('/list_by_code/fund_code=<fund_code>', methods=['GET'])
+def list_by_code(fund_code):
+    if not fund_code or not fund_code.strip():
+        return None
+
+    result_list = Transaction.query.filter_by(fund_code=fund_code).all()
+    return TransactionSchema(many=True).dump(result_list)

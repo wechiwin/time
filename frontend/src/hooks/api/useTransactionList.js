@@ -66,5 +66,14 @@ export default function useTransactionList(options = {}) {
         });
     }, [post]);
 
-    return {data, loading, error, add, remove, update, search, downloadTemplate, importData};
+    const listByCode = useCallback(async (fund_code = '') => {
+        const params = new URLSearchParams({
+            fund_code: fund_code
+        }).toString();
+        const result = await get(`/api/transactions/list_by_code/${params}`);
+        setData(result);  // 业务逻辑设置 data
+        return result;
+    }, [get]);
+
+    return {data, loading, error, add, remove, update, search, downloadTemplate, importData, listByCode};
 }
