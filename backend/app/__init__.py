@@ -4,6 +4,9 @@ from app.framework.error_handler import register_error_handler
 from app.framework.interceptor import register_response_interceptor
 from flask import Flask, jsonify, request
 from flask_apscheduler import APScheduler
+from flask.json.provider import DefaultJSONProvider
+from app.framework.interceptor import register_request_response_logger
+
 
 from .routes.holding_bp import holdings_bp
 from .routes.net_value_bp import net_values_bp
@@ -12,11 +15,16 @@ from .scheduler import init_scheduler
 
 scheduler = APScheduler()
 
+class NoAsciiJSONProvider(DefaultJSONProvider):
+    ensure_ascii = False
 
 def create_app():
     app = Flask(__name__)
+
     # 禁用 ASCII 转义
-    app.config["JSON_AS_ASCII"] = False
+    app.json = NoAsciiJSONProvider(app)
+    # app.config["JSON_AS_ASCII"] = False
+
     # 默认 UTF-8 # --- Configuration ---
     app.config["JSONIFY_MIMETYPE"] = "application/json; charset=utf-8"
     # You should configure your database URI here or load it from a config file.
@@ -28,6 +36,8 @@ def create_app():
 
     # 初始化日志
     setup_logging(app)
+    # log_response(app)
+    register_request_response_logger(app)
 
     # Initialize the SQLAlchemy instance with the Flask app
     # This is the crucial step to connect Flask-SQLAlchemy to your app
