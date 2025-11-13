@@ -48,7 +48,7 @@ export default function HoldingDetailPage() {
         const res = await getByCode(ho_code);
         setFundInfo(res);
         const nav = await searchList(ho_code);
-        console.log(nav);
+        // console.log(nav);
         setBaseNav(nav);
         const records = await listByCode(ho_code);
         // console.log("records" + records);
@@ -76,8 +76,8 @@ export default function HoldingDetailPage() {
             .finally(() => setLoadingCompare(false));
     }, [compareCodes]);
 
-    /* 图表数据 */
-    const dates = useMemo(() => baseNav.map(i => i.date), [baseNav]);
+    /* 图表 - 横坐标 - 净值时间轴 */
+    const dates = useMemo(() => baseNav.map(i => i.nav_date), [baseNav]);
 
     const series = useMemo(() => {
         const s = [

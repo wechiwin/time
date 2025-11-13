@@ -9,6 +9,7 @@ export default function NavHistoryTable({data = [], onDelete, onEdit}) {
                 <thead className="page-bg">
                 <tr>
                     <th className="table-header">基金代码</th>
+                    <th className="table-header">基金别称</th>
                     <th className="table-header">交易日期</th>
                     <th className="table-header">单位净值</th>
                     <th className="table-header">累计净值</th>
@@ -19,6 +20,7 @@ export default function NavHistoryTable({data = [], onDelete, onEdit}) {
                 {data.map((n) => (
                     <tr key={n.nav_id} className="hover:page-bg">
                         <td className="table-cell font-medium">{n.ho_code}</td>
+                        <td className="table-cell font-medium">{n.ho_short_name}</td>
                         <td className="table-cell">{n.nav_date}</td>
                         <td className="table-cell">{n.nav_per_unit}</td>
                         <td className="table-cell">{n.nav_accumulated_per_unit}</td>

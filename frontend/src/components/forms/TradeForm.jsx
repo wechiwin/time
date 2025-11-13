@@ -37,10 +37,10 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                 ho_code: initialValues.ho_code || '',
                 tr_type: initialValues.tr_type || '买入',
                 tr_date: initialValues.tr_date || '',
-                tr_nav_per_unit: initialValues.tr_nav_per_unit || '',
-                tr_shares: initialValues.tr_shares || '',
-                tr_fee: initialValues.tr_fee || '',
-                tr_amount: initialValues.tr_amount || ''
+                tr_nav_per_unit: initialValues.tr_nav_per_unit,
+                tr_shares: initialValues.tr_shares,
+                tr_fee: initialValues.tr_fee,
+                tr_amount: initialValues.tr_amount
             });
         }
     }, [initialValues]);
@@ -50,9 +50,17 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
             <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                 <div className="flex flex-col">
                     <label className="text-sm font-medium mb-1">基金代码</label>
-                    <HoldingSearchSelect
+                    {/* <HoldingSearchSelect */}
+                    {/*     value={form.ho_code} */}
+                    {/*     onChange={(code) => setForm({...form, ho_code: code})} */}
+                    {/* /> */}
+                    <input
+                        placeholder="基金代码"
                         value={form.ho_code}
-                        onChange={(code) => setForm({...form, ho_code: code})}
+                        onChange={(e) => setForm({...form, ho_code: e.target.value})}
+                        required
+                        className={`input-field ${initialValues?.tr_id ? 'read-only-input' : ''}`}
+                        readOnly={!!initialValues?.tr_id}
                     />
                 </div>
                 <div className="flex flex-col">
@@ -97,9 +105,9 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                     />
                 </div>
                 <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">手续费</label>
+                    <label className="text-sm font-medium mb-1">交易费用</label>
                     <input
-                        placeholder="手续费"
+                        placeholder="交易费用"
                         required
                         value={form.tr_fee}
                         onChange={(e) => setForm({...form, tr_fee: e.target.value})}

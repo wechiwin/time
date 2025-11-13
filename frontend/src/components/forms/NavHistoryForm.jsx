@@ -44,9 +44,17 @@ export default function NavHistoryForm({onSubmit, onClose, initialValues}) {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="flex flex-col">
                     <label className="text-sm font-medium mb-1">基金代码</label>
-                    <HoldingSearchSelect
+                    {/* <HoldingSearchSelect */}
+                    {/*     value={form.ho_code} */}
+                    {/*     onChange={(code) => setForm({...form, ho_code: code})} */}
+                    {/* /> */}
+                    <input
+                        placeholder="基金代码"
                         value={form.ho_code}
-                        onChange={(code) => setForm({...form, ho_code: code})}
+                        onChange={(e) => setForm({...form, ho_code: e.target.value})}
+                        required
+                        className={`input-field ${initialValues?.nav_id ? 'read-only-input' : ''}`}
+                        readOnly={!!initialValues?.nav_id}
                     />
                 </div>
                 <div className="flex flex-col">

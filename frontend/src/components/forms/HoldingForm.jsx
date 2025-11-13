@@ -76,7 +76,7 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
                     />
                 </div>
                 <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">基金名称</label>
+                    <label className="text-sm font-medium mb-1">基金别称</label>
                     <input
                         placeholder="基金别称"
                         value={form.ho_short_name}

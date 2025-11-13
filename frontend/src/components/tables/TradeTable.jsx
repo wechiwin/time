@@ -9,6 +9,7 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                 <thead className="page-bg">
                 <tr>
                     <th className="table-header">基金代码</th>
+                    <th className="table-header">基金别称</th>
                     <th className="table-header">交易类型</th>
                     <th className="table-header">交易日期</th>
                     <th className="table-header">交易净值</th>
@@ -22,6 +23,7 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                 {data.map((t) => (
                     <tr key={t.tr_id} className="hover:page-bg">
                         <td className="table-cell font-medium">{t.ho_code}</td>
+                        <td className="table-cell font-medium">{t.ho_short_name}</td>
                         <td className="table-cell">
                 <span
                     className={`inline-flex px-2 py-0.5 text-xs rounded-full font-medium ${
