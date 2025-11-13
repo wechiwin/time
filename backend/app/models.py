@@ -15,26 +15,28 @@ class TimestampMixin:
 
 
 class Holding(TimestampMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    fund_name = db.Column(db.String(100))
-    fund_code = db.Column(db.String(50), unique=True)
-    fund_type = db.Column(db.String(50))
+    ho_id = db.Column(db.Integer, primary_key=True)
+    ho_name = db.Column(db.String(100))
+    ho_code = db.Column(db.String(50), unique=True)
+    ho_type = db.Column(db.String(50))
+    ho_establish_date = db.Column(db.Date)
+    ho_short_name = db.Column(db.String(100))
 
 
-class Transaction(TimestampMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    fund_code = db.Column(db.String(50), db.ForeignKey('holding.fund_code'))
-    transaction_type = db.Column(db.String(10))
-    transaction_date = db.Column(db.String(20))
-    transaction_net_value = db.Column(db.Float)
-    transaction_shares = db.Column(db.Float)
-    transaction_fee = db.Column(db.Float)
-    transaction_amount = db.Column(db.Float)
+class Trade(TimestampMixin, db.Model):
+    tr_id = db.Column(db.Integer, primary_key=True)
+    ho_code = db.Column(db.String(50), db.ForeignKey('holding.ho_code'))
+    tr_type = db.Column(db.String(10))
+    tr_date = db.Column(db.String(20))
+    tr_nav_per_unit = db.Column(db.Float)
+    tr_shares = db.Column(db.Float)
+    tr_fee = db.Column(db.Float)
+    tr_amount = db.Column(db.Float)
 
 
-class NetValue(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    fund_code = db.Column(db.String(50), db.ForeignKey('holding.fund_code'))
-    date = db.Column(db.String(20))
-    unit_net_value = db.Column(db.Float)
-    accumulated_net_value = db.Column(db.Float)
+class NavHistory(db.Model):
+    nav_id = db.Column(db.Integer, primary_key=True)
+    ho_code = db.Column(db.String(50), db.ForeignKey('holding.ho_code'))
+    nav_date = db.Column(db.String(20))
+    nav_per_unit = db.Column(db.Float)  # 单位净值
+    nav_accumulated_per_unit = db.Column(db.Float)  # 累计净值=单位净值+分红

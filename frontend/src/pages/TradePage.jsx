@@ -1,8 +1,7 @@
-// src/pages/TransactionPage.jsx
-import TransactionSearchBox from '../components/search/TransactionSearchBox';
-import TransactionForm from '../components/forms/TransactionForm';
+// src/pages/TradePage.jsx
+import TradeForm from '../components/forms/TradeForm';
 import TradeTable from '../components/tables/TradeTable';
-import useTransactionList from '../hooks/api/useTransactionList';
+import useTradeList from '../hooks/api/useTradeList';
 import useDeleteWithToast from '../hooks/useDeleteWithToast';
 import FormModal from "../components/common/FormModal";
 import {useCallback, useState} from "react";
@@ -10,7 +9,7 @@ import {useToast} from "../components/toast/ToastContext";
 import Pagination from "../components/common/Pagination";
 import {usePaginationState} from "../hooks/usePaginationState";
 
-export default function TransactionPage() {
+export default function TradePage() {
     // 分页
     const {
         page,
@@ -21,7 +20,7 @@ export default function TransactionPage() {
 
     const [keyword, setKeyword] = useState("");
 
-    const {data, loading, error, add, remove, search, update, importData, downloadTemplate} = useTransactionList({
+    const {data, loading, error, add, remove, search, update, importData, downloadTemplate} = useTradeList({
         page,
         perPage,
         keyword,
@@ -130,7 +129,7 @@ export default function TransactionPage() {
                 show={showModal}
                 onClose={() => setShowModal(false)}
                 onSubmit={modalSubmit}
-                FormComponent={TransactionForm}
+                FormComponent={TradeForm}
                 initialValues={initialValues}
             />
         </div>

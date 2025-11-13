@@ -46,8 +46,8 @@
     │   │   │   └── withPagination.jsx
     │   │   ├── forms
     │   │   │   ├── HoldingForm.jsx
-    │   │   │   ├── NetValueForm.jsx
-    │   │   │   └── TransactionForm.jsx
+    │   │   │   ├── NavHistoryForm.jsx
+    │   │   │   └── TradeForm.jsx
     │   │   ├── layout
     │   │   │   ├── DarkToggle.jsx
     │   │   │   ├── Header.jsx
@@ -61,7 +61,7 @@
     │   │   │   └── TransactionSearchBox.jsx
     │   │   ├── tables
     │   │   │   ├── HoldingTable.jsx
-    │   │   │   ├── NetValueTable.jsx
+    │   │   │   ├── NavHistoryTable.jsx
     │   │   │   └── TradeTable.jsx
     │   │   └── toast
     │   │       ├── Toast.jsx
@@ -72,8 +72,8 @@
     │   ├── hooks
     │   │   ├── api
     │   │   │   ├── useHoldingList.js
-    │   │   │   ├── useNetValueList.js
-    │   │   │   └── useTransactionList.js
+    │   │   │   ├── useNavHistoryList.js
+    │   │   │   └── useTradeList.js
     │   │   ├── useApi.js
     │   │   ├── useDarkMode.js
     │   │   ├── useDebouncedSearch.js
@@ -84,8 +84,8 @@
     │   └── pages
     │       ├── Dashboard.jsx
     │       ├── HoldingPage.jsx
-    │       ├── NetValuePage.jsx
-    │       └── TransactionPage.jsx
+    │       ├── NavHistoryPage.jsx
+    │       └── TradePage.jsx
     ├── tailwind.config.js
     └── vite.config.js
 
@@ -161,7 +161,7 @@ docker-compose up --build
 
 ## 🗃 数据表结构
 
-- Holding: id, fund_name, fund_code, fund_type
+- Holding: id, ho_name, fund_code, fund_type
 - Transaction: id, fund_code, transaction_type, transaction_date, transaction_net_value, transaction_shares,
   transaction_fee
 - NetValue: id, fund_code, date, unit_net_value

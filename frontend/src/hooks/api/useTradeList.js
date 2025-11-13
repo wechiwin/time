@@ -1,13 +1,12 @@
-// src/hooks/useNetValueList.js
+// src/hooks/useTradeList.js
 import {useCallback, useEffect, useState} from 'react';
 import useApi from '../useApi';
-import {DEFAULT_PAGE_SIZE} from "../../constants/sysConst";
 
-export default function useNetValueList(options = {}) {
+export default function useTradeList(options = {}) {
     const {
         keyword = '',
         page = 1,
-        perPage = DEFAULT_PAGE_SIZE,
+        perPage = 10,
         autoLoad = true
     } = options;
 
@@ -15,14 +14,13 @@ export default function useNetValueList(options = {}) {
     const [data, setData] = useState(null);
     const {loading, error, get, post, put, del} = useApi();
 
-    // 修改search方法，接收查询字符串
     const search = useCallback(async (searchKeyword = '', currentPage = 1, currentPerPage = 10) => {
         const params = new URLSearchParams({
-            keyword: searchKeyword,
+            keyword: encodeURIComponent(searchKeyword),
             page: currentPage.toString(),
             per_page: currentPerPage.toString()
         }).toString();
-        const result = await get(`/api/net_values?${params}`);
+        const result = await get(`/api/trade?${params}`);
         setData(result);  // 业务逻辑设置 data
         return result;
     }, [get]);
@@ -35,42 +33,47 @@ export default function useNetValueList(options = {}) {
     }, [keyword, page, perPage, autoLoad, search]);
 
     const add = useCallback(async (body) => {
-        const result = await post('/api/net_values', body);
+        const result = await post('/api/trade', body);
         await search(keyword, page, perPage);
         return result;
     }, [post, search, keyword, page, perPage]);
 
     const remove = useCallback(async (id) => {
-        const result = await del(`/api/net_values/${id}`);
+        const result = await del(`/api/trade/${id}`);
         await search(keyword, page, perPage);
         return result;
     }, [del, search, keyword, page, perPage]);
 
     const update = useCallback(async ({id, ...body}) => {
-        const result = await put(`/api/net_values/${id}`, body);
+        const result = await put(`/api/trade/${id}`, body);
         await search(keyword, page, perPage);
         return result;
     }, [put, search, keyword, page, perPage]);
 
-    const crawl = useCallback(async (body) => {
-        const result = await post('/api/net_values/crawl', body);
-        await search(keyword, page, perPage);
-        return result;
-    }, [post, search, keyword, page, perPage]);
+    // 下载模板
+    const downloadTemplate = useCallback(() => {
+        window.location.href = '/api/trade/template';
+    }, []);
 
-    const crawl_all = useCallback(async () => {
-        const result = await post('/api/net_values/crawl_all');
-        return result;
-    }, [post, search, keyword, page, perPage]);
+    const importData = useCallback(async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
 
-    const searchList = useCallback(async (fund_code = '') => {
+        return post('/api/trade/import', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+    }, [post]);
+
+    const listByCode = useCallback(async (ho_code = '') => {
         const params = new URLSearchParams({
-            fund_code: fund_code
+            ho_code: ho_code
         }).toString();
-        const result = await get(`/api/net_values/search_list?${params}`);
+        const result = await get(`/api/trade/list_by_code/${params}`);
         setData(result);  // 业务逻辑设置 data
         return result;
     }, [get]);
 
-    return {data, loading, error, add, remove, update, search, crawl, crawl_all, searchList};
+    return {data, loading, error, add, remove, update, search, downloadTemplate, importData, listByCode};
 }

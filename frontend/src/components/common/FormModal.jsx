@@ -9,6 +9,7 @@ export default function FormModal({
                                       onSubmit,
                                       FormComponent,
                                       initialValues,
+                                      modalProps = {},
                                   }) {
     return (
         <Modal title={title} show={show} onClose={onClose}>
@@ -19,6 +20,7 @@ export default function FormModal({
                 }}
                 onClose={onClose}
                 initialValues={initialValues}
+                {...modalProps}
             />
         </Modal>
     );

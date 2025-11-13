@@ -1,21 +1,21 @@
-import {useParams, useSearchParams, Link} from 'react-router-dom';
+import {useParams, Link} from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
 import {useEffect, useState, useMemo} from 'react';
 import useHoldingList from "../hooks/api/useHoldingList";
-import useNetValueList from "../hooks/api/useNetValueList";
-import useTransactionList from "../hooks/api/useTransactionList";
-import FundNetValueChart from "../components/charts/FundNetValueChart";
+import useNavHistoryList from "../hooks/api/useNavHistoryList";
+import useTradeList from "../hooks/api/useTradeList";
 import HoldingSearchSelect from "../components/search/HoldingSearchSelect";
 import {motion, AnimatePresence} from 'framer-motion';
+import TradeTable from "../components/tables/TradeTable";
 
 export default function HoldingDetailPage() {
-    const {fund_code} = useParams();               // 当前主基金
+    const {ho_code} = useParams();               // 当前主基金
     const [fundInfo, setFundInfo] = useState(null);
     const [baseNav, setBaseNav] = useState([]);   // 主基金净值
     const [trades, setTrades] = useState([]);
-    const [netValues, setNetValues] = useState([]);
-    const [compareFunds, setCompareFunds] = useState([]);
-    const [loading, setLoading] = useState(true);
+    // const [netValues, setNetValues] = useState([]);
+    // const [compareFunds, setCompareFunds] = useState([]);
+    // const [loading, setLoading] = useState(true);
 
     /* ---- 对比基金：只存代码 ---- */
     // 对比基金代码数组（只存 code，不存完整对象）
@@ -32,25 +32,25 @@ export default function HoldingDetailPage() {
     const {getByCode} = useHoldingList({
         autoLoad: false,
     });
-    const {searchList} = useNetValueList({
+    const {searchList} = useNavHistoryList({
         autoLoad: false,
     });
-    const {listByCode} = useTransactionList({
+    const {listByCode} = useTradeList({
         autoLoad: false,
     });
 
     /* 1. 基本信息 + 主基金净值 + 交易记录 */
     useEffect(() => {
-        loadBase(fund_code);
-    }, [fund_code]);
+        loadBase(ho_code);
+    }, [ho_code]);
 
-    async function loadBase(fund_code) {
-        const res = await getByCode(fund_code);
+    async function loadBase(ho_code) {
+        const res = await getByCode(ho_code);
         setFundInfo(res);
-        const nav = await searchList(fund_code);
+        const nav = await searchList(ho_code);
         console.log(nav);
         setBaseNav(nav);
-        const records = await listByCode(fund_code);
+        const records = await listByCode(ho_code);
         // console.log("records" + records);
         setTrades(records);
     }
@@ -63,44 +63,96 @@ export default function HoldingDetailPage() {
         }
         setLoadingCompare(true);
         Promise.all(
-            compareCodes.map(async fund_code => {
-                const list = await searchList(fund_code);
-                return {fund_code, list};
+            compareCodes.map(async ho_code => {
+                const list = await searchList(ho_code);
+                return {ho_code, list};
             })
         )
             .then(arr => {
                 const map = {};
-                arr.forEach(({fund_code, list}) => (map[fund_code] = list));
+                arr.forEach(({ho_code, list}) => (map[ho_code] = list));
                 setCompareNavMap(map);
             })
             .finally(() => setLoadingCompare(false));
     }, [compareCodes]);
 
+    /* 图表数据 */
+    const dates = useMemo(() => baseNav.map(i => i.date), [baseNav]);
 
-    /* 3. 图表 series */
     const series = useMemo(() => {
         const s = [
             {
-                name: fund_code,
+                name: ho_code,
                 type: 'line',
-                data: baseNav.map(i => i.unit_net_value),
+                data: baseNav.map(i => i.nav_per_unit),
                 smooth: true,
                 showSymbol: false,
+                lineStyle: { width: 2 },
             },
         ];
-        Object.entries(compareNavMap).forEach(([code, list]) => {
+
+        // 对比基金曲线
+        Object.entries(compareNavMap).forEach(([ho_code, list]) => {
             s.push({
-                name: fund_code,
+                name: ho_code,
                 type: 'line',
-                data: list.map(i => i.unit_net_value),
+                data: list.map(i => i.nav_per_unit),
                 smooth: true,
                 showSymbol: false,
+                lineStyle: { width: 1.5, type: 'dashed' },
             });
         });
-        return s;
-    }, [baseNav, compareNavMap]);
 
-    const dates = useMemo(() => baseNav.map(i => i.date), [baseNav]);
+        // === 交易点标记 ===
+        if (trades.length > 0) {
+            const buyPoints = trades
+                .filter(t => t.tr_type === '买入')
+                .map(t => ({
+                    name: '买入',
+                    value: [t.tr_date, t.tr_nav_per_unit],
+                    symbol: 'triangle',
+                    symbolSize: 12,
+                    itemStyle: { color: '#ef4444' }, // 红色
+                }));
+
+            const sellPoints = trades
+                .filter(t => t.tr_type === '卖出')
+                .map(t => ({
+                    name: '卖出',
+                    value: [t.tr_date, t.tr_nav_per_unit],
+                    symbol: 'triangle',
+                    symbolRotate: 180,
+                    symbolSize: 12,
+                    itemStyle: { color: '#3b82f6' }, // 蓝色
+                }));
+
+            s.push({
+                name: '买入点',
+                type: 'scatter',
+                data: buyPoints,
+                tooltip: {
+                    formatter: p =>
+                        `买入<br/>日期：${p.value[0]}<br/>净值：${p.value[1]}`,
+                },
+            });
+            s.push({
+                name: '卖出点',
+                type: 'scatter',
+                data: sellPoints,
+                tooltip: {
+                    formatter: p =>
+                        `卖出<br/>日期：${p.value[0]}<br/>净值：${p.value[1]}`,
+                },
+            });
+        }
+
+        return s;
+    }, [baseNav, compareNavMap, trades, ho_code]);
+
+    function tTypeLabel(date) {
+        const t = trades.find(i => i.tr_date === date);
+        return t ? `${t.tr_type} ${t.tr_amount}` : '';
+    }
 
     /* 4. 增 / 删对比 */
     const addCompare = code => {
@@ -111,43 +163,36 @@ export default function HoldingDetailPage() {
         setCompareCodes(prev => prev.filter(c => c !== code));
     };
 
-    /* 5. 交易表格列 */
-    const tradeCols = [
-        {key: 'transaction_type', label: '交易类型'},
-        {key: 'transaction_date', label: '交易日期'},
-        {key: 'transaction_shares', label: '交易份额'},
-        {key: 'transaction_net_value', label: '单位净值'},
-        {key: 'transaction_fee', label: '交易费用'},
-        {key: 'transaction_amount', label: '交易总额'},
-    ];
-
     return (
-        <div className="space-y-6 p-4">
+        <div className="space-y-6 p-6 bg-gray-50 min-h-screen">
             {/* 顶部操作栏 */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-2">
                 <Link to="/holding" className="text-blue-600 hover:underline">
                     &lt; 返回列表
                 </Link>
 
                 <button
                     onClick={() => setDrawerOpen(true)}
-                    className="rounded bg-indigo-600 px-3 py-1 text-white hover:bg-indigo-700"
+                    className="rounded bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-700"
                 >
-                    交易记录
+                    查看交易记录
                 </button>
             </div>
-            {/* 基本信息 */}
-            <div className="card">
-                {/* <div className="card-header">基金基本信息</div> */}
-                <div className="card-body">
-                    <p>基金代码：{fundInfo?.fund_code}</p>
-                    <p>基金名称：{fundInfo?.fund_name}</p>
-                    <p>基金类型：{fundInfo?.fund_type}</p>
+
+            {/* 基金基本信息 */}
+            <div className="card flex items-center justify-between flex-wrap gap-4 p-4">
+                <div className="flex flex-col">
+                    <span className="font-semibold text-lg">{fundInfo?.ho_name}</span>
+                    <span className="text-sm text-gray-600">{fundInfo?.ho_code}</span>
+                </div>
+                <div className="flex gap-6 text-sm text-gray-700">
+                    <div>基金类型：<span className="font-medium">{fundInfo?.ho_type}</span></div>
+                    {/* <div>当前持仓：<span className="font-medium">{fundInfo?.holding_amount ?? '—'}</span></div> */}
                 </div>
             </div>
 
             {/* 净值走势 + 对比 */}
-            <div className="card">
+            <div className="card p-4">
                 <div className="mb-3 flex items-center justify-between gap-4">
                     <div className="w-full max-w-xs">
                         <HoldingSearchSelect
@@ -162,7 +207,7 @@ export default function HoldingDetailPage() {
                         value={chartKind}
                         onChange={e => setChartKind(e.target.value)}
                     >
-                        <option value="unit_net_value">单位净值</option>
+                        <option value="nav_per_unit">单位净值</option>
                         <option value="accum_net_value">累计净值</option>
                     </select>
                 </div>
@@ -172,9 +217,9 @@ export default function HoldingDetailPage() {
                     <div className="flex flex-wrap gap-2 mb-3">
                         {compareCodes.map(code => (
                             <span key={code} className="tag">
-                {code}
+                                {code}
                                 <button className="ml-2" onClick={() => removeCompare(code)}>×</button>
-              </span>
+                            </span>
                         ))}
                     </div>
                 )}
@@ -184,51 +229,30 @@ export default function HoldingDetailPage() {
                         title: {text: '净值走势'},
                         tooltip: {trigger: 'axis'},
                         legend: {
-                            data: [fund_code, ...compareCodes],
+                            data: [ho_code, ...compareCodes, '交易点'],
                             bottom: 0,
                             left: 'center',
                             orient: 'horizontal',
-                            itemGap: 20,
                         },
                         grid: {left: 60, right: 40, bottom: 60, top: 40},
                         xAxis: {type: 'category', data: dates},
-                        yAxis: {type: 'value', name: chartKind === 'unit_net_value' ? '单位净值' : '累计净值'},
+                        yAxis: {type: 'value', name: chartKind === 'nav_per_unit' ? '单位净值' : '累计净值'},
                         series,
                     }}
-                    style={{height: 400}}
+                    style={{height: 420}}
                     showLoading={loadingCompare}
                 />
             </div>
 
-            {/* 抽屉：原生实现 */}
+            {/* 抽屉中的交易记录 */}
             <AnimatedDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)}>
                 <div className="flex h-full flex-col">
-                    <div className="flex items-center justify-between border-b px-4 py-3">
+                    <div className="flex items-center justify-between border-b px-4 py-3 bg-gray-50">
                         <h2 className="text-lg font-semibold">历史交易记录</h2>
-                        <button onClick={() => setDrawerOpen(false)}>×</button>
+                        <button className="text-xl" onClick={() => setDrawerOpen(false)}>×</button>
                     </div>
-
-                    <div className="flex-1 overflow-auto p-4">
-                        <table className="simple-table w-full">
-                            <thead>
-                            <tr>
-                                {tradeCols.map(c => (
-                                    <th key={c.key}>{c.label}</th>
-                                ))}
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {trades.map(r => (
-                                <tr key={r.id}>
-                                    {tradeCols.map(c => (
-                                        <td key={c.key}>
-                                            {c.render ? c.render(r[c.key]) : r[c.key]}
-                                        </td>
-                                    ))}
-                                </tr>
-                            ))}
-                            </tbody>
-                        </table>
+                    <div className="flex-1 overflow-auto p-4 bg-white">
+                        <TradeTable data={trades}/>
                     </div>
                 </div>
             </AnimatedDrawer>
@@ -254,7 +278,7 @@ function AnimatedDrawer({open, onClose, children}) {
                     {/* 抽屉：从右滑入 */}
                     <motion.div
                         key="drawer"
-                        className="fixed right-0 top-0 z-30 h-full w-96 bg-white shadow-lg"
+                        className="fixed right-0 top-0 z-30 h-full w-[800px] bg-white shadow-2xl"
                         initial={{x: '100%'}}
                         animate={{x: 0}}
                         exit={{x: '100%'}}

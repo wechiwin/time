@@ -1,8 +1,7 @@
-// src/pages/NetValuePage.jsx
-import NetValueSearchBox from '../components/search/NetValueSearchBox';
-import NetValueForm from '../components/forms/NetValueForm';
-import NetValueTable from '../components/tables/NetValueTable';
-import useNetValueList from '../hooks/api/useNetValueList';
+// src/pages/NavHistoryPage.jsx
+import NavHistoryForm from '../components/forms/NavHistoryForm';
+import NavHistoryTable from '../components/tables/NavHistoryTable';
+import useNavHistoryList from '../hooks/api/useNavHistoryList';
 import useDeleteWithToast from '../hooks/useDeleteWithToast';
 import FormModal from "../components/common/FormModal";
 import {useCallback, useState} from "react";
@@ -11,7 +10,7 @@ import CrawlNetValueForm from "../components/forms/CrawlNetValueForm";
 import {usePaginationState} from "../hooks/usePaginationState";
 import {useToast} from "../components/toast/ToastContext";
 
-export default function NetValuePage() {
+export default function NavHistoryPage() {
     // 分页
     const {
         page,
@@ -23,7 +22,7 @@ export default function NetValuePage() {
     const [keyword, setKeyword] = useState("");
 
     // 数据操作
-    const {data, add, remove, update, crawl, crawl_all} = useNetValueList({
+    const {data, add, remove, update, crawl, crawl_all} = useNavHistoryList({
         page,
         perPage,
         keyword,
@@ -111,7 +110,7 @@ export default function NetValuePage() {
                 </div>
             </div>
 
-            <NetValueTable
+            <NavHistoryTable
                 data={data?.items || []}
                 onDelete={handleDelete}
                 onEdit={openEditModal}
@@ -135,7 +134,7 @@ export default function NetValuePage() {
                 show={showModal}
                 onClose={() => setShowModal(false)}
                 onSubmit={modalSubmit}
-                FormComponent={NetValueForm}
+                FormComponent={NavHistoryForm}
                 initialValues={initialValues}
             />
             {/* 爬取净值模态框 */}

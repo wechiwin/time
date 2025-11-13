@@ -3,7 +3,7 @@ import React, {useMemo} from 'react';
 import ReactECharts from 'echarts-for-react';
 
 /**
- * @param {object} baseFund - 基准基金对象，包含 { fund_name, netValues: [{ date, value }] }
+ * @param {object} baseFund - 基准基金对象，包含 { ho_name, netValues: [{ date, value }] }
  * @param {array} compareFunds - 对比基金数组，每项结构同 baseFund
  */
 export default function FundNetValueChart({ baseFund, compareFunds = [] }) {
@@ -13,7 +13,7 @@ export default function FundNetValueChart({ baseFund, compareFunds = [] }) {
 
         if (baseFund?.netValues?.length) {
             series.push({
-                name: baseFund.fund_name,
+                name: baseFund.ho_name,
                 type: 'line',
                 smooth: true,
                 showSymbol: false,
@@ -24,7 +24,7 @@ export default function FundNetValueChart({ baseFund, compareFunds = [] }) {
         if (compareFunds?.length) {
             compareFunds.forEach(f => {
                 series.push({
-                    name: f.fund_name,
+                    name: f.ho_name,
                     type: 'line',
                     smooth: true,
                     showSymbol: false,

@@ -22,7 +22,18 @@ export default function HoldingPage() {
     const [keyword, setKeyword] = useState("");
 
     // 使用参数驱动的数据获取
-    const {data, loading, error, add, remove, search, update, importData, downloadTemplate} = useHoldingList({
+    const {
+        data,
+        loading,
+        error,
+        add,
+        remove,
+        search,
+        update,
+        importData,
+        downloadTemplate,
+        crawlFundInfo
+    } = useHoldingList({
         page,
         perPage,
         keyword,
@@ -90,6 +101,24 @@ export default function HoldingPage() {
         }
     };
 
+    /* 供表单使用的爬取回调 */
+    const handleCrawl = useCallback(
+        async (code, setFormPatch) => {
+            try {
+                const info = await crawlFundInfo(code);
+                setFormPatch({
+                    ho_name: info.ho_name || '',
+                    ho_type: info.ho_type || '',
+                    ho_establish_date: info.ho_establish_date || ''
+                });
+                showSuccessToast('信息已回填');
+            } catch (e) {
+                showErrorToast(e.message || '爬取失败');
+            }
+        },
+        [crawlFundInfo, showSuccessToast, showErrorToast]
+    );
+
     return (
         <div className="space-y-6">
             {/* 搜索 + 按钮行 */}
@@ -144,6 +173,7 @@ export default function HoldingPage() {
                 onSubmit={modalSubmit}
                 FormComponent={HoldingForm}
                 initialValues={initialValues}
+                modalProps={{ onCrawl: handleCrawl }}
             />
         </div>
     );

@@ -8,9 +8,9 @@ from flask.json.provider import DefaultJSONProvider
 from app.framework.interceptor import register_request_response_logger
 
 
-from .routes.holding_bp import holdings_bp
-from .routes.net_value_bp import net_values_bp
-from .routes.transactions_bp import transactions_bp
+from .routes.holding_bp import holding_bp
+from .routes.nav_history_bp import nav_history_bp
+from .routes.trade_bp import trade_bp
 from .scheduler import init_scheduler
 
 scheduler = APScheduler()
@@ -44,9 +44,9 @@ def create_app():
     db.init_app(app)
 
     # --- Register Blueprints ---
-    app.register_blueprint(holdings_bp)
-    app.register_blueprint(transactions_bp)
-    app.register_blueprint(net_values_bp)
+    app.register_blueprint(holding_bp)
+    app.register_blueprint(trade_bp)
+    app.register_blueprint(nav_history_bp)
 
     # 初始化调度器
     init_scheduler(app, scheduler)

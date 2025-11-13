@@ -4,14 +4,14 @@ import HoldingSearchSelect from '../search/HoldingSearchSelect';
 
 export default function CrawlNetValueForm({ onSubmit, onClose, initialValues }) {
     const [formData, setFormData] = useState({
-        fund_code: initialValues.fund_code || '',
+        ho_code: initialValues.ho_code || '',
         start_date: initialValues.start_date || '',
         end_date: initialValues.end_date || ''
     });
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!formData.fund_code) {
+        if (!formData.ho_code) {
             alert('请选择基金');
             return;
         }
@@ -32,8 +32,8 @@ export default function CrawlNetValueForm({ onSubmit, onClose, initialValues }) 
                     基金代码
                 </label>
                 <HoldingSearchSelect
-                    value={formData.fund_code}
-                    onChange={(value) => handleChange('fund_code', value)}
+                    value={formData.ho_code}
+                    onChange={(value) => handleChange('ho_code', value)}
                     placeholder="搜索并选择基金"
                 />
             </div>

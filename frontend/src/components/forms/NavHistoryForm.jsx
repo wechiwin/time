@@ -1,17 +1,17 @@
-// src/components/forms/NetValueForm.jsx
+// src/components/forms/NavHistoryForm.jsx
 import {useEffect, useState} from 'react';
 import {useToast} from '../toast/ToastContext';
 import HoldingSearchSelect from '../search/HoldingSearchSelect';
 
 const init = {
-    id: '',
-    fund_code: '',
-    date: '',
-    unit_net_value: '',
-    accumulated_net_value: '',
+    nav_id: '',
+    ho_code: '',
+    nav_date: '',
+    nav_per_unit: '',
+    nav_accumulated_per_unit: '',
 };
 
-export default function NetValueForm({onSubmit, onClose, initialValues}) {
+export default function NavHistoryForm({onSubmit, onClose, initialValues}) {
     const [form, setForm] = useState(init);
     const {showSuccessToast, showErrorToast} = useToast();
 
@@ -30,11 +30,11 @@ export default function NetValueForm({onSubmit, onClose, initialValues}) {
     useEffect(() => {
         if (initialValues) {
             setForm({
-                id: initialValues.id,
-                fund_code: initialValues.fund_code || '',
-                date: initialValues.date || '',
-                unit_net_value: initialValues.unit_net_value || '',
-                accumulated_net_value: initialValues.accumulated_net_value || ''
+                nav_id: initialValues.nav_id,
+                ho_code: initialValues.ho_code || '',
+                nav_date: initialValues.nav_date || '',
+                nav_per_unit: initialValues.nav_per_unit || '',
+                nav_accumulated_per_unit: initialValues.nav_accumulated_per_unit || ''
             });
         }
     }, [initialValues]);
@@ -45,8 +45,8 @@ export default function NetValueForm({onSubmit, onClose, initialValues}) {
                 <div className="flex flex-col">
                     <label className="text-sm font-medium mb-1">基金代码</label>
                     <HoldingSearchSelect
-                        value={form.fund_code}
-                        onChange={(code) => setForm({...form, fund_code: code})}
+                        value={form.ho_code}
+                        onChange={(code) => setForm({...form, ho_code: code})}
                     />
                 </div>
                 <div className="flex flex-col">
@@ -54,8 +54,8 @@ export default function NetValueForm({onSubmit, onClose, initialValues}) {
                     <input
                         type="date"
                         required
-                        value={form.date}
-                        onChange={(e) => setForm({...form, date: e.target.value})}
+                        value={form.nav_date}
+                        onChange={(e) => setForm({...form, nav_date: e.target.value})}
                         className="input-field"
                     />
                 </div>
@@ -64,8 +64,8 @@ export default function NetValueForm({onSubmit, onClose, initialValues}) {
                     <input
                         placeholder="单位净值"
                         required
-                        value={form.unit_net_value}
-                        onChange={(e) => setForm({...form, unit_net_value: e.target.value})}
+                        value={form.nav_per_unit}
+                        onChange={(e) => setForm({...form, nav_per_unit: e.target.value})}
                         className="input-field"
                     />
                 </div>
@@ -74,8 +74,8 @@ export default function NetValueForm({onSubmit, onClose, initialValues}) {
                     <input
                         placeholder="累计净值"
                         required
-                        value={form.accumulated_net_value}
-                        onChange={(e) => setForm({...form, accumulated_net_value: e.target.value})}
+                        value={form.nav_accumulated_per_unit}
+                        onChange={(e) => setForm({...form, nav_accumulated_per_unit: e.target.value})}
                         className="input-field"
                     />
                 </div>

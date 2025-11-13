@@ -10,8 +10,8 @@ import DarkToggle from "./DarkToggle";
 const navigation = [
     {name: 'Dashboard', href: '/dashboard', icon: HomeIcon},
     {name: '持仓管理', href: '/holding', icon: TableCellsIcon},
-    {name: '交易管理', href: '/transaction', icon: ArrowsRightLeftIcon},
-    {name: '净值历史', href: '/net_value', icon: ChartBarIcon},
+    {name: '交易管理', href: '/trade', icon: ArrowsRightLeftIcon},
+    {name: '净值历史', href: '/nav_history', icon: ChartBarIcon},
 ];
 
 export default function Sidebar() {

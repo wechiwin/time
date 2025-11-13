@@ -72,12 +72,12 @@ export default function HoldingSearchSelect({value, onChange, placeholder = '搜
                                 key={f.id}
                                 className="px-3 py-2 hover:bg-blue-50 dark:hover:bg-blue-900 cursor-pointer"
                                 onMouseDown={() => {
-                                    onChange(f.fund_code);
-                                    setKeyword(f.fund_code);
+                                    onChange(f.ho_code);
+                                    setKeyword(f.ho_code);
                                     setOpen(false);
                                 }}
                             >
-                                {f.fund_code} - {f.fund_name}
+                                {f.ho_code} - {f.ho_name}
                             </div>
                         ))
                     ) : (

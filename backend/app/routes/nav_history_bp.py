@@ -3,31 +3,31 @@ from datetime import datetime, timedelta
 
 import requests
 from app.framework.exceptions import BizException
-from app.models import db, NetValue, Holding
-from app.service.net_value_service import NetValueService
+from app.models import db, NavHistory, Holding
+from app.schemas_marshall import NavHistorySchema, marshal_pagination
+from app.service.nav_history_service import NavHistoryService
 from flask import Blueprint, request, current_app
 from sqlalchemy import func
 
-net_values_bp = Blueprint('net_values', __name__, url_prefix='/api/net_values')
+nav_history_bp = Blueprint('nav_history', __name__, url_prefix='/api/nav_history')
 
 
-@net_values_bp.route('', methods=['GET'])
-def get_net_values():
-    fund_code = request.args.get('fund_code')
+@nav_history_bp.route('', methods=['GET'])
+def get_nav_history():
+    ho_code = request.args.get('ho_code')
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 10, type=int)
 
     # 基础查询：左连接 Holding 表
-    query = db.session.query(NetValue, Holding.fund_name).outerjoin(
-        Holding, NetValue.fund_code == Holding.fund_code
+    query = db.session.query(NavHistory, Holding.ho_short_name).outerjoin(
+        Holding, NavHistory.ho_code == Holding.ho_code
     )
 
-    # query = NetValue.query
-    if fund_code:
-        query = query.filter_by(fund_code=fund_code)
+    if ho_code:
+        query = query.filter_by(ho_code=ho_code)
 
     # 分页查询
-    pagination = query.order_by(NetValue.date.desc()).paginate(
+    pagination = query.order_by(NavHistory.nav_date.desc()).paginate(
         page=page, per_page=per_page, error_out=False
     )
 
@@ -35,13 +35,13 @@ def get_net_values():
     results = pagination.items or []
 
     data = [{
-        'id': nv.id,
-        'fund_code': nv.fund_code,
-        'fund_name': fund_name,
-        'date': nv.date,
-        'unit_net_value': nv.unit_net_value,
-        'accumulated_net_value': nv.accumulated_net_value
-    } for nv, fund_name in results]
+        'nav_id': nv.nav_id,
+        'ho_code': nv.ho_code,
+        'ho_short_name': ho_short_name,
+        'nav_date': nv.nav_date,
+        'nav_per_unit': nv.nav_per_unit,
+        'nav_accumulated_per_unit': nv.nav_accumulated_per_unit
+    } for nv, ho_short_name in results]
 
     return {
         'items': data,
@@ -53,92 +53,78 @@ def get_net_values():
         }
     }
 
-
-@net_values_bp.route('search_list', methods=['GET'])
+@nav_history_bp.route('search_list', methods=['GET'])
 def search_list():
-    fund_code = request.args.get('fund_code')
-    data = NetValueService.search_list(fund_code)
+    ho_code = request.args.get('ho_code')
+    data = NavHistoryService.search_list(ho_code)
     return data
 
 
-@net_values_bp.route('', methods=['POST'])
+@nav_history_bp.route('', methods=['POST'])
 def create_net_value():
     data = request.get_json()
-    required_fields = ['fund_code', 'date', 'unit_net_value']
+    required_fields = ['ho_code', 'nav_date', 'nav_per_unit']
     if not all(field in data for field in required_fields):
-        raise BizException(code=400, message="缺少必要字段")
-    new_nv = NetValue(
-        fund_code=data['fund_code'],
-        date=data['date'],
-        unit_net_value=data['unit_net_value'],
-        accumulated_net_value=data['accumulated_net_value']
-    )
+        raise BizException(message="缺少必要字段")
+    new_nv = NavHistorySchema().load(data)
     db.session.add(new_nv)
     db.session.commit()
-    return None
+    return ''
 
 
-@net_values_bp.route('/<int:id>', methods=['GET'])
-def get_net_value(id):
-    nv = NetValue.query.get_or_404(id)
-    data = {
-        'id': nv.id,
-        'fund_code': nv.fund_code,
-        'date': nv.date,
-        'unit_net_value': nv.unit_net_value,
-        'accumulated_net_value': nv.accumulated_net_value
-    }
-    return data
+@nav_history_bp.route('/<int:nav_id>', methods=['GET'])
+def get_net_value(nav_id):
+    nv = NavHistory.query.get_or_404(nav_id)
+    return NavHistorySchema().dump(nv)
 
 
-@net_values_bp.route('/<int:id>', methods=['PUT'])
-def update_net_value(id):
-    nv = NetValue.query.get_or_404(id)
+@nav_history_bp.route('/<int:nav_id>', methods=['PUT'])
+def update_net_value(nav_id):
+    nv = NavHistory.query.get_or_404(nav_id)
     data = request.get_json()
-    nv.fund_code = data.get('fund_code', nv.fund_code)
-    nv.date = data.get('date', nv.date)
-    nv.unit_net_value = data.get('unit_net_value', nv.unit_net_value)
-    nv.accumulated_net_value = data.get('accumulated_net_value', nv.accumulated_net_value)
+    updated_data = NavHistorySchema().load(data, instance=nv, partial=True)
+
+    db.session.add(updated_data)
     db.session.commit()
-    return None
+    return ''
 
 
-@net_values_bp.route('/<int:id>', methods=['DELETE'])
-def delete_net_value(id):
-    nv = NetValue.query.get_or_404(id)
+@nav_history_bp.route('/<int:nav_id>', methods=['DELETE'])
+def delete_net_value(nav_id):
+    nv = NavHistory.query.get_or_404(nav_id)
     db.session.delete(nv)
     db.session.commit()
-    return None
+    return ''
 
 
-@net_values_bp.route('/crawl', methods=['POST'])
-def crawl_net_values():
+@nav_history_bp.route('/crawl', methods=['POST'])
+def crawl_nav_history():
     data = request.get_json()  # 改为获取 JSON 数据
-    fund_code = data.get("fund_code")
+    ho_code = data.get("ho_code")
     start_date = data.get("start_date")
     end_date = data.get("end_date")
-    if not fund_code:
-        raise BizException(code=400, message="缺少基金代码")
+    if not ho_code:
+        raise BizException(message="缺少基金代码")
 
     try:
-        data = crawl_fund_history(fund_code, start_date, end_date)
+        data = crawl_fund_history(ho_code, start_date, end_date)
         if not data:
             raise BizException(message="未获取到数据")
 
         print(f"爬取基金 {len(data)} 条")
-        save_net_values_to_db(data, fund_code, start_date, end_date)
-        return None
+        save_nav_history_to_db(data, ho_code, start_date, end_date)
+        return ''
     except Exception as e:
         db.session.rollback()
-        raise BizException(code=500, message=f"爬取失败: {e}")
+        raise BizException(message=f"爬取失败: {e}")
 
 
-def save_net_values_to_db(data_list, fund_code, start_date, end_date):
+def save_nav_history_to_db(data_list, ho_code, start_date, end_date):
     # 查询日期内的数据
-    result = NetValue.query.filter(
-        NetValue.fund_code == fund_code,
-        NetValue.date >= start_date,
-        NetValue.date <= end_date
+    result = NavHistory.query.filter(
+        NavHistory.ho_code == ho_code,
+        NavHistory.tr_date >= start_date,
+        NavHistory.tr_date <= end_date
     ).all()
     # key:date val:identity
     result_map = {item.date: item for item in result}
@@ -152,15 +138,15 @@ def save_net_values_to_db(data_list, fund_code, start_date, end_date):
         if net_val_db:
             # 检查数据是否有变化，避免不必要的更新
             if (net_val_db.unit_net_value != item['unit_net_value'] or
-                    net_val_db.accumulated_net_value != item['accumulated_net_value']):
+                    net_val_db.nav_accumulated_per_unit != item['nav_accumulated_per_unit']):
                 net_val_db.unit_net_value = item['unit_net_value']
-                net_val_db.accumulated_net_value = item['accumulated_net_value']
+                net_val_db.nav_accumulated_per_unit = item['nav_accumulated_per_unit']
         else:
-            nv = NetValue(
-                fund_code=item['fund_code'],
+            nv = NavHistory(
+                ho_code=item['ho_code'],
                 date=item['date'],
                 unit_net_value=item['unit_net_value'],
-                accumulated_net_value=item['accumulated_net_value']
+                nav_accumulated_per_unit=item['nav_accumulated_per_unit']
             )
         db.session.add(nv)
 
@@ -171,10 +157,10 @@ def save_net_values_to_db(data_list, fund_code, start_date, end_date):
         print(f"保存失败: {e}")
 
 
-def crawl_fund_history(fund_code, start_date=None, end_date=None):
+def crawl_fund_history(ho_code, start_date=None, end_date=None):
     """
     爬取单只基金的历史净值
-    :param fund_code: 基金代码，如 '000001'
+    :param ho_code: 基金代码，如 '000001'
     :param start_date: 开始日期，格式 'YYYY-MM-DD'
     :param end_date: 结束日期，格式 'YYYY-MM-DD'
     :return: 净值列表（字典）
@@ -182,11 +168,11 @@ def crawl_fund_history(fund_code, start_date=None, end_date=None):
     url = "https://api.fund.eastmoney.com/f10/lsjz"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
-        "Referer": f"http://fundf10.eastmoney.com/jjjz_{fund_code}.html",
+        "Referer": f"http://fundf10.eastmoney.com/jjjz_{ho_code}.html",
         "X-Requested-With": "XMLHttpRequest",
     }
     params = {
-        "fundCode": fund_code,
+        "fundCode": ho_code,
         "pageIndex": 1,
         "pageSize": 20,  # 最大一页1000条
         "startDate": start_date or "",
@@ -213,10 +199,10 @@ def crawl_fund_history(fund_code, start_date=None, end_date=None):
             items = data['Data']['LSJZList']
             for item in items:
                 all_data.append({
-                    'fund_code': fund_code,
+                    'ho_code': ho_code,
                     'date': datetime.strptime(item['FSRQ'], '%Y-%m-%d').date(),
                     'unit_net_value': float(item['DWJZ']),
-                    'accumulated_net_value': float(item['LJJZ']) if item['LJJZ'] else None,
+                    'nav_accumulated_per_unit': float(item['LJJZ']) if item['LJJZ'] else None,
                 })
 
             # 判断是否还有下一页
@@ -233,20 +219,20 @@ def crawl_fund_history(fund_code, start_date=None, end_date=None):
     return all_data
 
 
-def crawl_missing_net_values():
+def crawl_missing_nav_history():
     # 查询所有基金的最近一条净值记录
-    # 先找到每个fund_code的最大date
+    # 先找到每个ho_code的最大date
     subquery = db.session.query(
-        NetValue.fund_code,
-        func.max(NetValue.date).label('max_date')
-    ).group_by(NetValue.fund_code).subquery()
+        NavHistory.ho_code,
+        func.max(NavHistory.tr_date).label('max_date')
+    ).group_by(NavHistory.ho_code).subquery()
 
     # 然后关联查询获取完整记录
-    results = db.session.query(NetValue).join(
+    results = db.session.query(NavHistory).join(
         subquery,
         db.and_(
-            NetValue.fund_code == subquery.c.fund_code,
-            NetValue.date == subquery.c.max_date
+            NavHistory.ho_code == subquery.c.ho_code,
+            NavHistory.tr_date == subquery.c.max_date
         )
     ).all()
 
@@ -259,24 +245,23 @@ def crawl_missing_net_values():
     for item in results:
         if item.date < yesterday_str:
             try:
-                data = crawl_fund_history(item.fund_code, item.date, yesterday_str)
+                data = crawl_fund_history(item.ho_code, item.date, yesterday_str)
                 if data:
-                    save_net_values_to_db(data, item.fund_code, item.date, yesterday_str)
+                    save_nav_history_to_db(data, item.ho_code, item.date, yesterday_str)
                     total_inserted += len(data)
                 time.sleep(0.5)
             except Exception as e:
                 db.session.rollback()
-                errors.append(f"{item.fund_code}: {e}")
+                errors.append(f"{item.ho_code}: {e}")
 
     # print(f"inserted: {total_inserted}, 'errors': {errors}")
-    current_app.logger.info(f"crawl_missing_net_values：inserted: {total_inserted}, 'errors': {errors}")
+    current_app.logger.info(f"crawl_missing_nav_history：inserted: {total_inserted}, 'errors': {errors}")
     return {'inserted': total_inserted, 'errors': errors}
 
 
-@net_values_bp.route('/crawl_all', methods=['POST'])
+@nav_history_bp.route('/crawl_all', methods=['POST'])
 def crawl_all_funds():
-    result = crawl_missing_net_values()
+    result = crawl_missing_nav_history()
     if result['errors']:
-        raise BizException(code=500, message='; '.join(result['errors']))
-    return None
-
+        raise BizException(message='; '.join(result['errors']))
+    return ''

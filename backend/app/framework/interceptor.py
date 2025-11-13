@@ -1,5 +1,5 @@
 # app/framework/interceptor.py
-from flask import Flask, jsonify, make_response, Response,request, g
+from flask import Flask, jsonify, make_response, Response, request, g
 from app.framework.res import Res
 import json
 import time
@@ -8,6 +8,10 @@ import time
 def register_response_interceptor(app: Flask):
     @app.after_request
     def uniform_response(response):
+        # 2. 如果是 passthrough，跳过二次读取
+        if getattr(response, 'direct_passthrough', False):
+            return response
+
         # 1. 如果已经是 JSON 或空响应
         try:
             data = json.loads(response.get_data(as_text=True))
@@ -32,6 +36,7 @@ def register_response_interceptor(app: Flask):
         response = make_response(json.dumps(unified, ensure_ascii=False))
         response.content_type = "application/json; charset=utf-8"
         return response
+
 
 def register_request_response_logger(app):
     @app.before_request
