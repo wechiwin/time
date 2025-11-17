@@ -9,7 +9,7 @@ export default function NavHistoryTable({data = [], onDelete, onEdit}) {
                 <thead className="page-bg">
                 <tr>
                     <th className="table-header">基金代码</th>
-                    <th className="table-header">基金别称</th>
+                    <th className="table-header">基金简称</th>
                     <th className="table-header">交易日期</th>
                     <th className="table-header">单位净值</th>
                     <th className="table-header">累计净值</th>

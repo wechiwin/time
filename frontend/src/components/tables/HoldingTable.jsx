@@ -17,7 +17,7 @@ export default function HoldingTable({data = [], onDelete, onEdit}) {
                 <tr>
                     <th className="table-header">基金代码</th>
                     <th className="table-header">基金名称</th>
-                    <th className="table-header">基金别称</th>
+                    <th className="table-header">基金简称</th>
                     <th className="table-header">基金类型</th>
                     <th className="table-header">创建日期</th>
                     <th className="table-header text-right">操作</th>

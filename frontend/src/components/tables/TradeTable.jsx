@@ -9,7 +9,7 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                 <thead className="page-bg">
                 <tr>
                     <th className="table-header">基金代码</th>
-                    <th className="table-header">基金别称</th>
+                    <th className="table-header">基金简称</th>
                     <th className="table-header">交易类型</th>
                     <th className="table-header">交易日期</th>
                     <th className="table-header">交易净值</th>
