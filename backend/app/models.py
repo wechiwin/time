@@ -40,3 +40,7 @@ class NavHistory(db.Model):
     nav_date = db.Column(db.String(20))
     nav_per_unit = db.Column(db.Float)  # 单位净值
     nav_accumulated_per_unit = db.Column(db.Float)  # 累计净值=单位净值+分红
+
+    __table_args__ = (
+        db.UniqueConstraint('ho_code', 'nav_date', name='navh_code_date_uk'),
+    )
