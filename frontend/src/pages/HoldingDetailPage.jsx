@@ -1,6 +1,6 @@
 import {useParams, Link} from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
-import {useEffect, useState, useMemo} from 'react';
+import {useEffect, useState, useMemo, useRef} from 'react';
 import useHoldingList from "../hooks/api/useHoldingList";
 import useNavHistoryList from "../hooks/api/useNavHistoryList";
 import useTradeList from "../hooks/api/useTradeList";
@@ -13,9 +13,6 @@ export default function HoldingDetailPage() {
     const [fundInfo, setFundInfo] = useState(null);
     const [baseNav, setBaseNav] = useState([]);   // 主基金净值
     const [trades, setTrades] = useState([]);
-    // const [netValues, setNetValues] = useState([]);
-    // const [compareFunds, setCompareFunds] = useState([]);
-    // const [loading, setLoading] = useState(true);
 
     /* ---- 对比基金：只存代码 ---- */
     // 对比基金代码数组（只存 code，不存完整对象）
@@ -27,7 +24,10 @@ export default function HoldingDetailPage() {
 
     /* 控制抽屉与图表类型 */
     const [drawerOpen, setDrawerOpen] = useState(false);
-    const [chartKind, setChartKind] = useState('unit_net_value'); // unit_net_value | accum_net_value
+    const [chartKind, setChartKind] = useState('unit_net_value');
+
+    // ECharts 实例的引用，用于事件处理
+    const chartRef = useRef(null);
 
     const {getByCode} = useHoldingList({
         autoLoad: false,
@@ -79,15 +79,24 @@ export default function HoldingDetailPage() {
     /* 图表 - 横坐标 - 净值时间轴 */
     const dates = useMemo(() => baseNav.map(i => i.nav_date), [baseNav]);
 
+    // 需求 1: 主基金的图例名称
+    const mainFundName = useMemo(() => {
+        return fundInfo ? `${ho_code} ${fundInfo.ho_short_name}` : ho_code;
+    }, [fundInfo, ho_code]);
+
     const series = useMemo(() => {
+        // 使用 chartKind 变量来决定使用哪个净值数据
+        const dataKey = chartKind === 'nav_per_unit' ? 'nav_per_unit' : 'nav_accumulated_per_unit';
+
         const s = [
+            // 主基金曲线
             {
-                name: ho_code,
+                name: mainFundName,
                 type: 'line',
                 data: baseNav.map(i => i.nav_per_unit),
                 smooth: true,
                 showSymbol: false,
-                lineStyle: { width: 2 },
+                lineStyle: {width: 2},
             },
         ];
 
@@ -99,7 +108,7 @@ export default function HoldingDetailPage() {
                 data: list.map(i => i.nav_per_unit),
                 smooth: true,
                 showSymbol: false,
-                lineStyle: { width: 1.5, type: 'dashed' },
+                lineStyle: {width: 1.5, type: 'dashed'},
             });
         });
 
@@ -112,7 +121,7 @@ export default function HoldingDetailPage() {
                     value: [t.tr_date, t.tr_nav_per_unit],
                     symbol: 'triangle',
                     symbolSize: 12,
-                    itemStyle: { color: '#ef4444' }, // 红色
+                    itemStyle: {color: '#ef4444'}, // 红色
                 }));
 
             const sellPoints = trades
@@ -123,13 +132,16 @@ export default function HoldingDetailPage() {
                     symbol: 'triangle',
                     symbolRotate: 180,
                     symbolSize: 12,
-                    itemStyle: { color: '#3b82f6' }, // 蓝色
+                    itemStyle: {color: '#3b82f6'}, // 蓝色
                 }));
 
             s.push({
                 name: '买入点',
                 type: 'scatter',
                 data: buyPoints,
+                // **关键**：设置 seriesIndex: 0，使其默认和主基金（第一个系列）使用同一坐标系
+                // 同时也允许后续通过事件控制它的显隐
+                seriesIndex: 0,
                 tooltip: {
                     formatter: p =>
                         `买入<br/>日期：${p.value[0]}<br/>净值：${p.value[1]}`,
@@ -139,6 +151,7 @@ export default function HoldingDetailPage() {
                 name: '卖出点',
                 type: 'scatter',
                 data: sellPoints,
+                seriesIndex: 0, // 关键
                 tooltip: {
                     formatter: p =>
                         `卖出<br/>日期：${p.value[0]}<br/>净值：${p.value[1]}`,
@@ -147,12 +160,7 @@ export default function HoldingDetailPage() {
         }
 
         return s;
-    }, [baseNav, compareNavMap, trades, ho_code]);
-
-    function tTypeLabel(date) {
-        const t = trades.find(i => i.tr_date === date);
-        return t ? `${t.tr_type} ${t.tr_amount}` : '';
-    }
+    }, [baseNav, compareNavMap, trades, mainFundName, chartKind]);
 
     /* 4. 增 / 删对比 */
     const addCompare = code => {
@@ -162,6 +170,66 @@ export default function HoldingDetailPage() {
     const removeCompare = code => {
         setCompareCodes(prev => prev.filter(c => c !== code));
     };
+
+    /**
+     * 需求 2: 交易点随主基金曲线的出现/消失而出现/消失
+     * 监听图例状态改变事件
+     */
+    const onChartLegendSelectChanged = params => {
+        const chartInstance = chartRef.current.getEchartsInstance();
+
+        // 只有当主基金图例的状态发生变化时才处理
+        if (params.name === mainFundName) {
+            const selected = params.selected[mainFundName];
+
+            // 获取所有系列的配置，找到 "买入点" 和 "卖出点" 的索引
+            const option = chartInstance.getOption();
+            const seriesNames = option.series.map(s => s.name);
+            const buyIndex = seriesNames.indexOf('买入点');
+            const sellIndex = seriesNames.indexOf('卖出点');
+
+            // 切换 "买入点" 和 "卖出点" 的显示状态
+            if (buyIndex !== -1 && sellIndex !== -1) {
+                // ECharts 的 dispatchAction 方法用于触发行为
+                chartInstance.dispatchAction({
+                    type: selected ? 'legendSelect' : 'legendUnSelect',
+                    name: '买入点',
+                });
+                chartInstance.dispatchAction({
+                    type: selected ? 'legendSelect' : 'legendUnSelect',
+                    name: '卖出点',
+                });
+            }
+        }
+    };
+
+    // ECharts 事件映射
+    const onEvents = {
+        legendselectchanged: onChartLegendSelectChanged,
+    };
+
+    // 所有曲线的名称，用于 legend.data
+    const legendData = useMemo(() => {
+        // 需求 1: 使用组合名称作为主基金的图例名称
+        const names = [mainFundName, ...compareCodes];
+        // 需求 2: 不将 "买入点" 和 "卖出点" 放在图例中，但它们仍是系列。
+        return names;
+    }, [mainFundName, compareCodes]);
+
+    // 用于初始化 ECharts 选中状态，确保交易点默认与主基金图例状态一致
+    const legendSelected = useMemo(() => {
+        const selectedMap = {};
+        legendData.forEach(name => {
+            selectedMap[name] = true;
+        });
+        // 默认将交易点设置为选中状态，因为它们没有在 legend.data 中，所以不会显示图例，
+        // 但 chart.dispatchAction 可以控制它们的显隐。
+        if (trades.length > 0) {
+            selectedMap['买入点'] = true;
+            selectedMap['卖出点'] = true;
+        }
+        return selectedMap;
+    }, [legendData, trades]);
 
     return (
         <div className="space-y-6 p-6 bg-gray-50 min-h-screen">
@@ -208,7 +276,7 @@ export default function HoldingDetailPage() {
                         onChange={e => setChartKind(e.target.value)}
                     >
                         <option value="nav_per_unit">单位净值</option>
-                        <option value="accum_net_value">累计净值</option>
+                        <option value="nav_accumulated_per_unit">累计净值</option>
                     </select>
                 </div>
 
@@ -225,11 +293,13 @@ export default function HoldingDetailPage() {
                 )}
 
                 <ReactECharts
+                    ref={chartRef} // 引用 ECharts 实例
                     option={{
                         title: {text: '净值走势'},
                         tooltip: {trigger: 'axis'},
                         legend: {
-                            data: [ho_code, ...compareCodes, '交易点'],
+                            data: legendData,
+                            selected: legendSelected, // 默认选中状态
                             bottom: 0,
                             left: 'center',
                             orient: 'horizontal',
@@ -241,6 +311,7 @@ export default function HoldingDetailPage() {
                     }}
                     style={{height: 420}}
                     showLoading={loadingCompare}
+                    onEvents={onEvents}
                 />
             </div>
 
