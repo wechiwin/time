@@ -101,11 +101,8 @@ export default function NavHistoryPage() {
                 </button>
                 {/* 右侧按钮组 */}
                 <div className="ml-auto flex items-center gap-2">
-                    <button onClick={handleCrawlAll} className="btn-primary">
-                        爬取所有净值
-                    </button>
                     <button onClick={openCrawlModal} className="btn-secondary">
-                        拉取单个净值
+                        获取基金净值
                     </button>
                 </div>
             </div>
