@@ -1,12 +1,14 @@
-import {useParams, Link} from 'react-router-dom';
+import {Link, useParams} from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
-import {useEffect, useState, useMemo, useRef} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import useHoldingList from "../hooks/api/useHoldingList";
 import useNavHistoryList from "../hooks/api/useNavHistoryList";
 import useTradeList from "../hooks/api/useTradeList";
 import HoldingSearchSelect from "../components/search/HoldingSearchSelect";
-import {motion, AnimatePresence} from 'framer-motion';
+import {AnimatePresence, motion} from 'framer-motion';
 import TradeTable from "../components/tables/TradeTable";
+import dayjs from "dayjs";
+import {useToast} from "../components/toast/ToastContext";
 
 export default function HoldingDetailPage() {
     const {ho_code} = useParams();               // 当前主基金
@@ -17,83 +19,164 @@ export default function HoldingDetailPage() {
     /* ---- 对比基金：只存代码 ---- */
     // 对比基金代码数组（只存 code，不存完整对象）
     const [compareCodes, setCompareCodes] = useState([]);
-    // 拉回来的净值 Map：{ code: [{date, nav}, ...] }
-    const [compareNavMap, setCompareNavMap] = useState({});
     // 加载态
     const [loadingCompare, setLoadingCompare] = useState(false);
+    // 对比基金数据结构：{ '007028': { list: [], info: { ho_short_name: '...', ... } } }
+    const [compareDataMap, setCompareDataMap] = useState({});
 
     /* 控制抽屉与图表类型 */
     const [drawerOpen, setDrawerOpen] = useState(false);
-    const [chartKind, setChartKind] = useState('unit_net_value');
-
+    const [chartKind, setChartKind] = useState('nav_per_unit');
+    // 时间范围控制
+    const [timeRange, setTimeRange] = useState('3y'); // 默认近3年
+    const [dateParams, setDateParams] = useState({start_date: '', end_date: ''});
     // ECharts 实例的引用，用于事件处理
     const chartRef = useRef(null);
 
-    const {getByCode} = useHoldingList({
-        autoLoad: false,
-    });
-    const {searchList} = useNavHistoryList({
-        autoLoad: false,
-    });
-    const {listByCode} = useTradeList({
-        autoLoad: false,
-    });
+    const {getByCode} = useHoldingList({autoLoad: false,});
+    const {searchList} = useNavHistoryList({autoLoad: false,});
+    const {listByCode} = useTradeList({autoLoad: false,});
 
-    /* 1. 基本信息 + 主基金净值 + 交易记录 */
+    const {showSuccessToast, showErrorToast} = useToast();
+
     useEffect(() => {
-        loadBase(ho_code);
-    }, [ho_code]);
+        const end = dayjs();
+        let start = null;
 
-    async function loadBase(ho_code) {
-        const res = await getByCode(ho_code);
-        setFundInfo(res);
-        const nav = await searchList(ho_code);
-        // console.log(nav);
-        setBaseNav(nav);
-        const records = await listByCode(ho_code);
-        // console.log("records" + records);
-        setTrades(records);
+        switch (timeRange) {
+            case '1y':
+                start = end.subtract(1, 'year');
+                break;
+            case '3y':
+                start = end.subtract(3, 'year');
+                break;
+            case '5y':
+                start = end.subtract(5, 'year');
+                break;
+            case 'all':
+                start = null;
+                break; // 自成立不传 start_date
+            default:
+                start = end.subtract(3, 'year');
+        }
+
+        const params = {
+            end_date: end.format('YYYY-MM-DD'),
+            start_date: start ? start.format('YYYY-MM-DD') : undefined
+        };
+        setDateParams(params);
+    }, [timeRange]);
+
+    /* 基本信息 + 主基金净值 + 交易记录 */
+    useEffect(() => {
+        // if (endDate) {
+        if (dateParams.end_date) {
+            loadBase();
+        }
+    }, [ho_code, dateParams]);
+
+    // 专门负责刷新对比基金，当时间变化时，或者，当前有对比基金，需要用新时间重新拉取它们的数据
+    useEffect(() => {
+        if (dateParams.end_date && compareCodes.length > 0) {
+            reloadCompareData(compareCodes);
+        }
+    }, [dateParams]);
+
+    async function loadBase() {
+        // 并行请求：详情、净值、交易记录
+        const [infoRes, navRes, tradeRes] = await Promise.all([
+            getByCode(ho_code),
+            searchList(ho_code, dateParams.start_date, dateParams.end_date),
+            listByCode(ho_code) // 交易记录通常拿全部，或者也传时间
+        ]);
+        setFundInfo(infoRes);
+        setBaseNav(navRes || []);
+        setTrades(tradeRes || []);
     }
 
-    /* 2. 监听对比代码数组 → 拉净值 */
-    useEffect(() => {
-        if (compareCodes.length === 0) {
-            setCompareNavMap({});
-            return;
+    // 加载单个对比基金的详情和净值
+    const fetchCompareItem = async (code) => {
+        try {
+            const [info, list] = await Promise.all([
+                getByCode(code),
+                searchList(code, dateParams.start_date, dateParams.end_date)
+            ]);
+            // console.log('info' + JSON.stringify(info))
+            // console.log('list' + JSON.stringify(list))
+            return {code, info, list};
+        } catch (error) {
+            console.error(`加载对比基金 ${code} 失败`, error);
+            return {info: {ho_short_name: '未知'}, list: []};
         }
-        setLoadingCompare(true);
-        Promise.all(
-            compareCodes.map(async ho_code => {
-                const list = await searchList(ho_code);
-                return {ho_code, list};
-            })
-        )
-            .then(arr => {
-                const map = {};
-                arr.forEach(({ho_code, list}) => (map[ho_code] = list));
-                setCompareNavMap(map);
-            })
-            .finally(() => setLoadingCompare(false));
-    }, [compareCodes]);
+    };
 
-    /* 图表 - 横坐标 - 净值时间轴 */
-    const dates = useMemo(() => baseNav.map(i => i.nav_date), [baseNav]);
-
-    // 需求 1: 主基金的图例名称
     const mainFundName = useMemo(() => {
         return fundInfo ? `${ho_code} ${fundInfo.ho_short_name}` : ho_code;
     }, [fundInfo, ho_code]);
 
-    const series = useMemo(() => {
-        // 使用 chartKind 变量来决定使用哪个净值数据
-        const dataKey = chartKind === 'nav_per_unit' ? 'nav_per_unit' : 'nav_accumulated_per_unit';
+    // 时间切换时，重载所有已存在的对比基金
+    const reloadCompareData = async (codes) => {
+        setLoadingCompare(true);
+        try {
+            const results = await Promise.all(codes.map(code => fetchCompareItem(code)));
+            const newMap = {};
+            results.forEach(({code, info, list}) => {
+                newMap[code] = {info, list};
+            });
+            console.log('newMap' + JSON.stringify(newMap))
+            setCompareDataMap(newMap);
+        } catch (err) {
+            console.error("重载对比数据严重错误", err);
+        } finally {
+            setLoadingCompare(false);
+        }
+    };
 
+    const chartData = useMemo(() => {
+        // 1. 收集所有出现的日期
+        const dateSet = new Set();
+        baseNav.forEach(i => dateSet.add(i.nav_date));
+        Object.values(compareDataMap).forEach(item => {
+            item.list.forEach(i => dateSet.add(i.nav_date));
+        });
+
+        // 2. 排序生成统一 X 轴
+        const unifiedDates = Array.from(dateSet).sort();
+
+        // 3. 数据映射函数：将数据对齐到统一 X 轴，无数据填 null
+        const getDataKey = (item) => {
+            return (chartKind === 'nav_per_unit') ? item.nav_per_unit : item.nav_accumulated_per_unit;
+        };
+
+        const mapDataToAxis = (list) => {
+            if (!list) return [];
+            // 转成 Map 加速查找
+            const dataMap = new Map(list.map(i => [i.nav_date, getDataKey(i)]));
+            return unifiedDates.map(date => dataMap.get(date) || null); // null 在 echarts 表现为断点
+        };
+        // console.log('compareDataMap' + JSON.stringify(compareDataMap))
+        // console.log('baseNav' + JSON.stringify(baseNav))
+
+
+        return {
+            dates: unifiedDates,
+            baseSeriesData: mapDataToAxis(baseNav),
+            compareSeriesData: Object.entries(compareDataMap).map(([code, data]) => ({
+                code,
+                // name: `${data.info?.ho_code || ''} ${data.info?.ho_short_name || ''}`, // 拼接名字
+                name: `${code} ${data.info?.ho_short_name || ''}`, // 拼接名字
+                data: mapDataToAxis(data.list)
+            }))
+        };
+    }, [baseNav, compareDataMap, chartKind]);
+
+    const series = useMemo(() => {
         const s = [
             // 主基金曲线
             {
                 name: mainFundName,
                 type: 'line',
-                data: baseNav.map(i => i.nav_per_unit),
+                data: chartData.baseSeriesData,
                 smooth: true,
                 showSymbol: false,
                 lineStyle: {width: 2},
@@ -101,19 +184,21 @@ export default function HoldingDetailPage() {
         ];
 
         // 对比基金曲线
-        Object.entries(compareNavMap).forEach(([ho_code, list]) => {
+        chartData.compareSeriesData.forEach(item => {
             s.push({
-                name: ho_code,
+                name: item.name,
                 type: 'line',
-                data: list.map(i => i.nav_per_unit),
+                data: item.data,
                 smooth: true,
                 showSymbol: false,
                 lineStyle: {width: 1.5, type: 'dashed'},
+                connectNulls: true,
             });
         });
+        console.log('trades' + JSON.stringify(trades))
 
         // === 交易点标记 ===
-        if (trades.length > 0) {
+        if (trades.length > 0 && chartKind === 'nav_per_unit') {
             const buyPoints = trades
                 .filter(t => t.tr_type === '买入')
                 .map(t => ({
@@ -160,19 +245,36 @@ export default function HoldingDetailPage() {
         }
 
         return s;
-    }, [baseNav, compareNavMap, trades, mainFundName, chartKind]);
+    }, [chartData, trades, mainFundName, chartKind]);
 
     /* 4. 增 / 删对比 */
-    const addCompare = code => {
+    const addCompare = async (code) => {
         if (!code || compareCodes.includes(code)) return;
-        setCompareCodes(prev => [...prev, code]);
+        if (compareCodes.length > 5) return showErrorToast('最多只能选择 5 个对比基金');
+
+        setLoadingCompare(true);
+        try {
+            const {info, list} = await fetchCompareItem(code);
+            setCompareDataMap(prev => ({
+                ...prev,
+                [code]: {info, list}
+            }));
+            setCompareCodes(prev => [...prev, code]);
+        } finally {
+            setLoadingCompare(false);
+        }
     };
-    const removeCompare = code => {
+    const removeCompare = (code) => {
         setCompareCodes(prev => prev.filter(c => c !== code));
+        setCompareDataMap(prev => {
+            const next = {...prev};
+            delete next[code];
+            return next;
+        });
     };
 
     /**
-     * 需求 2: 交易点随主基金曲线的出现/消失而出现/消失
+     * 交易点随主基金曲线的出现/消失而出现/消失
      * 监听图例状态改变事件
      */
     const onChartLegendSelectChanged = params => {
@@ -209,12 +311,7 @@ export default function HoldingDetailPage() {
     };
 
     // 所有曲线的名称，用于 legend.data
-    const legendData = useMemo(() => {
-        // 需求 1: 使用组合名称作为主基金的图例名称
-        const names = [mainFundName, ...compareCodes];
-        // 需求 2: 不将 "买入点" 和 "卖出点" 放在图例中，但它们仍是系列。
-        return names;
-    }, [mainFundName, compareCodes]);
+    const legendData = [mainFundName, ...chartData.compareSeriesData.map(i => i.name)];
 
     // 用于初始化 ECharts 选中状态，确保交易点默认与主基金图例状态一致
     const legendSelected = useMemo(() => {
@@ -280,23 +377,69 @@ export default function HoldingDetailPage() {
                     </select>
                 </div>
 
+                {/* 时间范围按钮组 */}
+                <div className="inline-flex rounded-md shadow-sm" role="group">
+                    {['1y', '3y', '5y', 'all'].map((range) => {
+                        const labels = {'1y': '近1年', '3y': '近3年', '5y': '近5年', 'all': '自成立'};
+                        const active = timeRange === range;
+                        return (
+                            <button
+                                key={range}
+                                type="button"
+                                onClick={() => setTimeRange(range)}
+                                className={`px-4 py-2 text-sm font-medium border first:rounded-l-lg last:rounded-r-lg 
+                                        ${active
+                                    ? 'bg-indigo-600 text-white border-indigo-600'
+                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                }`}
+                            >
+                                {labels[range]}
+                            </button>
+                        );
+                    })}
+                </div>
+
                 {/* 已选标签 */}
                 {compareCodes.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-3">
-                        {compareCodes.map(code => (
-                            <span key={code} className="tag">
-                                {code}
-                                <button className="ml-2" onClick={() => removeCompare(code)}>×</button>
-                            </span>
-                        ))}
+                        {compareCodes.map(code => {
+                            const info = compareDataMap[code]?.info;
+                            return (
+                                <span key={code}
+                                      className="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-sm text-indigo-700 border border-indigo-100">
+                                    {code} {info?.ho_short_name}
+                                    <button className="ml-2 text-indigo-400 hover:text-indigo-900"
+                                            onClick={() => removeCompare(code)}>×</button>
+                                </span>
+                            )
+                        })}
                     </div>
                 )}
 
                 <ReactECharts
                     ref={chartRef} // 引用 ECharts 实例
                     option={{
-                        title: {text: '净值走势'},
-                        tooltip: {trigger: 'axis'},
+                        title: {text: '净值走势', left: 'center'},
+                        tooltip: {
+                            trigger: 'axis',
+                            axisPointer: {
+                                type: 'cross',     // 横 + 竖虚线
+                                snap: true,
+                                lineStyle: {
+                                    type: 'dashed'
+                                }
+                            },
+                            formatter: function (params) {
+                                let res = params[0].axisValueLabel + '<br/>';
+                                params.forEach(item => {
+                                    if (item.value !== null && item.value !== undefined) {
+                                        // 处理 marker 颜色
+                                        res += `${item.marker} ${item.seriesName}: ${item.value}<br/>`;
+                                    }
+                                });
+                                return res;
+                            },
+                        },
                         legend: {
                             data: legendData,
                             selected: legendSelected, // 默认选中状态
@@ -305,12 +448,21 @@ export default function HoldingDetailPage() {
                             orient: 'horizontal',
                         },
                         grid: {left: 60, right: 40, bottom: 60, top: 40},
-                        xAxis: {type: 'category', data: dates},
-                        yAxis: {type: 'value', name: chartKind === 'nav_per_unit' ? '单位净值' : '累计净值'},
+                        xAxis: {
+                            type: 'category',
+                            boundaryGap: false,
+                            data: chartData.dates
+                        },
+                        yAxis: {
+                            type: 'value',
+                            scale: true, // 让 Y 轴不从 0 开始，聚焦波动
+                            name: chartKind === 'nav_per_unit' ? '单位净值' : '累计净值'
+                        },
                         series,
                     }}
-                    style={{height: 420}}
-                    showLoading={loadingCompare}
+                    style={{height: 450}}
+                    showLoading={loadingCompare || baseNav.length === 0}
+                    notMerge={true} // 必须开启，防止旧数据残留
                     onEvents={onEvents}
                 />
             </div>
