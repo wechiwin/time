@@ -269,8 +269,9 @@ def get_fund_info():
     }
 
 
-@holding_bp.route('/ho_code=<ho_code>', methods=['GET'])
-def get_by_code(ho_code):
+@holding_bp.route('/get_by_code', methods=['GET'])
+def get_by_code():
+    ho_code = request.args.get('ho_code')
     if not ho_code or not ho_code.strip():
         return ''
 

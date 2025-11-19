@@ -235,8 +235,9 @@ def import_trade():
     raise BizException(message=f"导入失败: {error_message}")
 
 
-@trade_bp.route('/list_by_code/ho_code=<ho_code>', methods=['GET'])
-def list_by_code(ho_code):
+@trade_bp.route('/list_by_code', methods=['GET'])
+def list_by_code():
+    ho_code = request.args.get('ho_code')
     if not ho_code or not ho_code.strip():
         return ''
 
