@@ -18,7 +18,7 @@ export default function useNavHistoryList(options = {}) {
     // 修改search方法，接收查询字符串
     const search = useCallback(async (searchKeyword = '', currentPage = 1, currentPerPage = 10) => {
         const params = new URLSearchParams({
-            keyword: searchKeyword,
+            ho_code: searchKeyword,
             page: currentPage.toString(),
             per_page: currentPerPage.toString()
         }).toString();
@@ -63,9 +63,11 @@ export default function useNavHistoryList(options = {}) {
         return result;
     }, [post, search, keyword, page, perPage]);
 
-    const searchList = useCallback(async (ho_code = '') => {
+    const searchList = useCallback(async (ho_code = '', start_date = '', end_date = '') => {
         const params = new URLSearchParams({
-            ho_code: ho_code
+            ho_code: ho_code,
+            start_date: start_date,
+            end_date: end_date,
         }).toString();
         const result = await get(`/api/nav_history/search_list?${params}`);
         setData(result);  // 业务逻辑设置 data

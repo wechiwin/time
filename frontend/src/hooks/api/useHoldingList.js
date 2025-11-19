@@ -43,7 +43,7 @@ export default function useHoldingList(options = {}) {
     // 搜索函数 - 业务层设置数据
     const searchPage = useCallback(async (searchKeyword = '', currentPage = 1, currentPerPage = 10) => {
         const params = new URLSearchParams({
-            keyword: encodeURIComponent(searchKeyword),
+            keyword: searchKeyword,
             page: currentPage.toString(),
             per_page: currentPerPage.toString()
         }).toString();
@@ -103,7 +103,7 @@ export default function useHoldingList(options = {}) {
         const params = new URLSearchParams({
             ho_code: ho_code
         }).toString();
-        const result = await get(`/api/holding/${params}`);
+        const result = await get(`/api/holding/get_by_code?${params}`);
         setData(result);  // 业务逻辑设置 data
         return result;
     }, [get]);

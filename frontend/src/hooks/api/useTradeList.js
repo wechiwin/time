@@ -70,7 +70,7 @@ export default function useTradeList(options = {}) {
         const params = new URLSearchParams({
             ho_code: ho_code
         }).toString();
-        const result = await get(`/api/trade/list_by_code/${params}`);
+        const result = await get(`/api/trade/list_by_code?${params}`);
         setData(result);  // 业务逻辑设置 data
         return result;
     }, [get]);
