@@ -336,15 +336,14 @@ export default function HoldingDetailPage() {
             {/* 顶部操作栏 */}
             <div className="flex items-center justify-between mb-2">
                 <Link to="/holding" className="text-blue-600 hover:underline">
-                    &lt; 返回列表
+                    &lt; {t('button_back')}
                 </Link>
-
-                <button
-                    onClick={() => setDrawerOpen(true)}
-                    className="rounded bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-700"
-                >
-                    查看交易记录
-                </button>
+                {/* <button */}
+                {/*     onClick={() => setDrawerOpen(true)} */}
+                {/*     className="rounded bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-700" */}
+                {/* > */}
+                {/*     交易记录 */}
+                {/* </button> */}
             </div>
 
             {/* 基金基本信息 */}
@@ -427,7 +426,7 @@ export default function HoldingDetailPage() {
                 <ReactECharts
                     ref={chartRef} // 引用 ECharts 实例
                     option={{
-                        title: {text: '净值走势', left: 'center'},
+                        // title: {text: '净值走势', left: 'center'},
                         tooltip: {
                             trigger: 'axis',
                             axisPointer: {
@@ -464,7 +463,7 @@ export default function HoldingDetailPage() {
                         yAxis: {
                             type: 'value',
                             scale: true, // 让 Y 轴不从 0 开始，聚焦波动
-                            name: chartKind === 'nav_per_unit' ? t('th_nav_per_unit') : t('th_nav_accumulated_per_unit')
+                            // name: chartKind === 'nav_per_unit' ? t('th_nav_per_unit') : t('th_nav_accumulated_per_unit')
                         },
                         series,
                     }}
