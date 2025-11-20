@@ -1,19 +1,21 @@
 // src/components/tables/NavHistoryTable.jsx
 import DeleteButton from '../common/DeleteButton';
+import {useTranslation} from "react-i18next";
 
 export default function NavHistoryTable({data = [], onDelete, onEdit}) {
+    const {t} = useTranslation()
 
     return (
         <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
                 <thead className="page-bg">
                 <tr>
-                    <th className="table-header">基金代码</th>
-                    <th className="table-header">基金简称</th>
-                    <th className="table-header">交易日期</th>
-                    <th className="table-header">单位净值</th>
-                    <th className="table-header">累计净值</th>
-                    <th className="table-header text-right">操作</th>
+                    <th className="table-header">{t('th_ho_name')}</th>
+                    <th className="table-header">{t('th_ho_short_name')}</th>
+                    <th className="table-header">{t('th_nav_date')}</th>
+                    <th className="table-header">{t('th_nav_per_unit')}</th>
+                    <th className="table-header">{t('th_nav_accumulated_per_unit')}</th>
+                    <th className="table-header text-right">{t('th_actions')}</th>
                 </tr>
                 </thead>
                 <tbody className="card divide-y divide-gray-200">
@@ -30,11 +32,11 @@ export default function NavHistoryTable({data = [], onDelete, onEdit}) {
                                     className="btn-secondary"
                                     onClick={() => onEdit(n)}
                                 >
-                                    修改
+                                    {t('button_edit')}
                                 </button>
                                 <DeleteButton
                                     onConfirm={() => onDelete(n.nav_id)}
-                                    description={`删除 ${n.ho_code} 在 ${n.nav_date} 的记录？`}
+                                    description={`${t('msg_delete_confirmation')} ${n.ho_code} - ${n.nav_date} ?`}
                                 />
                             </div>
                         </td>

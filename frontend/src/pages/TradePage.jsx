@@ -2,12 +2,12 @@
 import TradeForm from '../components/forms/TradeForm';
 import TradeTable from '../components/tables/TradeTable';
 import useTradeList from '../hooks/api/useTradeList';
-import useDeleteWithToast from '../hooks/useDeleteWithToast';
 import FormModal from "../components/common/FormModal";
 import {useCallback, useState} from "react";
 import {useToast} from "../components/toast/ToastContext";
 import Pagination from "../components/common/Pagination";
 import {usePaginationState} from "../hooks/usePaginationState";
+import {useTranslation} from "react-i18next";
 
 export default function TradePage() {
     // 分页
@@ -19,6 +19,7 @@ export default function TradePage() {
     } = usePaginationState();
 
     const [keyword, setKeyword] = useState("");
+    const {t} = useTranslation()
 
     const {data, loading, error, add, remove, search, update, importData, downloadTemplate} = useTradeList({
         page,
@@ -27,7 +28,15 @@ export default function TradePage() {
         autoLoad: true,
     });
 
-    const handleDelete = useDeleteWithToast(remove);
+    const handleDelete = async (ho_id) => {
+        try {
+            await remove(ho_id);
+            showSuccessToast();
+        } catch (err) {
+            showErrorToast(err.message);
+        }
+    };
+
     // 模态框控制
     const [showModal, setShowModal] = useState(false);
     const [modalTitle, setModalTitle] = useState("添加新交易");
@@ -42,14 +51,14 @@ export default function TradePage() {
     }, [handlePageChange]);
 
     const openAddModal = () => {
-        setModalTitle("添加新交易");
+        setModalTitle(t('button_add'));
         setModalSubmit(() => add);
         setInitialValues({});
         setShowModal(true);
     };
 
     const openEditModal = (fund) => {
-        setModalTitle("修改交易");
+        setModalTitle(t('button_edit'));
         setModalSubmit(() => update);
         setInitialValues(fund);
         setShowModal(true);
@@ -86,25 +95,25 @@ export default function TradePage() {
                     value={keyword}
                     onChange={(e) => setKeyword(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="请输入名称或代码"
+                    placeholder={t('msg_search_placeholder')}
                     className="search-input"
                 />
                 <button
                     onClick={() => handleSearch(keyword)}
                     className="btn-primary"
                 >
-                    查询
+                    {t('button_search')}
                 </button>
                 {/* 右侧按钮组 */}
                 <div className="ml-auto flex items-center gap-2">
                     <button onClick={openAddModal} className="btn-primary">
-                        添加交易
+                        {t('button_add')}
                     </button>
                     <button onClick={downloadTemplate} className="btn-secondary">
-                        下载模板
+                        {t('button_download_template')}
                     </button>
                     <button onClick={handleImport} className="btn-secondary">
-                        导入数据
+                        {t('button_import_data')}
                     </button>
                 </div>
             </div>

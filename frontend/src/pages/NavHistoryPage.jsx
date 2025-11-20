@@ -2,15 +2,17 @@
 import NavHistoryForm from '../components/forms/NavHistoryForm';
 import NavHistoryTable from '../components/tables/NavHistoryTable';
 import useNavHistoryList from '../hooks/api/useNavHistoryList';
-import useDeleteWithToast from '../hooks/useDeleteWithToast';
 import FormModal from "../components/common/FormModal";
 import {useCallback, useState} from "react";
 import Pagination from "../components/common/Pagination";
 import CrawlNetValueForm from "../components/forms/CrawlNetValueForm";
 import {usePaginationState} from "../hooks/usePaginationState";
 import {useToast} from "../components/toast/ToastContext";
+import {useTranslation} from "react-i18next";
 
 export default function NavHistoryPage() {
+    const {t} = useTranslation()
+
     // 分页
     const {
         page,
@@ -28,7 +30,15 @@ export default function NavHistoryPage() {
         keyword,
         autoLoad: true,
     });
-    const handleDelete = useDeleteWithToast(remove);
+
+    const handleDelete = async (ho_id) => {
+        try {
+            await remove(ho_id);
+            showSuccessToast();
+        } catch (err) {
+            showErrorToast(err.message);
+        }
+    };
 
     // 模态框控制
     const [showModal, setShowModal] = useState(false);
@@ -45,15 +55,15 @@ export default function NavHistoryPage() {
         handlePageChange(1); // 搜索时重置到第一页
     }, [handlePageChange]);
 
-    const openAddModal = () => {
-        setModalTitle("添加净值");
-        setModalSubmit(() => add);
-        setInitialValues({});
-        setShowModal(true);
-    };
+    // const openAddModal = () => {
+    //     setModalTitle("添加净值");
+    //     setModalSubmit(() => add);
+    //     setInitialValues({});
+    //     setShowModal(true);
+    // };
 
     const openEditModal = (fund) => {
-        setModalTitle("修改净值");
+        setModalTitle(t('button_edit'));
         setModalSubmit(() => update);
         setInitialValues(fund);
         setShowModal(true);
@@ -66,14 +76,14 @@ export default function NavHistoryPage() {
         setShowCrawlModal(false);
     };
 
-    const handleCrawlAll = async () => {
-        try {
-            await crawl_all();
-            showSuccessToast();
-        } catch (err) {
-            showErrorToast(err.message);
-        }
-    };
+    // const handleCrawlAll = async () => {
+    //     try {
+    //         await crawl_all();
+    //         showSuccessToast();
+    //     } catch (err) {
+    //         showErrorToast(err.message);
+    //     }
+    // };
 
     const handleKeyDown = (e) => {
         if (e.key === 'Enter') {
@@ -90,19 +100,19 @@ export default function NavHistoryPage() {
                     value={keyword}
                     onChange={(e) => setKeyword(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="请输入名称或代码"
+                    placeholder={t('msg_search_placeholder')}
                     className="search-input"
                 />
                 <button
                     onClick={() => handleSearch(keyword)}
                     className="btn-primary"
                 >
-                    查询
+                    {t('button_search')}
                 </button>
                 {/* 右侧按钮组 */}
                 <div className="ml-auto flex items-center gap-2">
                     <button onClick={openCrawlModal} className="btn-secondary">
-                        获取基金净值
+                        {t('button_crawl_info')}
                     </button>
                 </div>
             </div>
@@ -136,7 +146,7 @@ export default function NavHistoryPage() {
             />
             {/* 爬取净值模态框 */}
             <FormModal
-                title="爬取净值数据"
+                title={t('button_crawl_info')}
                 show={showCrawlModal}
                 onClose={() => setShowCrawlModal(false)}
                 onSubmit={handleCrawlSubmit}

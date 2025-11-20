@@ -1,9 +1,11 @@
 // src/components/common/Pagination.jsx
 import React, {useState} from "react";
+import {useTranslation} from "react-i18next";
 
 export default function Pagination({pagination, onPageChange, onPerPageChange}) {
     const {page, per_page, total, pages} = pagination || {};
     const [inputPage, setInputPage] = useState(page || 1);
+    const {t} = useTranslation()
 
     if (!pagination || pages <= 1) return null;
 
@@ -31,17 +33,17 @@ export default function Pagination({pagination, onPageChange, onPerPageChange}) 
                     disabled={page === 1}
                     className="btn-secondary px-3 py-1 disabled:opacity-50"
                 >
-                    上一页
+                    {t('prev_page')}
                 </button>
                 <span>
-          第 {page} / {pages} 页，共 {total} 条
+          {t('pagination_left')} {page} / {pages} {t('pagination_right')}, {t('total_name')} {total} {t('total_item')}
         </span>
                 <button
                     onClick={handleNext}
                     disabled={page === pages}
                     className="btn-secondary px-3 py-1 disabled:opacity-50"
                 >
-                    下一页
+                    {t('next_page')}
                 </button>
             </div>
 
@@ -56,13 +58,13 @@ export default function Pagination({pagination, onPageChange, onPerPageChange}) 
                     className="border rounded px-2 py-1 w-16"
                 />
                 <button onClick={handleJump} className="btn-secondary px-3 py-1">
-                    跳转
+                    {t('jump_page')}
                 </button>
             </div>
 
             {/* 每页数量选择 */}
             <div className="flex items-center space-x-1">
-                <span>每页</span>
+                <span>{t('per_page')}</span>
                 <select
                     value={per_page}
                     onChange={(e) => onPerPageChange(Number(e.target.value))}

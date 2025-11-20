@@ -1,9 +1,10 @@
 // src/components/forms/CrawlNetValueForm.jsx
-import {useState, useCallback, useEffect} from 'react';
+import {useCallback, useEffect, useState} from 'react';
 import HoldingSearchSelect from '../search/HoldingSearchSelect';
 import useHoldingList from '../../hooks/api/useHoldingList';
 import useNavHistoryList from '../../hooks/api/useNavHistoryList';
 import {useToast} from "../toast/ToastContext";
+import {useTranslation} from "react-i18next";
 
 /**
  * 4. 辅助函数：获取昨天的日期（YYYY-MM-DD 格式）
@@ -38,10 +39,11 @@ export default function CrawlNetValueForm({onSubmit, onClose, initialValues}) {
     });
 
     const {showSuccessToast, showErrorToast} = useToast();
+    const {t} = useTranslation()
 
     useEffect(() => {
         if (navData && navData.items && navData.items.length > 0) {
-            // 假设 nav_date 已经是 'YYYY-MM-DD' 格式
+            // nav_date: 'YYYY-MM-DD'
             const lastNavDate = navData.items[0].nav_date;
             setQuickStartDate(prev => ({...prev, lastNav: lastNavDate}));
         } else {
@@ -53,7 +55,7 @@ export default function CrawlNetValueForm({onSubmit, onClose, initialValues}) {
     const handleSubmit = (e) => {
         e.preventDefault();
         if (!formData.ho_code) {
-            alert('请选择基金');
+            showErrorToast(t('msg_pls_choose_one'));
             return;
         }
         onSubmit(formData);
@@ -98,18 +100,18 @@ export default function CrawlNetValueForm({onSubmit, onClose, initialValues}) {
         <form onSubmit={handleSubmit} className="space-y-6 p-1">
             <div>
                 <label className="block text-sm font-medium mb-2 text-gray-700">
-                    基金代码
+                    {t('th_ho_code')}
                 </label>
                 <HoldingSearchSelect
                     value={formData.ho_code}
                     onChange={handleFundSelectChange}
-                    placeholder="搜索并选择基金"
+                    placeholder={t('msg_search_placeholder')}
                 />
             </div>
 
             <div>
                 <label className="block text-sm font-medium mb-2 text-gray-700">
-                    开始日期
+                    {t('start_date')}
                 </label>
                 <div className="flex items-center gap-2">
                     <input
@@ -125,7 +127,7 @@ export default function CrawlNetValueForm({onSubmit, onClose, initialValues}) {
                             className="btn-link text-sm px-3 py-1.5 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
                             onClick={() => handleChange('start_date', quickStartDate.creation)}
                         >
-                            创建日期 ({quickStartDate.creation})
+                            {t('th_ho_establish_date')} ({quickStartDate.creation})
                         </button>
                     )}
                     {quickStartDate.lastNav && (
@@ -134,7 +136,7 @@ export default function CrawlNetValueForm({onSubmit, onClose, initialValues}) {
                             className="btn-link text-sm px-3 py-1.5 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
                             onClick={() => handleChange('start_date', quickStartDate.lastNav)}
                         >
-                            最后净值日 ({quickStartDate.lastNav})
+                            {t('last_nav_date')} ({quickStartDate.lastNav})
                         </button>
                     )}
                 </div>
@@ -142,7 +144,7 @@ export default function CrawlNetValueForm({onSubmit, onClose, initialValues}) {
 
             <div>
                 <label className="block text-sm font-medium mb-2 text-gray-700">
-                    结束日期
+                    {t('end_date')}
                 </label>
                 <div className="flex flex-wrap gap-3">
                     <input
@@ -157,7 +159,7 @@ export default function CrawlNetValueForm({onSubmit, onClose, initialValues}) {
                         className="btn-link text-sm px-3 py-1.5 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
                         onClick={() => handleChange('end_date', getYesterdayDate())}
                     >
-                        昨天 ({getYesterdayDate()})
+                        {t('yesterday')} ({getYesterdayDate()})
                     </button>
                 </div>
             </div>
@@ -168,14 +170,14 @@ export default function CrawlNetValueForm({onSubmit, onClose, initialValues}) {
                     onClick={onClose}
                     className="btn-secondary"
                 >
-                    取消
+                    {t('button_cancel')}
                 </button>
                 <button
                     type="submit"
                     className="btn-primary"
-                    onClick={() => showSuccessToast('后台运行，请稍等')}
+                    onClick={() => showSuccessToast(t('msg_after_crawl'))}
                 >
-                    开始爬取
+                    {t('button_confirm')}
                 </button>
             </div>
         </form>

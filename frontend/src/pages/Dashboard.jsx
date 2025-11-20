@@ -1,4 +1,7 @@
+import {useTranslation} from "react-i18next";
+
 export default function Dashboard() {
+    const {t} = useTranslation()
     return (
         <div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

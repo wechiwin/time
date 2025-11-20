@@ -1,5 +1,6 @@
-import React, { createContext, useState, useCallback, useContext, useRef, useEffect } from 'react';
+import React, {createContext, useState, useCallback, useContext, useRef, useEffect} from 'react';
 import Toast from './Toast';
+import {useTranslation} from "react-i18next";
 
 const ToastContext = createContext(null);
 
@@ -10,12 +11,8 @@ export const TOAST_TYPE = {
     WARNING: 'warning',
 };
 
-export const TOAST_MESSAGE = {
-    SUCCESS: '操作成功',
-    FAILURE: '操作失败',
-};
-
-export function ToastProvider({ children }) {
+export function ToastProvider({children}) {
+    const {t} = useTranslation()
     const [toast, setToast] = useState(null);
     const timeoutRef = useRef(null);
     const defaultDuration = 3000;
@@ -27,7 +24,7 @@ export function ToastProvider({ children }) {
             message = '未知的提示类型';
         }
 
-        setToast({ type, message });
+        setToast({type, message});
 
         if (timeoutRef.current) {
             clearTimeout(timeoutRef.current);
@@ -40,14 +37,16 @@ export function ToastProvider({ children }) {
     }, []);
 
     const showSuccessToast = useCallback((customMessage) => {
-        const message = customMessage ? `${TOAST_MESSAGE.SUCCESS}: ${customMessage}` : TOAST_MESSAGE.SUCCESS;
+        const successMsg = t('msg_operation_success');
+        const message = customMessage ? `${successMsg}: ${customMessage}` : successMsg;
         showToast(TOAST_TYPE.SUCCESS, message);
-    }, [showToast]);
+    }, [showToast, t]);
 
     const showErrorToast = useCallback((customMessage) => {
-        const message = customMessage ? `${TOAST_MESSAGE.FAILURE}: ${customMessage}` : TOAST_MESSAGE.FAILURE;
+        const failureMsg = t('msg_operation_failed');
+        const message = customMessage ? `${failureMsg}: ${customMessage}` : failureMsg;
         showToast(TOAST_TYPE.ERROR, message);
-    }, [showToast]);
+    }, [showToast, t]);
 
     useEffect(() => {
         return () => {
@@ -58,7 +57,7 @@ export function ToastProvider({ children }) {
     }, []);
 
     return (
-        <ToastContext.Provider value={{ showToast, showSuccessToast, showErrorToast }}>
+        <ToastContext.Provider value={{showToast, showSuccessToast, showErrorToast}}>
             {children}
             {toast && (
                 <Toast

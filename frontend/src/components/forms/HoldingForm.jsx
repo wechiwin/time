@@ -1,6 +1,7 @@
 // src/components/forms/HoldingForm.jsx
 import {useEffect, useState} from 'react';
 import {useToast} from '../toast/ToastContext';
+import {useTranslation} from "react-i18next";
 
 const fundTypeOptions = [
     {value: 'ETF', label: 'ETF'},
@@ -17,6 +18,7 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
         ho_short_name: '',
     });
     const {showSuccessToast, showErrorToast} = useToast();
+    const {t} = useTranslation()
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -55,9 +57,9 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
         <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">基金代码</label>
+                    <label className="text-sm font-medium mb-1">{t('th_ho_name')}</label>
                     <input
-                        placeholder="基金代码"
+                        placeholder={t('th_ho_name')}
                         value={form.ho_code}
                         onChange={(e) => setForm({...form, ho_code: e.target.value})}
                         required
@@ -66,9 +68,9 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
                     />
                 </div>
                 <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">基金名称</label>
+                    <label className="text-sm font-medium mb-1">{t('th_ho_code')}</label>
                     <input
-                        placeholder="基金名称"
+                        placeholder={t('th_ho_code')}
                         value={form.ho_name}
                         onChange={(e) => setForm({...form, ho_name: e.target.value})}
                         required
@@ -76,9 +78,9 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
                     />
                 </div>
                 <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">基金简称</label>
+                    <label className="text-sm font-medium mb-1">{t('th_ho_short_name')}</label>
                     <input
-                        placeholder="基金简称"
+                        placeholder={t('th_ho_short_name')}
                         value={form.ho_short_name}
                         onChange={(e) => setForm({...form, ho_short_name: e.target.value})}
                         required
@@ -86,7 +88,7 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
                     />
                 </div>
                 <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">基金类型</label>
+                    <label className="text-sm font-medium mb-1">{t('th_ho_type')}</label>
                     <select
                         value={form.ho_type}
                         onChange={(e) => setForm({...form, ho_type: e.target.value})}
@@ -97,7 +99,10 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
                         ))}
                     </select>
                 </div>
-                <div className="flex flex-col"><label className="text-sm font-medium mb-1">创建日期</label>
+                <div className="flex flex-col">
+                    <label className="text-sm font-medium mb-1">
+                        {t('th_ho_establish_date')}
+                    </label>
                     <input
                         type="date"
                         value={form.ho_establish_date}
@@ -108,13 +113,13 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
             </div>
             <div className="flex justify-end space-x-2 pt-2">
                 <button type="button" className="btn-primary" onClick={handleCrawl}>
-                    爬取信息
+                    {t('button_crawl_info')}
                 </button>
                 <button type="button" className="btn-secondary" onClick={onClose}>
-                    取消
+                    {t('button_cancel')}
                 </button>
                 <button type="submit" className="btn-primary">
-                    确认
+                    {t('button_confirm')}
                 </button>
             </div>
         </form>

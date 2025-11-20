@@ -9,6 +9,7 @@ import {AnimatePresence, motion} from 'framer-motion';
 import TradeTable from "../components/tables/TradeTable";
 import dayjs from "dayjs";
 import {useToast} from "../components/toast/ToastContext";
+import {useTranslation} from "react-i18next";
 
 export default function HoldingDetailPage() {
     const {ho_code} = useParams();               // 当前主基金
@@ -38,6 +39,7 @@ export default function HoldingDetailPage() {
     const {listByCode} = useTradeList({autoLoad: false,});
 
     const {showSuccessToast, showErrorToast} = useToast();
+    const {t} = useTranslation()
 
     useEffect(() => {
         const end = dayjs();
@@ -198,6 +200,7 @@ export default function HoldingDetailPage() {
         console.log('trades' + JSON.stringify(trades))
 
         // === 交易点标记 ===
+        // TODO 多语言配置 买入和卖出数据库存储方式修改
         if (trades.length > 0 && chartKind === 'nav_per_unit') {
             const buyPoints = trades
                 .filter(t => t.tr_type === '买入')
@@ -351,7 +354,7 @@ export default function HoldingDetailPage() {
                     <span className="text-sm text-gray-600">{fundInfo?.ho_code}</span>
                 </div>
                 <div className="flex gap-6 text-sm text-gray-700">
-                    <div>基金类型：<span className="font-medium">{fundInfo?.ho_type}</span></div>
+                    <div>{t('th_ho_type')}：<span className="font-medium">{fundInfo?.ho_type}</span></div>
                     {/* <div>当前持仓：<span className="font-medium">{fundInfo?.holding_amount ?? '—'}</span></div> */}
                 </div>
             </div>
@@ -361,7 +364,7 @@ export default function HoldingDetailPage() {
                 <div className="mb-3 flex items-center justify-between gap-4">
                     <div className="w-full max-w-xs">
                         <HoldingSearchSelect
-                            placeholder="输入基金代码添加对比"
+                            placeholder={t('msg_search_placeholder')}
                             onChange={addCompare}
                         />
                     </div>
@@ -372,15 +375,20 @@ export default function HoldingDetailPage() {
                         value={chartKind}
                         onChange={e => setChartKind(e.target.value)}
                     >
-                        <option value="nav_per_unit">单位净值</option>
-                        <option value="nav_accumulated_per_unit">累计净值</option>
+                        <option value="nav_per_unit">{t('th_nav_per_unit')}</option>
+                        <option value="nav_accumulated_per_unit">{t('th_nav_accumulated_per_unit')}</option>
                     </select>
                 </div>
 
                 {/* 时间范围按钮组 */}
                 <div className="inline-flex rounded-md shadow-sm" role="group">
                     {['1y', '3y', '5y', 'all'].map((range) => {
-                        const labels = {'1y': '近1年', '3y': '近3年', '5y': '近5年', 'all': '自成立'};
+                        const labels = {
+                            '1y': t('button_one_year'),
+                            '3y': t('button_three_year'),
+                            '5y': t('button_five_year'),
+                            'all': t('button_from_establish'),
+                        };
                         const active = timeRange === range;
                         return (
                             <button
@@ -456,7 +464,7 @@ export default function HoldingDetailPage() {
                         yAxis: {
                             type: 'value',
                             scale: true, // 让 Y 轴不从 0 开始，聚焦波动
-                            name: chartKind === 'nav_per_unit' ? '单位净值' : '累计净值'
+                            name: chartKind === 'nav_per_unit' ? t('th_nav_per_unit') : t('th_nav_accumulated_per_unit')
                         },
                         series,
                     }}
@@ -471,7 +479,7 @@ export default function HoldingDetailPage() {
             <AnimatedDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)}>
                 <div className="flex h-full flex-col">
                     <div className="flex items-center justify-between border-b px-4 py-3 bg-gray-50">
-                        <h2 className="text-lg font-semibold">历史交易记录</h2>
+                        <h2 className="text-lg font-semibold">{t('button_trade_history')}</h2>
                         <button className="text-xl" onClick={() => setDrawerOpen(false)}>×</button>
                     </div>
                     <div className="flex-1 overflow-auto p-4 bg-white">

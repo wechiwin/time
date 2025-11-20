@@ -20,6 +20,7 @@ export default function Drawer({ open, onClose, children }) {
                         transition={{ type: 'tween' }}
                     >
                         <div className="p-4 flex justify-between border-b dark:border-gray-700">
+                            // TODO 是否需要多语言
                             <h2 className="font-semibold">详情</h2>
                             <button onClick={onClose}>✕</button>
                         </div>
