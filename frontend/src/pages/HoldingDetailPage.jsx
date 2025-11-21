@@ -203,20 +203,20 @@ export default function HoldingDetailPage() {
         // TODO 多语言配置 买入和卖出数据库存储方式修改
         if (trades.length > 0 && chartKind === 'nav_per_unit') {
             const buyPoints = trades
-                .filter(t => t.tr_type === '买入')
-                .map(t => ({
-                    name: '买入',
-                    value: [t.tr_date, t.tr_nav_per_unit],
+                .filter(tr => tr.tr_type === 1)
+                .map(tr => ({
+                    name: t('tr_type_buy'),
+                    value: [tr.tr_date, tr.tr_nav_per_unit],
                     symbol: 'triangle',
                     symbolSize: 12,
                     itemStyle: {color: '#ef4444'}, // 红色
                 }));
 
             const sellPoints = trades
-                .filter(t => t.tr_type === '卖出')
-                .map(t => ({
-                    name: '卖出',
-                    value: [t.tr_date, t.tr_nav_per_unit],
+                .filter(tr => tr.tr_type === 0)
+                .map(tr => ({
+                    name: t('tr_type_sell'),
+                    value: [tr.tr_date, tr.tr_nav_per_unit],
                     symbol: 'triangle',
                     symbolRotate: 180,
                     symbolSize: 12,
@@ -224,7 +224,7 @@ export default function HoldingDetailPage() {
                 }));
 
             s.push({
-                name: '买入点',
+                name: t('tr_type_buy'),
                 type: 'scatter',
                 data: buyPoints,
                 // **关键**：设置 seriesIndex: 0，使其默认和主基金（第一个系列）使用同一坐标系
@@ -236,7 +236,7 @@ export default function HoldingDetailPage() {
                 },
             });
             s.push({
-                name: '卖出点',
+                name: t('tr_type_sell'),
                 type: 'scatter',
                 data: sellPoints,
                 seriesIndex: 0, // 关键
@@ -298,11 +298,11 @@ export default function HoldingDetailPage() {
                 // ECharts 的 dispatchAction 方法用于触发行为
                 chartInstance.dispatchAction({
                     type: selected ? 'legendSelect' : 'legendUnSelect',
-                    name: '买入点',
+                    name: t('tr_type_buy'),
                 });
                 chartInstance.dispatchAction({
                     type: selected ? 'legendSelect' : 'legendUnSelect',
-                    name: '卖出点',
+                    name: t('tr_type_sell'),
                 });
             }
         }

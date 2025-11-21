@@ -7,7 +7,7 @@ import {useTranslation} from "react-i18next"; // 复用基金下拉
 const init = {
     tr_id: '',
     ho_code: '',
-    tr_type: '买入',
+    tr_type: 1,
     tr_date: '',
     tr_nav_per_unit: '',
     tr_shares: '',
@@ -37,7 +37,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
             setForm({
                 tr_id: initialValues.tr_id,
                 ho_code: initialValues.ho_code || '',
-                tr_type: initialValues.tr_type || '买入',
+                tr_type: Number(initialValues.tr_type) ?? 1,
                 tr_date: initialValues.tr_date || '',
                 tr_nav_per_unit: initialValues.tr_nav_per_unit,
                 tr_shares: initialValues.tr_shares,
@@ -68,8 +68,8 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                         onChange={(e) => setForm({...form, tr_type: e.target.value})}
                         className="input-field"
                     >
-                        <option>买入</option>
-                        <option>卖出</option>
+                        <option value={1}>{t('tr_type_buy')}</option>
+                        <option value={0}>{t('tr_type_sell')}</option>
                     </select>
                 </div>
                 <div className="flex flex-col">

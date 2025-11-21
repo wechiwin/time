@@ -26,7 +26,7 @@ class Holding(TimestampMixin, db.Model):
 class Trade(TimestampMixin, db.Model):
     tr_id = db.Column(db.Integer, primary_key=True)
     ho_code = db.Column(db.String(50), db.ForeignKey('holding.ho_code'))
-    tr_type = db.Column(db.String(10))
+    tr_type = db.Column(db.Integer)
     tr_date = db.Column(db.String(20))
     tr_nav_per_unit = db.Column(db.Float)
     tr_shares = db.Column(db.Float)

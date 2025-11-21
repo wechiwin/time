@@ -19,6 +19,8 @@
   "end_date": "End Date",
   "last_nav_date": "Last NAV Date",
   "yesterday": "Yesterday",
+  "tr_type_buy": "Buy",
+  "tr_type_sell": "Sell",
 
   "button_delete": "Delete",
   "button_crawl_info": "Crawl Info",

@@ -29,12 +29,12 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                         <td className="table-cell">
                 <span
                     className={`inline-flex px-2 py-0.5 text-xs rounded-full font-medium ${
-                        tr.tr_type === '买入'
+                        tr.tr_type === 1 || tr.tr_type === '1'
                             ? 'bg-green-100 text-green-800'
                             : 'bg-red-100 text-red-800'
                     }`}
                 >
-                  {tr.tr_type}
+                    {tr.tr_type === 1 || tr.tr_type === '1' ? t('tr_type_buy') : t('tr_type_sell')}
                 </span>
                         </td>
                         <td className="table-cell">{tr.tr_date}</td>

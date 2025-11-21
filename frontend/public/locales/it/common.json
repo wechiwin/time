@@ -19,6 +19,8 @@
   "end_date": "Data di fine",
   "last_nav_date": "Ultima data del valore netto",
   "yesterday": "Ieri",
+  "tr_type_buy": "Acquisto",
+  "tr_type_sell": "Vendita",
 
   "button_delete": "Elimina",
   "button_crawl_info": "Informazioni di crawl",

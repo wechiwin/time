@@ -19,6 +19,8 @@
   "end_date": "结束日期",
   "last_nav_date": "最后净值日",
   "yesterday": "昨天",
+  "tr_type_buy": "买入",
+  "tr_type_sell": "卖出",
 
   "button_delete": "删除",
   "button_crawl_info": "爬取信息",
