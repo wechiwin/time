@@ -7,7 +7,7 @@ import useHoldingList from "../../hooks/api/useHoldingList";
 export default function HoldingSearchSelect({value, onChange, placeholder = '搜索基金'}) {
     const [list, setList] = useState([]);
     const [open, setOpen] = useState(false);
-    const {data, loading, add, remove, searchPage} = useHoldingList({autoLoad: false});
+    const {data, searchPage} = useHoldingList({autoLoad: false});
     const [keyword, setKeyword] = useDebouncedSearch(searchPage, 500);
     const wrapperRef = useRef(null);
 
@@ -33,8 +33,12 @@ export default function HoldingSearchSelect({value, onChange, placeholder = '搜
 
     // 每次 data 更新，刷新 list
     useEffect(() => {
-        console.log('data 更新:', data);
-        setList(data);
+        // console.log('data 更新:', data);
+        if (data && data.items) {
+            setList(data.items);
+        } else {
+            setList([]);
+        }
     }, [data]);
 
     // 防抖搜索函数
@@ -69,15 +73,15 @@ export default function HoldingSearchSelect({value, onChange, placeholder = '搜
                     {list.length ? (
                         list.map((f) => (
                             <div
-                                key={f.id}
+                                key={f.ho_id}
                                 className="px-3 py-2 hover:bg-blue-50 dark:hover:bg-blue-900 cursor-pointer"
                                 onMouseDown={() => {
-                                    onChange(f.fund_code);
-                                    setKeyword(f.fund_code);
+                                    onChange(f.ho_code);
+                                    setKeyword(f.ho_code);
                                     setOpen(false);
                                 }}
                             >
-                                {f.fund_code} - {f.fund_name}
+                                {f.ho_code} - {f.ho_name}
                             </div>
                         ))
                     ) : (

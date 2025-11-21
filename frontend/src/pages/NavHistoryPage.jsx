@@ -1,17 +1,18 @@
-// src/pages/NetValuePage.jsx
-import NetValueSearchBox from '../components/search/NetValueSearchBox';
-import NetValueForm from '../components/forms/NetValueForm';
-import NetValueTable from '../components/tables/NetValueTable';
-import useNetValueList from '../hooks/api/useNetValueList';
-import useDeleteWithToast from '../hooks/useDeleteWithToast';
+// src/pages/NavHistoryPage.jsx
+import NavHistoryForm from '../components/forms/NavHistoryForm';
+import NavHistoryTable from '../components/tables/NavHistoryTable';
+import useNavHistoryList from '../hooks/api/useNavHistoryList';
 import FormModal from "../components/common/FormModal";
 import {useCallback, useState} from "react";
 import Pagination from "../components/common/Pagination";
 import CrawlNetValueForm from "../components/forms/CrawlNetValueForm";
 import {usePaginationState} from "../hooks/usePaginationState";
 import {useToast} from "../components/toast/ToastContext";
+import {useTranslation} from "react-i18next";
 
-export default function NetValuePage() {
+export default function NavHistoryPage() {
+    const {t} = useTranslation()
+
     // 分页
     const {
         page,
@@ -23,13 +24,21 @@ export default function NetValuePage() {
     const [keyword, setKeyword] = useState("");
 
     // 数据操作
-    const {data, add, remove, update, crawl, crawl_all} = useNetValueList({
+    const {data, add, remove, update, crawl, crawl_all} = useNavHistoryList({
         page,
         perPage,
         keyword,
         autoLoad: true,
     });
-    const handleDelete = useDeleteWithToast(remove);
+
+    const handleDelete = async (ho_id) => {
+        try {
+            await remove(ho_id);
+            showSuccessToast();
+        } catch (err) {
+            showErrorToast(err.message);
+        }
+    };
 
     // 模态框控制
     const [showModal, setShowModal] = useState(false);
@@ -46,15 +55,15 @@ export default function NetValuePage() {
         handlePageChange(1); // 搜索时重置到第一页
     }, [handlePageChange]);
 
-    const openAddModal = () => {
-        setModalTitle("添加净值");
-        setModalSubmit(() => add);
-        setInitialValues({});
-        setShowModal(true);
-    };
+    // const openAddModal = () => {
+    //     setModalTitle("添加净值");
+    //     setModalSubmit(() => add);
+    //     setInitialValues({});
+    //     setShowModal(true);
+    // };
 
     const openEditModal = (fund) => {
-        setModalTitle("修改净值");
+        setModalTitle(t('button_edit'));
         setModalSubmit(() => update);
         setInitialValues(fund);
         setShowModal(true);
@@ -67,44 +76,48 @@ export default function NetValuePage() {
         setShowCrawlModal(false);
     };
 
-    const handleCrawlAll = async () => {
-        try {
-            await crawl_all();
-            showSuccessToast();
-        } catch (err) {
-            showErrorToast(err.message);
+    // const handleCrawlAll = async () => {
+    //     try {
+    //         await crawl_all();
+    //         showSuccessToast();
+    //     } catch (err) {
+    //         showErrorToast(err.message);
+    //     }
+    // };
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            handleSearch(keyword);
         }
     };
 
     return (
         <div className="space-y-6">
-            <h1 className="text-2xl font-bold">净值历史</h1>
             {/* 搜索 */}
-            <NetValueSearchBox onSearch={handleSearch}/>
-
-            {/* 操作按钮 */}
-            <div className="text-left">
-                {/* <button */}
-                {/*     onClick={openAddModal} */}
-                {/*     className="btn-primary" */}
-                {/* > */}
-                {/*     添加净值 */}
-                {/* </button> */}
+            <div className="search-bar">
+                <input
+                    type="text"
+                    value={keyword}
+                    onChange={(e) => setKeyword(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={t('msg_search_placeholder')}
+                    className="search-input"
+                />
                 <button
-                    onClick={handleCrawlAll}
+                    onClick={() => handleSearch(keyword)}
                     className="btn-primary"
                 >
-                    爬取所有净值
+                    {t('button_search')}
                 </button>
-                <button
-                    onClick={openCrawlModal}
-                    className="btn-primary"
-                >
-                    拉取单个净值
-                </button>
+                {/* 右侧按钮组 */}
+                <div className="ml-auto flex items-center gap-2">
+                    <button onClick={openCrawlModal} className="btn-secondary">
+                        {t('button_crawl_info')}
+                    </button>
+                </div>
             </div>
-            {/* <NetValueForm onSubmit={add}/> */}
-            <NetValueTable
+
+            <NavHistoryTable
                 data={data?.items || []}
                 onDelete={handleDelete}
                 onEdit={openEditModal}
@@ -128,12 +141,12 @@ export default function NetValuePage() {
                 show={showModal}
                 onClose={() => setShowModal(false)}
                 onSubmit={modalSubmit}
-                FormComponent={NetValueForm}
+                FormComponent={NavHistoryForm}
                 initialValues={initialValues}
             />
             {/* 爬取净值模态框 */}
             <FormModal
-                title="爬取净值数据"
+                title={t('button_crawl_info')}
                 show={showCrawlModal}
                 onClose={() => setShowCrawlModal(false)}
                 onSubmit={handleCrawlSubmit}

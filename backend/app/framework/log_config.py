@@ -11,6 +11,7 @@ def setup_logging(app):
     # 清除默认的handlers
     for handler in app.logger.handlers[:]:
         app.logger.removeHandler(handler)
+    app.logger.propagate = False
 
     # 设置日志格式
     formatter = logging.Formatter('[%(asctime)s] %(levelname)s in %(module)s: %(message)s')
@@ -42,6 +43,8 @@ def setup_logging(app):
     werkzeug_logger.setLevel(logging.WARNING)
     for handler in werkzeug_logger.handlers[:]:
         werkzeug_logger.removeHandler(handler)
+    # 不向上级 logger 冒泡（避免重复）
+    werkzeug_logger.propagate = False
 
     # SQLAlchemy 引擎日志（记录 SQL）
     sqlalchemy_engine_logger = logging.getLogger('sqlalchemy.engine')

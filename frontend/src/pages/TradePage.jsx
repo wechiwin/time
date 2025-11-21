@@ -1,16 +1,15 @@
-// src/pages/TransactionPage.jsx
-import TransactionSearchBox from '../components/search/TransactionSearchBox';
-import TransactionForm from '../components/forms/TransactionForm';
+// src/pages/TradePage.jsx
+import TradeForm from '../components/forms/TradeForm';
 import TradeTable from '../components/tables/TradeTable';
-import useTransactionList from '../hooks/api/useTransactionList';
-import useDeleteWithToast from '../hooks/useDeleteWithToast';
+import useTradeList from '../hooks/api/useTradeList';
 import FormModal from "../components/common/FormModal";
 import {useCallback, useState} from "react";
 import {useToast} from "../components/toast/ToastContext";
 import Pagination from "../components/common/Pagination";
 import {usePaginationState} from "../hooks/usePaginationState";
+import {useTranslation} from "react-i18next";
 
-export default function TransactionPage() {
+export default function TradePage() {
     // 分页
     const {
         page,
@@ -20,15 +19,24 @@ export default function TransactionPage() {
     } = usePaginationState();
 
     const [keyword, setKeyword] = useState("");
+    const {t} = useTranslation()
 
-    const {data, loading, error, add, remove, search, update, importData, downloadTemplate} = useTransactionList({
+    const {data, loading, error, add, remove, search, update, importData, downloadTemplate} = useTradeList({
         page,
         perPage,
         keyword,
         autoLoad: true,
     });
 
-    const handleDelete = useDeleteWithToast(remove);
+    const handleDelete = async (ho_id) => {
+        try {
+            await remove(ho_id);
+            showSuccessToast();
+        } catch (err) {
+            showErrorToast(err.message);
+        }
+    };
+
     // 模态框控制
     const [showModal, setShowModal] = useState(false);
     const [modalTitle, setModalTitle] = useState("添加新交易");
@@ -43,14 +51,14 @@ export default function TransactionPage() {
     }, [handlePageChange]);
 
     const openAddModal = () => {
-        setModalTitle("添加新交易");
+        setModalTitle(t('button_add'));
         setModalSubmit(() => add);
         setInitialValues({});
         setShowModal(true);
     };
 
     const openEditModal = (fund) => {
-        setModalTitle("修改交易");
+        setModalTitle(t('button_edit'));
         setModalSubmit(() => update);
         setInitialValues(fund);
         setShowModal(true);
@@ -73,30 +81,43 @@ export default function TransactionPage() {
         }
     };
 
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            handleSearch(keyword);
+        }
+    };
+
     return (
         <div className="space-y-6">
-            <h1 className="text-2xl font-bold">交易管理</h1>
-            <TransactionSearchBox onSearch={handleSearch}/>
-            <div className="text-left">
+            <div className="search-bar">
+                <input
+                    type="text"
+                    value={keyword}
+                    onChange={(e) => setKeyword(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={t('msg_search_placeholder')}
+                    className="search-input"
+                />
                 <button
-                    onClick={openAddModal}
+                    onClick={() => handleSearch(keyword)}
                     className="btn-primary"
                 >
-                    添加交易
+                    {t('button_search')}
                 </button>
-                <button
-                    onClick={downloadTemplate}
-                    className="btn-secondary ml-2"
-                >
-                    下载模板
-                </button>
-                <button
-                    onClick={handleImport}
-                    className="btn-secondary ml-2"
-                >
-                    导入数据
-                </button>
+                {/* 右侧按钮组 */}
+                <div className="ml-auto flex items-center gap-2">
+                    <button onClick={openAddModal} className="btn-primary">
+                        {t('button_add')}
+                    </button>
+                    <button onClick={downloadTemplate} className="btn-secondary">
+                        {t('button_download_template')}
+                    </button>
+                    <button onClick={handleImport} className="btn-secondary">
+                        {t('button_import_data')}
+                    </button>
+                </div>
             </div>
+
             {/* 数据表格 */}
             <TradeTable data={data?.items || []} onDelete={handleDelete} onEdit={openEditModal}/>
             {/* 分页 */}
@@ -117,7 +138,7 @@ export default function TransactionPage() {
                 show={showModal}
                 onClose={() => setShowModal(false)}
                 onSubmit={modalSubmit}
-                FormComponent={TransactionForm}
+                FormComponent={TradeForm}
                 initialValues={initialValues}
             />
         </div>

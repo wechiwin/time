@@ -1,14 +1,13 @@
 // src/pages/HoldingPage.jsx
-import HoldingSearchBox from '../components/search/HoldingSearchBox';
 import HoldingForm from '../components/forms/HoldingForm';
 import HoldingTable from '../components/tables/HoldingTable';
 import useHoldingList from '../hooks/api/useHoldingList';
-import useDeleteWithToast from '../hooks/useDeleteWithToast';
 import {useCallback, useState} from 'react';
 import FormModal from "../components/common/FormModal";
 import {useToast} from "../components/toast/ToastContext";
 import Pagination from "../components/common/Pagination";
 import {usePaginationState} from "../hooks/usePaginationState";
+import {useTranslation} from "react-i18next";
 
 export default function HoldingPage() {
     // 分页
@@ -20,45 +19,55 @@ export default function HoldingPage() {
     } = usePaginationState();
 
     const [keyword, setKeyword] = useState("");
+    const {t} = useTranslation()
 
     // 使用参数驱动的数据获取
-    const {data, loading, error, add, remove, search, update, importData, downloadTemplate} = useHoldingList({
+    const {
+        data,
+        loading,
+        error,
+        add,
+        remove,
+        search,
+        update,
+        importData,
+        downloadTemplate,
+        crawlFundInfo
+    } = useHoldingList({
         page,
         perPage,
         keyword,
         autoLoad: true,
     });
 
-    // // 添加调试信息
-    // console.log('HoldingPage数据:', {
-    //     data,
-    //     loading,
-    //     error,
-    //     hasData: !!data,
-    //     itemsCount: data?.items?.length,
-    //     pagination: data?.pagination
-    // });
-
-    const handleDelete = useDeleteWithToast(remove, '基金');
     // 模态框控制
     const [showModal, setShowModal] = useState(false);
-    const [modalTitle, setModalTitle] = useState("添加新基金");
+    const [modalTitle, setModalTitle] = useState(t('button_add'));
     const [modalSubmit, setModalSubmit] = useState(() => add);
     const [initialValues, setInitialValues] = useState({});
     const {showSuccessToast, showErrorToast} = useToast();
 
     const openAddModal = () => {
-        setModalTitle("添加新基金");
+        setModalTitle(t('button_add'));
         setModalSubmit(() => add);
         setInitialValues({});
         setShowModal(true);
     };
 
     const openEditModal = (fund) => {
-        setModalTitle("修改基金");
+        setModalTitle(t('button_edit'));
         setModalSubmit(() => update);
         setInitialValues(fund);
         setShowModal(true);
+    };
+
+    const handleDelete = async (ho_id) => {
+        try {
+            await remove(ho_id);
+            showSuccessToast();
+        } catch (err) {
+            showErrorToast(err.message);
+        }
     };
 
     // 导入数据
@@ -84,30 +93,61 @@ export default function HoldingPage() {
         handlePageChange(1);
     }, [handlePageChange]);
 
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            handleSearch(keyword);
+        }
+    };
+
+    /* 供表单使用的爬取回调 */
+    const handleCrawl = useCallback(
+        async (code, setFormPatch) => {
+            try {
+                const info = await crawlFundInfo(code);
+                setFormPatch({
+                    ho_name: info.ho_name || '',
+                    ho_type: info.ho_type || '',
+                    ho_establish_date: info.ho_establish_date || ''
+                });
+                showSuccessToast();
+            } catch (e) {
+                showErrorToast(e.message);
+            }
+        },
+        [crawlFundInfo, showSuccessToast, showErrorToast]
+    );
+
     return (
         <div className="space-y-6">
-            <h1 className="text-2xl font-bold">基金管理</h1>
-            <HoldingSearchBox onSearch={handleSearch}/>
-            {/* 添加按钮 */}
-            <div className="text-left">
+            {/* 搜索 + 按钮行 */}
+            <div className="search-bar">
+                <input
+                    type="text"
+                    value={keyword}
+                    onChange={(e) => setKeyword(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={t('msg_search_placeholder')}
+                    className="search-input"
+                />
                 <button
-                    onClick={openAddModal}
+                    onClick={() => handleSearch(keyword)}
                     className="btn-primary"
                 >
-                    添加基金
+                    {t('button_search')}
                 </button>
-                <button
-                    onClick={downloadTemplate}
-                    className="btn-secondary ml-2"
-                >
-                    下载模板
-                </button>
-                <button
-                    onClick={handleImport}
-                    className="btn-secondary ml-2"
-                >
-                    导入数据
-                </button>
+
+                {/* 右侧按钮组 */}
+                <div className="ml-auto flex items-center gap-2">
+                    <button onClick={openAddModal} className="btn-primary">
+                        {t('button_add')}
+                    </button>
+                    <button onClick={downloadTemplate} className="btn-secondary">
+                        {t('button_download_template')}
+                    </button>
+                    <button onClick={handleImport} className="btn-secondary">
+                        {t('button_import_data')}
+                    </button>
+                </div>
             </div>
             <HoldingTable data={data?.items || []} onDelete={handleDelete} onEdit={openEditModal}/>
             {/* 分页 */}
@@ -131,6 +171,7 @@ export default function HoldingPage() {
                 onSubmit={modalSubmit}
                 FormComponent={HoldingForm}
                 initialValues={initialValues}
+                modalProps={{onCrawl: handleCrawl}}
             />
         </div>
     );

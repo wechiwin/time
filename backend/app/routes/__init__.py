@@ -1,11 +1,11 @@
 from flask import Flask
 
-from .holdings import holdings_bp
-from .net_values import net_values_bp
-from .transactions import transactions_bp
+from .holding_bp import holding_bp
+from .nav_history_bp import nav_history_bp
+from .trade_bp import trade_bp
 
 
 def register_routes(app: Flask):
-    app.register_blueprint(holdings_bp)
-    app.register_blueprint(transactions_bp)
-    app.register_blueprint(net_values_bp)
+    app.register_blueprint(holding_bp)
+    app.register_blueprint(trade_bp)
+    app.register_blueprint(nav_history_bp)
