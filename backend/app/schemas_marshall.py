@@ -15,7 +15,7 @@ class HoldingSchema(SQLAlchemyAutoSchema):
         # fields = ('id', 'ho_name', 'ho_code', 'ho_type', 'created_at')
         load_instance = True  # 反序列化时可直接得到模型实例（可选）
 
-    ho_establish_date = fields.Date(format="%Y-%m-%d")
+    # ho_establish_date = fields.Date(format="%Y-%m-%d")
 
 
 class TradeSchema(SQLAlchemyAutoSchema):

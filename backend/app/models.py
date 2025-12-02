@@ -19,7 +19,7 @@ class Holding(TimestampMixin, db.Model):
     ho_name = db.Column(db.String(100))
     ho_code = db.Column(db.String(50), unique=True)
     ho_type = db.Column(db.String(50))
-    ho_establish_date = db.Column(db.Date)
+    ho_establish_date = db.Column(db.String(100))
     ho_short_name = db.Column(db.String(100))
 
 
