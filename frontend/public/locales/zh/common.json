@@ -37,6 +37,7 @@
   "button_cancel": "取消",
   "button_confirm": "确认",
   "button_back": "返回",
+  "button_upload_image": "AI识别图片",
 
   "project_title": "投资持仓管理系统",
 
@@ -51,6 +52,7 @@
   "msg_after_crawl": "后台运行中, 请稍等",
   "msg_operation_success": "操作成功",
   "msg_operation_failed": "操作失败",
+  "msg_mydate_select_date": "选择日期",
 
   "prev_page": "上一页",
   "next_page": "下一页",

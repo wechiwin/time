@@ -2,6 +2,7 @@
 import {useEffect, useState} from 'react';
 import {useToast} from '../toast/ToastContext';
 import {useTranslation} from "react-i18next";
+import MyDate from "../common/MyDate";
 
 const fundTypeOptions = [
     {value: 'ETF', label: 'ETF'},
@@ -103,10 +104,15 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
                     <label className="text-sm font-medium mb-1">
                         {t('th_ho_establish_date')}
                     </label>
-                    <input
-                        type="date"
+                    {/* <input */}
+                    {/*     type="date" */}
+                    {/*     value={form.ho_establish_date} */}
+                    {/*     onChange={(e) => setForm({...form, ho_establish_date: e.target.value})} */}
+                    {/*     className="input-field" */}
+                    {/* /> */}
+                    <MyDate
                         value={form.ho_establish_date}
-                        onChange={(e) => setForm({...form, ho_establish_date: e.target.value})}
+                        onChange={(dateStr) => setForm({...form, tr_date: dateStr})}
                         className="input-field"
                     />
                 </div>

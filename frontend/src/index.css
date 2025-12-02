@@ -126,4 +126,14 @@
     .chart-box .loading {
         @apply text-gray-500 dark:text-gray-400 text-sm;
     }
+
+    .react-datepicker {
+        zoom: 1.1;
+        /*font-size: 15px;           !* 字号同步放大 *!*/
+    }
+
+    .react-datepicker__year-select,
+    .react-datepicker__month-select {
+        @apply px-13 h-9 text-base rounded-md border border-slate-300;
+    }
 }

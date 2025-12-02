@@ -37,6 +37,7 @@
   "button_cancel": "Annulla",
   "button_confirm": "Conferma",
   "button_back": "Ritorno",
+  "button_upload_image": "Analizza immagine",
 
   "project_title": "Sistema di Gestione delle Partecipazioni",
 
@@ -51,6 +52,7 @@
   "msg_after_crawl": "Elaborazione in corso, attendere prego…",
   "msg_operation_success": "Operazione riuscita",
   "msg_operation_failed": "Operazione fallita",
+  "msg_mydate_select_date": "Seleziona data",
 
   "prev_page": "Precedente",
   "next_page": "Successiva",

@@ -37,6 +37,7 @@
   "button_cancel": "Cancel",
   "button_confirm": "Confirm",
   "button_back": "Back",
+  "button_upload_image": "AI image recognition",
 
   "project_title": "Holding Management System",
 
@@ -51,6 +52,7 @@
   "msg_after_crawl": "Processing in the background, please wait…",
   "msg_operation_success": "Operation successful",
   "msg_operation_failed": "Operation failed",
+  "msg_mydate_select_date": "Choose Date",
 
   "prev_page": "Prev",
   "next_page": "Next",
