@@ -1,12 +1,12 @@
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useState} from 'react';
 import apiClient from '../api/client.js';
 
-export default function useApi(endpoint, options = {}) {
+export default function useApi() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
     // 通用请求方法
-    const request = useCallback(async (url, method = 'GET', body = null) => {
+    const request = useCallback(async (url, method = 'GET', body = null, config = {}) => {
         try {
             setLoading(true);
             setError(null);
@@ -14,16 +14,16 @@ export default function useApi(endpoint, options = {}) {
             let response;
             switch (method) {
                 case 'GET':
-                    response = await apiClient.get(url);
+                    response = await apiClient.get(url, config);
                     break;
                 case 'POST':
-                    response = await apiClient.post(url, body);
+                    response = await apiClient.post(url, body, config);
                     break;
                 case 'PUT':
-                    response = await apiClient.put(url, body);
+                    response = await apiClient.put(url, body, config);
                     break;
                 case 'DELETE':
-                    response = await apiClient.delete(url);
+                    response = await apiClient.delete(url, config);
                     break;
                 default:
                     throw new Error(`Unsupported method: ${method}`);

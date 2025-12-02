@@ -1,0 +1,60 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Project Name\n"
+"POT-Creation-Date: 2025-11-26 16:53+0800\n"
+"PO-Revision-Date: 2025-11-26 16:53+0800\n"
+"Last-Translator: Your Name\n"
+"Language-Team: \n"
+"Language: it\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Poedit-SourceCharset: utf-8\n"
+
+msgid "COL_HO_CODE"
+msgstr "Codice"
+
+msgid "COL_HO_NAME"
+msgstr "Nome"
+
+msgid "COL_HO_TYPE"
+msgstr "Tipo"
+
+msgid "COL_HO_ESTABLISH_DATE"
+msgstr "Data di Costituzione"
+
+msgid "COL_TR_TYPE"
+msgstr "Tipo di Transazione"
+
+msgid "COL_TR_DATE"
+msgstr "Data di Transazione"
+
+msgid "COL_TR_NAV_PER_UNIT"
+msgstr "Valore netto"
+
+msgid "COL_TR_SHARES"
+msgstr "Azioni della transazione"
+
+msgid "COL_TR_FEE"
+msgstr "Commissione della transazione"
+
+msgid "COL_TR_AMOUNT"
+msgstr "Importo della transazione"
+
+msgid "TEMPLATE_TR_IMPORT"
+msgstr "Modello di importazione"
+
+msgid "TEMPLATE_HO_IMPORT"
+msgstr "Modello di importazione fondi"
+
+msgid "TR_BUY"
+msgstr "Acquisto"
+
+msgid "TR_SELL"
+msgstr "Vendita"
+
+msgid "TR_LOG"
+msgstr "Registri delle transazioni"
+
+msgid "TR_EXAMPLE"
+msgstr "Esempio"

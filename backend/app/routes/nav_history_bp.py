@@ -131,3 +131,9 @@ def async_crawl_task(app, ho_code, start_date, end_date):
         except Exception as e:
             print("爬取失败：", e)
             db.session.rollback()
+
+
+@nav_history_bp.route('/crawl_job', methods=['GET'])
+def crawl_job():
+    data = service.crawl_all_nav_history()
+    return data

@@ -1,6 +1,6 @@
 import logging
-from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
 import os
+from logging.handlers import TimedRotatingFileHandler
 
 
 def setup_logging(app):
@@ -8,7 +8,11 @@ def setup_logging(app):
     if not os.path.exists('logs'):
         os.mkdir('logs')
 
-    # 清除默认的handlers
+    # 清除所有现有 logger 的 handlers
+    root_logger = logging.getLogger()
+    for h in root_logger.handlers[:]:
+        root_logger.removeHandler(h)
+    # 清除 app.logger 的 handlers
     for handler in app.logger.handlers[:]:
         app.logger.removeHandler(handler)
     app.logger.propagate = False
@@ -59,3 +63,23 @@ def setup_logging(app):
     flask_sqlalchemy_logger.addHandler(console_handler)
 
     app.logger.info('Application logging initialized')
+
+
+def get_early_logger(name: str = 'flask.app'):
+    """
+    create_app() 之前就能用的 logger，等 setup_logging(app) 执行后会自动接管。
+    """
+    logger = logging.getLogger(name)
+
+    for h in logger.handlers[:]:
+        logger.removeHandler(h)
+    logger.propagate = False
+
+    # 先临时写一条到控制台，格式保持一致
+    if not logger.handlers:
+        tmp_handler = logging.StreamHandler()
+        tmp_handler.setFormatter(
+            logging.Formatter('[%(asctime)s] %(levelname)s in %(module)s: %(message)s'))
+        logger.addHandler(tmp_handler)
+        logger.setLevel(logging.DEBUG)
+        return logger

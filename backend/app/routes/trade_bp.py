@@ -1,20 +1,31 @@
+import json
+import threading
+import uuid
 from io import BytesIO
+from queue import Queue
 
 import pandas as pd
 from app.framework.exceptions import BizException
 from app.models import db, Trade, Holding
 from app.schemas_marshall import TradeSchema, marshal_pagination
-from flask import Blueprint, request, send_file
-from sqlalchemy import desc
+from app.service.trade_service import TradeService
+from app.service.trade_service import TradeService
+from flask import Blueprint, request, Response, stream_with_context
+from flask import send_file
+from flask_babel import gettext
+from sqlalchemy import desc, or_
 
 trade_bp = Blueprint('trade', __name__, url_prefix='/api/trade')
 
+task_queues = {}
+
 
 @trade_bp.route('', methods=['GET'])
-def get_trade():
+def search_page():
     ho_code = request.args.get('ho_code')
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
+    keyword = request.args.get('keyword')
     # 添加分页参数
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 10, type=int)
@@ -28,6 +39,13 @@ def get_trade():
         query = query.filter(Trade.tr_date >= start_date)
     if end_date:
         query = query.filter(Trade.tr_date <= end_date)
+    if keyword:
+        query = query.filter(
+            or_(
+                Holding.ho_code.ilike(f'%{keyword}%'),
+                Holding.ho_name.ilike(f'%{keyword}%')
+            )
+        ).all()
 
     # 使用分页查询
     pagination = query.order_by(desc(Trade.tr_date)).paginate(
@@ -60,8 +78,9 @@ def get_trade():
 @trade_bp.route('', methods=['POST'])
 def create_transaction():
     data = request.get_json()
-    required_fields = ['ho_code', 'tr_type', 'tr_date', 'tr_net_value',
+    required_fields = ['ho_code', 'tr_type', 'tr_date', 'tr_nav_per_unit',
                        'tr_shares', 'tr_fee', 'tr_amount']
+
     if not all(field in data for field in required_fields):
         raise BizException(message="缺少必要字段")
     new_transaction = TradeSchema().load(data)
@@ -95,71 +114,78 @@ def delete_transaction(tr_id):
     return ''
 
 
-@trade_bp.route('/export', methods=['GET'])
-def export_trade():
-    trade = Trade.query.all()
-    df = pd.DataFrame([{
-        '基金代码': t.ho_code,
-        '交易类型': t.tr_type,
-        '交易日期': t.tr_date,
-        '交易净值': t.tr_net_value,
-        '交易份数': t.tr_shares,
-        '交易费用': t.tr_fee,
-        '交易金额': t.tr_amount
-    } for t in trade])
-
-    output = BytesIO()
-    writer = pd.ExcelWriter(output, engine='xlsxwriter')
-    df.to_excel(writer, index=False, sheet_name='交易记录')
-    writer.close()
-    output.seek(0)
-
-    return send_file(
-        output,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        as_attachment=True,
-        download_name='tradeLog.xlsx'
-    )
+# @trade_bp.route('/export', methods=['GET'])
+# def export_trade():
+#     trade = Trade.query.all()
+#     df = pd.DataFrame([{
+#         gettext('COL_HO_CODE'): t.ho_code,
+#         gettext('COL_TR_TYPE'): t.tr_type,
+#         gettext('COL_TR_DATE'): t.tr_date,
+#         gettext('COL_TR_NAV_PER_UNIT'): t.tr_nav_per_unit,
+#         gettext('COL_TR_SHARES'): t.tr_shares,
+#         gettext('COL_TR_FEE'): t.tr_fee,
+#         gettext('COL_TR_AMOUNT'): t.tr_amount
+#     } for t in trade])
+#
+#     output = BytesIO()
+#     writer = pd.ExcelWriter(output, engine='xlsxwriter')
+#     df.to_excel(writer, index=False, sheet_name=gettext('TR_LOG'))
+#     writer.close()
+#     output.seek(0)
+#
+#     return send_file(
+#         output,
+#         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+#         as_attachment=True,
+#         download_name='tradeLog.xlsx'
+#     )
 
 
 @trade_bp.route('/template', methods=['GET'])
 def download_template():
     # 创建一个空的DataFrame，只有列名
     df = pd.DataFrame(columns=[
-        '基金代码',
-        '交易类型',
-        '交易日期',
-        '交易净值',
-        '交易份数',
-        '交易费用',
-        '交易金额',
+        # '基金代码',
+        gettext('COL_HO_CODE'),
+        # '交易类型',
+        gettext('COL_TR_TYPE'),
+        # '交易日期',
+        gettext('COL_TR_DATE'),
+        # '交易净值',
+        gettext('COL_TR_NAV_PER_UNIT'),
+        # '交易份数',
+        gettext('COL_TR_SHARES'),
+        # '交易费用',
+        gettext('COL_TR_FEE'),
+        # '交易金额',
+        gettext('COL_TR_AMOUNT'),
     ])
 
     # 添加示例数据（使用concat替代append）
     example_data = pd.DataFrame([{
-        '基金代码': '示例代码',
-        '交易类型': '买入',
-        '交易日期': '2023-01-01',
-        '交易净值': 1.0,
-        '交易份数': 100,
-        '交易费用': 0.1,
-        '交易金额': 100.1
+        gettext('COL_HO_CODE'): gettext('TR_EXAMPLE'),
+        gettext('COL_TR_TYPE'): gettext('TR_BUY'),
+        gettext('COL_TR_DATE'): '2023-01-01',
+        gettext('COL_TR_NAV_PER_UNIT'): 1.0,
+        gettext('COL_TR_SHARES'): 100,
+        gettext('COL_TR_FEE'): 0.1,
+        gettext('COL_TR_AMOUNT'): 100.1
     }])
 
     df = pd.concat([df, example_data], ignore_index=True)
 
     output = BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='交易记录模板')
+        df.to_excel(writer, index=False, sheet_name=gettext('TEMPLATE_TR_IMPORT'))
 
         # 添加数据验证（可选）
         workbook = writer.book
-        worksheet = writer.sheets['交易记录模板']
+        worksheet = writer.sheets[gettext('TEMPLATE_TR_IMPORT')]
 
         # 为交易类型列添加下拉验证
         worksheet.data_validation('B2:B100', {
             'validate': 'list',
-            'source': ['买入', '卖出']
+            'source': [gettext('TR_BUY'), gettext('TR_SELL')]
         })
 
     output.seek(0)
@@ -182,19 +208,28 @@ def import_trade():
         raise BizException(message="没有选择文件")
 
     try:
-        df = pd.read_excel(file, dtype={'基金代码': str})
-        required_columns = ['基金代码',
-                            '交易类型',
-                            '交易日期',
-                            '交易净值',
-                            '交易份数',
-                            '交易费用',
-                            '交易金额', ]
+        df = pd.read_excel(file, dtype={gettext('COL_HO_CODE'): str})
+        required_columns = [
+            # '基金代码',
+            gettext('COL_HO_CODE'),
+            # '交易类型',
+            gettext('COL_TR_TYPE'),
+            # '交易日期',
+            gettext('COL_TR_DATE'),
+            # '交易净值',
+            gettext('COL_TR_NAV_PER_UNIT'),
+            # '交易份数',
+            gettext('COL_TR_SHARES'),
+            # '交易费用',
+            gettext('COL_TR_FEE'),
+            # '交易金额',
+            gettext('COL_TR_AMOUNT'),
+        ]
         if not all(col in df.columns for col in required_columns):
             raise BizException(message="Excel缺少必要列")
 
         # 检查ho_code是否存在
-        ho_codes = df['基金代码'].unique()
+        ho_codes = df[gettext('COL_HO_CODE')].unique()
         existing_holdings = Holding.query.filter(Holding.ho_code.in_(ho_codes)).all()
         existing_codes = {h.ho_code for h in existing_holdings}
 
@@ -206,10 +241,15 @@ def import_trade():
             )
 
         # 转换日期列为字符串格式
-        df['交易日期'] = df['交易日期'].dt.strftime('%Y-%m-%d')  # 处理Timestamp类型
+        # df['交易日期'] = df['交易日期'].dt.strftime('%Y-%m-%d')  # 处理Timestamp类型
 
         # 转换数值列为float（防止整数被识别为其他类型）
-        numeric_cols = ['交易净值', '交易份数', '交易费用', '交易金额']
+        numeric_cols = [
+            gettext('COL_TR_NAV_PER_UNIT'),
+            gettext('COL_TR_SHARES'),
+            gettext('COL_TR_FEE'),
+            gettext('COL_TR_AMOUNT')
+        ]
         for col in numeric_cols:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
@@ -217,13 +257,13 @@ def import_trade():
         # db.session.begin()
         for _, row in df.iterrows():
             transaction = Trade(
-                ho_code=str(row['基金代码']),  # 确保是字符串
-                tr_type=str(row['交易类型']),
-                tr_date=str(row['交易日期']),  # 已转换为字符串
-                tr_nav_per_unit=float(row['交易净值']),
-                tr_shares=float(row['交易份数']),
-                tr_fee=float(row['交易费用']),
-                tr_amount=float(row['交易金额'])
+                ho_code=str(row[gettext('COL_HO_CODE')]),  # 确保是字符串
+                tr_type=str(row[gettext('COL_TR_TYPE')]),
+                tr_date=str(row[gettext('COL_TR_DATE')]),  # 已转换为字符串
+                tr_nav_per_unit=float(row[gettext('COL_TR_NAV_PER_UNIT')]),
+                tr_shares=float(row[gettext('COL_TR_SHARES')]),
+                tr_fee=float(row[gettext('COL_TR_FEE')]),
+                tr_amount=float(row[gettext('COL_TR_AMOUNT')])
             )
             db.session.add(transaction)
 
@@ -243,3 +283,103 @@ def list_by_code():
 
     result_list = Trade.query.filter_by(ho_code=ho_code).all()
     return TradeSchema(many=True).dump(result_list)
+
+
+@trade_bp.route("/upload", methods=["POST"])
+def upload():
+    file = request.files.get("file")
+    if not file:
+        return {"error": "No file"}
+
+    file_bytes = file.read()
+    trade_service = TradeService()
+    print(file_bytes)
+    result = trade_service.process_trade_image(file_bytes)
+
+    return {
+        "ocr_text": result["ocr_text"],
+        "parsed_json": result["parsed_json"]
+    }
+
+
+def background_worker(task_id, file_bytes):
+    """
+    后台线程运行的函数
+    """
+    try:
+        # 实例化服务 (如果你的 Service 没有状态，也可以在外面实例化)
+        service = TradeService()
+        print(f"Task {task_id}: 开始调用 LLM...")
+
+        # 调用耗时的 LLM 逻辑
+        result = service.process_trade_image(file_bytes)
+
+        # 将结果放入队列
+        if task_id in task_queues:
+            task_queues[task_id].put({"status": "success", "data": result})
+
+    except Exception as e:
+        print(f"Task {task_id} Error: {e}")
+        if task_id in task_queues:
+            task_queues[task_id].put({"status": "error", "message": str(e)})
+
+
+@trade_bp.route("/upload_sse", methods=["POST"])
+def upload_sse():
+    """
+    第一步：上传文件，启动后台线程，立即返回 task_id
+    """
+    file = request.files.get("file")
+    if not file:
+        return {"error": "No file"}
+
+    # 读取文件字节流
+    file_bytes = file.read()
+
+    # 生成唯一任务 ID
+    task_id = str(uuid.uuid4())
+
+    # 创建该任务的通信队列
+    task_queues[task_id] = Queue()
+
+    # 启动后台线程 (Daemon=True 防止主进程退出时线程卡死)
+    thread = threading.Thread(target=background_worker, args=(task_id, file_bytes))
+    thread.daemon = True
+    thread.start()
+
+    # 立即响应，避免 HTTP 超时
+    return {
+        "message": "Processing started",
+        "task_id": task_id
+    }
+
+
+@trade_bp.route("/stream/<task_id>")
+def stream(task_id):
+    """
+    第二步：前端监听此接口，等待结果推送
+    """
+
+    def generate():
+        q = task_queues.get(task_id)
+        if not q:
+            yield f"data: {json.dumps({'error': 'Task not found or expired'})}\n\n"
+            return
+
+        try:
+            # 阻塞等待队列中有数据 (设置一个较长的超时时间，比如 60秒)
+            # 这样不会占用 CPU，直到后台线程 put 进数据
+            result = q.get(timeout=60)
+
+            # SSE 标准格式：data: <json_string>\n\n
+            yield f"data: {json.dumps(result)}\n\n"
+
+        except Exception:
+            yield f"data: {json.dumps({'error': 'Timeout waiting for LLM'})}\n\n"
+        finally:
+            # 清理资源
+            if task_id in task_queues:
+                del task_queues[task_id]
+
+    # mimetype 必须设置为 text/event-stream
+    return Response(stream_with_context(generate()), mimetype='text/event-stream')

@@ -51,9 +51,34 @@ export default function useTradeList(options = {}) {
     }, [put, search, keyword, page, perPage]);
 
     // 下载模板
-    const downloadTemplate = useCallback(() => {
-        window.location.href = '/api/trade/template';
-    }, []);
+    const downloadTemplate = useCallback(async () => {
+        const url = '/api/trade/template';
+        const filename = 'template.xlsx';
+
+        try {
+            // 使用 get 方法，并传递 responseType: 'blob' 配置
+            const response = await get(url, {
+                responseType: 'blob'
+            });
+
+            // Blob 处理
+            const blob = new Blob([response.data], {
+                type: response.headers['content-type'] || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            });
+
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+
+        } catch (error) {
+            console.error('下载模板失败:', error);
+        }
+    }, [get]);
 
     const importData = useCallback(async (file) => {
         const formData = new FormData();
@@ -75,5 +100,38 @@ export default function useTradeList(options = {}) {
         return result;
     }, [get]);
 
-    return {data, loading, error, add, remove, update, search, downloadTemplate, importData, listByCode};
+    const uploadTradeImg = useCallback(async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        return post('/api/trade/upload', formData, {
+            headers: { // 必须包裹在 headers 对象中
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+    }, [post]);
+
+    const upload_sse = useCallback(async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // 注意：这里去掉了手动设置 'Content-Type': 'multipart/form-data'
+        // 让浏览器自动生成 boundary
+        return post('/api/trade/upload_sse', formData, {});
+    }, [post]);
+
+    return {
+        data,
+        loading,
+        error,
+        add,
+        remove,
+        update,
+        search,
+        downloadTemplate,
+        importData,
+        listByCode,
+        uploadTradeImg,
+        upload_sse
+    };
 }

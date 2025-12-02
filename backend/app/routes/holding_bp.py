@@ -1,4 +1,3 @@
-from datetime import datetime
 from io import BytesIO
 
 import pandas as pd
@@ -10,6 +9,7 @@ from app.schemas_marshall import HoldingSchema, marshal_pagination
 from app.service.nav_history_service import NavHistoryService
 from app.service.trade_service import TradeService
 from flask import Blueprint, request, send_file
+from flask_babel import gettext
 from sqlalchemy import or_
 
 holding_bp = Blueprint('holding', __name__, url_prefix='/api/holding')
@@ -139,47 +139,47 @@ def delete_holding(ho_id):
     return ''
 
 
-@holding_bp.route('/export', methods=['GET'])
-def export_holdings():
-    holdings = Holding.query.all()
-    df = pd.DataFrame([{
-        '基金代码': t.ho_code,
-        '基金名称': t.ho_name,
-        '基金类型': t.ho_type,
-        '成立时间': t.ho_establish_date,
-    } for t in holdings])
-
-    output = BytesIO()
-    writer = pd.ExcelWriter(output, engine='xlsxwriter')
-    df.to_excel(writer, index=False, sheet_name='交易记录')
-    writer.close()
-    output.seek(0)
-
-    return send_file(
-        output,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        as_attachment=True,
-        download_name='tradeLog.xlsx'
-    )
+# @holding_bp.route('/export', methods=['GET'])
+# def export_holdings():
+#     holdings = Holding.query.all()
+#     df = pd.DataFrame([{
+#         gettext('COL_HO_CODE'): t.ho_code,
+#         gettext('COL_HO_NAME'): t.ho_name,
+#         gettext('COL_HO_TYPE'): t.ho_type,
+#         gettext('COL_HO_ESTABLISH_DATE'): t.ho_establish_date,
+#     } for t in holdings])
+#
+#     output = BytesIO()
+#     writer = pd.ExcelWriter(output, engine='xlsxwriter')
+#     df.to_excel(writer, index=False, sheet_name='基金记录')
+#     writer.close()
+#     output.seek(0)
+#
+#     return send_file(
+#         output,
+#         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+#         as_attachment=True,
+#         download_name='tradeLog.xlsx'
+#     )
 
 
 @holding_bp.route('/template', methods=['GET'])
 def download_template():
     # 创建一个空的DataFrame，只有列名
     df = pd.DataFrame(columns=[
-        '基金代码',
-        '基金名称',
-        '基金类型',
-        '成立时间',
+        gettext('COL_HO_CODE'),
+        gettext('COL_HO_NAME'),
+        gettext('COL_HO_TYPE'),
+        gettext('COL_HO_ESTABLISH_DATE'),
     ])
 
     output = BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='基金导入模板')
+        df.to_excel(writer, index=False, sheet_name=gettext('TEMPLATE_HO_IMPORT'))
 
         # 添加数据验证（可选）
         workbook = writer.book
-        worksheet = writer.sheets['基金导入模板']
+        worksheet = writer.sheets[gettext('TEMPLATE_HO_IMPORT')]
 
     output.seek(0)
 
@@ -201,17 +201,18 @@ def import_holdings():
         raise BizException(msg="没有选择文件")
 
     try:
-        df = pd.read_excel(file, dtype={'基金代码': str})
-        required_columns = ['基金代码',
-                            '基金名称',
-                            '基金类型',
-                            '成立时间',
-                            ]
+        df = pd.read_excel(file, dtype={gettext('COL_HO_CODE'): str})
+        required_columns = [
+            gettext('COL_HO_CODE'),
+            gettext('COL_HO_NAME'),
+            gettext('COL_HO_TYPE'),
+            gettext('COL_HO_ESTABLISH_DATE'),
+        ]
         if not all(col in df.columns for col in required_columns):
             raise BizException(msg="Excel缺少必要列")
 
         # 检查ho_code是否存在
-        ho_codes = df['基金代码'].unique()
+        ho_codes = df[gettext('COL_HO_CODE')].unique()
         existing_holdings = Holding.query.filter(Holding.ho_code.in_(ho_codes)).all()
         existing_codes = {h.ho_code for h in existing_holdings}
         if existing_codes:
@@ -223,10 +224,10 @@ def import_holdings():
         # db.session.begin()
         for _, row in df.iterrows():
             holding = Holding(
-                ho_code=str(row['基金代码']),
-                ho_name=str(row['基金名称']),
-                ho_type=str(row['基金类型']),
-                ho_establish_date=str(row['成立时间']),
+                ho_code=str(row[gettext('COL_HO_CODE')]),
+                ho_name=str(row[gettext('COL_HO_NAME')]),
+                ho_type=str(row[gettext('COL_HO_TYPE')]),
+                ho_establish_date=str(row[gettext('COL_HO_ESTABLISH_DATE')]),
             )
             db.session.add(holding)
 

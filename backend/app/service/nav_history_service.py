@@ -5,7 +5,7 @@ import requests
 from app.framework.exceptions import BizException
 from app.models import db, NavHistory, Holding
 from app.schemas_marshall import NavHistorySchema
-from sqlalchemy import func, or_
+from sqlalchemy import func
 
 
 class NavHistoryService:
@@ -63,9 +63,7 @@ class NavHistoryService:
                 NavHistory.nav_date == max_subquery.c.max_date
             )
         ).all()
-        max_nav_by_code = {}
-        for nav in max_nav_his_list:
-            max_nav_by_code[nav.ho_code].add(nav.nav_date)
+        max_nav_by_code = {nav.ho_code: nav.nav_date for nav in max_nav_his_list}
 
         # 查询所有基金的最早净值日期
         min_subquery = db.session.query(
@@ -80,9 +78,7 @@ class NavHistoryService:
                 NavHistory.nav_date == min_subquery.c.min_date
             )
         ).all()
-        min_nav_by_code = {}
-        for nav in min_nav_his_list:
-            min_nav_by_code[nav.ho_code].add(nav.nav_date)
+        min_nav_by_code = {nav.ho_code: nav.nav_date for nav in min_nav_his_list}
 
         total_inserted = 0
         errors = []

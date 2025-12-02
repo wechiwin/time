@@ -1,12 +1,14 @@
-from app.database import db
-from app.framework.log_config import setup_logging
-from app.framework.error_handler import register_error_handler
-from app.framework.interceptor import register_response_interceptor
-from flask import Flask, jsonify, request
-from flask_apscheduler import APScheduler
-from flask.json.provider import DefaultJSONProvider
-from app.framework.interceptor import register_request_response_logger
+import pathlib
+import subprocess
 
+from app.database import db
+from app.framework.error_handler import register_error_handler
+from app.framework.interceptor import register_request_response_logger, register_response_interceptor
+from app.framework.log_config import setup_logging, get_early_logger
+from flask import Flask, jsonify, request
+from flask.json.provider import DefaultJSONProvider
+from flask_apscheduler import APScheduler
+from flask_babel import Babel
 
 from .routes.holding_bp import holding_bp
 from .routes.nav_history_bp import nav_history_bp
@@ -14,12 +16,52 @@ from .routes.trade_bp import trade_bp
 from .scheduler import init_scheduler
 
 scheduler = APScheduler()
+babel = Babel()
+log = get_early_logger(__name__)
+
+
+def get_locale():
+    lang = request.args.get("lang")
+    if lang in ['zh', 'it', 'en']:
+        return lang
+    return request.accept_languages.best_match(['zh', 'it', 'en'])
+
 
 class NoAsciiJSONProvider(DefaultJSONProvider):
     ensure_ascii = False
 
+
+def compile_all_po():
+    log.info('检查翻译文件是否需要编译 …')
+    translations_dir = pathlib.Path('translations')
+    # 如果目录里任意 .po 比对应 .mo 新，就整目录重新编译
+    need = False
+    for po in translations_dir.rglob('*.po'):
+        mo = po.with_suffix('.mo')
+        if not mo.exists() or po.stat().st_mtime > mo.stat().st_mtime:
+            need = True
+            break
+    if need:
+        log.info('检测到翻译更新，自动编译 .mo 文件')
+        subprocess.run(['pybabel', 'compile', '--use-fuzzy', '-d', str(translations_dir)],
+                       check=True)
+    else:
+        log.info('翻译文件已是最新，跳过编译')
+
+
 def create_app():
+    log.info('创建 Flask 应用')
+    compile_all_po()
     app = Flask(__name__)
+
+    app.config.from_mapping(
+        # SECRET_KEY='dev',
+        BABEL_DEFAULT_LOCALE='zh',
+        # BABEL_DEFAULT_TIMEZONE='UTC',
+        # BABEL_TRANSLATION_DIRECTORIES=os.path.join(os.path.dirname(__file__), 'i18n/translations')
+        BABEL_TRANSLATION_DIRECTORIES='../translations'
+    )
+    babel.init_app(app, locale_selector=get_locale)
 
     # 禁用 ASCII 转义
     app.json = NoAsciiJSONProvider(app)
@@ -49,6 +91,7 @@ def create_app():
     app.register_blueprint(nav_history_bp)
 
     # 初始化调度器
+    scheduler.init_app(app)
     init_scheduler(app, scheduler)
 
     # 统一响应/异常

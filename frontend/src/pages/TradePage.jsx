@@ -21,7 +21,18 @@ export default function TradePage() {
     const [keyword, setKeyword] = useState("");
     const {t} = useTranslation()
 
-    const {data, loading, error, add, remove, search, update, importData, downloadTemplate} = useTradeList({
+    const {
+        data,
+        loading,
+        error,
+        add,
+        remove,
+        search,
+        update,
+        importData,
+        downloadTemplate,
+        uploadTradeImg
+    } = useTradeList({
         page,
         perPage,
         keyword,
