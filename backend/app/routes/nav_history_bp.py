@@ -66,7 +66,7 @@ def create_net_value():
     data = request.get_json()
     required_fields = ['ho_code', 'nav_date', 'nav_per_unit']
     if not all(field in data for field in required_fields):
-        raise BizException(message="缺少必要字段")
+        raise BizException(msg="缺少必要字段")
     new_nv = NavHistorySchema().load(data)
     db.session.add(new_nv)
     db.session.commit()
@@ -105,7 +105,9 @@ def crawl_nav_history():
     start_date = data.get("start_date")
     end_date = data.get("end_date")
     if not ho_code:
-        raise BizException(message="缺少基金代码")
+        raise BizException(msg="缺少基金代码")
+    if not start_date or end_date:
+        raise BizException(msg="缺少时间限制")
 
     app = current_app._get_current_object()
 

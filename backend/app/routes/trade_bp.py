@@ -82,7 +82,7 @@ def create_transaction():
                        'tr_shares', 'tr_fee', 'tr_amount']
 
     if not all(field in data for field in required_fields):
-        raise BizException(message="缺少必要字段")
+        raise BizException(msg="缺少必要字段")
     new_transaction = TradeSchema().load(data)
     db.session.add(new_transaction)
     db.session.commit()
@@ -201,11 +201,11 @@ def download_template():
 @trade_bp.route('/import', methods=['POST'])
 def import_trade():
     if 'file' not in request.files:
-        raise BizException(message="没有上传文件")
+        raise BizException(msg="没有上传文件")
 
     file = request.files['file']
     if file.filename == '':
-        raise BizException(message="没有选择文件")
+        raise BizException(msg="没有选择文件")
 
     try:
         df = pd.read_excel(file, dtype={gettext('COL_HO_CODE'): str})
@@ -226,7 +226,7 @@ def import_trade():
             gettext('COL_TR_AMOUNT'),
         ]
         if not all(col in df.columns for col in required_columns):
-            raise BizException(message="Excel缺少必要列")
+            raise BizException(msg="Excel缺少必要列")
 
         # 检查ho_code是否存在
         ho_codes = df[gettext('COL_HO_CODE')].unique()
@@ -273,7 +273,7 @@ def import_trade():
     except Exception as e:
         db.session.rollback()
         error_message = str(e)
-    raise BizException(message=f"导入失败: {error_message}")
+    raise BizException(msg=f"导入失败: {error_message}")
 
 
 ALL_TR_TYPE_TEXTS = {

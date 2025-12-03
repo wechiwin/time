@@ -264,9 +264,12 @@ def get_fund_info():
         "ho_code": data.get("FCODE"),
         "ho_name": data.get("SHORTNAME"),
         "ho_type": data.get("FTYPE"),
-        # "company": data.get("JJGS"),
+        "ho_company": data.get("JJGS"),
         "ho_establish_date": data.get("ESTABDATE"),
         # "risk_level": data.get("RISKLEVEL"),
+        "ho_manage_expense_rate": data.get("MGREXP"), # 管理费
+        "ho_trust_expense_rate": data.get("TRUSTEXP"), # 托管费
+        "ho_sale_expense_rate": data.get("SALESEXP"), # 销售服务费
     }
 
 
