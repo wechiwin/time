@@ -241,7 +241,8 @@ def import_trade():
             )
 
         # 转换日期列为字符串格式
-        # df['交易日期'] = df['交易日期'].dt.strftime('%Y-%m-%d')  # 处理Timestamp类型
+        df[gettext('COL_TR_DATE')] = pd.to_datetime(df[gettext('COL_TR_DATE')], errors='coerce')
+        df[gettext('COL_TR_DATE')] = df[gettext('COL_TR_DATE')].dt.strftime('%Y-%m-%d')  # 处理Timestamp类型
 
         # 转换数值列为float（防止整数被识别为其他类型）
         numeric_cols = [
@@ -257,9 +258,9 @@ def import_trade():
         # db.session.begin()
         for _, row in df.iterrows():
             transaction = Trade(
-                ho_code=str(row[gettext('COL_HO_CODE')]),  # 确保是字符串
-                tr_type=str(row[gettext('COL_TR_TYPE')]),
-                tr_date=str(row[gettext('COL_TR_DATE')]),  # 已转换为字符串
+                ho_code=str(row[gettext('COL_HO_CODE')]),
+                tr_type=str(map_trade_type(row[gettext('COL_TR_TYPE')])),
+                tr_date=str(row[gettext('COL_TR_DATE')]),
                 tr_nav_per_unit=float(row[gettext('COL_TR_NAV_PER_UNIT')]),
                 tr_shares=float(row[gettext('COL_TR_SHARES')]),
                 tr_fee=float(row[gettext('COL_TR_FEE')]),
@@ -273,6 +274,28 @@ def import_trade():
         db.session.rollback()
         error_message = str(e)
     raise BizException(message=f"导入失败: {error_message}")
+
+
+ALL_TR_TYPE_TEXTS = {
+    # 中文
+    "买入": 1,
+    "卖出": 0,
+    # 英文
+    "Buy": 1,
+    "Sell": 0,
+    # 意大利语
+    "Acquisto": 1,
+    "Vendita": 0,
+}
+
+
+def map_trade_type(value):
+    value = str(value).strip()
+    if value not in ALL_TR_TYPE_TEXTS:
+        raise BizException(
+            message=f"交易类型“{value}”无法识别，请使用模板提供的下拉选项。"
+        )
+    return ALL_TR_TYPE_TEXTS[value]
 
 
 @trade_bp.route('/list_by_code', methods=['GET'])
