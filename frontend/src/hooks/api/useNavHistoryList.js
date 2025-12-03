@@ -59,9 +59,9 @@ export default function useNavHistoryList(options = {}) {
     }, [post, search, keyword, page, perPage]);
 
     const crawl_all = useCallback(async () => {
-        const result = await post('/api/nav_history/crawl_all');
+        const result = await get('/api/nav_history/crawl_all');
         return result;
-    }, [post, search, keyword, page, perPage]);
+    }, [get]);
 
     const searchList = useCallback(async (ho_code = '', start_date = '', end_date = '') => {
         const params = new URLSearchParams({

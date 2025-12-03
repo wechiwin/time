@@ -76,14 +76,14 @@ export default function NavHistoryPage() {
         setShowCrawlModal(false);
     };
 
-    // const handleCrawlAll = async () => {
-    //     try {
-    //         await crawl_all();
-    //         showSuccessToast();
-    //     } catch (err) {
-    //         showErrorToast(err.message);
-    //     }
-    // };
+    const handleCrawlAll = async () => {
+        try {
+            await crawl_all();
+            showSuccessToast();
+        } catch (err) {
+            showErrorToast(err.message);
+        }
+    };
 
     const handleKeyDown = (e) => {
         if (e.key === 'Enter') {
@@ -111,6 +111,9 @@ export default function NavHistoryPage() {
                 </button>
                 {/* 右侧按钮组 */}
                 <div className="ml-auto flex items-center gap-2">
+                    <button onClick={handleCrawlAll} className="btn-secondary">
+                        {t('button_crawl_all')}
+                    </button>
                     <button onClick={openCrawlModal} className="btn-secondary">
                         {t('button_crawl_info')}
                     </button>

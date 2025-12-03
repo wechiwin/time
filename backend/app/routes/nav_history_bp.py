@@ -133,7 +133,21 @@ def async_crawl_task(app, ho_code, start_date, end_date):
             db.session.rollback()
 
 
-@nav_history_bp.route('/crawl_job', methods=['GET'])
-def crawl_job():
-    data = service.crawl_all_nav_history()
-    return data
+@nav_history_bp.route('/crawl_all', methods=['GET'])
+def crawl_all():
+    app = current_app._get_current_object()
+    # 启动异步任务
+    thread = threading.Thread(
+        target=async_crawl_all,
+        args=(app,)
+    )
+    thread.start()
+    return ''
+
+
+def async_crawl_all(app):
+    with app.app_context():
+        app.logger.info('Starting async crawl_all task')
+        data = service.crawl_all_nav_history()
+        app.logger.info('Crawl_all task completed successfully')
+        return data
