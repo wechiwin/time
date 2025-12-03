@@ -5,10 +5,12 @@ import tempfile
 import requests
 from app.models import db, Holding, Trade
 from paddleocr import PaddleOCR
+import logging
 
 ocr = PaddleOCR(use_angle_cls=True, lang='ch')
 # TODO 改为在线？
 OLLAMA = r"C:\Users\Administrator\AppData\Local\Programs\Ollama\ollama.exe"
+logger = logging.getLogger(__name__)
 
 
 class TradeService:
@@ -47,6 +49,8 @@ class TradeService:
 
     def generate_json_from_text(self, text: str):
         template = """{
+    "ho_code": "",
+    "ho_name": "",
     "tr_date": "YYYY-MM-DD",
     "tr_nav_per_unit": 0.0,
     "tr_shares": 0.0,
@@ -64,9 +68,9 @@ class TradeService:
     
     要求：
     1. 一定输出合法 JSON 
-    2. 字段包括：tr_type, tr_date, tr_nav_per_unit, tr_shares, tr_fee, tr_amount 
-    3. 2中字段的含义分别是：交易类型，交易时间，交易净值，交易份额，手续费，交易金额 
-    4. 数字能解析就解析，解析不了设为 null 
+    2. 字段包括：ho_code, ho_name, tr_type, tr_date, tr_nav_per_unit, tr_shares, tr_fee, tr_amount 
+    3. 2中字段的含义分别是：持仓代码，持仓名称，交易类型，交易时间，交易净值，交易份额，手续费，交易金额 
+    4. 数字能解析就解析，解析不了设为 null
     5. tr_type 卖出为 0，买入为 1
     
     按照以下 JSON 格式输出：
@@ -87,8 +91,15 @@ class TradeService:
         # 尝试提取 JSON
         try:
             data = json.loads(result)
+            if data.get('ho_name') and not data.get('ho_code'):
+                # 根据名称获取代码
+                h = Holding.query.filter_by(ho_name=data.get('ho_name')).first()
+                if h:
+                    data['ho_code'] = h.ho_code
+            logger.info("LLM解析json结果：%s", str(data))
             return data
-        except Exception:
+        except Exception as e:
+            logger.info(e)
             return {"error": "LLM 解析 JSON 失败", "raw": result}
 
     def list_trade(self, ho_code: int):

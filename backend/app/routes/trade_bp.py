@@ -10,7 +10,7 @@ from app.models import db, Trade, Holding
 from app.schemas_marshall import TradeSchema, marshal_pagination
 from app.service.trade_service import TradeService
 from app.service.trade_service import TradeService
-from flask import Blueprint, request, Response, stream_with_context
+from flask import Blueprint, request, Response, stream_with_context, current_app
 from flask import send_file
 from flask_babel import gettext
 from sqlalchemy import desc, or_
@@ -302,26 +302,27 @@ def upload():
     }
 
 
-def background_worker(task_id, file_bytes):
+def background_worker(task_id, file_bytes, app):
     """
     后台线程运行的函数
     """
-    try:
-        # 实例化服务 (如果你的 Service 没有状态，也可以在外面实例化)
-        service = TradeService()
-        print(f"Task {task_id}: 开始调用 LLM...")
+    with app.app_context():
+        try:
+            # 实例化服务 (如果你的 Service 没有状态，也可以在外面实例化)
+            service = TradeService()
+            print(f"Task {task_id}: 开始调用 LLM...")
 
-        # 调用耗时的 LLM 逻辑
-        result = service.process_trade_image(file_bytes)
+            # 调用耗时的 LLM 逻辑
+            result = service.process_trade_image(file_bytes)
 
-        # 将结果放入队列
-        if task_id in task_queues:
-            task_queues[task_id].put({"status": "success", "data": result})
+            # 将结果放入队列
+            if task_id in task_queues:
+                task_queues[task_id].put({"status": "success", "data": result})
 
-    except Exception as e:
-        print(f"Task {task_id} Error: {e}")
-        if task_id in task_queues:
-            task_queues[task_id].put({"status": "error", "message": str(e)})
+        except Exception as e:
+            print(f"Task {task_id} Error: {e}")
+            if task_id in task_queues:
+                task_queues[task_id].put({"status": "error", "message": str(e)})
 
 
 @trade_bp.route("/upload_sse", methods=["POST"])
@@ -341,9 +342,9 @@ def upload_sse():
 
     # 创建该任务的通信队列
     task_queues[task_id] = Queue()
-
+    app = current_app._get_current_object()
     # 启动后台线程 (Daemon=True 防止主进程退出时线程卡死)
-    thread = threading.Thread(target=background_worker, args=(task_id, file_bytes))
+    thread = threading.Thread(target=background_worker, args=(task_id, file_bytes, app))
     thread.daemon = True
     thread.start()
 
