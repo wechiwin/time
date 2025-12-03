@@ -45,7 +45,7 @@ def search_page():
                 Holding.ho_code.ilike(f'%{keyword}%'),
                 Holding.ho_name.ilike(f'%{keyword}%')
             )
-        ).all()
+        )
 
     # 使用分页查询
     pagination = query.order_by(desc(Trade.tr_date)).paginate(

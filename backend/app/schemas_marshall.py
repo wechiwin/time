@@ -23,14 +23,14 @@ class TradeSchema(SQLAlchemyAutoSchema):
         model = Trade
         sqla_session = db.session
         load_instance = True
-
+        include_fk = True
 
 class NavHistorySchema(SQLAlchemyAutoSchema):
     class Meta:
         model = NavHistory
         sqla_session = db.session
         load_instance = True
-
+        include_fk = True
 
 def marshal_pagination(pagination, schema_cls):
     """
