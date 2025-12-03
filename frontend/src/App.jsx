@@ -5,7 +5,8 @@ import HoldingPage from './pages/HoldingPage';
 import TradePage from './pages/TradePage';
 import NavHistoryPage from './pages/NavHistoryPage';
 import {ToastProvider} from './components/toast/ToastContext';
-import HoldingDetailPage from "./pages/HoldingDetailPage";
+import NavHistoryDetailPage from "./pages/detail/NavHistoryDetailPage";
+import TradeHistoryDetailPage from "./pages/detail/TradeHistoryDetailPage";
 
 export default function App() {
     return (
@@ -17,7 +18,9 @@ export default function App() {
                     <Route path="holding" element={<HoldingPage/>}/>
                     <Route path="trade" element={<TradePage/>}/>
                     <Route path="nav_history" element={<NavHistoryPage/>}/>
-                    <Route path="/holding/:ho_code" element={<HoldingDetailPage/>}/>
+                    {/* <Route path="/holding/:ho_code" element={<NavHistoryDetailPage/>}/> */}
+                    <Route path="/trade/:ho_code" element={<TradeHistoryDetailPage/>}/>
+                    <Route path="/nav_history/:ho_code" element={<NavHistoryDetailPage/>}/>
                 </Route>
             </Routes>
         </ToastProvider>

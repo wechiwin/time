@@ -1,9 +1,14 @@
 // src/components/tables/TradeTable.jsx
 import DeleteButton from '../common/DeleteButton';
 import {useTranslation} from "react-i18next";
+import {useNavigate} from "react-router-dom";
 
 export default function TradeTable({data = [], onDelete, onEdit}) {
     const {t} = useTranslation()
+    const navigate = useNavigate();
+    const handleRowClick = (tr) => {
+        navigate(`/trade/${tr.ho_code}`);
+    };
 
     return (
         <div className="overflow-x-auto">
@@ -24,7 +29,14 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                 <tbody className="card divide-y divide-gray-200">
                 {data.map((tr) => (
                     <tr key={tr.tr_id} className="hover:page-bg">
-                        <td className="table-cell font-medium">{tr.ho_code}</td>
+                        <td className="table-cell">
+                            <button
+                                className="text-blue-600 hover:text-blue-800 underline cursor-pointer"
+                                onClick={() => handleRowClick(tr)}
+                            >
+                                {tr.ho_code}
+                            </button>
+                        </td>
                         <td className="table-cell font-medium">{tr.ho_short_name}</td>
                         <td className="table-cell">
                 <span

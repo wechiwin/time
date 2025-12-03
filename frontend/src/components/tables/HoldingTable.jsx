@@ -8,9 +8,9 @@ export default function HoldingTable({data = [], onDelete, onEdit}) {
     const navigate = useNavigate();
     const {t} = useTranslation()
 
-    const handleRowClick = (fund) => {
-        navigate(`/holding/${fund.ho_code}`);
-    };
+    // const handleRowClick = (fund) => {
+    //     navigate(`/holding/${fund.ho_code}`);
+    // };
 
     return (
         <div className="overflow-x-auto">
@@ -29,12 +29,12 @@ export default function HoldingTable({data = [], onDelete, onEdit}) {
                 {data.map((f) => (
                     <tr key={f.ho_id} className="hover:page-bg">
                         <td className="table-cell">
-                            <button
-                                className="text-blue-600 hover:text-blue-800 underline cursor-pointer"
-                                onClick={() => handleRowClick(f)}
-                            >
+                            {/* <button */}
+                            {/*     className="text-blue-600 hover:text-blue-800 underline cursor-pointer" */}
+                            {/*     onClick={() => handleRowClick(f)} */}
+                            {/* > */}
                                 {f.ho_code}
-                            </button>
+                            {/* </button> */}
                         </td>
                         <td className="table-cell font-medium">{f.ho_name}</td>
                         <td className="table-cell font-medium">{f.ho_short_name}</td>

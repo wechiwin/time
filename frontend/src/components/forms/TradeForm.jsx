@@ -89,14 +89,14 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
 
                     setForm(prev => ({
                         ...prev,
-                        // 使用 nullish coalescing (??) 仅当 LLM 返回有效值时覆盖
+                        // 使用 nullish coalescing  仅当 LLM 返回有效值时覆盖
                         ho_code: o.ho_code ?? prev.ho_code ?? '',
                         tr_amount: o.tr_amount ?? prev.tr_amount ?? '',         // 优先使用 LLM，其次用旧值，最后用空串
                         tr_date: o.tr_date ?? prev.tr_date ?? '',
-                        tr_fee: o.tr_fee ?? prev.tr_fee ?? '0',                 // 费用可设为 '0'
+                        tr_fee: o.tr_fee ?? prev.tr_fee ?? '',
                         tr_nav_per_unit: o.tr_nav_per_unit ?? prev.tr_nav_per_unit ?? '',
                         tr_shares: o.tr_shares ?? prev.tr_shares ?? '',
-                        tr_type: o.tr_type ?? prev.tr_type ?? '',
+                        tr_type: o.tr_type ?? prev.tr_type ?? 1,
                     }));
 
                     showSuccessToast();
@@ -151,10 +151,10 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                 ho_code: initialValues.ho_code || '',
                 tr_type: initialValues.tr_type !== undefined ? Number(initialValues.tr_type) : 1,
                 tr_date: initialValues.tr_date || '',
-                tr_nav_per_unit: initialValues.tr_nav_per_unit,
-                tr_shares: initialValues.tr_shares,
-                tr_fee: initialValues.tr_fee,
-                tr_amount: initialValues.tr_amount
+                tr_nav_per_unit: initialValues.tr_nav_per_unit || '',
+                tr_shares: initialValues.tr_shares || '',
+                tr_fee: initialValues.tr_fee || '',
+                tr_amount: initialValues.tr_amount || ''
             });
         }
     }, [initialValues]);
@@ -195,6 +195,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                 <div className="flex flex-col">
                     <label className="text-sm font-medium mb-1">{t('th_tr_nav_per_unit')}</label>
                     <input
+                        type="number"
                         placeholder={t('th_tr_nav_per_unit')}
                         required
                         value={form.tr_nav_per_unit}
@@ -205,6 +206,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                 <div className="flex flex-col">
                     <label className="text-sm font-medium mb-1">{t('th_tr_shares')}</label>
                     <input
+                        type="number"
                         placeholder={t('th_tr_shares')}
                         required
                         value={form.tr_shares}
@@ -215,6 +217,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                 <div className="flex flex-col">
                     <label className="text-sm font-medium mb-1">{t('th_tr_fee')}</label>
                     <input
+                        type="number"
                         placeholder={t('th_tr_fee')}
                         required
                         value={form.tr_fee}
@@ -225,6 +228,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                 <div className="flex flex-col">
                     <label className="text-sm font-medium mb-1">{t('th_tr_amount')}</label>
                     <input
+                        type="number"
                         placeholder={t('th_tr_amount')}
                         required
                         value={form.tr_amount}
