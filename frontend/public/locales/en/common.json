@@ -85,5 +85,21 @@
   "pagination_left": "Page",
   "pagination_right": "",
   "total_name": "",
-  "total_item": "items"
+  "total_item": "items",
+
+  "menu_alert": "Position Monitoring",
+  "alert_rule_management": "Alert Management",
+  "alert_history_management": "Alert History",
+  "alert_type": "Alert Type",
+  "alert_type_buy": "Buy",
+  "alert_type_sell": "Sell",
+  "alert_type_add": "Add Position",
+  "alert_target_navpu": "NAV Target Per Unità",
+  "alert_status": "Status",
+  "alert_trigger_time": "Trigger Time",
+  "alert_status_pending": "Pending",
+  "alert_status_sent": "Sent",
+  "alert_status_failed": "Failed",
+  "status_active": "Active",
+  "status_inactive": "Inactive"
 }

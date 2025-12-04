@@ -13,6 +13,7 @@ from flask_babel import Babel
 from .routes.holding_bp import holding_bp
 from .routes.nav_history_bp import nav_history_bp
 from .routes.trade_bp import trade_bp
+from .routes.alert_bp import alert_bp
 from .scheduler import init_scheduler
 
 scheduler = APScheduler()
@@ -89,6 +90,7 @@ def create_app():
     app.register_blueprint(holding_bp)
     app.register_blueprint(trade_bp)
     app.register_blueprint(nav_history_bp)
+    app.register_blueprint(alert_bp)
 
     # 初始化调度器
     scheduler.init_app(app)

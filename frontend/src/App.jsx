@@ -7,6 +7,7 @@ import NavHistoryPage from './pages/NavHistoryPage';
 import {ToastProvider} from './components/toast/ToastContext';
 import NavHistoryDetailPage from "./pages/detail/NavHistoryDetailPage";
 import TradeHistoryDetailPage from "./pages/detail/TradeHistoryDetailPage";
+import AlertPage from "./pages/AlertPage";
 
 export default function App() {
     return (
@@ -17,6 +18,7 @@ export default function App() {
                     <Route path="dashboard" element={<Dashboard/>}/>
                     <Route path="holding" element={<HoldingPage/>}/>
                     <Route path="trade" element={<TradePage/>}/>
+                    <Route path="alert" element={<AlertPage/>}/>
                     <Route path="nav_history" element={<NavHistoryPage/>}/>
                     {/* <Route path="/holding/:ho_code" element={<NavHistoryDetailPage/>}/> */}
                     <Route path="/trade/:ho_code" element={<TradeHistoryDetailPage/>}/>

@@ -13,10 +13,12 @@ import {
 import DarkToggle from "./DarkToggle";
 import {useTranslation} from 'react-i18next';
 import LanguageSwitcher from "../../i18n/LanguageSwitcher";
+import {BellIcon} from "@heroicons/react/16/solid";
 
 const navigation = [
     {key: 'menu_dashboard', name: 'Dashboard', href: '/dashboard', icon: HomeIcon},
     {key: 'menu_holding', name: '持仓管理', href: '/holding', icon: TableCellsIcon},
+    {key: 'menu_alert', name: '持仓监控', href: '/alert', icon: BellIcon},
     {key: 'menu_trade', name: '交易管理', href: '/trade', icon: ArrowsRightLeftIcon},
     {key: 'menu_nav_history', name: '净值历史', href: '/nav_history', icon: ChartBarIcon},
 ];

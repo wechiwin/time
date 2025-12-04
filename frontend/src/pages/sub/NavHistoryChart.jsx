@@ -118,8 +118,9 @@ export default function NavHistoryChart({code}) {
         }
     };
 
-    const addCompare = async (targetCode) => {
-        if (!targetCode || compareCodes.includes(targetCode)) return;
+    const addCompare = async (ho) => {
+        if (!ho || !ho.ho_code || compareCodes.includes(ho.ho_code)) return;
+        const targetCode = ho.ho_code;
         // TODO 多语言
         if (compareCodes.length > 5) return showErrorToast('最多只能选择 5 个对比基金');
 

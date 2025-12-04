@@ -69,7 +69,8 @@ export default function CrawlNetValueForm({onSubmit, onClose, initialValues}) {
     }, []);
 
     // 处理基金选择变化的函数
-    const handleFundSelectChange = useCallback(async (code) => {
+    const handleFundSelectChange = useCallback(async (ho) => {
+        const code = ho?.ho_code || '';
         handleChange('ho_code', code); // 更新表单的 ho_code
 
         if (code) {

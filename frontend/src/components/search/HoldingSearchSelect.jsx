@@ -76,7 +76,7 @@ export default function HoldingSearchSelect({value, onChange, placeholder = '搜
                                 key={f.ho_id}
                                 className="px-3 py-2 hover:bg-blue-50 dark:hover:bg-blue-900 cursor-pointer"
                                 onMouseDown={() => {
-                                    onChange(f.ho_code);
+                                    onChange(f);
                                     setKeyword(f.ho_code);
                                     setOpen(false);
                                 }}

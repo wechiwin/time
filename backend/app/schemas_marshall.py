@@ -1,6 +1,6 @@
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
-from marshmallow import fields
-from app.models import Holding, Trade, NavHistory
+from marshmallow import fields, EXCLUDE
+from app.models import Holding, Trade, NavHistory, AlertRule, AlertHistory
 from app.database import db
 
 
@@ -14,6 +14,7 @@ class HoldingSchema(SQLAlchemyAutoSchema):
         # 只吐出这些字段
         # fields = ('id', 'ho_name', 'ho_code', 'ho_type', 'created_at')
         load_instance = True  # 反序列化时可直接得到模型实例（可选）
+        unknown = EXCLUDE # 忽略未知字段
 
     # ho_establish_date = fields.Date(format="%Y-%m-%d")
 
@@ -23,14 +24,33 @@ class TradeSchema(SQLAlchemyAutoSchema):
         model = Trade
         sqla_session = db.session
         load_instance = True
-        include_fk = True
+        # include_fk = True
+        unknown = EXCLUDE
+
 
 class NavHistorySchema(SQLAlchemyAutoSchema):
     class Meta:
         model = NavHistory
         sqla_session = db.session
         load_instance = True
-        include_fk = True
+        unknown = EXCLUDE
+
+
+class AlertRuleSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = AlertRule
+        sqla_session = db.session
+        load_instance = True
+        unknown = EXCLUDE
+
+
+class AlertHistorySchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = AlertHistory
+        sqla_session = db.session
+        load_instance = True
+        unknown = EXCLUDE
+
 
 def marshal_pagination(pagination, schema_cls):
     """
