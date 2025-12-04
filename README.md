@@ -1,6 +1,6 @@
-# stock_fund_tool
+# Time Invest My Elevation
 
-一个基于 Flask + React + TailwindCSS的轻量持仓管理工具。
+一个践行长期投资理念的持仓管理工具。
 
 ## 项目结构
 

@@ -10,10 +10,11 @@ from flask.json.provider import DefaultJSONProvider
 from flask_apscheduler import APScheduler
 from flask_babel import Babel
 
+from .config import Config
+from .routes.alert_bp import alert_bp
 from .routes.holding_bp import holding_bp
 from .routes.nav_history_bp import nav_history_bp
 from .routes.trade_bp import trade_bp
-from .routes.alert_bp import alert_bp
 from .scheduler import init_scheduler
 
 scheduler = APScheduler()
@@ -52,30 +53,21 @@ def compile_all_po():
 
 def create_app():
     log.info('创建 Flask 应用')
-    compile_all_po()
     app = Flask(__name__)
-
-    app.config.from_mapping(
-        # SECRET_KEY='dev',
-        BABEL_DEFAULT_LOCALE='zh',
-        # BABEL_DEFAULT_TIMEZONE='UTC',
-        # BABEL_TRANSLATION_DIRECTORIES=os.path.join(os.path.dirname(__file__), 'i18n/translations')
-        BABEL_TRANSLATION_DIRECTORIES='../translations'
-    )
+    # 加载config
+    app.config.from_object(Config.get_config())
+    # 检查环境一致性
+    if app.config['ENV'] == 'production' and app.debug:
+        raise RuntimeError("生产环境不能开启调试模式！")
+    # 编译国际化文件
+    compile_all_po()
     babel.init_app(app, locale_selector=get_locale)
 
     # 禁用 ASCII 转义
     app.json = NoAsciiJSONProvider(app)
     # app.config["JSON_AS_ASCII"] = False
-
-    # 默认 UTF-8 # --- Configuration ---
+    # 默认 UTF-8
     app.config["JSONIFY_MIMETYPE"] = "application/json; charset=utf-8"
-    # You should configure your database URI here or load it from a config file.
-    # Example: app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///site.db'
-    # app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False # Recommended to disable this for performance
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///site.db'
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['SQLALCHEMY_ECHO'] = True
 
     # 初始化日志
     setup_logging(app)
