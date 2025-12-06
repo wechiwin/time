@@ -1,15 +1,19 @@
 import pathlib
 import subprocess
 
-from app.database import db
-from app.framework.error_handler import register_error_handler
-from app.framework.interceptor import register_request_response_logger, register_response_interceptor
-from app.framework.log_config import setup_logging, get_early_logger
 from flask import Flask, jsonify, request
 from flask.json.provider import DefaultJSONProvider
 from flask_apscheduler import APScheduler
 from flask_babel import Babel
+from flask_jwt_extended import JWTManager
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
+from app.database import db
+from app.framework.error_handler import register_error_handler
+from app.framework.interceptor import register_request_response_logger, register_response_interceptor
+from app.framework.log_config import setup_logging, get_early_logger
+from app.routes.user_bp import user_bp
 from .config import Config
 from .routes.alert_bp import alert_bp
 from .routes.holding_bp import holding_bp
@@ -20,7 +24,11 @@ from .scheduler import init_scheduler
 scheduler = APScheduler()
 babel = Babel()
 log = get_early_logger(__name__)
-
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri='memory://' # 明确指定后警告会消失
+)
 
 def get_locale():
     lang = request.args.get("lang")
@@ -63,11 +71,16 @@ def create_app():
     compile_all_po()
     babel.init_app(app, locale_selector=get_locale)
 
+    jwt = JWTManager(app)
+
+    limiter.init_app(app)
+
     # 禁用 ASCII 转义
     app.json = NoAsciiJSONProvider(app)
     # app.config["JSON_AS_ASCII"] = False
     # 默认 UTF-8
     app.config["JSONIFY_MIMETYPE"] = "application/json; charset=utf-8"
+    app.config['PREFERRED_URL_SCHEME'] = 'https'
 
     # 初始化日志
     setup_logging(app)
@@ -83,6 +96,7 @@ def create_app():
     app.register_blueprint(trade_bp)
     app.register_blueprint(nav_history_bp)
     app.register_blueprint(alert_bp)
+    app.register_blueprint(user_bp)
 
     # 初始化调度器
     scheduler.init_app(app)

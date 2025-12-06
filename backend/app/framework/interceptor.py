@@ -81,3 +81,11 @@ def register_request_response_logger(app):
         ===== Response End =====
         """)
         return response
+
+    @app.after_request
+    def add_security_headers(resp):
+        resp.headers['X-Content-Type-Options'] = 'nosniff'
+        resp.headers['X-Frame-Options'] = 'DENY'
+        resp.headers['X-XSS-Protection'] = '1; mode=block'
+        resp.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        return resp

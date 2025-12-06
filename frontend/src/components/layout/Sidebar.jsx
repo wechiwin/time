@@ -1,6 +1,7 @@
 import {useEffect, useState} from 'react';
-import {NavLink} from 'react-router-dom';
+import {NavLink, useNavigate} from 'react-router-dom';
 import {
+    ArrowRightOnRectangleIcon,
     ArrowsRightLeftIcon,
     Bars3Icon,
     ChartBarIcon,
@@ -14,6 +15,7 @@ import DarkToggle from "./DarkToggle";
 import {useTranslation} from 'react-i18next';
 import LanguageSwitcher from "../../i18n/LanguageSwitcher";
 import {BellIcon} from "@heroicons/react/16/solid";
+import useUser from "../../hooks/api/useUser";
 
 const navigation = [
     {key: 'menu_dashboard', name: 'Dashboard', href: '/dashboard', icon: HomeIcon},
@@ -27,7 +29,8 @@ export default function Sidebar({onSelect, isCollapsed, onToggleCollapse}) {
     const {t} = useTranslation();
     const [isOpen, setIsOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
-
+    const navigate = useNavigate();
+    const {logout} = useUser();
     useEffect(() => {
         const handleResize = () => {
             setIsMobile(window.innerWidth < 768);
@@ -42,6 +45,11 @@ export default function Sidebar({onSelect, isCollapsed, onToggleCollapse}) {
     }, []);
 
     const toggleSidebar = () => setIsOpen(!isOpen);
+
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
 
     return (
         <>
@@ -111,6 +119,15 @@ export default function Sidebar({onSelect, isCollapsed, onToggleCollapse}) {
                 <div className="absolute bottom-4 right-4 flex items-center space-x-2">
                     <LanguageSwitcher/>
                     <DarkToggle/>
+                    {/* 退出按钮 */}
+                    <button
+                        onClick={handleLogout}
+                        className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        aria-label="Logout"
+                        title="退出登录"
+                    >
+                        <ArrowRightOnRectangleIcon className="w-5 h-5 text-gray-700 dark:text-gray-200"/>
+                    </button>
                 </div>
             </div>
 

@@ -23,6 +23,10 @@ class Config:
     # i18n
     BABEL_DEFAULT_LOCALE = 'zh',
     BABEL_TRANSLATION_DIRECTORIES = '../translations'
+    # jwt
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
+    SALT = os.getenv('SALT')
+    ITERATIONS = os.getenv('ITERATIONS')
 
     # 自动识别当前环境配置
     @classmethod
