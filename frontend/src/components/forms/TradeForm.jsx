@@ -196,6 +196,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                     <label className="text-sm font-medium mb-1">{t('th_tr_nav_per_unit')}</label>
                     <input
                         type="number"
+                        step="0.0001"
                         placeholder={t('th_tr_nav_per_unit')}
                         required
                         value={form.tr_nav_per_unit}
@@ -207,6 +208,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                     <label className="text-sm font-medium mb-1">{t('th_tr_shares')}</label>
                     <input
                         type="number"
+                        step="0.0001"
                         placeholder={t('th_tr_shares')}
                         required
                         value={form.tr_shares}
@@ -218,6 +220,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                     <label className="text-sm font-medium mb-1">{t('th_tr_fee')}</label>
                     <input
                         type="number"
+                        step="0.0001"
                         placeholder={t('th_tr_fee')}
                         required
                         value={form.tr_fee}
@@ -229,6 +232,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                     <label className="text-sm font-medium mb-1">{t('th_tr_amount')}</label>
                     <input
                         type="number"
+                        step="0.0001"
                         placeholder={t('th_tr_amount')}
                         required
                         value={form.tr_amount}

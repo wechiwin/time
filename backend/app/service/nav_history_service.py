@@ -157,7 +157,7 @@ class NavHistoryService:
             params['pageIndex'] = page
             try:
                 resp = requests.get(url, headers=headers, params=params, timeout=10)
-                print("接口返回内容：", resp.json())
+                # print("接口返回内容：", resp.json())
                 if resp.status_code != 200:
                     print(f"请求失败: {resp.status_code}")
                     break

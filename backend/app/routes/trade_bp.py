@@ -5,15 +5,15 @@ from io import BytesIO
 from queue import Queue
 
 import pandas as pd
-from app.framework.exceptions import BizException
-from app.models import db, Trade, Holding
-from app.schemas_marshall import TradeSchema, marshal_pagination
-from app.service.trade_service import TradeService
-from app.service.trade_service import TradeService
 from flask import Blueprint, request, Response, stream_with_context, current_app
 from flask import send_file
 from flask_babel import gettext
 from sqlalchemy import desc, or_
+
+from app.framework.exceptions import BizException
+from app.models import db, Trade, Holding
+from app.schemas_marshall import TradeSchema
+from app.service.trade_service import TradeService
 
 trade_bp = Blueprint('trade', __name__, url_prefix='/api/trade')
 
@@ -236,8 +236,7 @@ def import_trade():
         missing_codes = set(ho_codes) - existing_codes
         if missing_codes:
             raise BizException(
-                code=400,
-                message=f"以下基金代码不存在于持仓表中: {', '.join(map(str, missing_codes))}"
+                msg=f"以下基金代码不存在于持仓表中: {', '.join(map(str, missing_codes))}"
             )
 
         # 转换日期列为字符串格式
@@ -293,7 +292,7 @@ def map_trade_type(value):
     value = str(value).strip()
     if value not in ALL_TR_TYPE_TEXTS:
         raise BizException(
-            message=f"交易类型“{value}”无法识别，请使用模板提供的下拉选项。"
+            msg=f"交易类型“{value}”无法识别，请使用模板提供的下拉选项。"
         )
     return ALL_TR_TYPE_TEXTS[value]
 

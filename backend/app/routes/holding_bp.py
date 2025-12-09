@@ -256,7 +256,7 @@ def get_fund_info():
         "Referer": f"http://fund.eastmoney.com/{ho_code}.html"
     }
     resp = requests.get(url_api, params=params, headers=headers)
-    print("接口返回内容：", resp.json())
+    # print("接口返回内容：", resp.json())
     data = resp.json().get("Datas", {})
     if not data:
         raise BizException(msg="未爬取到相关信息")

@@ -100,7 +100,7 @@ def delete_net_value(nav_id):
 
 @nav_history_bp.route('/crawl', methods=['POST'])
 def crawl_nav_history():
-    data = request.get_json()  # 改为获取 JSON 数据
+    data = request.get_json()
     ho_code = data.get("ho_code")
     start_date = data.get("start_date")
     end_date = data.get("end_date")
