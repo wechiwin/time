@@ -31,16 +31,19 @@ msgid "COL_TR_DATE"
 msgstr "交易日期"
 
 msgid "COL_TR_NAV_PER_UNIT"
-msgstr "交易净值"
+msgstr "单位净值"
 
 msgid "COL_TR_SHARES"
 msgstr "交易份数"
+
+msgid "COL_TR_NET_AMOUNT"
+msgstr "交易净额"
 
 msgid "COL_TR_FEE"
 msgstr "交易费用"
 
 msgid "COL_TR_AMOUNT"
-msgstr "交易金额"
+msgstr "交易总额"
 
 msgid "TEMPLATE_TR_IMPORT"
 msgstr "交易记录导入模板"
@@ -59,3 +62,15 @@ msgstr "交易记录"
 
 msgid "TR_EXAMPLE"
 msgstr "示例"
+
+msgid "AR_EM_PENDING"
+msgstr "待发送"
+
+msgid "AR_EM_SENT"
+msgstr "已发送"
+
+msgid "AR_EM_FAILED"
+msgstr "发送失败"
+
+msgid "AR_TR_ADD_POSITION"
+msgstr "加仓"

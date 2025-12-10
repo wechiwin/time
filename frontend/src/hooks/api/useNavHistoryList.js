@@ -74,5 +74,19 @@ export default function useNavHistoryList(options = {}) {
         return result;
     }, [get]);
 
-    return {data, loading, error, add, remove, update, search, crawl, crawl_all, searchList};
+    const getLatestNav = useCallback(async (searchKeyword = '') => {
+        const params = new URLSearchParams({
+            ho_code: searchKeyword,
+            page: 1,
+            per_page: 1
+        }).toString();
+        const result = await get(`/api/nav_history?${params}`);
+        // console.log(result)
+        const latestNav = result.items[0]
+        setData(latestNav);
+        // console.log(latestNav)
+        return latestNav;
+    }, [get]);
+
+    return {data, loading, error, add, remove, update, search, crawl, crawl_all, searchList, getLatestNav};
 }

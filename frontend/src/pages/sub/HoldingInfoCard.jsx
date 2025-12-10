@@ -17,8 +17,7 @@ import {
 export default function HoldingInfoCard({
                                             code,
                                             fundInfo,
-                                            globalStats,
-                                            drawerType = 'none', // 'trade' | 'nav' | 'none'
+                                            globalStats
                                         }) {
     const {t} = useTranslation();
 

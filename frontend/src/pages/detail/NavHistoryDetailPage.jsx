@@ -14,13 +14,13 @@ export default function NavHistoryDetailPage() {
 
     const [trades, setTrades] = useState([]);
     const [fundInfo, setFundInfo] = useState(null);
-    const [baseNav, setBaseNav] = useState([]);
+    const [latestNavpu, setLatestNavpu] = useState([]);
 
     const {listByCode} = useTradeList({autoLoad: false});
     const {getByCode} = useHoldingList({autoLoad: false});
-    const {searchList} = useNavHistoryList({autoLoad: false});
+    const {getLatestNav} = useNavHistoryList({autoLoad: false});
 
-    const {globalStats} = useTradeAnalysis(trades, fundInfo, baseNav);
+    const {globalStats} = useTradeAnalysis(trades, fundInfo, latestNavpu);
 
     // 获取数据
     useEffect(() => {
@@ -31,12 +31,11 @@ export default function NavHistoryDetailPage() {
                 const [tr, info, nav] = await Promise.all([
                     listByCode(ho_code),
                     getByCode(ho_code),
-                    // 获取最近净值用于计算浮动盈亏，这里简化取最近1年，或者根据你的逻辑取
-                    searchList(ho_code)
+                    getLatestNav(ho_code)
                 ]);
                 setTrades(tr || []);
                 setFundInfo(info);
-                setBaseNav(nav || []);
+                setLatestNavpu(nav || {});
             } catch (e) {
                 console.log(e)
             } finally {
@@ -52,7 +51,6 @@ export default function NavHistoryDetailPage() {
                 code={ho_code}
                 fundInfo={fundInfo}
                 globalStats={globalStats}
-                drawerType="trade"
             />
             <NavHistoryChart code={ho_code}/>
         </div>

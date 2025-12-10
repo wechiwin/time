@@ -6,7 +6,6 @@ import useHoldingList from "../../hooks/api/useHoldingList";
 import useNavHistoryList from "../../hooks/api/useNavHistoryList";
 import useTradeList from "../../hooks/api/useTradeList";
 import {useToast} from "../../components/toast/ToastContext";
-import useTradeAnalysis from "../../hooks/useTradeAnalysis";
 import HoldingSearchSelect from "../../components/search/HoldingSearchSelect";
 
 export default function NavHistoryChart({code}) {
@@ -14,7 +13,7 @@ export default function NavHistoryChart({code}) {
     const {showSuccessToast, showErrorToast} = useToast();
 
     const [fundInfo, setFundInfo] = useState(null);
-    const [baseNav, setBaseNav] = useState([]);
+    const [navList, setNavList] = useState([]);
     const [trades, setTrades] = useState([]);
 
     const [compareCodes, setCompareCodes] = useState([]);
@@ -31,8 +30,6 @@ export default function NavHistoryChart({code}) {
     const {getByCode} = useHoldingList({autoLoad: false});
     const {searchList} = useNavHistoryList({autoLoad: false});
     const {listByCode} = useTradeList({autoLoad: false});
-
-    const {globalStats} = useTradeAnalysis(trades, fundInfo, baseNav);
 
     useEffect(() => {
         const end = dayjs();
@@ -84,7 +81,7 @@ export default function NavHistoryChart({code}) {
             listByCode(targetCode) // 交易记录数量不多，拿全部，用于标记图表买卖点
         ]);
         setFundInfo(infoRes);
-        setBaseNav(navRes || []);
+        setNavList(navRes || []);
         setTrades(tradeRes || []);
     }
 
@@ -154,7 +151,7 @@ export default function NavHistoryChart({code}) {
     const chartData = useMemo(() => {
         // 收集所有日期
         const dateSet = new Set();
-        baseNav.forEach(i => dateSet.add(i.nav_date));
+        navList.forEach(i => dateSet.add(i.nav_date));
         Object.values(compareDataMap).forEach(item => {
             item.list.forEach(i => dateSet.add(i.nav_date));
         });
@@ -175,14 +172,14 @@ export default function NavHistoryChart({code}) {
 
         return {
             dates: unifiedDates,
-            baseSeriesData: mapDataToAxis(baseNav),
+            baseSeriesData: mapDataToAxis(navList),
             compareSeriesData: Object.entries(compareDataMap).map(([c, data]) => ({
                 code: c,
                 name: `${c} ${data.info?.ho_short_name || ''}`,
                 data: mapDataToAxis(data.list)
             }))
         };
-    }, [baseNav, compareDataMap, chartKind]);
+    }, [navList, compareDataMap, chartKind]);
 
     const series = useMemo(() => {
         const s = [
@@ -289,7 +286,7 @@ export default function NavHistoryChart({code}) {
 
     return (
         <div className="space-y-4">
-            {/* 2. 净值走势图表 */}
+            {/* 净值走势图表 */}
             <div className="card p-4 bg-white rounded-xl shadow-sm border border-gray-100">
                 <div className="mb-3 flex items-center justify-between gap-4 flex-wrap">
                     <div className="w-full max-w-xs">
@@ -396,7 +393,7 @@ ${active
                         series,
                     }}
                     style={{height: 450}}
-                    showLoading={loadingCompare || baseNav.length === 0}
+                    showLoading={loadingCompare || navList.length === 0}
                     notMerge={true}
                     onEvents={{legendselectchanged: onChartLegendSelectChanged}}
                 />

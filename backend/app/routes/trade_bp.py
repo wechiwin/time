@@ -60,6 +60,7 @@ def search_page():
         'tr_date': t.tr_date,
         'tr_nav_per_unit': t.tr_nav_per_unit,
         'tr_shares': t.tr_shares,
+        'tr_net_amount': t.tr_net_amount,
         'tr_fee': t.tr_fee,
         'tr_amount': t.tr_amount
     } for t, ho_short_name in transactions]
@@ -79,7 +80,7 @@ def search_page():
 def create_transaction():
     data = request.get_json()
     required_fields = ['ho_code', 'tr_type', 'tr_date', 'tr_nav_per_unit',
-                       'tr_shares', 'tr_fee', 'tr_amount']
+                       'tr_shares', 'tr_net_amount', 'tr_fee', 'tr_amount']
 
     if not all(field in data for field in required_fields):
         raise BizException(msg="缺少必要字段")
@@ -114,31 +115,32 @@ def delete_transaction(tr_id):
     return ''
 
 
-# @trade_bp.route('/export', methods=['GET'])
-# def export_trade():
-#     trade = Trade.query.all()
-#     df = pd.DataFrame([{
-#         gettext('COL_HO_CODE'): t.ho_code,
-#         gettext('COL_TR_TYPE'): t.tr_type,
-#         gettext('COL_TR_DATE'): t.tr_date,
-#         gettext('COL_TR_NAV_PER_UNIT'): t.tr_nav_per_unit,
-#         gettext('COL_TR_SHARES'): t.tr_shares,
-#         gettext('COL_TR_FEE'): t.tr_fee,
-#         gettext('COL_TR_AMOUNT'): t.tr_amount
-#     } for t in trade])
-#
-#     output = BytesIO()
-#     writer = pd.ExcelWriter(output, engine='xlsxwriter')
-#     df.to_excel(writer, index=False, sheet_name=gettext('TR_LOG'))
-#     writer.close()
-#     output.seek(0)
-#
-#     return send_file(
-#         output,
-#         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-#         as_attachment=True,
-#         download_name='tradeLog.xlsx'
-#     )
+@trade_bp.route('/export', methods=['GET'])
+def export_trade():
+    trade = Trade.query.all()
+    df = pd.DataFrame([{
+        gettext('COL_HO_CODE'): t.ho_code,
+        gettext('COL_TR_TYPE'): t.tr_type,
+        gettext('COL_TR_DATE'): t.tr_date,
+        gettext('COL_TR_NAV_PER_UNIT'): t.tr_nav_per_unit,
+        gettext('COL_TR_SHARES'): t.tr_shares,
+        gettext('COL_TR_NET_AMOUNT'): t.tr_net_amount,
+        gettext('COL_TR_FEE'): t.tr_fee,
+        gettext('COL_TR_AMOUNT'): t.tr_amount
+    } for t in trade])
+
+    output = BytesIO()
+    writer = pd.ExcelWriter(output, engine='xlsxwriter')
+    df.to_excel(writer, index=False, sheet_name=gettext('TR_LOG'))
+    writer.close()
+    output.seek(0)
+
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='tradeLog.xlsx'
+    )
 
 
 @trade_bp.route('/template', methods=['GET'])
@@ -155,6 +157,7 @@ def download_template():
         gettext('COL_TR_NAV_PER_UNIT'),
         # '交易份数',
         gettext('COL_TR_SHARES'),
+        gettext('COL_TR_NET_AMOUNT'),
         # '交易费用',
         gettext('COL_TR_FEE'),
         # '交易金额',
@@ -168,6 +171,7 @@ def download_template():
         gettext('COL_TR_DATE'): '2023-01-01',
         gettext('COL_TR_NAV_PER_UNIT'): 1.0,
         gettext('COL_TR_SHARES'): 100,
+        gettext('COL_TR_NET_AMOUNT'): 100,
         gettext('COL_TR_FEE'): 0.1,
         gettext('COL_TR_AMOUNT'): 100.1
     }])
@@ -220,6 +224,7 @@ def import_trade():
             gettext('COL_TR_NAV_PER_UNIT'),
             # '交易份数',
             gettext('COL_TR_SHARES'),
+            gettext('COL_TR_NET_AMOUNT'),
             # '交易费用',
             gettext('COL_TR_FEE'),
             # '交易金额',
@@ -247,6 +252,7 @@ def import_trade():
         numeric_cols = [
             gettext('COL_TR_NAV_PER_UNIT'),
             gettext('COL_TR_SHARES'),
+            gettext('COL_TR_NET_AMOUNT'),
             gettext('COL_TR_FEE'),
             gettext('COL_TR_AMOUNT')
         ]
@@ -262,6 +268,7 @@ def import_trade():
                 tr_date=str(row[gettext('COL_TR_DATE')]),
                 tr_nav_per_unit=float(row[gettext('COL_TR_NAV_PER_UNIT')]),
                 tr_shares=float(row[gettext('COL_TR_SHARES')]),
+                tr_net_amount=float(row[gettext('COL_TR_NET_AMOUNT')]),
                 tr_fee=float(row[gettext('COL_TR_FEE')]),
                 tr_amount=float(row[gettext('COL_TR_AMOUNT')])
             )

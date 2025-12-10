@@ -9,12 +9,10 @@ import {
     CurrencyYenIcon
 } from '@heroicons/react/24/outline';
 
-// 接收 loading 属性
 export default function TradeTimeline({rounds = [], loading = false}) {
     const {t} = useTranslation();
     const [sortOrder, setSortOrder] = useState('desc');
 
-    // ... (中间的 fmtNum, getProfitColor, getTypeStyle 逻辑保持不变) ...
     const sortedRounds = useMemo(() => {
         const sorted = [...rounds];
         return sortOrder === 'asc' ? sorted : sorted.reverse();

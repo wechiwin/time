@@ -35,6 +35,9 @@ msgstr "Valore netto"
 msgid "COL_TR_SHARES"
 msgstr "Azioni della transazione"
 
+msgid "COL_TR_NET_AMOUNT"
+msgstr "Importo Netto della transazione"
+
 msgid "COL_TR_FEE"
 msgstr "Commissione della transazione"
 
@@ -58,3 +61,15 @@ msgstr "Registri delle transazioni"
 
 msgid "TR_EXAMPLE"
 msgstr "Esempio"
+
+msgid "AR_EM_PENDING"
+msgstr "Da inviare"
+
+msgid "AR_EM_SENT"
+msgstr "Inviato"
+
+msgid "AR_EM_FAILED"
+msgstr "Invio fallito"
+
+msgid "AR_TR_ADD_POSITION"
+msgstr "Aggiungi Posizione"

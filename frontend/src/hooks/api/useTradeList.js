@@ -44,8 +44,8 @@ export default function useTradeList(options = {}) {
         return result;
     }, [del, search, keyword, page, perPage]);
 
-    const update = useCallback(async ({id, ...body}) => {
-        const result = await put(`/api/trade/${id}`, body);
+    const update = useCallback(async ({tr_id, ...body}) => {
+        const result = await put(`/api/trade/${tr_id}`, body);
         await search(keyword, page, perPage);
         return result;
     }, [put, search, keyword, page, perPage]);

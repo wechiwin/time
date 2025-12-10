@@ -35,11 +35,14 @@ msgstr "Trade NAV Per Unit"
 msgid "COL_TR_SHARES"
 msgstr "Trade Shares"
 
+msgid "COL_TR_NET_AMOUNT"
+msgstr "Trade Net Amount"
+
 msgid "COL_TR_FEE"
 msgstr "Trade Fee"
 
 msgid "COL_TR_AMOUNT"
-msgstr "Trade Amount"
+msgstr "Total Trade Amount"
 
 msgid "TEMPLATE_TR_IMPORT"
 msgstr "Trade Import Template"
@@ -58,3 +61,15 @@ msgstr "Trade Log"
 
 msgid "TR_EXAMPLE"
 msgstr "Example"
+
+msgid "AR_EM_PENDING"
+msgstr "Pending"
+
+msgid "AR_EM_SENT"
+msgstr "Sent"
+
+msgid "AR_EM_FAILED"
+msgstr "Failed"
+
+msgid "AR_TR_ADD_POSITION"
+msgstr "Add Position"

@@ -37,10 +37,11 @@ class Trade(TimestampMixin, db.Model):
     ho_code = db.Column(db.String(50))
     tr_type = db.Column(db.Integer)  # 交易类型：1.买入；0.卖出
     tr_date = db.Column(db.String(20))  # 交易日期
-    tr_nav_per_unit = db.Column(db.Float)  # 交易单位净值
+    tr_nav_per_unit = db.Column(db.Float)  # 单位净值
     tr_shares = db.Column(db.Float)  # 交易份额
+    tr_net_amount = db.Column(db.Float)  # 交易净额(不含交易费用)
     tr_fee = db.Column(db.Float)  # 交易费用
-    tr_amount = db.Column(db.Float)  # 交易金额(不含交易费用)
+    tr_amount = db.Column(db.Float)  # 交易总额(含交易费用)
 
 
 class NavHistory(db.Model):

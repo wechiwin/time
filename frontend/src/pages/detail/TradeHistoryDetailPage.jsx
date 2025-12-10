@@ -14,14 +14,14 @@ export default function TradeHistoryDetailPage({code}) {
     const {t} = useTranslation();
     const [trades, setTrades] = useState([]);
     const [fundInfo, setFundInfo] = useState(null);
-    const [baseNav, setBaseNav] = useState([]);
+    const [latestNav, setLatestNav] = useState([]);
 
     const {listByCode} = useTradeList({autoLoad: false});
     const {getByCode} = useHoldingList({autoLoad: false});
-    const {searchList} = useNavHistoryList({autoLoad: false});
+    const {getLatestNav} = useNavHistoryList({autoLoad: false});
 
     const [loading, setLoading] = useState(false);
-    const {globalStats} = useTradeAnalysis(trades, fundInfo, baseNav);
+    const {rounds, globalStats} = useTradeAnalysis(trades, fundInfo, latestNav);
 
     // 获取数据
     useEffect(() => {
@@ -33,11 +33,11 @@ export default function TradeHistoryDetailPage({code}) {
                     listByCode(currentCode),
                     getByCode(currentCode),
                     // 获取最近净值用于计算浮动盈亏，这里简化取最近1年，或者根据你的逻辑取
-                    searchList(currentCode)
+                    getLatestNav(currentCode)
                 ]);
                 setTrades(tr || []);
                 setFundInfo(info);
-                setBaseNav(nav || []);
+                setLatestNav(nav || []);
             } catch (e) {
                 console.log(e)
             } finally {
@@ -47,8 +47,6 @@ export default function TradeHistoryDetailPage({code}) {
         loadData();
     }, [currentCode]);
 
-    // 使用 Hook 分析数据
-    const {rounds} = useTradeAnalysis(trades, fundInfo, baseNav);
 
     return (
         <div className="flex h-full flex-col bg-gray-50">
@@ -56,7 +54,6 @@ export default function TradeHistoryDetailPage({code}) {
                 code={ho_code}
                 fundInfo={fundInfo}
                 globalStats={globalStats}
-                drawerType="nav"
             />
 
             <div className="flex-1 overflow-auto p-4">

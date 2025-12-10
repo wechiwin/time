@@ -3,7 +3,7 @@ import {useEffect, useRef, useState} from 'react';
 import {useToast} from '../toast/ToastContext';
 import {useTranslation} from "react-i18next";
 import useTradeList from "../../hooks/api/useTradeList";
-import MyDate from "../common/MyDate"; // 复用基金下拉
+import MyDate from "../common/MyDate";
 
 const init = {
     tr_id: '',
@@ -12,6 +12,7 @@ const init = {
     tr_date: '',
     tr_nav_per_unit: '',
     tr_shares: '',
+    tr_net_amount: '',
     tr_fee: '',
     tr_amount: '',
 };
@@ -87,17 +88,21 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                     // LLM 处理成功，填充表单
                     const o = data.data.parsed_json; // 注意后端结构是 data -> data -> parsed_json
 
-                    setForm(prev => ({
-                        ...prev,
-                        // 使用 nullish coalescing  仅当 LLM 返回有效值时覆盖
-                        ho_code: o.ho_code ?? prev.ho_code ?? '',
-                        tr_amount: o.tr_amount ?? prev.tr_amount ?? '',         // 优先使用 LLM，其次用旧值，最后用空串
-                        tr_date: o.tr_date ?? prev.tr_date ?? '',
-                        tr_fee: o.tr_fee ?? prev.tr_fee ?? '',
-                        tr_nav_per_unit: o.tr_nav_per_unit ?? prev.tr_nav_per_unit ?? '',
-                        tr_shares: o.tr_shares ?? prev.tr_shares ?? '',
-                        tr_type: o.tr_type ?? prev.tr_type ?? 1,
-                    }));
+                    setForm(prev => {
+                        const isEditMode = !!initialValues?.tr_id;
+                        return {
+                            ...prev,
+                            // 使用 nullish coalescing  仅当 LLM 返回有效值时覆盖
+                            ho_code: isEditMode ? prev.ho_code : (o.ho_code ?? prev.ho_code ?? ''), // 在编辑模式下禁止被覆盖
+                            tr_amount: o.tr_amount ?? prev.tr_amount ?? '',
+                            tr_date: o.tr_date ?? prev.tr_date ?? '',
+                            tr_fee: o.tr_fee ?? prev.tr_fee ?? '',
+                            tr_nav_per_unit: o.tr_nav_per_unit ?? prev.tr_nav_per_unit ?? '',
+                            tr_shares: o.tr_shares ?? prev.tr_shares ?? '',
+                            tr_net_amount: o.tr_net_amount ?? prev.tr_net_amount ?? '',
+                            tr_type: o.tr_type ?? prev.tr_type ?? 1,
+                        };
+                    });
 
                     showSuccessToast();
 
@@ -153,6 +158,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                 tr_date: initialValues.tr_date || '',
                 tr_nav_per_unit: initialValues.tr_nav_per_unit || '',
                 tr_shares: initialValues.tr_shares || '',
+                tr_net_amount: initialValues.tr_net_amount || '',
                 tr_fee: initialValues.tr_fee || '',
                 tr_amount: initialValues.tr_amount || ''
             });
@@ -163,9 +169,9 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
         <form onSubmit={submit} className="space-y-4 p-4 page-bg rounded-lg">
             <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                 <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_ho_name')}</label>
+                    <label className="text-sm font-medium mb-1">{t('th_ho_code')}</label>
                     <input
-                        placeholder={t('th_ho_name')}
+                        placeholder={t('th_ho_code')}
                         value={form.ho_code}
                         onChange={(e) => setForm({...form, ho_code: e.target.value})}
                         required
@@ -213,6 +219,18 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                         required
                         value={form.tr_shares}
                         onChange={(e) => setForm({...form, tr_shares: e.target.value})}
+                        className="input-field"
+                    />
+                </div>
+                <div className="flex flex-col">
+                    <label className="text-sm font-medium mb-1">{t('th_tr_net_amount')}</label>
+                    <input
+                        type="number"
+                        step="0.0001"
+                        placeholder={t('th_tr_net_amount')}
+                        required
+                        value={form.tr_net_amount}
+                        onChange={(e) => setForm({...form, tr_net_amount: e.target.value})}
                         className="input-field"
                     />
                 </div>
