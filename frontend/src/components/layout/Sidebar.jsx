@@ -115,8 +115,14 @@ export default function Sidebar({onSelect, isCollapsed, onToggleCollapse}) {
                     </button>
                 )}
 
-                {/* 右下角暗黑开关 */}
-                <div className="absolute bottom-4 right-4 flex items-center space-x-2">
+                {/* 右下角按钮 */}
+                <div
+                    className={`absolute bottom-4 right-4 transition-all duration-200 ${
+                        isCollapsed && !isMobile
+                            ? 'flex flex-col items-center space-y-2'  // 竖向排列
+                            : 'flex items-center space-x-2'           // 横向排列
+                    }`}
+                >
                     <LanguageSwitcher/>
                     <DarkToggle/>
                     {/* 退出按钮 */}
