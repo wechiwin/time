@@ -167,131 +167,161 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
 
     return (
         <form onSubmit={submit} className="space-y-4 p-4 page-bg rounded-lg">
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_ho_code')}</label>
-                    <input
-                        placeholder={t('th_ho_code')}
-                        value={form.ho_code}
-                        onChange={(e) => setForm({...form, ho_code: e.target.value})}
-                        required
-                        className={`input-field ${initialValues?.tr_id ? 'read-only-input' : ''}`}
-                        readOnly={!!initialValues?.tr_id}
-                    />
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_tr_type')}</label>
-                    <select
-                        value={form.tr_type}
-                        onChange={(e) => setForm({...form, tr_type: Number(e.target.value)})}
-                        className="input-field"
-                    >
-                        <option value={1}>{t('tr_type_buy')}</option>
-                        <option value={0}>{t('tr_type_sell')}</option>
-                    </select>
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_nav_date')}</label>
-                    <MyDate
-                        value={form.tr_date}
-                        onChange={(dateStr) => setForm({...form, tr_date: dateStr})}
-                        className="input-field"
-                    />
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_tr_nav_per_unit')}</label>
-                    <input
-                        type="number"
-                        step="0.0001"
-                        placeholder={t('th_tr_nav_per_unit')}
-                        required
-                        value={form.tr_nav_per_unit}
-                        onChange={(e) => setForm({...form, tr_nav_per_unit: e.target.value})}
-                        className="input-field"
-                    />
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_tr_shares')}</label>
-                    <input
-                        type="number"
-                        step="0.0001"
-                        placeholder={t('th_tr_shares')}
-                        required
-                        value={form.tr_shares}
-                        onChange={(e) => setForm({...form, tr_shares: e.target.value})}
-                        className="input-field"
-                    />
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_tr_net_amount')}</label>
-                    <input
-                        type="number"
-                        step="0.0001"
-                        placeholder={t('th_tr_net_amount')}
-                        required
-                        value={form.tr_net_amount}
-                        onChange={(e) => setForm({...form, tr_net_amount: e.target.value})}
-                        className="input-field"
-                    />
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_tr_fee')}</label>
-                    <input
-                        type="number"
-                        step="0.0001"
-                        placeholder={t('th_tr_fee')}
-                        required
-                        value={form.tr_fee}
-                        onChange={(e) => setForm({...form, tr_fee: e.target.value})}
-                        className="input-field"
-                    />
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_tr_amount')}</label>
-                    <input
-                        type="number"
-                        step="0.0001"
-                        placeholder={t('th_tr_amount')}
-                        required
-                        value={form.tr_amount}
-                        onChange={(e) => setForm({...form, tr_amount: e.target.value})}
-                        className="input-field"
-                    />
-                </div>
-            </div>
-            <div className="flex justify-end space-x-2 pt-2">
-                {/* 状态提示 */}
-                {uploading && (
-                    <span className="text-sm text-blue-600 animate-pulse mr-2">
-                        {processingStatus}
-                    </span>
-                )}
-                {/* 上传按钮 */}
-                <div>
-                    <input
-                        id="trade-upload"
-                        type="file"
-                        accept="image/*"
-                        disabled={uploading}
-                        onChange={handleUpload}
-                        className="hidden"
-                    />
-                    <label
-                        htmlFor="trade-upload"
-                        className={`btn-secondary inline-flex items-center gap-2 ${uploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                    >
-                        {t('button_upload_image')}
-                    </label>
+            {/* 移动端使用单列布局，桌面端使用多列 */}
+            <div className="grid grid-cols-1 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col">
+                        <label className="text-sm font-medium mb-1">{t('th_ho_code')}</label>
+                        <input
+                            placeholder={t('th_ho_code')}
+                            value={form.ho_code}
+                            onChange={(e) => setForm({...form, ho_code: e.target.value})}
+                            required
+                            className={`input-field ${initialValues?.tr_id ? 'read-only-input' : ''}`}
+                            readOnly={!!initialValues?.tr_id}
+                        />
+                    </div>
+                    <div className="flex flex-col">
+                        <label className="text-sm font-medium mb-1">{t('th_tr_type')}</label>
+                        <select
+                            value={form.tr_type}
+                            onChange={(e) => setForm({...form, tr_type: Number(e.target.value)})}
+                            className="input-field"
+                        >
+                            <option value={1}>{t('tr_type_buy')}</option>
+                            <option value={0}>{t('tr_type_sell')}</option>
+                        </select>
+                    </div>
                 </div>
 
-                <button type="button" className="btn-secondary" onClick={onClose} disabled={uploading}>
-                    {t('button_cancel')}
-                </button>
-                <button type="submit" className="btn-primary" disabled={uploading}>
-                    {t('button_confirm')}
-                </button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col">
+                        <label className="text-sm font-medium mb-1">{t('th_nav_date')}</label>
+                        <MyDate
+                            value={form.tr_date}
+                            onChange={(dateStr) => setForm({...form, tr_date: dateStr})}
+                            className="input-field"
+                        />
+                    </div>
+                    <div className="flex flex-col">
+                        <label className="text-sm font-medium mb-1">{t('th_tr_nav_per_unit')}</label>
+                        <input
+                            type="number"
+                            step="0.0001"
+                            placeholder={t('th_tr_nav_per_unit')}
+                            required
+                            value={form.tr_nav_per_unit}
+                            onChange={(e) => setForm({...form, tr_nav_per_unit: e.target.value})}
+                            className="input-field"
+                        />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col">
+                        <label className="text-sm font-medium mb-1">{t('th_tr_shares')}</label>
+                        <input
+                            type="number"
+                            step="0.0001"
+                            placeholder={t('th_tr_shares')}
+                            required
+                            value={form.tr_shares}
+                            onChange={(e) => setForm({...form, tr_shares: e.target.value})}
+                            className="input-field"
+                        />
+                    </div>
+                    <div className="flex flex-col">
+                        <label className="text-sm font-medium mb-1">{t('th_tr_net_amount')}</label>
+                        <input
+                            type="number"
+                            step="0.0001"
+                            placeholder={t('th_tr_net_amount')}
+                            required
+                            value={form.tr_net_amount}
+                            onChange={(e) => setForm({...form, tr_net_amount: e.target.value})}
+                            className="input-field"
+                        />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col">
+                        <label className="text-sm font-medium mb-1">{t('th_tr_fee')}</label>
+                        <input
+                            type="number"
+                            step="0.0001"
+                            placeholder={t('th_tr_fee')}
+                            required
+                            value={form.tr_fee}
+                            onChange={(e) => setForm({...form, tr_fee: e.target.value})}
+                            className="input-field"
+                        />
+                    </div>
+                    <div className="flex flex-col">
+                        <label className="text-sm font-medium mb-1">{t('th_tr_amount')}</label>
+                        <input
+                            type="number"
+                            step="0.0001"
+                            placeholder={t('th_tr_amount')}
+                            required
+                            value={form.tr_amount}
+                            onChange={(e) => setForm({...form, tr_amount: e.target.value})}
+                            className="input-field"
+                        />
+                    </div>
+                </div>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:justify-end space-y-2 sm:space-y-0 sm:space-x-2 pt-2">
+                {/* 状态提示 */}
+                {uploading && (
+                    <div className="sm:hidden text-sm text-blue-600 animate-pulse">
+                        {processingStatus}
+                    </div>
+                )}
+
+                <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
+                    {/* 上传按钮 */}
+                    <div>
+                        <input
+                            id="trade-upload"
+                            type="file"
+                            accept="image/*"
+                            disabled={uploading}
+                            onChange={handleUpload}
+                            className="hidden"
+                        />
+                        <label
+                            htmlFor="trade-upload"
+                            className={`btn-secondary inline-flex items-center justify-center gap-2 w-full sm:w-auto ${uploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                        >
+                            {t('button_upload_image')}
+                        </label>
+                    </div>
+
+                    <button
+                        type="button"
+                        className="btn-secondary w-full sm:w-auto"
+                        onClick={onClose}
+                        disabled={uploading}
+                    >
+                        {t('button_cancel')}
+                    </button>
+                    <button
+                        type="submit"
+                        className="btn-primary w-full sm:w-auto"
+                        disabled={uploading}
+                    >
+                        {t('button_confirm')}
+                    </button>
+                </div>
+
+                {/* 桌面端状态提示 */}
+                {uploading && (
+                    <div className="hidden sm:block text-sm text-blue-600 animate-pulse ml-2">
+                        {processingStatus}
+                    </div>
+                )}
             </div>
         </form>
-    )
-        ;
+    );
 }
