@@ -50,14 +50,18 @@ export default function TradeHistoryDetailPage({code}) {
 
     return (
         <div className="flex h-full flex-col bg-gray-50 dark:bg-gray-800">
-            <HoldingInfoCard
-                code={ho_code}
-                fundInfo={fundInfo}
-                globalStats={globalStats}
-            />
+            <div className="overflow-auto p-2 md:p-4 flex-1 flex flex-col">
+                <div className="max-w-6xl mx-auto w-full">
+                    <HoldingInfoCard
+                        code={ho_code}
+                        fundInfo={fundInfo}
+                        globalStats={globalStats}
+                    />
 
-            <div className="flex-1 overflow-auto p-2 md:p-4">
-                <TradeTimeline rounds={rounds} loading={loading}/>
+                    <div className="mt-4">
+                        <TradeTimeline rounds={rounds} loading={loading}/>
+                    </div>
+                </div>
             </div>
         </div>
     );
