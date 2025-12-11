@@ -30,7 +30,7 @@ export default function Layout() {
     };
 
     return (
-        <div className="flex h-screen page-bg dark:bg-gray-900 overflow-hidden">
+        <div className="flex h-screen page-bg bg-white dark:bg-gray-900 dark:text-gray-100 overflow-hidden">
             {/* 侧边栏 */}
             <Sidebar
                 onSelect={handleSelectMenu}
@@ -45,7 +45,7 @@ export default function Layout() {
                 transition-all duration-300
                 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}
             `}>
-                <main className="flex-1 overflow-y-auto p-3 md:p-6">
+                <main className="flex-1 overflow-y-auto p-3 md:p-6 bg-gray-50 dark:bg-gray-800">
                     <Outlet/>
                 </main>
             </div>
