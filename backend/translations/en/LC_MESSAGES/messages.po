@@ -23,6 +23,33 @@ msgstr "Type"
 msgid "COL_HO_ESTABLISH_DATE"
 msgstr "Establish Date"
 
+msgid "COL_HO_SHORT_NAME"
+msgstr "Short Name"
+
+msgid "COL_HO_MANAGE_EXP_RATE"
+msgstr "Management Expense Rate"
+
+msgid "COL_HO_TRUSTEE_EXP_RATE"
+msgstr "Trustee Expense Rate"
+
+msgid "COL_HO_SALES_EXP_RATE"
+msgstr "Sales Expense Rate"
+
+msgid "COL_HO_STATUS"
+msgstr "Status"
+
+msgid "HO_LOG"
+msgstr "Holding Log"
+
+msgid "HO_STATUS_HOLDING"
+msgstr "Holding"
+
+msgid "HO_STATUS_NOT_HOLDING"
+msgstr "Not Holding"
+
+msgid "HO_STATUS_CLEARED"
+msgstr "Cleared"
+
 msgid "COL_TR_TYPE"
 msgstr "Trade Type"
 

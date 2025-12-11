@@ -1,4 +1,5 @@
 import json
+import logging
 import threading
 import uuid
 from io import BytesIO
@@ -18,6 +19,7 @@ from app.service.trade_service import TradeService
 trade_bp = Blueprint('trade', __name__, url_prefix='/api/trade')
 
 task_queues = {}
+logger = logging.getLogger(__name__)
 
 
 @trade_bp.route('', methods=['GET'])
@@ -84,10 +86,9 @@ def create_transaction():
 
     if not all(field in data for field in required_fields):
         raise BizException(msg="缺少必要字段")
+
     new_transaction = TradeSchema().load(data)
-    db.session.add(new_transaction)
-    db.session.commit()
-    return ''
+    return TradeService.create_transaction(new_transaction)
 
 
 @trade_bp.route('/<int:tr_id>', methods=['GET'])
@@ -211,75 +212,57 @@ def import_trade():
     if file.filename == '':
         raise BizException(msg="没有选择文件")
 
-    try:
-        df = pd.read_excel(file, dtype={gettext('COL_HO_CODE'): str})
-        required_columns = [
-            # '基金代码',
-            gettext('COL_HO_CODE'),
-            # '交易类型',
-            gettext('COL_TR_TYPE'),
-            # '交易日期',
-            gettext('COL_TR_DATE'),
-            # '交易净值',
-            gettext('COL_TR_NAV_PER_UNIT'),
-            # '交易份数',
-            gettext('COL_TR_SHARES'),
-            gettext('COL_TR_NET_AMOUNT'),
-            # '交易费用',
-            gettext('COL_TR_FEE'),
-            # '交易金额',
-            gettext('COL_TR_AMOUNT'),
-        ]
-        if not all(col in df.columns for col in required_columns):
-            raise BizException(msg="Excel缺少必要列")
+    df = pd.read_excel(file, dtype={gettext('COL_HO_CODE'): str})
+    required_columns = [
+        # '基金代码',
+        gettext('COL_HO_CODE'),
+        # '交易类型',
+        gettext('COL_TR_TYPE'),
+        # '交易日期',
+        gettext('COL_TR_DATE'),
+        # '交易净值',
+        gettext('COL_TR_NAV_PER_UNIT'),
+        # '交易份数',
+        gettext('COL_TR_SHARES'),
+        gettext('COL_TR_NET_AMOUNT'),
+        # '交易费用',
+        gettext('COL_TR_FEE'),
+        # '交易金额',
+        gettext('COL_TR_AMOUNT'),
+    ]
+    if not all(col in df.columns for col in required_columns):
+        raise BizException(msg="Excel缺少必要列")
 
-        # 检查ho_code是否存在
-        ho_codes = df[gettext('COL_HO_CODE')].unique()
-        existing_holdings = Holding.query.filter(Holding.ho_code.in_(ho_codes)).all()
-        existing_codes = {h.ho_code for h in existing_holdings}
+    # 转换日期列为字符串格式
+    df[gettext('COL_TR_DATE')] = pd.to_datetime(df[gettext('COL_TR_DATE')], errors='coerce')
+    df[gettext('COL_TR_DATE')] = df[gettext('COL_TR_DATE')].dt.strftime('%Y-%m-%d')  # 处理Timestamp类型
 
-        missing_codes = set(ho_codes) - existing_codes
-        if missing_codes:
-            raise BizException(
-                msg=f"以下基金代码不存在于持仓表中: {', '.join(map(str, missing_codes))}"
-            )
+    # 转换数值列为float（防止整数被识别为其他类型）
+    numeric_cols = [
+        gettext('COL_TR_NAV_PER_UNIT'),
+        gettext('COL_TR_SHARES'),
+        gettext('COL_TR_NET_AMOUNT'),
+        gettext('COL_TR_FEE'),
+        gettext('COL_TR_AMOUNT')
+    ]
+    for col in numeric_cols:
+        df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
-        # 转换日期列为字符串格式
-        df[gettext('COL_TR_DATE')] = pd.to_datetime(df[gettext('COL_TR_DATE')], errors='coerce')
-        df[gettext('COL_TR_DATE')] = df[gettext('COL_TR_DATE')].dt.strftime('%Y-%m-%d')  # 处理Timestamp类型
+    transactions = []
+    for _, row in df.iterrows():
+        transaction = Trade(
+            ho_code=str(row[gettext('COL_HO_CODE')]),
+            tr_type=map_trade_type(row[gettext('COL_TR_TYPE')]),
+            tr_date=str(row[gettext('COL_TR_DATE')]),
+            tr_nav_per_unit=float(row[gettext('COL_TR_NAV_PER_UNIT')]),
+            tr_shares=float(row[gettext('COL_TR_SHARES')]),
+            tr_net_amount=float(row[gettext('COL_TR_NET_AMOUNT')]),
+            tr_fee=float(row[gettext('COL_TR_FEE')]),
+            tr_amount=float(row[gettext('COL_TR_AMOUNT')]),
+        )
+        transactions.append(transaction)
 
-        # 转换数值列为float（防止整数被识别为其他类型）
-        numeric_cols = [
-            gettext('COL_TR_NAV_PER_UNIT'),
-            gettext('COL_TR_SHARES'),
-            gettext('COL_TR_NET_AMOUNT'),
-            gettext('COL_TR_FEE'),
-            gettext('COL_TR_AMOUNT')
-        ]
-        for col in numeric_cols:
-            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-
-        # 开始事务
-        # db.session.begin()
-        for _, row in df.iterrows():
-            transaction = Trade(
-                ho_code=str(row[gettext('COL_HO_CODE')]),
-                tr_type=str(map_trade_type(row[gettext('COL_TR_TYPE')])),
-                tr_date=str(row[gettext('COL_TR_DATE')]),
-                tr_nav_per_unit=float(row[gettext('COL_TR_NAV_PER_UNIT')]),
-                tr_shares=float(row[gettext('COL_TR_SHARES')]),
-                tr_net_amount=float(row[gettext('COL_TR_NET_AMOUNT')]),
-                tr_fee=float(row[gettext('COL_TR_FEE')]),
-                tr_amount=float(row[gettext('COL_TR_AMOUNT')])
-            )
-            db.session.add(transaction)
-
-        db.session.commit()
-        return ''
-    except Exception as e:
-        db.session.rollback()
-        error_message = str(e)
-    raise BizException(msg=f"导入失败: {error_message}")
+    return TradeService.import_trade(transactions)
 
 
 ALL_TR_TYPE_TEXTS = {
@@ -321,9 +304,8 @@ def upload():
         return {"error": "No file"}
 
     file_bytes = file.read()
-    trade_service = TradeService()
-    print(file_bytes)
-    result = trade_service.process_trade_image(file_bytes)
+    # print(file_bytes)
+    result = TradeService.process_trade_image(file_bytes)
 
     return {
         "ocr_text": result["ocr_text"],
@@ -338,18 +320,17 @@ def background_worker(task_id, file_bytes, app):
     with app.app_context():
         try:
             # 实例化服务 (如果你的 Service 没有状态，也可以在外面实例化)
-            service = TradeService()
-            print(f"Task {task_id}: 开始调用 LLM...")
+            logger.info(f"Task {task_id}: 开始调用 LLM...")
 
             # 调用耗时的 LLM 逻辑
-            result = service.process_trade_image(file_bytes)
+            result = TradeService.process_trade_image(file_bytes)
 
             # 将结果放入队列
             if task_id in task_queues:
                 task_queues[task_id].put({"status": "success", "data": result})
 
         except Exception as e:
-            print(f"Task {task_id} Error: {e}")
+            logger.error(f"Task {task_id} Error: {e}")
             if task_id in task_queues:
                 task_queues[task_id].put({"status": "error", "message": str(e)})
 
@@ -404,8 +385,8 @@ def stream(task_id):
             # SSE 标准格式：data: <json_string>\n\n
             yield f"data: {json.dumps(result)}\n\n"
 
-        except Exception:
-            yield f"data: {json.dumps({'error': 'Timeout waiting for LLM'})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
         finally:
             # 清理资源
             if task_id in task_queues:

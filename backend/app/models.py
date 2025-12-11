@@ -30,6 +30,7 @@ class Holding(TimestampMixin, db.Model):
     ho_manage_exp_rate = db.Column(db.Float)  # 管理费率
     ho_trustee_exp_rate = db.Column(db.Float)  # 托管费率
     ho_sales_exp_rate = db.Column(db.Float)  # 销售费率
+    ho_status = db.Column(db.Integer) # 状态：0,已关注;1,已持仓；2.已清仓
 
 
 class Trade(TimestampMixin, db.Model):
@@ -42,6 +43,7 @@ class Trade(TimestampMixin, db.Model):
     tr_net_amount = db.Column(db.Float)  # 交易净额(不含交易费用)
     tr_fee = db.Column(db.Float)  # 交易费用
     tr_amount = db.Column(db.Float)  # 交易总额(含交易费用)
+    is_cleared = db.Column(db.Integer)  # 是否清仓：1.是；0.否
 
 
 class NavHistory(db.Model):

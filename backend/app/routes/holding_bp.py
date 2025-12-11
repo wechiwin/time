@@ -2,15 +2,14 @@ from io import BytesIO
 
 import pandas as pd
 import requests
+from flask import Blueprint, request, send_file
+from flask_babel import gettext
+from sqlalchemy import or_
+
 from app.framework.exceptions import BizException
 from app.framework.sys_constant import DEFAULT_PAGE_SIZE
 from app.models import db, Holding
 from app.schemas_marshall import HoldingSchema, marshal_pagination
-from app.service.nav_history_service import NavHistoryService
-from app.service.trade_service import TradeService
-from flask import Blueprint, request, send_file
-from flask_babel import gettext
-from sqlalchemy import or_
 
 holding_bp = Blueprint('holding', __name__, url_prefix='/api/holding')
 
@@ -139,28 +138,33 @@ def delete_holding(ho_id):
     return ''
 
 
-# @holding_bp.route('/export', methods=['GET'])
-# def export_holdings():
-#     holdings = Holding.query.all()
-#     df = pd.DataFrame([{
-#         gettext('COL_HO_CODE'): t.ho_code,
-#         gettext('COL_HO_NAME'): t.ho_name,
-#         gettext('COL_HO_TYPE'): t.ho_type,
-#         gettext('COL_HO_ESTABLISH_DATE'): t.ho_establish_date,
-#     } for t in holdings])
-#
-#     output = BytesIO()
-#     writer = pd.ExcelWriter(output, engine='xlsxwriter')
-#     df.to_excel(writer, index=False, sheet_name='基金记录')
-#     writer.close()
-#     output.seek(0)
-#
-#     return send_file(
-#         output,
-#         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-#         as_attachment=True,
-#         download_name='tradeLog.xlsx'
-#     )
+@holding_bp.route('/export', methods=['GET'])
+def export_holdings():
+    holdings = Holding.query.all()
+    df = pd.DataFrame([{
+        gettext('COL_HO_CODE'): t.ho_code,
+        gettext('COL_HO_NAME'): t.ho_name,
+        gettext('COL_HO_TYPE'): t.ho_type,
+        gettext('COL_HO_ESTABLISH_DATE'): t.ho_establish_date,
+        gettext('COL_HO_SHORT_NAME'): t.ho_short_name,
+        gettext('COL_HO_MANAGE_EXP_RATE'): t.ho_manage_exp_rate,
+        gettext('COL_HO_TRUSTEE_EXP_RATE'): t.ho_trustee_exp_rate,
+        gettext('COL_HO_SALES_EXP_RATE'): t.ho_sales_exp_rate,
+        gettext('COL_HO_STATUS'): t.ho_status,
+    } for t in holdings])
+
+    output = BytesIO()
+    writer = pd.ExcelWriter(output, engine='xlsxwriter')
+    df.to_excel(writer, index=False, sheet_name=gettext('HO_LOG'))
+    writer.close()
+    output.seek(0)
+
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=(gettext('HO_LOG') + '.xlsx')
+    )
 
 
 @holding_bp.route('/template', methods=['GET'])
@@ -171,6 +175,11 @@ def download_template():
         gettext('COL_HO_NAME'),
         gettext('COL_HO_TYPE'),
         gettext('COL_HO_ESTABLISH_DATE'),
+        gettext('COL_HO_SHORT_NAME'),
+        gettext('COL_HO_MANAGE_EXP_RATE'),
+        gettext('COL_HO_TRUSTEE_EXP_RATE'),
+        gettext('COL_HO_SALES_EXP_RATE'),
+        gettext('COL_HO_STATUS'),
     ])
 
     output = BytesIO()
@@ -228,6 +237,11 @@ def import_holdings():
                 ho_name=str(row[gettext('COL_HO_NAME')]),
                 ho_type=str(row[gettext('COL_HO_TYPE')]),
                 ho_establish_date=str(row[gettext('COL_HO_ESTABLISH_DATE')]),
+                ho_short_name=str(row[gettext('COL_HO_SHORT_NAME'),]),
+                ho_manage_exp_rate=str(row[gettext('COL_HO_MANAGE_EXP_RATE'),]),
+                ho_trustee_exp_rate=str(row[gettext('COL_HO_TRUSTEE_EXP_RATE'),]),
+                ho_sales_exp_rate=str(row[gettext('COL_HO_SALES_EXP_RATE'),]),
+                ho_status=str(row[gettext('COL_HO_STATUS'),]),
             )
             db.session.add(holding)
 
@@ -267,9 +281,9 @@ def get_fund_info():
         "ho_company": data.get("JJGS"),
         "ho_establish_date": data.get("ESTABDATE"),
         # "risk_level": data.get("RISKLEVEL"),
-        "ho_manage_expense_rate": data.get("MGREXP"), # 管理费
-        "ho_trust_expense_rate": data.get("TRUSTEXP"), # 托管费
-        "ho_sale_expense_rate": data.get("SALESEXP"), # 销售服务费
+        "ho_manage_expense_rate": data.get("MGREXP"),  # 管理费
+        "ho_trust_expense_rate": data.get("TRUSTEXP"),  # 托管费
+        "ho_sale_expense_rate": data.get("SALESEXP"),  # 销售服务费
     }
 
 

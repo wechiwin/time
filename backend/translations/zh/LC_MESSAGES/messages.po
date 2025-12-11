@@ -13,16 +13,43 @@ msgstr ""
 
 
 msgid "COL_HO_CODE"
-msgstr "基金代码"
+msgstr "持仓代码"
 
 msgid "COL_HO_NAME"
-msgstr "基金名称"
+msgstr "持仓名称"
 
 msgid "COL_HO_TYPE"
-msgstr "基金类型"
+msgstr "持仓类型"
 
 msgid "COL_HO_ESTABLISH_DATE"
-msgstr "基金类型"
+msgstr "持仓类型"
+
+msgid "COL_HO_SHORT_NAME"
+msgstr "持仓简称"
+
+msgid "COL_HO_MANAGE_EXP_RATE"
+msgstr "基金管理费率"
+
+msgid "COL_HO_TRUSTEE_EXP_RATE"
+msgstr "基金托管费率"
+
+msgid "COL_HO_SALES_EXP_RATE"
+msgstr "基金销售费率"
+
+msgid "COL_HO_STATUS"
+msgstr "状态"
+
+msgid "HO_LOG"
+msgstr "持仓记录"
+
+msgid "HO_STATUS_HOLDING"
+msgstr "持仓中"
+
+msgid "HO_STATUS_NOT_HOLDING"
+msgstr "未持仓"
+
+msgid "HO_STATUS_CLEARED"
+msgstr "已清仓"
 
 msgid "COL_TR_TYPE"
 msgstr "交易类型"

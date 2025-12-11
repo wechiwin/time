@@ -23,6 +23,33 @@ msgstr "Tipo"
 msgid "COL_HO_ESTABLISH_DATE"
 msgstr "Data di Costituzione"
 
+msgid "COL_HO_SHORT_NAME"
+msgstr "Nome Breve"
+
+msgid "COL_HO_MANAGE_EXP_RATE"
+msgstr "Commissione di Gestione"
+
+msgid "COL_HO_TRUSTEE_EXP_RATE"
+msgstr "Commissione di Custodia"
+
+msgid "COL_HO_SALES_EXP_RATE"
+msgstr "Commissione di Vendita"
+
+msgid "COL_HO_STATUS"
+msgstr "Stato"
+
+msgid "HO_LOG"
+msgstr "Registro delle Posizioni"
+
+msgid "HO_STATUS_HOLDING"
+msgstr "In possesso"
+
+msgid "HO_STATUS_NOT_HOLDING"
+msgstr "Non in possesso"
+
+msgid "HO_STATUS_CLEARED"
+msgstr "Liquidato"
+
 msgid "COL_TR_TYPE"
 msgstr "Tipo di Transazione"
 
