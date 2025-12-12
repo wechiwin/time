@@ -35,16 +35,16 @@ export default function HoldingInfoCard({
             <div
                 className="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 mb-4 border-gray-100 dark:border-gray-600">
                 <div>
-                    <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{fundInfo?.ho_name || code}</h1>
+                    <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{code} {fundInfo?.ho_name}</h1>
                     <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-3">
-                        <span
-                            className="bg-gray-100 dark:bg-gray-600 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300 font-mono">{code}</span>
-                        <span className="text-gray-600 dark:text-gray-300">{fundInfo?.ho_type}</span>
+                        {/* <span */}
+                        {/*     className="bg-gray-100 dark:bg-gray-600 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300 font-mono">{code}</span> */}
+                        {/* <span className="text-gray-600 dark:text-gray-300">{fundInfo?.ho_type}</span> */}
                     </div>
                 </div>
             </div>
 
-            {/* 统计数据 Grid - 始终渲染结构，无数据时显示 '-' */}
+            {/* 统计数据 */}
             <div className="grid grid-cols-2 md:grid-cols-6 gap-6">
                 {/* 持仓状态 */}
                 <div className="space-y-1">
@@ -71,47 +71,47 @@ export default function HoldingInfoCard({
                     </div>
                 </div>
 
-                {/* 持仓成本 */}
-                <div className="space-y-1">
-                    <div
-                        className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        <BanknotesIcon className="w-3 h-3 text-gray-400 dark:text-gray-500"/>
-                        {t('info_hold_cost', '持仓成本')}
-                    </div>
-                    <div className="font-semibold text-gray-900 dark:text-gray-200">
-                        {hasStats && globalStats.isHolding ? fmtNum(globalStats.currentCost, 4) : '-'}
-                    </div>
-                </div>
+                {/* /!* 持仓成本 *!/ */}
+                {/* <div className="space-y-1"> */}
+                {/*     <div */}
+                {/*         className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider"> */}
+                {/*         <BanknotesIcon className="w-3 h-3 text-gray-400 dark:text-gray-500"/> */}
+                {/*         {t('info_hold_cost', '持仓成本')} */}
+                {/*     </div> */}
+                {/*     <div className="font-semibold text-gray-900 dark:text-gray-200"> */}
+                {/*         {hasStats && globalStats.isHolding ? fmtNum(globalStats.currentCost, 4) : '-'} */}
+                {/*     </div> */}
+                {/* </div> */}
 
-                {/* 持仓天数 */}
-                <div className="space-y-1">
-                    <div
-                        className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        <ClockIcon className="w-3 h-3 text-gray-400 dark:text-gray-500"/>
-                        {t('info_cumulative_hold_days', '累计持仓天数')}
-                    </div>
-                    <div className="font-semibold text-gray-900 dark:text-gray-200">
-                        {hasStats ? (
-                            <>
-                                {globalStats.totalHoldingDays}
-                                <span
-                                    className="text-xs ml-0.5 text-gray-600 dark:text-gray-400">{t('info_hold_day_unit', '天')}</span>
-                            </>
-                        ) : '-'}
-                    </div>
-                </div>
+                {/* /!* 持仓天数 *!/ */}
+                {/* <div className="space-y-1"> */}
+                {/*     <div */}
+                {/*         className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider"> */}
+                {/*         <ClockIcon className="w-3 h-3 text-gray-400 dark:text-gray-500"/> */}
+                {/*         {t('info_cumulative_hold_days', '累计持仓天数')} */}
+                {/*     </div> */}
+                {/*     <div className="font-semibold text-gray-900 dark:text-gray-200"> */}
+                {/*         {hasStats ? ( */}
+                {/*             <> */}
+                {/*                 {globalStats.totalHoldingDays} */}
+                {/*                 <span */}
+                {/*                     className="text-xs ml-0.5 text-gray-600 dark:text-gray-400">{t('info_hold_day_unit', '天')}</span> */}
+                {/*             </> */}
+                {/*         ) : '-'} */}
+                {/*     </div> */}
+                {/* </div> */}
 
-                {/* 当前份额 */}
-                <div className="space-y-1">
-                    <div
-                        className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        <PresentationChartLineIcon className="w-3 h-3 text-gray-400 dark:text-gray-500"/>
-                        {t('info_holding_shares', '当前份额')}
-                    </div>
-                    <div className="font-semibold text-gray-900 dark:text-gray-200">
-                        {hasStats && globalStats.isHolding ? fmtNum(globalStats.currentShares, 2) : (hasStats ? '0.00' : '-')}
-                    </div>
-                </div>
+                {/* /!* 当前份额 *!/ */}
+                {/* <div className="space-y-1"> */}
+                {/*     <div */}
+                {/*         className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider"> */}
+                {/*         <PresentationChartLineIcon className="w-3 h-3 text-gray-400 dark:text-gray-500"/> */}
+                {/*         {t('info_holding_shares', '当前份额')} */}
+                {/*     </div> */}
+                {/*     <div className="font-semibold text-gray-900 dark:text-gray-200"> */}
+                {/*         {hasStats && globalStats.isHolding ? fmtNum(globalStats.currentShares, 2) : (hasStats ? '0.00' : '-')} */}
+                {/*     </div> */}
+                {/* </div> */}
 
                 {/* 累计收益 */}
                 <div className="space-y-1">

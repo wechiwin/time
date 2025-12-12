@@ -53,8 +53,12 @@ export default function useTradeAnalysis(trades, fundInfo, latestNav) {
             if (isCleared || isLast) {
                 const startDate = currentRoundTrades[0].tr_date;
                 const endDate = isCleared ? trade.tr_date : null;
-                const days = (endDate ? dayjs(endDate) : dayjs()).diff(dayjs(startDate), 'day');
+                // 持仓天数向上取整
+                const days = Math.max(1, Math.ceil(
+                    (endDate ? dayjs(endDate) : dayjs()).diff(dayjs(startDate), 'day', true)
+                ));
                 const holding = engine.getHolding();
+                const avgCost = holding.avgCostPerShare;  // 清仓前的平均成本
                 const {unrealized, returnRate: unrealizedReturnRate, marketValue} =
                     engine.getUnrealizedPnL(currentNav);
                 // 费率成本：基于加权平均资本占用（更准）
@@ -63,9 +67,26 @@ export default function useTradeAnalysis(trades, fundInfo, latestNav) {
                     days > 0 ? weightedCapital * totalExpenseRate * days / 365 : 0;
                 // 总收益 = 已实现 + 未实现 − 隐性费用
                 const totalProfit = engine.getRealizedPnL() + unrealized - expenseCost;
-                // 回报率（基于总投入本金）
+                // 计算本轮实际投入的总本金（只统计买入金额）
+                const roundInvestment = currentRoundTrades
+                    .filter(t => [1, '1'].includes(t.tr_type))
+                    .reduce((sum, t) => sum + parseFloat(t.tr_amount || 0), 0);
+                // 回报率 = 总收益 / 实际投入本金
                 const returnRate =
-                    holding.totalCost > 0 ? totalProfit / holding.totalCost : 0;
+                    roundInvestment > 0 ? totalProfit / roundInvestment : 0;
+
+                // 计算本轮的平均持仓成本（只考虑买入交易）
+                const buyTrades = currentRoundTrades.filter(t => [1, '1'].includes(t.tr_type));
+                let totalBuyShares = 0;
+                let totalWeightedNav = 0;
+                buyTrades.forEach(buyTrade => {
+                    const shares = parseFloat(buyTrade.tr_shares || 0);
+                    const nav = parseFloat(buyTrade.tr_nav_per_unit || 0);
+                    totalBuyShares += shares;
+                    totalWeightedNav += shares * nav;
+                });
+                // 关键：计算本轮平均成本
+                const roundAvgCost = totalBuyShares > 0 ? totalWeightedNav / totalBuyShares : 0;
 
                 rounds.push({
                     isClear: isCleared,
@@ -75,12 +96,13 @@ export default function useTradeAnalysis(trades, fundInfo, latestNav) {
                         totalProfit,
                         returnRate,
                         days,
-                        avgCost: holding.avgCostPerShare,
+                        avgCost: roundAvgCost,
                         maxShares: Math.max(...currentRoundTrades.map(t => parseFloat(t.tr_shares || 0)), 0),
                         currentShares: holding.totalShares,
                         realizedPnL: engine.getRealizedPnL(),
                         unrealizedPnL: unrealized,
-                        expenseCost
+                        expenseCost,
+                        investment: roundInvestment
                     },
                     trades: [...currentRoundTrades]
                 });
@@ -100,8 +122,6 @@ export default function useTradeAnalysis(trades, fundInfo, latestNav) {
                     currentRoundTrades = [];
                     roundStartIdx = index + 1;
                 }
-
-
             }
         });
 
@@ -121,7 +141,9 @@ export default function useTradeAnalysis(trades, fundInfo, latestNav) {
                 totalInvestmentGlobal > 0
                     ? (totalRealizedGlobal + totalUnrealizedGlobal - totalExpenseCostGlobal) / totalInvestmentGlobal
                     : 0,
-            totalExpenseCost: totalExpenseCostGlobal
+            totalExpenseCost: totalExpenseCostGlobal,
+            // 累计投资总额
+            totalInvestment: totalInvestmentGlobal
         };
         return {rounds, globalStats};
     }, [trades, latestNav, fundInfo]);
