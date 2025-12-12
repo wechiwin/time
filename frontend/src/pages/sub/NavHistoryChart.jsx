@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useState} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import ReactECharts from 'echarts-for-react';
 import dayjs from "dayjs";
 import {useTranslation} from "react-i18next";
@@ -7,10 +7,12 @@ import useNavHistoryList from "../../hooks/api/useNavHistoryList";
 import useTradeList from "../../hooks/api/useTradeList";
 import {useToast} from "../../components/toast/ToastContext";
 import HoldingSearchSelect from "../../components/search/HoldingSearchSelect";
+import {useDarkModeContext} from "../../components/common/DarkModeContext";
 
 export default function NavHistoryChart({code}) {
     const {t} = useTranslation();
     const {showSuccessToast, showErrorToast} = useToast();
+    const { isDarkMode } = useDarkModeContext();
 
     const [fundInfo, setFundInfo] = useState(null);
     const [navList, setNavList] = useState([]);
@@ -284,10 +286,90 @@ export default function NavHistoryChart({code}) {
 
     if (!code) return <div className="p-6 text-center text-gray-400">请选择一个标的以查看详情</div>;
 
+    // 获取暗黑模式下的图表主题配置
+    const getChartOptions = useCallback(() => {
+        const baseOptions = {
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'cross',
+                    snap: true,
+                    lineStyle: {type: 'dashed'}
+                },
+                formatter: function (params) {
+                    let res = params[0].axisValueLabel + '<br/>';
+                    params.forEach(item => {
+                        if (item.value !== null && item.value !== undefined) {
+                            res += `${item.marker} ${item.seriesName}: ${item.value}<br/>`;
+                        }
+                    });
+                    return res;
+                },
+                backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
+                borderColor: isDarkMode ? '#374151' : '#d1d5db',
+                textStyle: {
+                    color: isDarkMode ? '#e5e7eb' : '#374151'
+                }
+            },
+            legend: {
+                data: legendData,
+                selected: legendSelected,
+                bottom: 0,
+                left: 'center',
+                padding: [15, 0, 0, 0],
+                textStyle: {
+                    color: isDarkMode ? '#e5e7eb' : '#374151'
+                }
+            },
+            grid: {
+                left: 50,
+                right: 30,
+                bottom: 40,
+                top: 30,
+                containLabel: true
+            },
+            xAxis: {
+                type: 'category',
+                boundaryGap: false,
+                data: chartData.dates,
+                axisLine: {
+                    lineStyle: {
+                        color: isDarkMode ? '#4b5563' : '#d1d5db'
+                    }
+                },
+                axisLabel: {
+                    color: isDarkMode ? '#9ca3af' : '#6b7280'
+                }
+            },
+            yAxis: {
+                type: 'value',
+                scale: true,
+                axisLine: {
+                    lineStyle: {
+                        color: isDarkMode ? '#4b5563' : '#d1d5db'
+                    }
+                },
+                axisLabel: {
+                    color: isDarkMode ? '#9ca3af' : '#6b7280'
+                },
+                splitLine: {
+                    lineStyle: {
+                        color: isDarkMode ? '#374151' : '#e5e7eb',
+                        type: 'dashed'
+                    }
+                }
+            },
+            series,
+            backgroundColor: isDarkMode ? '#111827' : '#ffffff'
+        };
+        return baseOptions;
+    }, [legendData, legendSelected, chartData.dates, series, isDarkMode]);
+
     return (
         <div className="space-y-4">
             {/* 净值走势图表 */}
-            <div className="card p-4 bg-white rounded-xl shadow-sm border border-gray-100">
+            <div
+                className="card p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
                 <div className="mb-3 flex items-center justify-between gap-4 flex-wrap">
                     <div className="w-full max-w-xs">
                         <HoldingSearchSelect
@@ -298,7 +380,9 @@ export default function NavHistoryChart({code}) {
 
                     {/* 切换单位净值 / 累计净值 */}
                     <select
-                        className="rounded border-gray-300 border px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        className="rounded border-gray-300 dark:border-gray-600 border px-2 py-1 text-sm
+                        focus:ring-indigo-500 focus:border-indigo-500 dark:focus:ring-indigo-400 dark:focus:border-indigo-400
+                        bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                         value={chartKind}
                         onChange={e => setChartKind(e.target.value)}
                     >
@@ -324,9 +408,9 @@ export default function NavHistoryChart({code}) {
                                     type="button"
                                     onClick={() => setTimeRange(range)}
                                     className={`px-4 py-2 text-sm font-medium border first:rounded-l-lg last:rounded-r-lg transition-colors
-${active
-                                        ? 'bg-indigo-600 text-white border-indigo-600'
-                                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                        ${active
+                                        ? 'bg-indigo-600 dark:bg-indigo-500 text-white border-indigo-600 dark:border-indigo-500'
+                                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
                                     }`}
                                 >
                                     {labels[range]}
@@ -343,9 +427,11 @@ ${active
                             const info = compareDataMap[c]?.info;
                             return (
                                 <span key={c}
-                                      className="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-sm text-indigo-700 border border-indigo-100">
+                                      className="inline-flex items-center rounded-full bg-indigo-50 dark:bg-indigo-900/30
+                                      px-3 py-1 text-sm text-indigo-700 dark:text-indigo-300
+                                      border border-indigo-100 dark:border-indigo-700">
                                     {c} {info?.ho_short_name}
-                                    <button className="ml-2 text-indigo-400 hover:text-indigo-900 font-bold"
+                                    <button className="ml-2 text-indigo-400 dark:text-indigo-500 hover:text-indigo-900 dark:hover:text-indigo-200 font-bold"
                                             onClick={() => removeCompare(c)}>×</button>
                                 </span>
                             )
@@ -355,46 +441,11 @@ ${active
 
                 <ReactECharts
                     ref={chartRef}
-                    option={{
-                        tooltip: {
-                            trigger: 'axis',
-                            axisPointer: {
-                                type: 'cross',
-                                snap: true,
-                                lineStyle: {type: 'dashed'}
-                            },
-                            formatter: function (params) {
-                                let res = params[0].axisValueLabel + '<br/>';
-                                params.forEach(item => {
-                                    if (item.value !== null && item.value !== undefined) {
-                                        res += `${item.marker} ${item.seriesName}: ${item.value}<br/>`;
-                                    }
-                                });
-                                return res;
-                            },
-                        },
-                        legend: {
-                            data: legendData,
-                            selected: legendSelected,
-                            bottom: 0,
-                            left: 'center',
-                            padding: [15, 0, 0, 0]
-                        },
-                        grid: {left: 50, right: 30, bottom: 40, top: 30, containLabel: true},
-                        xAxis: {
-                            type: 'category',
-                            boundaryGap: false,
-                            data: chartData.dates
-                        },
-                        yAxis: {
-                            type: 'value',
-                            scale: true,
-                        },
-                        series,
-                    }}
+                    option={getChartOptions()}
                     style={{height: 450}}
                     showLoading={loadingCompare || navList.length === 0}
                     notMerge={true}
+                    lazyUpdate={false}
                     onEvents={{legendselectchanged: onChartLegendSelectChanged}}
                 />
             </div>

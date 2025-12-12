@@ -46,7 +46,7 @@ export default function NavHistoryDetailPage() {
     }, [ho_code]);
 
     return (
-        <div className="bg-gray-50 min-h-screen">
+        <div className="bg-gray-50 dark:bg-gray-900 min-h-screen">
             <HoldingInfoCard
                 code={ho_code}
                 fundInfo={fundInfo}
