@@ -17,7 +17,7 @@ apiClient.interceptors.request.use(config => {
 
     // 将当前的 i18next 语言设置到 Header 中
     config.headers['Accept-Language'] = i18n.language;
-    console.log('Accept-Language in Interceptor:', config.headers['Accept-Language']);
+    // console.log('Accept-Language in Interceptor:', config.headers['Accept-Language']);
     return config;
 }, (error) => {
     return Promise.reject(error);
@@ -32,38 +32,52 @@ apiClient.interceptors.response.use(
         }
 
         const res = response.data;
-        // 判断业务状态码
-        if (res.code !== 200) {
-            const msg = res.message && res.message.trim() ? res.message : `请求失败，code=${res.code}`;
+        // 情况1：HTTP 200 + 业务码200 → 成功
+        if (response.status === 200 && res.code === 200) {
+            return res.data;
+        }
+
+        // 情况2：HTTP 200 + 业务码非200 → 业务异常
+        if (response.status === 200 && res.code !== 200) {
+            const msg = res.msg || res.message || `业务错误: code=${res.code}`;
             return Promise.reject(new Error(msg));
         }
-        // console.log('clientjs')
-        return res.data; // 直接返回data字段的数据
+
+        // 情况3：HTTP 4xx/5xx → 系统异常
+        if (response.status >= 400) {
+            const msg = res.msg || res.message || `请求失败: HTTP ${response.status}`;
+            return Promise.reject(new Error(msg));
+        }
+
+        // 其他情况（兼容旧格式）
+        return res;
     },
     (error) => {
-        // 处理 401 Unauthorized 错误
-        if (error.response && error.response.status === 401) {
-            console.error('Session expired or unauthorized. Clearing token and redirecting.');
+        // 网络错误或超时
+        if (!error.response) {
+            return Promise.reject(new Error('网络连接失败，请检查网络'));
+        }
+        const {status, data} = error.response;
 
-            // 1. 清除失效的 Token
+        // 401 未授权
+        if (status === 401) {
+            console.error('Session expired or unauthorized');
             localStorage.removeItem('access_token');
-
-            // 2. 跳转到登录页
-            // 由于这里是 JS 模块，不是 React 组件，使用硬跳转 (replace) 更可靠。
-            // 导入 useNavigate 的替代品：因为拦截器不是 React 组件，不能使用 Hook。
-            // 我们需要一个可以执行路由跳转的函数。
-            // 常见的做法是单独维护一个 history/navigate 对象。
-            // ⚠️ 假设你已经设置了一个名为 'history' 的模块来管理路由状态，例如：
-            // import { history } from '../router/history';
-            // 如果你的 React Router 是 V6，通常需要传递 navigate 函数或使用 window.location。
-            // 为了简化，这里先使用 window.location.replace() 进行硬跳转。
-            // 如果你想使用 V6 的 navigate，请告诉我你如何访问它。
             window.location.replace('/login');
-
-            // 阻止 Promise 链继续执行，防止组件继续处理 401 错误
             return Promise.reject(new Error('Unauthorized: Session expired.'));
         }
-        return Promise.reject(error);
+
+        // 500 系统错误
+        if (status >= 500) {
+            const msg = data?.msg || data?.message || '服务器内部错误';
+            const traceId = data?.data?.trace_id;
+            const errorMsg = traceId ? `${msg} (TraceID: ${traceId})` : msg;
+            return Promise.reject(new Error(errorMsg));
+        }
+
+        // 其他HTTP错误
+        const msg = data?.msg || data?.message || `请求失败 (HTTP ${status})`;
+        return Promise.reject(new Error(msg));
     }
 );
 

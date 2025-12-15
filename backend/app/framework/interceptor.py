@@ -1,40 +1,41 @@
 # app/framework/interceptor.py
-from flask import Flask, jsonify, make_response, Response, request, g
-from app.framework.res import Res
 import json
 import time
+
+from flask import Flask, make_response, request, g
 
 
 def register_response_interceptor(app: Flask):
     @app.after_request
     def uniform_response(response):
-        # 2. 如果是 passthrough，跳过二次读取
+        # 跳过流式响应
         if getattr(response, 'direct_passthrough', False):
             return response
 
-        # 1. 如果已经是 JSON 或空响应
+        # 如果已经是统一格式，直接返回
+        try:
+            data = json.loads(response.get_data(as_text=True))
+            if isinstance(data, dict) and "code" in data and "msg" in data:
+                return response
+        except Exception:
+            pass
+
+        # 对非JSON响应（如空字符串）进行包装
         try:
             data = json.loads(response.get_data(as_text=True))
         except Exception:
-            text = response.get_data(as_text=True)
-            if text in (None, ''):
-                data = None
-            else:
-                # 非 JSON 内容直接返回（比如 HTML 或文件）
-                return response
+            data = response.get_data(as_text=True) or None
 
-        # 2. 已经是统一格式就直接返回
-        if isinstance(data, dict) and "code" in data and "msg" in data:
-            return response
+        # 只对200响应进行包装（错误响应已在error_handler中处理）
+        if response.status_code == 200:
+            unified = {
+                "code": 200,
+                "msg": "success",
+                "data": data
+            }
+            response = make_response(json.dumps(unified, ensure_ascii=False))
+            response.content_type = "application/json; charset=utf-8"
 
-        # 3. 否则包装成统一格式
-        unified = {
-            "code": 200,
-            "msg": "success",
-            "data": data
-        }
-        response = make_response(json.dumps(unified, ensure_ascii=False))
-        response.content_type = "application/json; charset=utf-8"
         return response
 
 
