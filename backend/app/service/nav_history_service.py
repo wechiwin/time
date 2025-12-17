@@ -9,10 +9,8 @@ from sqlalchemy import func
 
 
 class NavHistoryService:
-    def __init__(self):
-        pass
-
-    def search_list(self, ho_code: int, start_date, end_date):
+    @classmethod
+    def search_list(cls, ho_code: int, start_date, end_date):
         if not ho_code:
             return ''
 
@@ -43,7 +41,8 @@ class NavHistoryService:
         } for nv, ho_short_name in results]
         return data
 
-    def crawl_all_nav_history(self, ):
+    @classmethod
+    def crawl_all_nav_history(cls, ):
         yesterday = datetime.now() - timedelta(days=1)
         yesterday_str = yesterday.strftime('%Y-%m-%d')
 
@@ -92,10 +91,10 @@ class NavHistoryService:
 
             #  如果没有最早或者最晚，说明数据库没有相关净值历史记录，直接查创立日期-昨天
             if not max_nav_date or not min_nav_date:
-                data = self.crawl_one_nav_history(ho_code, ho_establish_date, yesterday_str)
+                data = cls.crawl_one_nav_history(ho_code, ho_establish_date, yesterday_str)
                 if data:
                     try:
-                        self.save_nav_history_to_db(data, ho_code, ho_establish_date, yesterday_str)
+                        cls.save_nav_history_to_db(data, ho_code, ho_establish_date, yesterday_str)
                         total_inserted += len(data)
                         time.sleep(0.5)
                     except Exception as e:
@@ -104,10 +103,10 @@ class NavHistoryService:
                 break
             # 最晚净值日期-昨天
             if max_nav_date < yesterday_str:
-                data = self.crawl_one_nav_history(ho_code, max_nav_date, yesterday_str)
+                data = cls.crawl_one_nav_history(ho_code, max_nav_date, yesterday_str)
                 if data:
                     try:
-                        self.save_nav_history_to_db(data, ho_code, max_nav_date, yesterday_str)
+                        cls.save_nav_history_to_db(data, ho_code, max_nav_date, yesterday_str)
                         total_inserted += len(data)
                         time.sleep(0.5)
                     except Exception as e:
@@ -115,10 +114,10 @@ class NavHistoryService:
                         errors.append(f"{ho_code}: {e}")
             # 创立日期-最早净值日期
             if min_nav_date > ho_establish_date:
-                data = self.crawl_one_nav_history(ho_code, ho_establish_date, min_nav_date)
+                data = cls.crawl_one_nav_history(ho_code, ho_establish_date, min_nav_date)
                 if data:
                     try:
-                        self.save_nav_history_to_db(data, ho_code, ho_establish_date, min_nav_date)
+                        cls.save_nav_history_to_db(data, ho_code, ho_establish_date, min_nav_date)
                         total_inserted += len(data)
                         time.sleep(0.5)
                     except Exception as e:
@@ -127,7 +126,8 @@ class NavHistoryService:
 
         return {'inserted': total_inserted, 'errors': errors}
 
-    def crawl_one_nav_history(self, ho_code, start_date=None, end_date=None):
+    @classmethod
+    def crawl_one_nav_history(cls, ho_code, start_date=None, end_date=None):
         """
         爬取单只基金的历史净值
         :param ho_code: 基金代码，如 '000001'
@@ -190,7 +190,8 @@ class NavHistoryService:
 
         return all_data
 
-    def save_nav_history_to_db(self, data_list, ho_code, start_date, end_date):
+    @classmethod
+    def save_nav_history_to_db(cls, data_list, ho_code, start_date, end_date):
         # 查询日期内的数据
         result = NavHistory.query.filter(
             NavHistory.ho_code == ho_code,

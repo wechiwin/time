@@ -1,12 +1,14 @@
-from io import BytesIO
-import pandas as pd
+from datetime import date
+
 from flask import Blueprint, request
-from flask_babel import gettext
-from sqlalchemy import or_
-from app.models import db, AlertRule, AlertHistory
-from app.schemas_marshall import AlertRuleSchema, AlertHistorySchema, marshal_pagination
+from sqlalchemy import or_, desc
+
 from app.framework.exceptions import BizException
 from app.framework.sys_constant import DEFAULT_PAGE_SIZE
+from app.models import db, AlertRule, AlertHistory, Holding
+from app.schemas_marshall import AlertRuleSchema, AlertHistorySchema
+from app.service.alert_service import AlertService
+from app.tools.date_tool import get_yesterday_date_str
 
 alert_bp = Blueprint('alert', __name__, url_prefix='/api/alert')
 
@@ -15,10 +17,12 @@ alert_bp = Blueprint('alert', __name__, url_prefix='/api/alert')
 @alert_bp.route('/rule', methods=['POST'])
 def create_rule():
     data = request.get_json()
-    if not data.get('ho_code') or not data.get('ar_type'):
+    if not data.get('ho_code') or not data.get('ar_type') or not data.get('ar_is_active') or not data.get(
+            'ar_target_navpu'):
         raise BizException(msg="缺少必要字段")
 
     new_rule = AlertRuleSchema().load(data)
+    new_rule.ar_tracked_date = get_yesterday_date_str()
     db.session.add(new_rule)
     db.session.commit()
     return ''
@@ -57,7 +61,10 @@ def search_rule_page():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', DEFAULT_PAGE_SIZE, type=int)
 
-    query = AlertRule.query
+    # query = AlertRule.query
+    query = db.session.query(AlertRule, Holding.ho_short_name).outerjoin(
+        Holding, AlertRule.ho_code == Holding.ho_code
+    )
     if ho_code:
         query = query.filter_by(ho_code=ho_code)
     if ar_type:
@@ -68,11 +75,36 @@ def search_rule_page():
         query = query.filter(
             or_(
                 AlertRule.ho_code.ilike(f'%{keyword}%'),
+                Holding.ho_short_name.ilike(f'%{keyword}%'),
+                Holding.ho_name.ilike(f'%{keyword}%'),
             )
         )
 
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
-    return marshal_pagination(pagination, AlertRuleSchema)
+    pagination = query.order_by(desc(AlertRule.updated_at)).paginate(
+        page=page, per_page=per_page, error_out=False)
+    rules = pagination.items or []
+    data = [{
+        'ar_id': r.ar_id,
+        'ho_code': r.ho_code,
+        'ho_short_name': ho_short_name,
+        'ar_is_active': r.ar_is_active,
+        'ar_target_navpu': r.ar_target_navpu,
+        'ar_tracked_date': r.ar_tracked_date,
+        'ar_type': r.ar_type,
+        'ar_name': r.ar_name,
+        'created_at': r.created_at,
+        'updated_at': r.updated_at
+    } for r, ho_short_name in rules]
+    # 返回分页信息
+    return {
+        'items': data,
+        'pagination': {
+            'page': page,
+            'per_page': per_page,
+            'total': pagination.total,
+            'pages': pagination.pages
+        }
+    }
 
 
 # AlertHistory 接口
@@ -90,7 +122,10 @@ def search_history_page():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', DEFAULT_PAGE_SIZE, type=int)
 
-    query = AlertHistory.query
+    # query = AlertHistory.query
+    query = db.session.query(AlertHistory, Holding.ho_short_name).outerjoin(
+        Holding, AlertHistory.ho_code == Holding.ho_code
+    )
     if ar_id:
         query = query.filter_by(ar_id=ar_id)
     if ah_status:
@@ -102,5 +137,40 @@ def search_history_page():
             )
         )
 
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
-    return marshal_pagination(pagination, AlertHistorySchema)
+    pagination = query.order_by(desc(AlertHistory.updated_at)).paginate(
+        page=page, per_page=per_page, error_out=False)
+    rule_histories = pagination.items or []
+    data = [{
+        'ah_id': r.ah_id,
+        'ar_id': r.ar_id,
+        'ho_code': r.ho_code,
+        'ho_short_name': ho_short_name,
+        'ah_nav_date': r.ah_nav_date,
+        'ah_status': r.ah_status,
+        'ah_ar_type': r.ah_ar_type,
+        'ah_target_navpu': r.ah_target_navpu,
+        'ah_nav_per_unit': r.ah_nav_per_unit,
+        'created_at': r.created_at,
+        'updated_at': r.updated_at
+    } for r, ho_short_name in rule_histories]
+    # 返回分页信息
+    return {
+        'items': data,
+        'pagination': {
+            'page': page,
+            'per_page': per_page,
+            'total': pagination.total,
+            'pages': pagination.pages
+        }
+    }
+
+
+@alert_bp.route('/history/alert_job', methods=['GET'])
+def alert_job():
+    AlertService.check_alert_rules()
+    return ''
+
+@alert_bp.route('/history/mail_job', methods=['GET'])
+def mail_job():
+    AlertService.trigger_alert_job()
+    return ''

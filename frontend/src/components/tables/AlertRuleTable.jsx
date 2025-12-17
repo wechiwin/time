@@ -23,6 +23,8 @@ export default function AlertRuleTable({data = [], onDelete, onEdit}) {
                 <thead className="page-bg">
                 <tr>
                     <th className="table-header">{t('th_ho_code')}</th>
+                    <th className="table-header">{t('th_ho_short_name')}</th>
+                    <th className="table-header">{t('th_ar_name')}</th>
                     <th className="table-header">{t('alert_type')}</th>
                     <th className="table-header">{t('alert_target_navpu')}</th>
                     <th className="table-header">{t('alert_status')}</th>
@@ -33,6 +35,8 @@ export default function AlertRuleTable({data = [], onDelete, onEdit}) {
                 {data.map((rule) => (
                     <tr key={rule.ar_id} className="hover:page-bg">
                         <td className="table-cell">{rule.ho_code}</td>
+                        <td className="table-cell">{rule.ho_short_name}</td>
+                        <td className="table-cell">{rule.ar_name}</td>
                         <td className="table-cell">{getTypeText(rule.ar_type)}</td>
                         <td className="table-cell">{rule.ar_target_navpu}</td>
                         <td className="table-cell">{getStatusText(rule.ar_is_active)}</td>

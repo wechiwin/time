@@ -7,7 +7,7 @@ import {useCallback, useState} from "react";
 import Pagination from "../components/common/Pagination";
 import CrawlNetValueForm from "../components/forms/CrawlNetValueForm";
 import {usePaginationState} from "../hooks/usePaginationState";
-import {useToast} from "../components/toast/ToastContext";
+import {useToast} from "../components/context/ToastContext";
 import {useTranslation} from "react-i18next";
 
 export default function NavHistoryPage() {

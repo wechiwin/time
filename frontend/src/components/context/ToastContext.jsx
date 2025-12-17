@@ -1,5 +1,5 @@
 import React, {createContext, useState, useCallback, useContext, useRef, useEffect} from 'react';
-import Toast from './Toast';
+import Toast from '../common/Toast';
 import {useTranslation} from "react-i18next";
 
 const ToastContext = createContext(null);

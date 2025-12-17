@@ -3,7 +3,7 @@ import {useCallback, useEffect, useState} from 'react';
 import HoldingSearchSelect from '../search/HoldingSearchSelect';
 import useHoldingList from '../../hooks/api/useHoldingList';
 import useNavHistoryList from '../../hooks/api/useNavHistoryList';
-import {useToast} from "../toast/ToastContext";
+import {useToast} from "../context/ToastContext";
 import {useTranslation} from "react-i18next";
 
 /**

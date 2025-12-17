@@ -100,3 +100,36 @@ msgstr "Invio fallito"
 
 msgid "AR_TR_ADD_POSITION"
 msgstr "Aggiungi Posizione"
+
+msgid "EMAIL_SUBJECT_TRIGGER_ALERT"
+msgstr "Avviso di Attivazione del Monitoraggio"
+msgid "EMAIL_TITLE"
+msgstr "Avviso di monitoraggio del portafoglio"
+
+msgid "RECIPIENT_TITLE"
+msgstr "Gentile"
+msgid "RECIPIENT_PUNCTUATION"
+msgstr ","
+
+msgid "CONTENT_FIRST"
+msgstr "Il tuo monitoraggio"
+msgid "CONTENT_SECOND"
+msgstr "è stato attivato"
+
+msgid "COL_AH_TRIGGER_NAV_DATE"
+msgstr "Data di attivazione"
+
+msgid "COL_AH_NAV_PER_UNIT"
+msgstr "Valore quota alla data di attivazione"
+
+msgid "COL_AH_TARGET_NAVPU"
+msgstr "Valore obiettivo"
+
+msgid "COL_AH_AR_TYPE"
+msgstr "Azione consigliata"
+
+msgid "EMAIL_DO_NOT_REPLY"
+msgstr "Questa email è generata automaticamente dal sistema, non rispondere."
+
+msgid "ALL_RIGHTS_RESERVED"
+msgstr "Tutti i diritti riservati"

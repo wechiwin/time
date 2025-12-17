@@ -17,9 +17,14 @@ class Config:
     # 邮件配置
     MAIL_SERVER = os.getenv('MAIL_SERVER')
     MAIL_PORT = os.getenv('MAIL_PORT')
-    MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'true').lower() in ['true', 'on', '1']
+    MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'False').lower() == 'true'
+    MAIL_USE_SSL = os.getenv('MAIL_USE_SSL', 'True').lower() == 'true'
     MAIL_USERNAME = os.getenv('MAIL_USERNAME')
     MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
+    MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER')
+    # 调试配置
+    MAIL_DEBUG = True  # 开启调试
+    MAIL_SUPPRESS_SEND = False  # 确保不抑制发送
     # i18n
     BABEL_DEFAULT_LOCALE = 'zh',
     BABEL_TRANSLATION_DIRECTORIES = '../translations'

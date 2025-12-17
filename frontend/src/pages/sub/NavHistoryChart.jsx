@@ -5,9 +5,9 @@ import {useTranslation} from "react-i18next";
 import useHoldingList from "../../hooks/api/useHoldingList";
 import useNavHistoryList from "../../hooks/api/useNavHistoryList";
 import useTradeList from "../../hooks/api/useTradeList";
-import {useToast} from "../../components/toast/ToastContext";
+import {useToast} from "../../components/context/ToastContext";
 import HoldingSearchSelect from "../../components/search/HoldingSearchSelect";
-import {useDarkModeContext} from "../../components/common/DarkModeContext";
+import {useDarkModeContext} from "../../components/context/DarkModeContext";
 
 export default function NavHistoryChart({code}) {
     const {t} = useTranslation();

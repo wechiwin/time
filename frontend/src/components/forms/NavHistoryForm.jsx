@@ -1,6 +1,6 @@
 // src/components/forms/NavHistoryForm.jsx
 import {useEffect, useState} from 'react';
-import {useToast} from '../toast/ToastContext';
+import {useToast} from '../context/ToastContext';
 import {useTranslation} from "react-i18next";
 
 const init = {

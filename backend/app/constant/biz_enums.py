@@ -45,3 +45,11 @@ class AlertActionStatusEnum(Enum):
     def __init__(self, code, desc):
         self.code = code
         self.desc = desc
+
+    @classmethod
+    def get_desc_by_code(cls, code):
+        """根据code获取desc"""
+        for member in cls:
+            if member.code == code:
+                return member.desc
+        raise ValueError(f"No enum member with code {code}")

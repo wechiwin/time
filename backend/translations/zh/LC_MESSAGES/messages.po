@@ -101,3 +101,37 @@ msgstr "发送失败"
 
 msgid "AR_TR_ADD_POSITION"
 msgstr "加仓"
+
+msgid "EMAIL_SUBJECT_TRIGGER_ALERT"
+msgstr "监控触发提醒"
+
+msgid "EMAIL_TITLE"
+msgstr "持仓监控触发通知"
+
+msgid "RECIPIENT_TITLE"
+msgstr "尊敬的用户"
+msgid "RECIPIENT_PUNCTUATION"
+msgstr "："
+
+msgid "CONTENT_FIRST"
+msgstr "您的监控"
+msgid "CONTENT_SECOND"
+msgstr "已触发"
+
+msgid "COL_AH_TRIGGER_NAV_DATE"
+msgstr "触发日期"
+
+msgid "COL_AH_NAV_PER_UNIT"
+msgstr "触发单位净值"
+
+msgid "COL_AH_TARGET_NAVPU"
+msgstr "监控净值"
+
+msgid "COL_AH_AR_TYPE"
+msgstr "建议操作"
+
+msgid "EMAIL_DO_NOT_REPLY"
+msgstr "此邮件由系统自动发送，请勿直接回复。"
+
+msgid "ALL_RIGHTS_RESERVED"
+msgstr "版权所有"

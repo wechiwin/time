@@ -4,7 +4,7 @@ import AlertHistoryTable from '../components/tables/AlertHistoryTable';
 import AlertRuleForm from '../components/forms/AlertRuleForm';
 import useAlertList from '../hooks/api/useAlertList';
 import FormModal from "../components/common/FormModal";
-import {useToast} from "../components/toast/ToastContext";
+import {useToast} from "../components/context/ToastContext";
 import Pagination from "../components/common/Pagination";
 import {usePaginationState} from "../hooks/usePaginationState";
 import {useTranslation} from "react-i18next";
@@ -85,18 +85,53 @@ export default function AlertPage() {
         <div className="space-y-6">
             {/* 模式切换按钮 */}
             <div className="flex items-center gap-4 mb-4">
-                <button
-                    className={`btn-${mode === 'rule' ? 'primary' : 'secondary'}`}
-                    onClick={() => setMode('rule')}
+                {/* 模式切换按钮 - 带滑动动画的 Segmented Control */}
+                <div
+                    role="radiogroup"
+                    className="relative inline-flex w-64 rounded-md border border-gray-300 bg-white p-1 shadow-sm"
+                    tabIndex={0}
                 >
-                    {t('alert_rule_management')}
-                </button>
-                <button
-                    className={`btn-${mode === 'history' ? 'primary' : 'secondary'}`}
-                    onClick={() => setMode('history')}
-                >
-                    {t('alert_history_management')}
-                </button>
+                    {/* 滑动指示器（背景高亮条） */}
+                    <div
+                        className={`absolute left-0 top-0 h-full w-1/2 rounded-md bg-blue-500 transition-all duration-300 ease-in-out ${
+                            mode === 'history' ? 'translate-x-full' : 'translate-x-0'
+                        }`}
+                        aria-hidden="true"
+                    />
+
+                    {/* 选项：规则管理 */}
+                    <button
+                        type="button"
+                        role="radio"
+                        aria-checked={mode === 'rule'}
+                        tabIndex={mode === 'rule' ? 0 : -1}
+                        onClick={() => setMode('rule')}
+                        className={`relative z-10 flex-1 px-4 py-2 text-center text-sm font-medium transition-colors duration-200 
+          ${mode === 'rule'
+                            ? 'text-white'
+                            : 'text-gray-700 hover:text-gray-900'
+                        }`}
+                    >
+                        {t('alert_rule_management')}
+                    </button>
+
+                    {/* 选项：历史记录 */}
+                    <button
+                        type="button"
+                        role="radio"
+                        aria-checked={mode === 'history'}
+                        tabIndex={mode === 'history' ? 0 : -1}
+                        onClick={() => setMode('history')}
+                        className={`relative z-10 flex-1 px-4 py-2 text-center text-sm font-medium transition-colors duration-200 
+          ${mode === 'history'
+                            ? 'text-white'
+                            : 'text-gray-700 hover:text-gray-900'
+                        }`}
+                    >
+                        {t('alert_history_management')}
+                    </button>
+                </div>
+
             </div>
 
             {/* 搜索 + 按钮行 */}

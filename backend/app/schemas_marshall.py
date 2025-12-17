@@ -42,7 +42,10 @@ class AlertRuleSchema(SQLAlchemyAutoSchema):
         sqla_session = db.session
         load_instance = True
         unknown = EXCLUDE
+        exclude = ('ar_id',)  # 创建时不包含主键
 
+    # 如果需要在响应中返回主键
+    ar_id = fields.Integer(dump_only=True)
 
 class AlertHistorySchema(SQLAlchemyAutoSchema):
     class Meta:

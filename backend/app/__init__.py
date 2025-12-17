@@ -8,6 +8,7 @@ from flask_babel import Babel
 from flask_jwt_extended import JWTManager
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_mail import Mail
 
 from app.database import db
 from app.framework.error_handler import register_error_handler
@@ -29,13 +30,26 @@ limiter = Limiter(
     default_limits=["200 per day", "50 per hour"],
     storage_uri='memory://' # 明确指定后警告会消失
 )
+# 初始化邮件扩展
+mail = Mail()
 
 def get_locale():
-    lang = request.args.get("lang")
-    if lang in ['zh', 'it', 'en']:
-        return lang
-    return request.accept_languages.best_match(['zh', 'it', 'en'])
+    """获取i18n语言"""
+    try:
+        # 检查是否有请求上下文
+        if not request:
+            return 'zh'  # 默认返回中文
 
+        lang = request.args.get("lang")
+        if lang in ['zh', 'it', 'en']:
+            return lang
+
+        # 处理 accept_languages 可能返回 None 的情况
+        best_match = request.accept_languages.best_match(['zh', 'it', 'en'])
+        return best_match if best_match else 'zh'
+    except RuntimeError:
+        # 无请求上下文时返回默认语言
+        return 'zh'
 
 class NoAsciiJSONProvider(DefaultJSONProvider):
     ensure_ascii = False
@@ -72,7 +86,7 @@ def create_app():
     babel.init_app(app, locale_selector=get_locale)
 
     jwt = JWTManager(app)
-
+    mail.init_app(app)
     limiter.init_app(app)
 
     # 禁用 ASCII 转义

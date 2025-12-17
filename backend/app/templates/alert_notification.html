@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="{{ current_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ _("EMAIL_TITLE") }}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f7fa;
+            margin: 0;
+            padding: 0;
+        }
+
+        .email-container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background-color: #4a6fa5;
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .greeting {
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .message-section {
+            margin-bottom: 25px;
+        }
+
+        .message-section p {
+            margin: 8px 0;
+            font-size: 15px;
+        }
+
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: #fafafa;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .details-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .details-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .label-cell {
+            font-weight: 600;
+            color: #555;
+            background-color: #f8f9fa;
+            width: 40%; /* 增加默认宽度 */
+            vertical-align: top; /* 顶部对齐 */
+        }
+
+        .value-cell {
+            color: #333;
+            width: 60%; /* 对应增加 */
+        }
+
+        /* 多语言自适应处理 */
+        @media screen and (max-width: 480px) {
+            .details-table td {
+                display: block;
+                width: 100% !important;
+                box-sizing: border-box;
+            }
+
+            .label-cell,
+            .value-cell {
+                width: 100% !important;
+                text-align: left;
+            }
+
+            .label-cell {
+                border-bottom: none;
+                padding-bottom: 0;
+            }
+        }
+
+        .warning-note {
+            background-color: #fff8e1;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 25px 0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .footer {
+            background-color: #f1f3f5;
+            padding: 20px 30px;
+            text-align: center;
+            font-size: 12px;
+            color: #6c757d;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .footer p {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+<div class="email-container">
+    <div class="header">
+        <h1>{{ _("EMAIL_TITLE") }}</h1>
+    </div>
+
+    <div class="content">
+        <div class="greeting">
+            {{ _("RECIPIENT_TITLE") }} {{ user.username }}{{ _("RECIPIENT_PUNCTUATION") }}
+        </div>
+
+        <div class="message-section">
+            <p>{{ _("CONTENT_FIRST") }} <strong>{{ history.ah_ar_name }}</strong> {{ _("CONTENT_SECOND") }}:</p>
+        </div>
+
+        <table class="details-table">
+            <tr>
+                <td class="label-cell">{{ _("COL_HO_CODE") }}:</td>
+                <td class="value-cell">{{ ho_code }}</td>
+            </tr>
+            <tr>
+                <td class="label-cell">{{ _("COL_HO_NAME") }}:</td>
+                <td class="value-cell">{{ ho_name }}</td>
+            </tr>
+            <tr>
+                <td class="label-cell">{{ _("COL_AH_TRIGGER_NAV_DATE") }}:</td>
+                <td class="value-cell">{{ history.ah_trigger_nav_date }}</td>
+            </tr>
+            <tr>
+                <td class="label-cell">{{ _("COL_AH_NAV_PER_UNIT") }}:</td>
+                <td class="value-cell">{{ history.ah_nav_per_unit }}</td>
+            </tr>
+            <tr>
+                <td class="label-cell">{{ _("COL_AH_TARGET_NAVPU") }}:</td>
+                <td class="value-cell">{{ history.ah_target_navpu }}</td>
+            </tr>
+            <tr>
+                <td class="label-cell">{{ _("COL_AH_AR_TYPE") }}:</td>
+                <td class="value-cell">{{ _(action) }}</td>
+            </tr>
+        </table>
+
+        <div class="warning-note">
+            {{ _("EMAIL_DO_NOT_REPLY") }}
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>© {{current_year}} T.I.M.E. {{ _("ALL_RIGHTS_RESERVED") }}.</p>
+    </div>
+</div>
+</body>
+</html>
