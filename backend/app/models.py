@@ -1,9 +1,8 @@
-from binascii import hexlify
 from datetime import datetime
 
-from Crypto.Protocol.KDF import PBKDF2
-from flask import current_app
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask import current_app as app
+from passlib.exc import InvalidHashError
+from passlib.hash import pbkdf2_sha256
 
 from app.database import db
 
@@ -30,7 +29,7 @@ class Holding(TimestampMixin, db.Model):
     ho_manage_exp_rate = db.Column(db.Float)  # 管理费率
     ho_trustee_exp_rate = db.Column(db.Float)  # 托管费率
     ho_sales_exp_rate = db.Column(db.Float)  # 销售费率
-    ho_status = db.Column(db.Integer) # 状态：0,已关注;1,已持仓；2.已清仓
+    ho_status = db.Column(db.Integer)  # 状态：0,已关注;1,已持仓；2.已清仓
 
 
 class Trade(TimestampMixin, db.Model):
@@ -65,40 +64,64 @@ class AlertRule(TimestampMixin, db.Model):
     ar_target_navpu = db.Column(db.Float)  # 目标单位净值
     ar_is_active = db.Column(db.Integer)  # 是否激活:1.是;0.否
     ar_tracked_date = db.Column(db.String(20))  # 已追踪日期
+    ar_name = db.Column(db.String(200))  # 名称
 
 
 class AlertHistory(TimestampMixin, db.Model):
     ah_id = db.Column(db.Integer, primary_key=True)
     ar_id = db.Column(db.Integer)
-    ah_nav_date = db.Column(db.String(100))  # 实际净值日
     ah_status = db.Column(db.Integer)  # 发送状态:0:'pending', 1:'sent', 2:'failed'
     ho_code = db.Column(db.String(50))
     ah_ar_type = db.Column(db.Integer)  # 提醒类型：1.买入/2.加仓/0.卖出
-    ah_target_navpu = db.Column(db.Float)  # 目标单位净值
     ah_nav_per_unit = db.Column(db.Float)  # 实际净值
+    ah_trigger_nav_date = db.Column(db.String(100))  # 触发净值日
+    ah_target_navpu = db.Column(db.Float)  # 目标单位净值
+    ah_remark = db.Column(db.String(2000))  # 备注
+    ah_sent_time = db.Column(db.DateTime)  # 发送时间
+    ah_ar_name = db.Column(db.String(100))
 
 
 class UserSetting(TimestampMixin, db.Model):
     us_id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(128))
+    username = db.Column(db.String(128), unique=True, nullable=False)
     pwd_hash = db.Column(db.String(128))
     default_lang = db.Column(db.String(20))
     email_address = db.Column(db.String(50))
 
-    def set_password(self, password):
-        """将密码转换为哈希值并存储到 pwd_hash 字段"""
-        self.pwd_hash = generate_password_hash(password)
+    @staticmethod
+    def hash_password(raw_password):
+        return pbkdf2_sha256.hash(raw_password)
 
-    def check_password(self, password):
-        """检查提供的密码是否与存储的哈希值匹配"""
-        return check_password_hash(self.pwd_hash, password)
+    @staticmethod
+    def verify_password(raw_password, hashed):
+        try:
+            # 检查哈希值是否有效
+            if not hashed or not isinstance(hashed, str):
+                app.logger.warning("Empty or invalid hash provided")
+                return False
 
-    def generate_hash(password: str) -> str:
-        """生成加盐哈希"""
-        dk = PBKDF2(
-            password.encode(),
-            current_app.config['SALT'],
-            dkLen=64,
-            count=current_app.config['ITERATIONS']
-        )
-        return hexlify(dk).decode()
+            # 检查哈希格式是否正确
+            if not hashed.startswith('$pbkdf2-sha256$'):
+                app.logger.warning(f"Unexpected hash format: {hashed}")
+                return False
+
+            return pbkdf2_sha256.verify(raw_password, hashed)
+
+        except InvalidHashError:
+            app.logger.error(f"Invalid hash format for password verification")
+            return False
+
+        except Exception as e:
+            app.logger.error(f"Unexpected error in password verification: {str(e)}")
+            return False
+
+
+class TokenBlacklist(db.Model):
+    __tablename__ = 'token_blacklist'
+
+    id = db.Column(db.Integer, primary_key=True)
+    jti = db.Column(db.String(36), nullable=False, unique=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+    def __init__(self, jti):
+        self.jti = jti

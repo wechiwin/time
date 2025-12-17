@@ -2,16 +2,11 @@ import {Fragment} from 'react';
 import {Menu, Transition} from '@headlessui/react';
 import {GlobeAltIcon} from '@heroicons/react/24/outline';
 import {useTranslation} from 'react-i18next';
+import {LANGUAGES} from "../constants/sysConst";
 
 function classNames(...classes) {
     return classes.filter(Boolean).join(' ');
 }
-
-const languages = [
-    {code: 'zh', name: '中文'},
-    {code: 'it', name: 'Italiano'},
-    {code: 'en', name: 'English'},
-];
 
 export default function LanguageSwitcher() {
     const {i18n} = useTranslation();
@@ -50,7 +45,7 @@ export default function LanguageSwitcher() {
                 <Menu.Items
                     className="absolute bottom-full right-0 mb-2 w-32 origin-bottom-right bg-white dark:bg-gray-700 divide-y divide-gray-100 dark:divide-gray-600 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                     <div className="py-1">
-                        {languages.map((lang) => (
+                        {LANGUAGES.map((lang) => (
                             <Menu.Item key={lang.code}>
                                 {({active}) => (
                                     <button

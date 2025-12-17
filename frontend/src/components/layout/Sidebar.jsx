@@ -7,6 +7,7 @@ import {
     ChartBarIcon,
     ChevronLeftIcon,
     ChevronRightIcon,
+    Cog6ToothIcon,
     HomeIcon,
     TableCellsIcon,
     XMarkIcon
@@ -15,7 +16,9 @@ import DarkToggle from "./DarkToggle";
 import {useTranslation} from 'react-i18next';
 import LanguageSwitcher from "../../i18n/LanguageSwitcher";
 import {BellIcon} from "@heroicons/react/16/solid";
-import useUser from "../../hooks/api/useUser";
+import useUserSetting from "../../hooks/api/useUserSetting";
+import UserSettingForm from "../forms/UserSettingForm";
+import FormModal from "../common/FormModal";
 
 const navigation = [
     {key: 'menu_dashboard', name: 'Dashboard', href: '/dashboard', icon: HomeIcon},
@@ -30,7 +33,12 @@ export default function Sidebar({onSelect, isCollapsed, onToggleCollapse}) {
     const [isOpen, setIsOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const navigate = useNavigate();
-    const {logout} = useUser();
+    const {logout, fetchUserProfile, updateUser} = useUserSetting();
+
+    // 模态框状态
+    const [showUserSettingModal, setShowUserSettingModal] = useState(false);
+    const [userSettingInitialValues, setUserSettingInitialValues] = useState({});
+
     useEffect(() => {
         const handleResize = () => {
             setIsMobile(window.innerWidth < 768);
@@ -49,6 +57,25 @@ export default function Sidebar({onSelect, isCollapsed, onToggleCollapse}) {
     const handleLogout = () => {
         logout();
         navigate('/login');
+    };
+
+    const handleOpenUserSetting = async () => {
+        try {
+            const userData = await fetchUserProfile();
+            setUserSettingInitialValues(userData);
+        } catch (error) {
+            setUserSettingInitialValues({});
+            console.log(error)
+        }
+        setShowUserSettingModal(true);
+    };
+    const handleSaveUserSetting = async (formData) => {
+        try {
+            await updateUser(formData);
+            // 可以在这里更新全局用户状态或重新获取用户信息
+        } catch (error) {
+            throw error; // 让 FormModal 处理错误
+        }
     };
 
     return (
@@ -125,6 +152,15 @@ export default function Sidebar({onSelect, isCollapsed, onToggleCollapse}) {
                 >
                     <LanguageSwitcher/>
                     <DarkToggle/>
+                    {/* 个人设置按钮 */}
+                    <button
+                        onClick={handleOpenUserSetting}
+                        className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        aria-label="User Settings"
+                        title={t('user_settings')}
+                    >
+                        <Cog6ToothIcon className="w-5 h-5 text-gray-700 dark:text-gray-200"/>
+                    </button>
                     {/* 退出按钮 */}
                     <button
                         onClick={handleLogout}
@@ -144,6 +180,15 @@ export default function Sidebar({onSelect, isCollapsed, onToggleCollapse}) {
                     onClick={toggleSidebar}
                 />
             )}
+            {/* 个人设置模态框 */}
+            <FormModal
+                title={t('user_settings')}
+                show={showUserSettingModal}
+                onClose={() => setShowUserSettingModal(false)}
+                onSubmit={handleSaveUserSetting}
+                FormComponent={UserSettingForm}
+                initialValues={userSettingInitialValues}
+            />
         </>
     );
 }

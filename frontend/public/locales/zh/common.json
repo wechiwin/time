@@ -20,6 +20,7 @@
   "th_ho_manage_exp_rate": "基金管理费率",
   "th_ho_trustee_exp_rate": "基金托管费率",
   "th_ho_sales_exp_rate": "基金销售费率",
+  "th_ar_name": "监控名称",
 
   "start_date": "开始日期",
   "end_date": "结束日期",
@@ -107,6 +108,38 @@
   "alert_status_sent": "已发送",
   "alert_status_failed": "发送失败",
   "status_active": "激活",
-  "status_inactive": "未激活"
+  "status_inactive": "未激活",
 
+  "login_title": "登录系统",
+  "register_title": "用户注册",
+  "register_subtitle": "创建您的个人账户",
+  "username": "用户名",
+  "password": "密码",
+  "confirm_password": "确认密码",
+  "username_placeholder": "请输入用户名",
+  "password_placeholder": "请输入密码",
+  "confirm_password_placeholder": "请再次输入密码",
+  "login_btn": "登 录",
+  "register_btn": "创建账户",
+  "logging_in": "登录中...",
+  "registering": "注册中...",
+  "login_failed": "登录失败，请检查用户名或密码",
+  "registration_failed": "注册失败",
+  "no_account": "还没有账户？",
+  "register_now": "立即注册",
+  "password_mismatch": "两次输入的密码不一致",
+  "password_too_short": "密码至少需要6位字符",
+
+  "field_required": "此字段为必填项",
+  "username_too_short": "用户名至少需要3位字符",
+  "login_subtitle": "欢迎回来，请登录您的账户",
+  "registration_success": "注册成功",
+  "registration_error": "注册失败",
+  "already_have_account": "已有账户？",
+  "back_to_login": "立即登录",
+
+  "user_settings": "个人设置",
+  "th_username": "用户名",
+  "th_default_language": "默认语言",
+  "th_email_address": "邮箱地址"
 }
