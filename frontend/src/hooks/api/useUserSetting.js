@@ -1,6 +1,6 @@
 import {useCallback, useState} from 'react';
 import useApi from "../useApi";
-import {tokenStorage} from "../../utils/tokenStorage";
+import SecureTokenStorage from "../../utils/tokenStorage";
 
 export default function useUserSetting() {
     const {loading, error, get, post, put, del} = useApi();
@@ -8,16 +8,16 @@ export default function useUserSetting() {
 
     // 登录接口
     const login = useCallback(async (username, password) => {
-        const result = await post('/api/user_setting/login', {
+        const result = await post('/user_setting/login', {
             username,
             password
         });
 
-        if (result && result.access_token) {
+        if (result && result.data.access_token) {
             // 存储 Token
-            tokenStorage.setTokens(result.access_token, result.refresh_token);
-            // localStorage.setItem('access_token', result.access_token);
-            // localStorage.setItem('refresh_token', result.refresh_token);
+            SecureTokenStorage.setTokens(
+                result.data.access_token,
+                result.data.csrf_token);
             return result;
         }
         return null;
@@ -25,30 +25,28 @@ export default function useUserSetting() {
 
     // 获取用户信息
     const fetchUserProfile = useCallback(async () => {
-        const result = await get('/api/user_setting/user');
+        const result = await get('/user_setting/user');
         setCurrentUser(result);
         return result;
     }, [get]);
 
     // 登出
     const logout = useCallback(() => {
-        // localStorage.removeItem('access_token');
-        // localStorage.removeItem('refresh_token');
-        tokenStorage.clearTokens();
+        SecureTokenStorage.clearTokens();
         setCurrentUser(null);
-        post('/api/user/logout');
+        post('/user/logout');
     }, []);
 
     // 注册接口
     const register = useCallback(async (username, password) => {
-        const result = await post('/api/user_setting/register', {
+        const result = await post('/user_setting/register', {
             username,
             password
         });
-        if (result && result.access_token) {
-            // localStorage.setItem('access_token', result.access_token);
-            // localStorage.setItem('refresh_token', result.refresh_token);
-            tokenStorage.setTokens(result.access_token, result.refresh_token);
+        if (result && result.data.access_token) {
+            SecureTokenStorage.setTokens(
+                result.data.access_token,
+                result.data.csrf_token);
             return result;
         }
         return null;
@@ -56,7 +54,7 @@ export default function useUserSetting() {
 
     // 更新用户设置
     const updateUser = useCallback(async (userData) => {
-        const result = await put('/api/user_setting/user', userData);
+        const result = await put('/user_setting/user', userData);
         if (result) {
             setCurrentUser(prev => ({...prev, ...result}));
         }
@@ -65,12 +63,14 @@ export default function useUserSetting() {
 
     // 修改密码
     const changePassword = useCallback(async (oldPassword, newPassword) => {
-        const result = await post('/api/user_setting/pwd', {
+        const result = await post('/user_setting/pwd', {
             old_password: oldPassword,
             new_password: newPassword
         });
-        if (result && result.access_token && result.refresh_token) {
-            tokenStorage.setTokens(result.access_token, result.refresh_token);
+        if (result && result.data.access_token && result.data.refresh_token) {
+            SecureTokenStorage.setTokens(
+                result.data.access_token,
+                result.data.csrf_token);
         }
         return result;
     }, [post]);

@@ -20,7 +20,7 @@ export default function useAlertList(options = {}) {
             per_page: currentPerPage.toString()
         }).toString();
 
-        const endpoint = currentMode === 'rule' ? '/api/alert/rule/search_page' : '/api/alert/history/search_page';
+        const endpoint = currentMode === 'rule' ? '/alert/rule/search_page' : '/alert/history/search_page';
         const result = await get(`${endpoint}?${params}`);
         setData(result);
         return result;
@@ -34,26 +34,26 @@ export default function useAlertList(options = {}) {
 
     // AlertRule 操作
     const addRule = useCallback(async (body) => {
-        const result = await post('/api/alert/rule', body);
+        const result = await post('/alert/rule', body);
         await searchPage(keyword, page, perPage, 'rule');
         return result;
     }, [post, searchPage, keyword, page, perPage]);
 
     const updateRule = useCallback(async ({ar_id, ...body}) => {
-        const result = await put(`/api/alert/rule/${ar_id}`, body);
+        const result = await put(`/alert/rule/${ar_id}`, body);
         await searchPage(keyword, page, perPage, 'rule');
         return result;
     }, [put, searchPage, keyword, page, perPage]);
 
     const deleteRule = useCallback(async (ar_id) => {
-        const result = await del(`/api/alert/rule/${ar_id}`);
+        const result = await del(`/alert/rule/${ar_id}`);
         await searchPage(keyword, page, perPage, 'rule');
         return result;
     }, [del, searchPage, keyword, page, perPage]);
 
     // AlertHistory 操作
     const addHistory = useCallback(async (body) => {
-        const result = await post('/api/alert/history', body);
+        const result = await post('/alert/history', body);
         await searchPage(keyword, page, perPage, 'history');
         return result;
     }, [post, searchPage, keyword, page, perPage]);

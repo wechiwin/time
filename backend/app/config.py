@@ -1,4 +1,6 @@
 import os
+from datetime import timedelta
+
 from dotenv import load_dotenv
 
 load_dotenv('.flaskenv')
@@ -32,8 +34,18 @@ class Config:
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
     SALT = os.getenv('SALT')
     ITERATIONS = os.getenv('ITERATIONS')
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=15)
+    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=7)
+    JWT_TOKEN_LOCATION = ["cookies"]
+    JWT_ACCESS_COOKIE_NAME = "access_token"
+    JWT_REFRESH_COOKIE_NAME = "refresh_token"
+    JWT_COOKIE_CSRF_PROTECT = True
+    JWT_COOKIE_SECURE = os.getenv("FLASK_ENV") == "production"
+    JWT_COOKIE_SAMESITE = "Lax"
+    JWT_COOKIE_DOMAIN = None
 
-    # 自动识别当前环境配置
+
+# 自动识别当前环境配置
     @classmethod
     def get_config(cls):
         env = cls.ENV

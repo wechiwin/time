@@ -20,7 +20,7 @@ export default function useTradeList(options = {}) {
             page: currentPage.toString(),
             per_page: currentPerPage.toString()
         }).toString();
-        const result = await get(`/api/trade?${params}`);
+        const result = await get(`/trade?${params}`);
         setData(result);  // 业务逻辑设置 data
         return result;
     }, [get]);
@@ -33,26 +33,26 @@ export default function useTradeList(options = {}) {
     }, [keyword, page, perPage, autoLoad, search]);
 
     const add = useCallback(async (body) => {
-        const result = await post('/api/trade', body);
+        const result = await post('/trade', body);
         await search(keyword, page, perPage);
         return result;
     }, [post, search, keyword, page, perPage]);
 
     const remove = useCallback(async (id) => {
-        const result = await del(`/api/trade/${id}`);
+        const result = await del(`/trade/${id}`);
         await search(keyword, page, perPage);
         return result;
     }, [del, search, keyword, page, perPage]);
 
     const update = useCallback(async ({tr_id, ...body}) => {
-        const result = await put(`/api/trade/${tr_id}`, body);
+        const result = await put(`/trade/${tr_id}`, body);
         await search(keyword, page, perPage);
         return result;
     }, [put, search, keyword, page, perPage]);
 
     // 下载模板
     const downloadTemplate = useCallback(async () => {
-        const url = '/api/trade/template';
+        const url = '/trade/template';
         const filename = 'template.xlsx';
 
         try {
@@ -84,7 +84,7 @@ export default function useTradeList(options = {}) {
         const formData = new FormData();
         formData.append('file', file);
 
-        return post('/api/trade/import', formData, {
+        return post('/trade/import', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },
@@ -95,7 +95,7 @@ export default function useTradeList(options = {}) {
         const params = new URLSearchParams({
             ho_code: ho_code
         }).toString();
-        const result = await get(`/api/trade/list_by_code?${params}`);
+        const result = await get(`/trade/list_by_code?${params}`);
         setData(result);  // 业务逻辑设置 data
         return result;
     }, [get]);
@@ -104,7 +104,7 @@ export default function useTradeList(options = {}) {
         const formData = new FormData();
         formData.append('file', file);
 
-        return post('/api/trade/upload', formData, {
+        return post('/trade/upload', formData, {
             headers: { // 必须包裹在 headers 对象中
                 'Content-Type': 'multipart/form-data',
             },
@@ -117,7 +117,7 @@ export default function useTradeList(options = {}) {
 
         // 注意：这里去掉了手动设置 'Content-Type': 'multipart/form-data'
         // 让浏览器自动生成 boundary
-        return post('/api/trade/upload_sse', formData, {});
+        return post('/trade/upload_sse', formData, {});
     }, [post]);
 
     return {

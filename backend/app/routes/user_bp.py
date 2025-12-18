@@ -1,7 +1,11 @@
-from datetime import timedelta
+import hashlib
+import logging
+import uuid
 
-from flask import Blueprint, request, jsonify, make_response
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, create_refresh_token, get_jwt
+from flask import Blueprint, request, jsonify, current_app
+from flask_jwt_extended import (
+    create_access_token, jwt_required, get_jwt_identity, create_refresh_token, get_jwt,
+    set_refresh_cookies, unset_refresh_cookies)
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
@@ -9,11 +13,25 @@ from app.framework.exceptions import BizException
 from app.models import UserSetting, TokenBlacklist
 from app.models import db
 
+logger = logging.getLogger(__name__)
+
 user_bp = Blueprint('user_setting', __name__, url_prefix='/api/user_setting')
 limiter = Limiter(key_func=get_remote_address)
-# Token配置
-ACCESS_TOKEN_EXPIRES = timedelta(hours=6)
-REFRESH_TOKEN_EXPIRES = timedelta(days=7)
+
+
+# 生成设备指纹
+def generate_device_fingerprint():
+    """基于请求信息生成设备指纹"""
+    user_agent = request.headers.get('User-Agent', '')
+    ip = get_remote_address()
+    accept_lang = request.headers.get('Accept-Language', '')
+
+    # 创建哈希
+    fingerprint = hashlib.sha256(
+        f"{user_agent}|{ip}|{accept_lang}".encode()
+    ).hexdigest()
+
+    return fingerprint
 
 
 @user_bp.route('/login', methods=['POST'])
@@ -26,17 +44,28 @@ def login():
     user = UserSetting.query.filter_by(username=username).first()
 
     if user and UserSetting.verify_password(password, user.pwd_hash):
-        access_token = create_access_token(identity=user.username,
-                                           expires_delta=ACCESS_TOKEN_EXPIRES)
-        refresh_token = create_refresh_token(identity=user.username,
-                                             expires_delta=REFRESH_TOKEN_EXPIRES)
+        # 生成设备指纹
+        device_fingerprint = generate_device_fingerprint()
+        # 创建包含指纹的token
+        additional_claims = {
+            "device_fingerprint": device_fingerprint,
+            "session_id": str(uuid.uuid4())
+        }
+        access_token = create_access_token(
+            identity=user.username,
+            additional_claims=additional_claims)
+        refresh_token = create_refresh_token(
+            identity=user.username,
+            additional_claims=additional_claims)
+        # 生成CSRF Token
+        csrf_token = str(uuid.uuid4())
 
         response = jsonify({
             "code": 200,
             "message": "登录成功",
             "data": {
                 "access_token": access_token,
-                "refresh_token": refresh_token,
+                "csrf_token": csrf_token,
                 "user": {
                     "id": user.us_id,
                     "username": user.username,
@@ -45,16 +74,15 @@ def login():
                 }
             }
         })
-        # 设置HttpOnly cookies（可选）
-        response.set_cookie(
-            'refresh_token',
-            refresh_token,
-            httponly=True,
-            secure=True,  # 生产环境启用
-            samesite='Strict',
-            max_age=7 * 24 * 60 * 60  # 7天
-        )
 
+        # 设置HttpOnly refresh_token cookie
+        set_refresh_cookies(
+            response,
+            refresh_token,
+            path='/api/user/refresh'  # 限制cookie仅用于刷新接口
+        )
+        # 设置CSRF Token到header
+        response.headers['X-CSRF-Token'] = csrf_token
         return response
     else:
         raise BizException("用户名或密码错误")  # TODO 多语言
@@ -65,6 +93,7 @@ def login():
 def refresh():
     try:
         current_username = get_jwt_identity()
+        jwt_data = get_jwt()
         jti = get_jwt()["jti"]
 
         # 检查refresh token是否在黑名单中
@@ -72,12 +101,34 @@ def refresh():
         if blacklisted:
             raise BizException("Token已失效", code=401)
 
-        new_token = create_access_token(
+        # 验证设备指纹
+        current_fingerprint = generate_device_fingerprint()
+        stored_fingerprint = jwt_data.get("device_fingerprint")
+
+        if stored_fingerprint != current_fingerprint:
+            # 指纹不匹配，可能被盗用
+            logger.warning(f"Device fingerprint mismatch for user {current_username}")
+            raise BizException("Token验证失败", code=401)
+
+        # 生成新的access_token和csrf_token
+        new_access_token = create_access_token(
             identity=current_username,
-            expires_delta=ACCESS_TOKEN_EXPIRES
+            additional_claims={
+                "device_fingerprint": current_fingerprint,
+                "session_id": jwt_data.get("session_id")
+            },
         )
 
-        return jsonify({"access_token": new_token})
+        new_csrf_token = str(uuid.uuid4())
+        response = jsonify({
+            "access_token": new_access_token,
+            "csrf_token": new_csrf_token
+        })
+
+        # 返回新的CSRF Token
+        response.headers['X-CSRF-Token'] = new_csrf_token
+
+        return response
     except Exception as e:
         raise BizException("Token刷新失败", code=401)
 
@@ -202,15 +253,20 @@ def logout():
         # 将token加入黑名单
         blacklisted_token = TokenBlacklist(jti=jti)
         db.session.add(blacklisted_token)
+        # 同时黑名单refresh token
+        refresh_jti = get_jwt(refresh=True)["jti"] if get_jwt(refresh=True) else None
+        if refresh_jti:
+            blacklisted_refresh = TokenBlacklist(jti=refresh_jti)
+            db.session.add(blacklisted_refresh)
+
         db.session.commit()
 
         response = jsonify({
             "code": 200,
             "message": "登出成功"
         })
-
-        # 清除cookie
-        response.set_cookie('refresh_token', '', expires=0)
+        # 清除refresh_token cookie
+        unset_refresh_cookies(response)
 
         return response
     except Exception as e:
