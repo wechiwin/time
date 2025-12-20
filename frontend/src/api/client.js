@@ -109,7 +109,8 @@ apiClient.interceptors.response.use(
                 const newCsrfToken = response.headers['X-CSRF-Token'] || response.headers['X-CSRF-Token'];
 
                 // 存储新token
-                SecureTokenStorage.setTokens(access_token, newCsrfToken);
+                SecureTokenStorage.setAccessToken(access_token);
+                SecureTokenStorage.setCsrfToken(newCsrfToken);
 
                 // 处理队列中的请求
                 processQueue(null, access_token);
