@@ -5,6 +5,7 @@ from flask import Flask, jsonify, request
 from flask.json.provider import DefaultJSONProvider
 from flask_apscheduler import APScheduler
 from flask_babel import Babel
+from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -28,10 +29,11 @@ log = get_early_logger(__name__)
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["200 per day", "50 per hour"],
-    storage_uri='memory://' # 明确指定后警告会消失
+    storage_uri='memory://'  # 明确指定后警告会消失
 )
 # 初始化邮件扩展
 mail = Mail()
+
 
 def get_locale():
     """获取i18n语言"""
@@ -50,6 +52,7 @@ def get_locale():
     except RuntimeError:
         # 无请求上下文时返回默认语言
         return 'zh'
+
 
 class NoAsciiJSONProvider(DefaultJSONProvider):
     ensure_ascii = False
@@ -78,6 +81,19 @@ def create_app():
     app = Flask(__name__)
     # 加载config
     app.config.from_object(Config.get_config())
+
+    # 初始化CORS
+    CORS(app, resources={
+        r"/api/*": {
+            "origins": app.config['CORS_ORIGINS'],
+            "methods": app.config.get('CORS_METHODS', ["GET", "POST", "PUT", "DELETE", "OPTIONS"]),
+            "supports_credentials": app.config['CORS_SUPPORTS_CREDENTIALS'],
+            "expose_headers": app.config['CORS_EXPOSE_HEADERS'],
+            "allow_headers": app.config.get('CORS_ALLOW_HEADERS', ["Content-Type", "Authorization", "X-CSRF-Token"]),
+            "max_age": 3600  # 预检请求缓存1小时
+        }
+    })
+
     # 检查环境一致性
     if app.config['ENV'] == 'production' and app.debug:
         raise RuntimeError("生产环境不能开启调试模式！")

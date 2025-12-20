@@ -2,7 +2,7 @@
 import json
 import time
 
-from flask import Flask, make_response, request, g
+from flask import Flask, request, g
 
 
 def register_response_interceptor(app: Flask):
@@ -33,7 +33,7 @@ def register_response_interceptor(app: Flask):
                 "msg": "success",
                 "data": data
             }
-            response = make_response(json.dumps(unified, ensure_ascii=False))
+            response.set_data(json.dumps(unified, ensure_ascii=False))
             response.content_type = "application/json; charset=utf-8"
 
         return response

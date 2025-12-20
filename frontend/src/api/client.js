@@ -35,8 +35,6 @@ apiClient.interceptors.request.use(config => {
     // 将当前的 i18next 语言设置到 Header 中
     config.headers['Accept-Language'] = i18n.language;
     // console.log('Accept-Language in Interceptor:', config.headers['Accept-Language']);
-    // 添加请求时间戳
-    config.headers['X-Request-Timestamp'] = Date.now();
     return config;
 }, (error) => {
     return Promise.reject(error);
@@ -50,11 +48,10 @@ apiClient.interceptors.response.use(
             return response;
         }
         // 自动保存CSRF Token（如果后端返回）
-        if (response.headers['x-csrf-token']) {
-            SecureTokenStorage.setTokens(
-                SecureTokenStorage.getAccessToken(),
-                response.headers['x-csrf-token']
-            );
+        const newCsrfToken = response.headers['x-csrf-token'] || response.headers['X-CSRF-Token'];
+        // console.log('CSRF Token extracted:', newCsrfToken);
+        if (newCsrfToken) {
+            SecureTokenStorage.setCsrfToken(newCsrfToken)
         }
         const res = response.data;
         // 情况1：HTTP 200 + 业务码200 → 成功
@@ -74,7 +71,6 @@ apiClient.interceptors.response.use(
             return Promise.reject(new Error(msg));
         }
 
-        // 其他情况（兼容旧格式）
         return res;
     },
     async (error) => {
@@ -85,7 +81,7 @@ apiClient.interceptors.response.use(
         }
         const {status, data} = error.response;
         // 401处理 - Token刷新逻辑
-        if (status === 401 && !originalRequest._retry && originalRequest.url !== '/api/user/refresh') {
+        if (status === 401 && !originalRequest._retry && originalRequest.url !== '/api/user_setting/refresh') {
             if (isRefreshing) {
                 // 加入队列等待刷新完成
                 return new Promise((resolve, reject) => {
@@ -100,17 +96,20 @@ apiClient.interceptors.response.use(
             originalRequest._retry = true;
             isRefreshing = true;
             try {
+                const csrfToken = SecureTokenStorage.getCsrfToken();
                 // 调用刷新接口（refresh_token自动通过cookie发送）
-                const response = await axios.post('/api/user/refresh', {}, {
-                    withCredentials: true, // 确保cookie被发送
+                const response = await axios.post('/api/user_setting/refresh', {}, {
+                    withCredentials: true,
                     headers: {
-                        'X-CSRF-Token': SecureTokenStorage.getCsrfToken() || ''
+                        'X-CSRF-Token': csrfToken || '',
+                        'Accept-Language': i18n.language
                     }
                 });
-                const {access_token, csrf_token} = response.data;
+                const {access_token} = response.data;
+                const newCsrfToken = response.headers['X-CSRF-Token'] || response.headers['X-CSRF-Token'];
 
                 // 存储新token
-                SecureTokenStorage.setTokens(access_token, csrf_token);
+                SecureTokenStorage.setTokens(access_token, newCsrfToken);
 
                 // 处理队列中的请求
                 processQueue(null, access_token);
@@ -118,21 +117,26 @@ apiClient.interceptors.response.use(
 
                 // 重试原始请求
                 originalRequest.headers.Authorization = `Bearer ${access_token}`;
-                originalRequest.headers['X-CSRF-Token'] = csrf_token;
+                originalRequest.headers['X-CSRF-Token'] = newCsrfToken;
                 return apiClient(originalRequest);
             } catch (refreshError) {
                 // 刷新失败，清除token并跳转登录
                 processQueue(refreshError, null);
                 isRefreshing = false;
                 SecureTokenStorage.clearTokens();
-                window.location.href = '/login';
+                // 跳转到登录页
+                if (typeof window !== 'undefined') {
+                    window.location.href = '/login';
+                }
                 return Promise.reject(new Error('会话已过期，请重新登录'));
             }
         }
         // 其他401错误（刷新token失败）
-        if (status === 401) {
+        if (status === 401 && originalRequest.url === '/api/user_setting/refresh') {
             SecureTokenStorage.clearTokens();
-            window.location.href = '/login';
+            if (typeof window !== 'undefined') {
+                window.location.href = '/login';
+            }
             return Promise.reject(new Error('会话已过期，请重新登录'));
         }
         // 500错误

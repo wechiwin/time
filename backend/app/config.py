@@ -43,9 +43,29 @@ class Config:
     JWT_COOKIE_SECURE = os.getenv("FLASK_ENV") == "production"
     JWT_COOKIE_SAMESITE = "Lax"
     JWT_COOKIE_DOMAIN = None
+    JWT_REFRESH_COOKIE_PATH = '/api'
+    JWT_ACCESS_COOKIE_PATH = '/api'
 
+    # CORS配置
+    CORS_ORIGINS = [
+        'http://192.168.3.33:5173',
+        'http://localhost:5173',
+        'http://127.0.0.1:5173'
+    ]
+    CORS_EXPOSE_HEADERS = [
+        'X-CSRF-Token',
+        'x-csrf-token',
+        'X-Request-ID',
+        'Content-Type',
+        'Authorization',
+        'Accept-Language'
+    ]
+    CORS_SUPPORTS_CREDENTIALS = True
+    CORS_ALLOW_HEADERS = ['Content-Type', 'Authorization', 'X-CSRF-Token', 'Accept-Language', 'X-Request-ID',
+                          'Set-Cookie']
+    CORS_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
 
-# 自动识别当前环境配置
+    # 自动识别当前环境配置
     @classmethod
     def get_config(cls):
         env = cls.ENV

@@ -1,5 +1,5 @@
-import React, {useState, useEffect} from 'react';
-import {useNavigate, Link} from 'react-router-dom';
+import React, {useState} from 'react';
+import {Link, useNavigate} from 'react-router-dom';
 import {useTranslation} from 'react-i18next';
 import LanguageSwitcher from '../i18n/LanguageSwitcher';
 import DarkToggle from "../components/layout/DarkToggle";
@@ -56,7 +56,7 @@ export default function RegisterPage() {
         try {
             await register(formData.username, formData.password);
             showSuccessToast(t('registration_success', '注册成功'));
-            navigate('/login');
+            navigate('/dashboard');
         } catch (err) {
             setApiError(err.message);
             console.error("Registration failed", err);

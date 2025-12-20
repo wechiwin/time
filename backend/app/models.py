@@ -12,11 +12,9 @@ class TimestampMixin:
     混入类：为继承它的所有模型统一增加
     created_at 和 updated_at 两个时间戳字段
     """
-    created_at = db.Column(db.DateTime, default=datetime.now(), nullable=False)
-    updated_at = db.Column(db.DateTime,
-                           default=datetime.now(),
-                           onupdate=datetime.now(),
-                           nullable=False)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(),
+                           onupdate=db.func.current_timestamp(), nullable=False)
 
 
 class Holding(TimestampMixin, db.Model):
@@ -120,8 +118,10 @@ class TokenBlacklist(db.Model):
     __tablename__ = 'token_blacklist'
 
     id = db.Column(db.Integer, primary_key=True)
-    jti = db.Column(db.String(36), nullable=False, unique=True)
+    jti = db.Column(db.String(36), nullable=False, unique=True, index=True)
+    token_type = db.Column(db.String(10), nullable=False)  # 'access' or 'refresh'
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    expires_at = db.Column(db.DateTime, nullable=False)  # 过期时间
 
     def __init__(self, jti):
         self.jti = jti

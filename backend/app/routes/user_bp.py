@@ -1,11 +1,12 @@
 import hashlib
 import logging
 import uuid
+from datetime import datetime
 
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import (
     create_access_token, jwt_required, get_jwt_identity, create_refresh_token, get_jwt,
-    set_refresh_cookies, unset_refresh_cookies)
+    set_refresh_cookies, unset_refresh_cookies, get_csrf_token)
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
@@ -19,12 +20,11 @@ user_bp = Blueprint('user_setting', __name__, url_prefix='/api/user_setting')
 limiter = Limiter(key_func=get_remote_address)
 
 
-# 生成设备指纹
 def generate_device_fingerprint():
     """基于请求信息生成设备指纹"""
     user_agent = request.headers.get('User-Agent', '')
-    ip = get_remote_address()
     accept_lang = request.headers.get('Accept-Language', '')
+    ip = get_remote_address()
 
     # 创建哈希
     fingerprint = hashlib.sha256(
@@ -40,56 +40,56 @@ def login():
     data = request.get_json()
     username = data.get('username')
     password = data.get('password')
+    if not username or not password:
+        raise BizException("用户名和密码不能为空", code=400)
 
     user = UserSetting.query.filter_by(username=username).first()
+    if not user or not UserSetting.verify_password(password, user.pwd_hash):
+        # 模糊错误信息防止用户枚举
+        raise BizException("用户名或密码错误", code=401)
 
-    if user and UserSetting.verify_password(password, user.pwd_hash):
-        # 生成设备指纹
-        device_fingerprint = generate_device_fingerprint()
-        # 创建包含指纹的token
-        additional_claims = {
-            "device_fingerprint": device_fingerprint,
-            "session_id": str(uuid.uuid4())
+    # 生成设备指纹
+    device_fingerprint = generate_device_fingerprint()
+    # 创建包含指纹的token
+    additional_claims = {
+        "device_fingerprint": device_fingerprint,
+        "session_id": str(uuid.uuid4())
+    }
+    access_token = create_access_token(
+        identity=user.username,
+        additional_claims=additional_claims)
+    refresh_token = create_refresh_token(
+        identity=user.username,
+        additional_claims=additional_claims)
+    # 生成CSRF Token
+    # csrf_token = str(uuid.uuid4())
+
+    response = jsonify({
+        "access_token": access_token,
+        # "csrf_token": csrf_token,
+        "user": {
+            "id": user.us_id,
+            "username": user.username,
+            "default_lang": user.default_lang,
+            "email_address": user.email_address,
         }
-        access_token = create_access_token(
-            identity=user.username,
-            additional_claims=additional_claims)
-        refresh_token = create_refresh_token(
-            identity=user.username,
-            additional_claims=additional_claims)
-        # 生成CSRF Token
-        csrf_token = str(uuid.uuid4())
+    })
 
-        response = jsonify({
-            "code": 200,
-            "message": "登录成功",
-            "data": {
-                "access_token": access_token,
-                "csrf_token": csrf_token,
-                "user": {
-                    "id": user.us_id,
-                    "username": user.username,
-                    "default_lang": user.default_lang,
-                    "email_address": user.email_address,
-                }
-            }
-        })
+    # 设置HttpOnly refresh_token cookie
+    set_refresh_cookies(
+        response,
+        refresh_token,
+    )
+    # 设置CSRF Token到header
+    csrf_token_value = get_csrf_token(refresh_token)
+    response.headers['X-CSRF-Token'] = csrf_token_value
 
-        # 设置HttpOnly refresh_token cookie
-        set_refresh_cookies(
-            response,
-            refresh_token,
-            path='/api/user/refresh'  # 限制cookie仅用于刷新接口
-        )
-        # 设置CSRF Token到header
-        response.headers['X-CSRF-Token'] = csrf_token
-        return response
-    else:
-        raise BizException("用户名或密码错误")  # TODO 多语言
+    return response
 
 
 @user_bp.route('/refresh', methods=['POST'])
 @jwt_required(refresh=True)
+@limiter.limit("10 per hour")
 def refresh():
     try:
         current_username = get_jwt_identity()
@@ -108,9 +108,16 @@ def refresh():
         if stored_fingerprint != current_fingerprint:
             # 指纹不匹配，可能被盗用
             logger.warning(f"Device fingerprint mismatch for user {current_username}")
-            raise BizException("Token验证失败", code=401)
 
-        # 生成新的access_token和csrf_token
+            # 强制登出
+            blacklisted = TokenBlacklist(jti=jti,
+                                         token_type='refresh',
+                                         expires_at=datetime.now() + current_app.config['JWT_REFRESH_TOKEN_EXPIRES'])
+            db.session.add(blacklisted)
+            db.session.commit()
+            raise BizException("安全验证失败，请重新登录", code=401)
+
+        # 生成新的access_token
         new_access_token = create_access_token(
             identity=current_username,
             additional_claims={
@@ -119,17 +126,36 @@ def refresh():
             },
         )
 
-        new_csrf_token = str(uuid.uuid4())
+        # 生成新的refresh token
+        new_refresh_token = create_refresh_token(
+            identity=current_username,
+            additional_claims={
+                "device_fingerprint": current_fingerprint,
+                "session_id": jwt_data.get("session_id")
+            },
+        )
+
+        # 使旧refresh token失效
+        blacklisted = TokenBlacklist(jti=jti,
+                                     token_type='refresh',
+                                     expires_at=datetime.now() + current_app.config['JWT_REFRESH_TOKEN_EXPIRES'])
+        db.session.add(blacklisted)
+        db.session.commit()
+
         response = jsonify({
             "access_token": new_access_token,
-            "csrf_token": new_csrf_token
         })
-
+        set_refresh_cookies(response, new_refresh_token)
         # 返回新的CSRF Token
-        response.headers['X-CSRF-Token'] = new_csrf_token
+        response.headers['X-CSRF-Token'] = get_csrf_token(new_refresh_token)
 
         return response
+    except BizException:
+        db.session.rollback()
+        raise
     except Exception as e:
+        db.session.rollback()
+        logger.error(f"Refresh failed: {e}", exc_info=True)
         raise BizException("Token刷新失败", code=401)
 
 
@@ -160,8 +186,9 @@ def update_user():
     if not user:
         raise BizException("用户不存在")
 
-    email_address = request.args.get('email_address')
-    default_lang = request.args.get('default_lang')
+    data = request.get_json()
+    email_address = data.get('email_address')
+    default_lang = data.get('default_lang')
 
     # 更新
     if email_address and user.email_address != email_address:
@@ -204,10 +231,18 @@ def register():
     # 注册成功后自动返回token
     access_token = create_access_token(identity=new_user.username)
     refresh_token = create_refresh_token(identity=new_user.username)
-    return jsonify({
+
+    response = jsonify({
         "access_token": access_token,
-        "refresh_token": refresh_token
+        "user": {
+            "id": new_user.us_id,
+            "username": new_user.username,
+        }
     })
+
+    set_refresh_cookies(response, refresh_token)
+
+    return response
 
 
 @user_bp.route('/pwd', methods=['POST'])
@@ -232,33 +267,63 @@ def edit_password():
     # 验证原密码
     if not UserSetting.verify_password(old_password, user.pwd_hash):
         raise BizException("原密码错误")
-    # 更新为新密码（哈希存储）
-    user.pwd_hash = UserSetting.hash_password(new_password)
-    db.session.commit()
+
+    try:
+        # 更新密码前，将当前token加入黑名单
+        current_jti = get_jwt()["jti"]
+        blacklisted = TokenBlacklist(
+            jti=current_jti,
+            token_type='access',
+            expires_at=datetime.now() + current_app.config['JWT_ACCESS_TOKEN_EXPIRES']
+        )
+        db.session.add(blacklisted)
+
+        # 更新为新密码
+        user.pwd_hash = UserSetting.hash_password(new_password)
+        db.session.commit()
+    except Exception as e:
+        logger.error(e)
+        db.session.rollback()
 
     # 返回新token
     access_token = create_access_token(identity=user.username)
     refresh_token = create_refresh_token(identity=user.username)
-    return jsonify({
+
+    response = jsonify({
         "access_token": access_token,
         "refresh_token": refresh_token
     })
+    set_refresh_cookies(response, refresh_token)
+    return response
 
 
 @user_bp.route('/logout', methods=['POST'])
-@jwt_required()
+@jwt_required(refresh=True)
 def logout():
     try:
-        jti = get_jwt()["jti"]
-        # 将token加入黑名单
-        blacklisted_token = TokenBlacklist(jti=jti)
-        db.session.add(blacklisted_token)
-        # 同时黑名单refresh token
-        refresh_jti = get_jwt(refresh=True)["jti"] if get_jwt(refresh=True) else None
-        if refresh_jti:
-            blacklisted_refresh = TokenBlacklist(jti=refresh_jti)
-            db.session.add(blacklisted_refresh)
+        refresh_jti = get_jwt()["jti"]
+        # 将refresh token加入黑名单
+        blacklisted_refresh = TokenBlacklist(jti=refresh_jti)
+        db.session.add(blacklisted_refresh)
 
+        # 同时黑名单 access token
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header and auth_header.startswith('Bearer '):
+            try:
+                access_token = auth_header.split(' ')[1]
+                from flask_jwt_extended import decode_token
+                decoded = decode_token(access_token, allow_expired=True)
+                access_jti = decoded["jti"]
+
+                blacklisted_access = TokenBlacklist(
+                    jti=access_jti,
+                    token_type='access',
+                    expires_at=datetime.now() + current_app.config['JWT_ACCESS_TOKEN_EXPIRES']
+                )
+                db.session.add(blacklisted_access)
+            except Exception as e:
+                logger.warning(f"Failed to blacklist access token: {e}")
+                # 不抛出异常，继续执行登出
         db.session.commit()
 
         response = jsonify({
