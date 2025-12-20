@@ -3,6 +3,7 @@ from datetime import date
 from flask import Blueprint, request
 from sqlalchemy import or_, desc
 
+from app.framework.auth import auth_required
 from app.framework.exceptions import BizException
 from app.framework.sys_constant import DEFAULT_PAGE_SIZE
 from app.models import db, AlertRule, AlertHistory, Holding
@@ -15,6 +16,7 @@ alert_bp = Blueprint('alert', __name__, url_prefix='/api/alert')
 
 # AlertRule 接口
 @alert_bp.route('/rule', methods=['POST'])
+@auth_required
 def create_rule():
     data = request.get_json()
     if not data.get('ho_code') or not data.get('ar_type') or not data.get('ar_is_active') or not data.get(
@@ -29,12 +31,14 @@ def create_rule():
 
 
 @alert_bp.route('/rule/<int:ar_id>', methods=['GET'])
+@auth_required
 def get_rule(ar_id):
     rule = AlertRule.query.get_or_404(ar_id)
     return AlertRuleSchema().dump(rule)
 
 
 @alert_bp.route('/rule/<int:ar_id>', methods=['PUT'])
+@auth_required
 def update_rule(ar_id):
     rule = AlertRule.query.get_or_404(ar_id)
     data = request.get_json()
@@ -45,6 +49,7 @@ def update_rule(ar_id):
 
 
 @alert_bp.route('/rule/<int:ar_id>', methods=['DELETE'])
+@auth_required
 def delete_rule(ar_id):
     rule = AlertRule.query.get_or_404(ar_id)
     db.session.delete(rule)
@@ -53,6 +58,7 @@ def delete_rule(ar_id):
 
 
 @alert_bp.route('/rule/search_page', methods=['GET'])
+@auth_required
 def search_rule_page():
     ho_code = request.args.get('ho_code')
     ar_type = request.args.get('ar_type')
@@ -109,12 +115,14 @@ def search_rule_page():
 
 # AlertHistory 接口
 @alert_bp.route('/history/<int:ah_id>', methods=['GET'])
+@auth_required
 def get_history(ah_id):
     history = AlertHistory.query.get_or_404(ah_id)
     return AlertHistorySchema().dump(history)
 
 
 @alert_bp.route('/history/search_page', methods=['GET'])
+@auth_required
 def search_history_page():
     ar_id = request.args.get('ar_id')
     ah_status = request.args.get('ah_status')
@@ -166,11 +174,14 @@ def search_history_page():
 
 
 @alert_bp.route('/history/alert_job', methods=['GET'])
+@auth_required
 def alert_job():
     AlertService.check_alert_rules()
     return ''
 
+
 @alert_bp.route('/history/mail_job', methods=['GET'])
+@auth_required
 def mail_job():
     AlertService.trigger_alert_job()
     return ''

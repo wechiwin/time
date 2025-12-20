@@ -11,6 +11,7 @@ from flask import send_file
 from flask_babel import gettext
 from sqlalchemy import desc, or_
 
+from app.framework.auth import auth_required
 from app.framework.exceptions import BizException
 from app.models import db, Trade, Holding
 from app.schemas_marshall import TradeSchema
@@ -23,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 @trade_bp.route('', methods=['GET'])
+@auth_required
 def search_page():
     ho_code = request.args.get('ho_code')
     start_date = request.args.get('start_date')
@@ -79,6 +81,7 @@ def search_page():
 
 
 @trade_bp.route('', methods=['POST'])
+@auth_required
 def create_transaction():
     data = request.get_json()
     required_fields = ['ho_code', 'tr_type', 'tr_date', 'tr_nav_per_unit',
@@ -92,12 +95,14 @@ def create_transaction():
 
 
 @trade_bp.route('/<int:tr_id>', methods=['GET'])
+@auth_required
 def get_transaction(tr_id):
     t = Trade.query.get_or_404(tr_id)
     return TradeSchema().dump(t)
 
 
 @trade_bp.route('/<int:tr_id>', methods=['PUT'])
+@auth_required
 def update_transaction(tr_id):
     t = Trade.query.get_or_404(tr_id)
     data = request.get_json()
@@ -109,6 +114,7 @@ def update_transaction(tr_id):
 
 
 @trade_bp.route('/<int:tr_id>', methods=['DELETE'])
+@auth_required
 def delete_transaction(tr_id):
     t = Trade.query.get_or_404(tr_id)
     db.session.delete(t)
@@ -117,6 +123,7 @@ def delete_transaction(tr_id):
 
 
 @trade_bp.route('/export', methods=['GET'])
+@auth_required
 def export_trade():
     trade = Trade.query.all()
     df = pd.DataFrame([{
@@ -145,6 +152,7 @@ def export_trade():
 
 
 @trade_bp.route('/template', methods=['GET'])
+@auth_required
 def download_template():
     # 创建一个空的DataFrame，只有列名
     df = pd.DataFrame(columns=[
@@ -204,6 +212,7 @@ def download_template():
 
 
 @trade_bp.route('/import', methods=['POST'])
+@auth_required
 def import_trade():
     if 'file' not in request.files:
         raise BizException(msg="没有上传文件")
@@ -288,6 +297,7 @@ def map_trade_type(value):
 
 
 @trade_bp.route('/list_by_code', methods=['GET'])
+@auth_required
 def list_by_code():
     ho_code = request.args.get('ho_code')
     if not ho_code or not ho_code.strip():
@@ -298,6 +308,7 @@ def list_by_code():
 
 
 @trade_bp.route("/upload", methods=["POST"])
+@auth_required
 def upload():
     file = request.files.get("file")
     if not file:
@@ -336,6 +347,7 @@ def background_worker(task_id, file_bytes, app):
 
 
 @trade_bp.route("/upload_sse", methods=["POST"])
+@auth_required
 def upload_sse():
     """
     第一步：上传文件，启动后台线程，立即返回 task_id
@@ -366,6 +378,7 @@ def upload_sse():
 
 
 @trade_bp.route("/stream/<task_id>")
+@auth_required
 def stream(task_id):
     """
     第二步：前端监听此接口，等待结果推送

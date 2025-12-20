@@ -1,5 +1,6 @@
 import threading
 
+from app.framework.auth import auth_required
 from app.framework.exceptions import BizException
 from app.models import db, NavHistory, Holding
 from app.schemas_marshall import NavHistorySchema
@@ -11,6 +12,7 @@ service = NavHistoryService()
 
 
 @nav_history_bp.route('', methods=['GET'])
+@auth_required
 def get_nav_history():
     ho_code = request.args.get('ho_code')
     page = request.args.get('page', 1, type=int)
@@ -53,6 +55,7 @@ def get_nav_history():
 
 
 @nav_history_bp.route('search_list', methods=['GET'])
+@auth_required
 def search_list():
     ho_code = request.args.get('ho_code')
     start_date = request.args.get('start_date')
@@ -62,6 +65,7 @@ def search_list():
 
 
 @nav_history_bp.route('', methods=['POST'])
+@auth_required
 def create_net_value():
     data = request.get_json()
     required_fields = ['ho_code', 'nav_date', 'nav_per_unit']
@@ -74,12 +78,14 @@ def create_net_value():
 
 
 @nav_history_bp.route('/<int:nav_id>', methods=['GET'])
+@auth_required
 def get_net_value(nav_id):
     nv = NavHistory.query.get_or_404(nav_id)
     return NavHistorySchema().dump(nv)
 
 
 @nav_history_bp.route('/<int:nav_id>', methods=['PUT'])
+@auth_required
 def update_net_value(nav_id):
     nv = NavHistory.query.get_or_404(nav_id)
     data = request.get_json()
@@ -91,6 +97,7 @@ def update_net_value(nav_id):
 
 
 @nav_history_bp.route('/<int:nav_id>', methods=['DELETE'])
+@auth_required
 def delete_net_value(nav_id):
     nv = NavHistory.query.get_or_404(nav_id)
     db.session.delete(nv)
@@ -99,6 +106,7 @@ def delete_net_value(nav_id):
 
 
 @nav_history_bp.route('/crawl', methods=['POST'])
+@auth_required
 def crawl_nav_history():
     data = request.get_json()
     ho_code = data.get("ho_code")
@@ -136,6 +144,7 @@ def async_crawl_task(app, ho_code, start_date, end_date):
 
 
 @nav_history_bp.route('/crawl_all', methods=['GET'])
+@auth_required
 def crawl_all():
     app = current_app._get_current_object()
     # 启动异步任务

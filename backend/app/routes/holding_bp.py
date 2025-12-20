@@ -6,6 +6,7 @@ from flask import Blueprint, request, send_file
 from flask_babel import gettext
 from sqlalchemy import or_
 
+from app.framework.auth import auth_required
 from app.framework.exceptions import BizException
 from app.framework.sys_constant import DEFAULT_PAGE_SIZE
 from app.models import db, Holding
@@ -15,6 +16,7 @@ holding_bp = Blueprint('holding', __name__, url_prefix='/api/holding')
 
 
 @holding_bp.route('/search_list', methods=['GET'])
+@auth_required
 def search_list():
     """
     参数:
@@ -39,6 +41,7 @@ def search_list():
 
 
 @holding_bp.route('search_page', methods=['GET'])
+@auth_required
 def search_page():
     """
     基金模糊搜索API
@@ -80,6 +83,7 @@ def search_page():
 
 
 @holding_bp.route('', methods=['POST'])
+@auth_required
 def create_holding():
     data = request.get_json()
     if not data.get('ho_name') or not data.get('ho_code'):
@@ -106,6 +110,7 @@ def create_holding():
 
 
 @holding_bp.route('/<int:ho_id>', methods=['GET'])
+@auth_required
 def get_holding(ho_id):
     h = Holding.query.get_or_404(ho_id)
     # ho_code = h.ho_code
@@ -115,6 +120,7 @@ def get_holding(ho_id):
 
 
 @holding_bp.route('/<int:ho_id>', methods=['PUT'])
+@auth_required
 def update_holding(ho_id):
     h = Holding.query.get_or_404(ho_id)
     data = request.get_json()
@@ -131,6 +137,7 @@ def update_holding(ho_id):
 
 
 @holding_bp.route('/<ho_id>', methods=['DELETE'])
+@auth_required
 def delete_holding(ho_id):
     h = Holding.query.get_or_404(ho_id)
     db.session.delete(h)
@@ -139,6 +146,7 @@ def delete_holding(ho_id):
 
 
 @holding_bp.route('/export', methods=['GET'])
+@auth_required
 def export_holdings():
     holdings = Holding.query.all()
     df = pd.DataFrame([{
@@ -168,6 +176,7 @@ def export_holdings():
 
 
 @holding_bp.route('/template', methods=['GET'])
+@auth_required
 def download_template():
     # 创建一个空的DataFrame，只有列名
     df = pd.DataFrame(columns=[
@@ -201,6 +210,7 @@ def download_template():
 
 
 @holding_bp.route('/import', methods=['POST'])
+@auth_required
 def import_holdings():
     if 'file' not in request.files:
         raise BizException(msg="没有上传文件")
@@ -254,6 +264,7 @@ def import_holdings():
 
 
 @holding_bp.route('/crawl', methods=['POST'])
+@auth_required
 def get_fund_info():
     ho_code = request.form.get('ho_code')  # 表单
     # url = "https://fundmobapi.eastmoney.com/FundMNewApi/FundMNFInfo"
@@ -288,6 +299,7 @@ def get_fund_info():
 
 
 @holding_bp.route('/get_by_code', methods=['GET'])
+@auth_required
 def get_by_code():
     ho_code = request.args.get('ho_code')
     if not ho_code or not ho_code.strip():

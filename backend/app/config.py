@@ -80,9 +80,11 @@ class Config:
 class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_ECHO = True  # 开发时显示SQL日志
+    JWT_AUTH_REQUIRED = os.getenv('JWT_AUTH_REQUIRED', 'True').lower() == 'true'
 
 
 class TestingConfig(Config):
+    JWT_AUTH_REQUIRED = os.getenv('JWT_AUTH_REQUIRED', 'True').lower() == 'true'
     pass
     # """测试环境配置"""
     # TESTING = True
@@ -92,6 +94,7 @@ class TestingConfig(Config):
 
 
 class ProductionConfig(Config):
+    JWT_AUTH_REQUIRED = True
     pass
     # """生产环境配置"""
     # SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
