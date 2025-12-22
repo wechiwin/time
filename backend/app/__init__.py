@@ -13,7 +13,7 @@ from flask_mail import Mail
 
 from app.database import db
 from app.framework.error_handler import register_error_handler
-from app.framework.interceptor import register_request_response_logger, register_response_interceptor
+from app.framework.interceptor import register_request_response_logger
 from app.framework.log_config import setup_logging, get_early_logger
 from app.routes.user_bp import user_bp
 from .config import Config
@@ -132,25 +132,10 @@ def create_app():
     scheduler.init_app(app)
     init_scheduler(app, scheduler)
 
-    # 统一响应/异常
+    # 统一异常处理
     register_error_handler(app)
-    register_response_interceptor(app)
 
     # --- Add a root route for basic testing/info ---
-    @app.route('/')
-    def index():
-        """
-        A simple root route to confirm the backend is running.
-        """
-        return jsonify({
-            "message": "Welcome to the Fund Management API!",
-            "available_endpoints": {
-                "holdings": "/api/holdings",
-                "net_values": "/api/net_values",
-                "transactions": "/api/transactions"
-            }
-        })
-
     # --- Example of a simple health check endpoint ---
     @app.route('/health')
     def health_check():
@@ -158,16 +143,5 @@ def create_app():
         A health check endpoint to verify the application's status.
         """
         return jsonify({"status": "healthy", "message": "API is running."}), 200
-
-    # 请求日志
-    @app.before_request
-    def log_request():
-        app.logger.info(f"[Request] {request.method} {request.path} {request.args}")
-
-    # 异常日志
-    @app.errorhandler(Exception)
-    def handle_exception(e):
-        app.logger.exception("An error occurred:")
-        return {"error": "Internal Server Error"}, 500
 
     return app

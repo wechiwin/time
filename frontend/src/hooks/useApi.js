@@ -29,7 +29,7 @@ export default function useApi() {
                     throw new Error(`Unsupported method: ${method}`);
             }
 
-            return response;
+            return response.data.data;
         } catch (err) {
             const msg = err.message || '请求失败';
             setError(msg);

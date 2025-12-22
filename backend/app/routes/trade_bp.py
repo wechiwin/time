@@ -13,6 +13,7 @@ from sqlalchemy import desc, or_
 
 from app.framework.auth import auth_required
 from app.framework.exceptions import BizException
+from app.framework.res import Res
 from app.models import db, Trade, Holding
 from app.schemas_marshall import TradeSchema
 from app.service.trade_service import TradeService
@@ -69,7 +70,7 @@ def search_page():
         'tr_amount': t.tr_amount
     } for t, ho_short_name in transactions]
     # 返回分页信息
-    return {
+    result = {
         'items': data,
         'pagination': {
             'page': page,
@@ -78,6 +79,7 @@ def search_page():
             'pages': pagination.pages
         }
     }
+    return Res.success(result)
 
 
 @trade_bp.route('', methods=['POST'])
@@ -91,14 +93,14 @@ def create_transaction():
         raise BizException(msg="缺少必要字段")
 
     new_transaction = TradeSchema().load(data)
-    return TradeService.create_transaction(new_transaction)
+    return Res.success(TradeService.create_transaction(new_transaction))
 
 
 @trade_bp.route('/<int:tr_id>', methods=['GET'])
 @auth_required
 def get_transaction(tr_id):
     t = Trade.query.get_or_404(tr_id)
-    return TradeSchema().dump(t)
+    return Res.success(TradeSchema().dump(t))
 
 
 @trade_bp.route('/<int:tr_id>', methods=['PUT'])
@@ -110,7 +112,7 @@ def update_transaction(tr_id):
 
     db.session.add(updated_data)
     db.session.commit()
-    return ''
+    return Res.success()
 
 
 @trade_bp.route('/<int:tr_id>', methods=['DELETE'])
@@ -119,7 +121,7 @@ def delete_transaction(tr_id):
     t = Trade.query.get_or_404(tr_id)
     db.session.delete(t)
     db.session.commit()
-    return ''
+    return Res.success()
 
 
 @trade_bp.route('/export', methods=['GET'])
@@ -271,7 +273,7 @@ def import_trade():
         )
         transactions.append(transaction)
 
-    return TradeService.import_trade(transactions)
+    return Res.success(TradeService.import_trade(transactions))
 
 
 ALL_TR_TYPE_TEXTS = {
@@ -304,7 +306,7 @@ def list_by_code():
         return ''
 
     result_list = Trade.query.filter_by(ho_code=ho_code).all()
-    return TradeSchema(many=True).dump(result_list)
+    return Res.success(TradeSchema(many=True).dump(result_list))
 
 
 @trade_bp.route("/upload", methods=["POST"])
@@ -318,10 +320,11 @@ def upload():
     # print(file_bytes)
     result = TradeService.process_trade_image(file_bytes)
 
-    return {
+    resp =  {
         "ocr_text": result["ocr_text"],
         "parsed_json": result["parsed_json"]
     }
+    return Res.success(resp)
 
 
 def background_worker(task_id, file_bytes, app):
@@ -371,10 +374,11 @@ def upload_sse():
     thread.start()
 
     # 立即响应，避免 HTTP 超时
-    return {
+    result = {
         "message": "Processing started",
         "task_id": task_id
     }
+    return Res.success(result)
 
 
 @trade_bp.route("/stream/<task_id>")

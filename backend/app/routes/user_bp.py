@@ -3,7 +3,7 @@ import logging
 import uuid
 from datetime import datetime
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, current_app
 from flask_jwt_extended import (
     create_access_token, jwt_required, get_jwt_identity, create_refresh_token, get_jwt,
     set_refresh_cookies, unset_refresh_cookies, get_csrf_token)
@@ -11,6 +11,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
 from app.framework.exceptions import BizException
+from app.framework.res import Res
 from app.models import UserSetting, TokenBlacklist
 from app.models import db
 
@@ -61,12 +62,9 @@ def login():
     refresh_token = create_refresh_token(
         identity=user.username,
         additional_claims=additional_claims)
-    # 生成CSRF Token
-    # csrf_token = str(uuid.uuid4())
 
-    response = jsonify({
+    response = Res.success({
         "access_token": access_token,
-        # "csrf_token": csrf_token,
         "user": {
             "id": user.us_id,
             "username": user.username,
@@ -142,7 +140,7 @@ def refresh():
         db.session.add(blacklisted)
         db.session.commit()
 
-        response = jsonify({
+        response = Res.success({
             "access_token": new_access_token,
         })
         set_refresh_cookies(response, new_refresh_token)
@@ -168,12 +166,13 @@ def get_user():
     if not user:
         raise BizException("用户不存在")
 
-    return jsonify({
+    result = {
         "id": user.us_id,
         "username": user.username,
         "default_lang": user.default_lang,
         "email_address": user.email_address,
-    })
+    }
+    return Res.success(result)
 
 
 @user_bp.route('/user', methods=['PUT'])
@@ -197,7 +196,7 @@ def update_user():
         user.default_lang = default_lang
 
     db.session.commit()
-    return ''
+    return Res.success()
 
 
 @user_bp.route('/register', methods=['POST'])
@@ -232,7 +231,7 @@ def register():
     access_token = create_access_token(identity=new_user.username)
     refresh_token = create_refresh_token(identity=new_user.username)
 
-    response = jsonify({
+    response = Res.success({
         "access_token": access_token,
         "user": {
             "id": new_user.us_id,
@@ -289,7 +288,7 @@ def edit_password():
     access_token = create_access_token(identity=user.username)
     refresh_token = create_refresh_token(identity=user.username)
 
-    response = jsonify({
+    response = Res.success({
         "access_token": access_token,
         "refresh_token": refresh_token
     })
@@ -298,42 +297,47 @@ def edit_password():
 
 
 @user_bp.route('/logout', methods=['POST'])
-@jwt_required(refresh=True)
+@jwt_required()
 def logout():
     try:
-        refresh_jti = get_jwt()["jti"]
-        # 将refresh token加入黑名单
-        blacklisted_refresh = TokenBlacklist(jti=refresh_jti)
-        db.session.add(blacklisted_refresh)
-
-        # 同时黑名单 access token
-        auth_header = request.headers.get('Authorization', '')
-        if auth_header and auth_header.startswith('Bearer '):
+        current_user = get_jwt_identity()
+        access_jti = get_jwt()["jti"]
+        # 1. 处理 refresh token
+        refresh_token = request.cookies.get(current_app.config['JWT_REFRESH_COOKIE_NAME'])
+        if refresh_token:
             try:
-                access_token = auth_header.split(' ')[1]
                 from flask_jwt_extended import decode_token
-                decoded = decode_token(access_token, allow_expired=True)
-                access_jti = decoded["jti"]
+                decoded_refresh = decode_token(refresh_token, allow_expired=True)
+                refresh_jti = decoded_refresh["jti"]
 
-                blacklisted_access = TokenBlacklist(
-                    jti=access_jti,
-                    token_type='access',
-                    expires_at=datetime.now() + current_app.config['JWT_ACCESS_TOKEN_EXPIRES']
+                blacklisted_refresh = TokenBlacklist(
+                    jti=refresh_jti,
+                    token_type='refresh',
+                    expires_at=datetime.fromtimestamp(decoded_refresh['exp'])
                 )
-                db.session.add(blacklisted_access)
+                db.session.add(blacklisted_refresh)
+                logger.info(f"Blacklisted refresh token for user {current_user}")
             except Exception as e:
-                logger.warning(f"Failed to blacklist access token: {e}")
-                # 不抛出异常，继续执行登出
+                logger.warning(f"Failed to process refresh token: {e}", exc_info=True)
+        else:
+            logger.warning(f"No refresh token in cookie for user {current_user}")
+        # 2. 将 access token 加入黑名单
+        blacklisted_access = TokenBlacklist(
+            jti=access_jti,
+            token_type='access',
+            expires_at=datetime.now() + current_app.config['JWT_ACCESS_TOKEN_EXPIRES']
+        )
+        db.session.add(blacklisted_access)
+
         db.session.commit()
-
-        response = jsonify({
-            "code": 200,
-            "message": "登出成功"
-        })
-        # 清除refresh_token cookie
+        logger.info(f"User {current_user} logged out successfully")
+        # 3. 清除 cookie
+        response = Res.success()
         unset_refresh_cookies(response)
-
         return response
+    except BizException:
+        db.session.rollback()
+        raise
     except Exception as e:
         db.session.rollback()
         raise BizException("登出失败")

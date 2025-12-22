@@ -8,6 +8,7 @@ from sqlalchemy import or_
 
 from app.framework.auth import auth_required
 from app.framework.exceptions import BizException
+from app.framework.res import Res
 from app.framework.sys_constant import DEFAULT_PAGE_SIZE
 from app.models import db, Holding
 from app.schemas_marshall import HoldingSchema, marshal_pagination
@@ -37,7 +38,7 @@ def search_list():
         )
     ).all()
 
-    return HoldingSchema(many=True).dump(holdings)
+    return Res.success(HoldingSchema(many=True).dump(holdings))
 
 
 @holding_bp.route('search_page', methods=['GET'])
@@ -79,7 +80,7 @@ def search_page():
         page=page, per_page=per_page, error_out=False
     )
 
-    return marshal_pagination(pagination, HoldingSchema)
+    return Res.success(marshal_pagination(pagination, HoldingSchema))
 
 
 @holding_bp.route('', methods=['POST'])
@@ -106,7 +107,7 @@ def create_holding():
     except Exception as e:
         db.session.rollback()
         raise BizException(msg=str(e))
-    return ''
+    return Res.success()
 
 
 @holding_bp.route('/<int:ho_id>', methods=['GET'])
@@ -116,7 +117,7 @@ def get_holding(ho_id):
     # ho_code = h.ho_code
     # net_val_list = NetValueService.search_list(ho_code)
     # transaction_list = TransactionService.list_transaction(ho_code)
-    return HoldingSchema().dump(h)
+    return Res.success(HoldingSchema().dump(h))
 
 
 @holding_bp.route('/<int:ho_id>', methods=['PUT'])
@@ -133,7 +134,7 @@ def update_holding(ho_id):
     db.session.add(updated_data)
     db.session.commit()
 
-    return ''
+    return Res.success()
 
 
 @holding_bp.route('/<ho_id>', methods=['DELETE'])
@@ -142,7 +143,7 @@ def delete_holding(ho_id):
     h = Holding.query.get_or_404(ho_id)
     db.session.delete(h)
     db.session.commit()
-    return ''
+    return Res.success()
 
 
 @holding_bp.route('/export', methods=['GET'])
@@ -256,7 +257,7 @@ def import_holdings():
             db.session.add(holding)
 
         db.session.commit()
-        return ''
+        return Res.success()
     except Exception as e:
         db.session.rollback()
         error_message = str(e)
@@ -285,7 +286,7 @@ def get_fund_info():
     data = resp.json().get("Datas", {})
     if not data:
         raise BizException(msg="未爬取到相关信息")
-    return {
+    result = {
         "ho_code": data.get("FCODE"),
         "ho_name": data.get("SHORTNAME"),
         "ho_type": data.get("FTYPE"),
@@ -296,6 +297,7 @@ def get_fund_info():
         "ho_trust_expense_rate": data.get("TRUSTEXP"),  # 托管费
         "ho_sale_expense_rate": data.get("SALESEXP"),  # 销售服务费
     }
+    return Res.success(result)
 
 
 @holding_bp.route('/get_by_code', methods=['GET'])
@@ -303,8 +305,7 @@ def get_fund_info():
 def get_by_code():
     ho_code = request.args.get('ho_code')
     if not ho_code or not ho_code.strip():
-        return ''
+        return Res.success()
 
     h = Holding.query.filter_by(ho_code=ho_code).first()
-    return HoldingSchema().dump(h)
-    # return FundBase.from_orm(h).dict()
+    return Res.success(HoldingSchema().dump(h))

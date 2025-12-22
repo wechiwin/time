@@ -10,6 +10,7 @@
     "@headlessui/react": "^2.2.6",
     "@heroicons/react": "^2.2.0",
     "axios": "^1.11.0",
+    "axios-auth-refresh": "^3.3.6",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.19",
     "echarts-for-react": "^3.0.5",

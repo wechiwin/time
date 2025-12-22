@@ -122,6 +122,3 @@ class TokenBlacklist(db.Model):
     token_type = db.Column(db.String(10), nullable=False)  # 'access' or 'refresh'
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     expires_at = db.Column(db.DateTime, nullable=False)  # 过期时间
-
-    def __init__(self, jti):
-        self.jti = jti

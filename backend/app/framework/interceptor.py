@@ -1,45 +1,22 @@
 # app/framework/interceptor.py
-import json
 import time
+import uuid
 
-from flask import Flask, request, g
-
-
-def register_response_interceptor(app: Flask):
-    @app.after_request
-    def uniform_response(response):
-        # 跳过流式响应
-        if getattr(response, 'direct_passthrough', False):
-            return response
-
-        # 如果已经是统一格式，直接返回
-        try:
-            data = json.loads(response.get_data(as_text=True))
-            if isinstance(data, dict) and "code" in data and "msg" in data:
-                return response
-        except Exception:
-            pass
-
-        # 对非JSON响应（如空字符串）进行包装
-        try:
-            data = json.loads(response.get_data(as_text=True))
-        except Exception:
-            data = response.get_data(as_text=True) or None
-
-        # 只对200响应进行包装（错误响应已在error_handler中处理）
-        if response.status_code == 200:
-            unified = {
-                "code": 200,
-                "msg": "success",
-                "data": data
-            }
-            response.set_data(json.dumps(unified, ensure_ascii=False))
-            response.content_type = "application/json; charset=utf-8"
-
-        return response
+from flask import request, g
 
 
 def register_request_response_logger(app):
+    no_log_api = {'login', 'refresh', 'pwd', 'register'}
+
+    @app.before_request
+    def before_request():
+        g.trace_id = str(uuid.uuid4())
+
+    @app.after_request
+    def after_request(response):
+        response.headers['X-Trace-ID'] = g.trace_id
+        return response
+
     @app.before_request
     def log_request_info():
         g.start_time = time.time()
@@ -50,16 +27,21 @@ def register_request_response_logger(app):
         except Exception:
             body = None
 
-        app.logger.info(f"""
-        ===== Request Begin =====
-        Method: {request.method}
-        Path: {request.path}
-        Args: {dict(request.args)}
-        JSON Body: {body}
-        Form Data: {dict(request.form)} 
-        Remote Addr: {request.remote_addr}
-        ===== Request End =====
-        """)
+        if any(sensitive in request.path for sensitive in no_log_api):
+            # 敏感路径：简单记录
+            app.logger.info(f"[{g.trace_id}] - [{request.method}] - {request.path}")
+        else:
+            app.logger.info(f"""
+            ===== Request Begin =====
+            TraceId: {g.trace_id}
+            Method: {request.method}
+            Path: {request.path}
+            Args: {dict(request.args)}
+            JSON Body: {body}
+            Form Data: {dict(request.form)} 
+            Remote Addr: {request.remote_addr}
+            ===== Request End =====
+            """)
 
     @app.after_request
     def log_response_info(response):
@@ -73,14 +55,18 @@ def register_request_response_logger(app):
         if isinstance(resp_data, str) and len(resp_data) > 1024:
             resp_data = resp_data[:1024] + '... [truncated]'
 
-        app.logger.info(f"""
-        ===== Response Begin =====
-        Path: {request.path}
-        Status: {response.status}
-        Duration: {elapsed:.3f}s
-        Response: {resp_data}
-        ===== Response End =====
-        """)
+        if any(sensitive in request.path for sensitive in no_log_api):
+            # 敏感路径：简单记录
+            app.logger.info(f"[{g.trace_id}] - [{request.method}] - {request.path}")
+        else:
+            app.logger.info(f"""
+            ===== Response Begin =====
+            TraceId: {g.trace_id}
+            Path: {request.path}            Status: {response.status}
+            Duration: {elapsed:.3f}s
+            Response: {resp_data}
+            ===== Response End =====
+            """)
         return response
 
     @app.after_request

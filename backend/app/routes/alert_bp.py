@@ -1,10 +1,9 @@
-from datetime import date
-
 from flask import Blueprint, request
 from sqlalchemy import or_, desc
 
 from app.framework.auth import auth_required
 from app.framework.exceptions import BizException
+from app.framework.res import Res
 from app.framework.sys_constant import DEFAULT_PAGE_SIZE
 from app.models import db, AlertRule, AlertHistory, Holding
 from app.schemas_marshall import AlertRuleSchema, AlertHistorySchema
@@ -27,14 +26,14 @@ def create_rule():
     new_rule.ar_tracked_date = get_yesterday_date_str()
     db.session.add(new_rule)
     db.session.commit()
-    return ''
+    return Res.success()
 
 
 @alert_bp.route('/rule/<int:ar_id>', methods=['GET'])
 @auth_required
 def get_rule(ar_id):
     rule = AlertRule.query.get_or_404(ar_id)
-    return AlertRuleSchema().dump(rule)
+    return Res.success(AlertRuleSchema().dump(rule))
 
 
 @alert_bp.route('/rule/<int:ar_id>', methods=['PUT'])
@@ -45,7 +44,7 @@ def update_rule(ar_id):
     updated_data = AlertRuleSchema().load(data, instance=rule, partial=True)
     db.session.add(updated_data)
     db.session.commit()
-    return ''
+    return Res.success()
 
 
 @alert_bp.route('/rule/<int:ar_id>', methods=['DELETE'])
@@ -54,7 +53,7 @@ def delete_rule(ar_id):
     rule = AlertRule.query.get_or_404(ar_id)
     db.session.delete(rule)
     db.session.commit()
-    return ''
+    return Res.success()
 
 
 @alert_bp.route('/rule/search_page', methods=['GET'])
@@ -89,7 +88,7 @@ def search_rule_page():
     pagination = query.order_by(desc(AlertRule.updated_at)).paginate(
         page=page, per_page=per_page, error_out=False)
     rules = pagination.items or []
-    data = [{
+    items = [{
         'ar_id': r.ar_id,
         'ho_code': r.ho_code,
         'ho_short_name': ho_short_name,
@@ -102,8 +101,8 @@ def search_rule_page():
         'updated_at': r.updated_at
     } for r, ho_short_name in rules]
     # 返回分页信息
-    return {
-        'items': data,
+    data = {
+        'items': items,
         'pagination': {
             'page': page,
             'per_page': per_page,
@@ -111,6 +110,7 @@ def search_rule_page():
             'pages': pagination.pages
         }
     }
+    return Res.success(data)
 
 
 # AlertHistory 接口
@@ -118,7 +118,7 @@ def search_rule_page():
 @auth_required
 def get_history(ah_id):
     history = AlertHistory.query.get_or_404(ah_id)
-    return AlertHistorySchema().dump(history)
+    return Res.success(AlertHistorySchema().dump(history))
 
 
 @alert_bp.route('/history/search_page', methods=['GET'])
@@ -148,7 +148,7 @@ def search_history_page():
     pagination = query.order_by(desc(AlertHistory.updated_at)).paginate(
         page=page, per_page=per_page, error_out=False)
     rule_histories = pagination.items or []
-    data = [{
+    items = [{
         'ah_id': r.ah_id,
         'ar_id': r.ar_id,
         'ho_code': r.ho_code,
@@ -162,8 +162,8 @@ def search_history_page():
         'updated_at': r.updated_at
     } for r, ho_short_name in rule_histories]
     # 返回分页信息
-    return {
-        'items': data,
+    data = {
+        'items': items,
         'pagination': {
             'page': page,
             'per_page': per_page,
@@ -171,17 +171,18 @@ def search_history_page():
             'pages': pagination.pages
         }
     }
+    return Res.success(data)
 
 
 @alert_bp.route('/history/alert_job', methods=['GET'])
 @auth_required
 def alert_job():
     AlertService.check_alert_rules()
-    return ''
+    return Res.success()
 
 
 @alert_bp.route('/history/mail_job', methods=['GET'])
 @auth_required
 def mail_job():
     AlertService.trigger_alert_job()
-    return ''
+    return Res.success()

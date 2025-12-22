@@ -2,6 +2,7 @@ import threading
 
 from app.framework.auth import auth_required
 from app.framework.exceptions import BizException
+from app.framework.res import Res
 from app.models import db, NavHistory, Holding
 from app.schemas_marshall import NavHistorySchema
 from app.service.nav_history_service import NavHistoryService
@@ -43,7 +44,7 @@ def get_nav_history():
         'nav_accumulated_per_unit': nv.nav_accumulated_per_unit
     } for nv, ho_short_name in results]
 
-    return {
+    result =  {
         'items': data,
         'pagination': {
             'page': page,
@@ -52,6 +53,7 @@ def get_nav_history():
             'pages': pagination.pages
         }
     }
+    return Res.success(result)
 
 
 @nav_history_bp.route('search_list', methods=['GET'])
@@ -61,7 +63,7 @@ def search_list():
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     data = service.search_list(ho_code, start_date, end_date)
-    return data
+    return Res.success(data)
 
 
 @nav_history_bp.route('', methods=['POST'])
@@ -74,14 +76,14 @@ def create_net_value():
     new_nv = NavHistorySchema().load(data)
     db.session.add(new_nv)
     db.session.commit()
-    return ''
+    return Res.success()
 
 
 @nav_history_bp.route('/<int:nav_id>', methods=['GET'])
 @auth_required
 def get_net_value(nav_id):
     nv = NavHistory.query.get_or_404(nav_id)
-    return NavHistorySchema().dump(nv)
+    return Res.success(NavHistorySchema().dump(nv))
 
 
 @nav_history_bp.route('/<int:nav_id>', methods=['PUT'])
@@ -93,7 +95,7 @@ def update_net_value(nav_id):
 
     db.session.add(updated_data)
     db.session.commit()
-    return ''
+    return Res.success()
 
 
 @nav_history_bp.route('/<int:nav_id>', methods=['DELETE'])
@@ -102,7 +104,7 @@ def delete_net_value(nav_id):
     nv = NavHistory.query.get_or_404(nav_id)
     db.session.delete(nv)
     db.session.commit()
-    return ''
+    return Res.success()
 
 
 @nav_history_bp.route('/crawl', methods=['POST'])
@@ -126,7 +128,7 @@ def crawl_nav_history():
     )
     thread.start()
 
-    return ''
+    return Res.success()
 
 
 def async_crawl_task(app, ho_code, start_date, end_date):
@@ -153,7 +155,7 @@ def crawl_all():
         args=(app,)
     )
     thread.start()
-    return ''
+    return Res.success()
 
 
 def async_crawl_all(app):

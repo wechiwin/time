@@ -1,6 +1,7 @@
-import React, {createContext, useState, useCallback, useContext, useRef, useEffect} from 'react';
+import React, {createContext, useCallback, useContext, useEffect, useRef, useState} from 'react';
 import Toast from '../common/Toast';
 import {useTranslation} from "react-i18next";
+import {toastInstance} from "../../utils/toastInstance";
 
 const ToastContext = createContext(null);
 
@@ -49,12 +50,17 @@ export function ToastProvider({children}) {
     }, [showToast, t]);
 
     useEffect(() => {
+        // 设置 toast 实例的回调
+        toastInstance.setCallbacks({
+            showSuccessToast,
+            showErrorToast
+        });
         return () => {
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
             }
         };
-    }, []);
+    }, [showSuccessToast, showErrorToast]);
 
     return (
         <ToastContext.Provider value={{showToast, showSuccessToast, showErrorToast}}>

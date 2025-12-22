@@ -14,11 +14,9 @@ export default function useUserSetting() {
             username,
             password
         }, {});
-        console.log(result)
         if (result?.access_token) {
             // 存储Token（CSRF从header获取）
             SecureTokenStorage.setAccessToken(result.access_token)
-            console.log(SecureTokenStorage.toString())
             return result;
         }
         return null;
@@ -46,6 +44,7 @@ export default function useUserSetting() {
         } finally {
             // 无论API是否成功，都清除本地token
             SecureTokenStorage.clearTokens();
+            console.log("clearTokens in logout")
             setCurrentUser(null);
         }
     }, [post]);
