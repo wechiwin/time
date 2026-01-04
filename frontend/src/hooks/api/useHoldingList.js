@@ -12,7 +12,8 @@ export default function useHoldingList(options = {}) {
 
     // 业务层管理数据状态
     const [data, setData] = useState(null);
-    const {loading, error, get, post, put, del} = useApi();
+    const {loading, error, get, post, put, del, download} = useApi();
+    const urlPrefix = '/holding';
 
     const getByParam = useCallback(
         async ({ho_name, ho_code, ho_type}, currentPage = 1, currentPerPage = 10) => {
@@ -23,7 +24,7 @@ export default function useHoldingList(options = {}) {
                     Object.entries({ho_name, ho_code, ho_type}).filter(([, v]) => v)
                 )
             }).toString();
-            const result = await get(`/holding/searchPage?${params}`);
+            const result = await get(`/searchPage?${params}`);
             setData(result);
             return result;
         },
@@ -31,11 +32,8 @@ export default function useHoldingList(options = {}) {
     );
 
     // 搜索函数 - 业务层设置数据
-    const searchList = useCallback(async (searchKeyword = '') => {
-        const params = new URLSearchParams({
-            keyword: searchKeyword
-        }).toString();
-        const result = await get(`/holding/search_list?${params}`);
+    const listHolding = useCallback(async (body) => {
+        const result = await post(`${urlPrefix}/search_list?${params}`, body);
         setData(result);  // 业务逻辑设置 data
         return result;
     }, [get]);
@@ -76,17 +74,26 @@ export default function useHoldingList(options = {}) {
     }, [del, searchPage, keyword, page, perPage]);
 
     // 更新基金
-    const update = useCallback(async ({ho_id, ...body}) => {
-        const result = await put(`/holding/${ho_id}`, body);
+    const update = useCallback(async (body) => {
+        const result = await post(`/holding/edit`, body);
         // 更新成功后重新搜索当前页面
         await searchPage(keyword, page, perPage);
         return result;
-    }, [put, searchPage, keyword, page, perPage]);
+    }, [post, searchPage, keyword, page, perPage]);
 
     // 下载模板
-    const downloadTemplate = useCallback(() => {
-        window.location.href = '/holding/template';
-    }, []);
+    const downloadTemplate = useCallback(async () => {
+        const url = '/holding/template';
+        const filename = 'HoldingInfoImportTemplate.xlsx';
+
+        try {
+            await download(url, filename);
+        } catch (error) {
+            console.error('下载模板失败:', error);
+            // 可以在这里添加更具体的错误提示
+            throw error;
+        }
+    }, [download]);
 
     const importData = useCallback(async (file) => {
         const formData = new FormData();
@@ -99,20 +106,17 @@ export default function useHoldingList(options = {}) {
         return result;
     }, [post, searchPage, keyword, page, perPage]);
 
-    const getByCode = useCallback(async (ho_code = '') => {
-        const params = new URLSearchParams({
-            ho_code: ho_code
-        }).toString();
-        const result = await get(`/holding/get_by_code?${params}`);
-        setData(result);  // 业务逻辑设置 data
+    const getById = useCallback(async (id) => {
+        const result = await post(`${urlPrefix}/get_by_id`, {id});
+        setData(result);
         return result;
-    }, [get]);
+    }, [post]);
 
     const crawlFundInfo = useCallback(
         async (fundCode) => {
             const formData = new FormData();
             formData.append('ho_code', fundCode);
-            const res = await post('/holding/crawl', formData, {
+            const res = await post('/holding/crawl_fund', formData, {
                 headers: {'Content-Type': 'multipart/form-data'},
             });
             return res; // { ho_code, ho_name, ho_type, establish_date, ... }
@@ -127,12 +131,12 @@ export default function useHoldingList(options = {}) {
         add,
         remove,
         searchPage,
-        searchList,
+        listHolding,
         update,
         getByParam,
         downloadTemplate,
         importData,
-        getByCode,
+        getById,
         crawlFundInfo,
     };
 }

@@ -22,7 +22,7 @@ msgid "COL_HO_TYPE"
 msgstr "持仓类型"
 
 msgid "COL_HO_ESTABLISH_DATE"
-msgstr "持仓类型"
+msgstr "成立日期"
 
 msgid "COL_HO_SHORT_NAME"
 msgstr "持仓简称"
@@ -135,3 +135,21 @@ msgstr "此邮件由系统自动发送，请勿直接回复。"
 
 msgid "ALL_RIGHTS_RESERVED"
 msgstr "版权所有"
+
+msgid "HOLDING_TYPE_FUND"
+msgstr "基金"
+
+msgid "HOLDING_TYPE_STOCK"
+msgstr "股票"
+
+msgid "FD_TR_EX"
+msgstr "场内交易"
+msgid "FD_TR_OFF_EX"
+msgstr "场外交易"
+msgid "FD_TR_BOTH"
+msgstr "内外皆可"
+
+msgid "FD_DIVIDEND_REINVEST"
+msgstr "分红再投资"
+msgid "FD_DIVIDEND_CASH"
+msgstr "现金分红"

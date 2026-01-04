@@ -78,7 +78,7 @@ class Config:
 class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_ECHO = True  # 开发时显示SQL日志
-    JWT_AUTH_REQUIRED = True
+    JWT_AUTH_REQUIRED = False
     JWT_COOKIE_SECURE = False
     MAIL_DEBUG = True  # 开启调试
 

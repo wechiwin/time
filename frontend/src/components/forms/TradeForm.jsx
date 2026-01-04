@@ -4,11 +4,13 @@ import {useToast} from '../context/ToastContext';
 import {useTranslation} from "react-i18next";
 import useTradeList from "../../hooks/api/useTradeList";
 import MyDate from "../common/MyDate";
+import MySelect from "../common/MySelect";
+import useCommon from "../../hooks/api/useCommon";
 
 const init = {
     tr_id: '',
     ho_code: '',
-    tr_type: 1,
+    tr_type: '',
     tr_date: '',
     tr_nav_per_unit: '',
     tr_shares: '',
@@ -27,6 +29,22 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
     const [processingStatus, setProcessingStatus] = useState(''); // 显示 "上传中" 或 "AI分析中"
     // 用于管理 EventSource 连接，以便随时关闭
     const eventSourceRef = useRef(null);
+
+    const {fetchEnumValues} = useCommon();
+    const [typeOptions, setTypeOptions] = useState([]);
+
+    useEffect(() => {
+        const loadEnumValues = async () => {
+            try {
+                const options = await fetchEnumValues('TradeTypeEnum');
+                setTypeOptions(options);
+            } catch (err) {
+                console.error('Failed to load enum values:', err);
+                showErrorToast('加载类型选项失败');
+            }
+        };
+        loadEnumValues();
+    }, [fetchEnumValues, showErrorToast]);
 
     // 组件卸载时，强制关闭未完成的连接
     useEffect(() => {
@@ -154,7 +172,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
             setForm({
                 tr_id: initialValues.tr_id,
                 ho_code: initialValues.ho_code || '',
-                tr_type: initialValues.tr_type !== undefined ? Number(initialValues.tr_type) : 1,
+                tr_type: initialValues.tr_type || '',
                 tr_date: initialValues.tr_date || '',
                 tr_nav_per_unit: initialValues.tr_nav_per_unit || '',
                 tr_shares: initialValues.tr_shares || '',
@@ -183,14 +201,12 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                     </div>
                     <div className="flex flex-col">
                         <label className="text-sm font-medium mb-1">{t('th_tr_type')}</label>
-                        <select
+                        <MySelect
+                            options={typeOptions}
                             value={form.tr_type}
-                            onChange={(e) => setForm({...form, tr_type: Number(e.target.value)})}
+                            onChange={(val) => setForm({...form, currency: val})}
                             className="input-field"
-                        >
-                            <option value={1}>{t('tr_type_buy')}</option>
-                            <option value={0}>{t('tr_type_sell')}</option>
-                        </select>
+                        />
                     </div>
                 </div>
 

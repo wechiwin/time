@@ -7,7 +7,7 @@ export default function NavHistoryTable({data = [], onDelete, onEdit}) {
     const {t} = useTranslation()
     const navigate = useNavigate();
     const handleRowClick = (n) => {
-        navigate(`/nav_history/${n.ho_code}`);
+        navigate(`/nav_history/${n.ho_id}`);
     };
     return (
         <div className="overflow-x-auto">
@@ -24,7 +24,7 @@ export default function NavHistoryTable({data = [], onDelete, onEdit}) {
                 </thead>
                 <tbody className="card divide-y divide-gray-200">
                 {data.map((n) => (
-                    <tr key={n.nav_id} className="hover:page-bg">
+                    <tr key={n.id} className="hover:page-bg">
                         <td className="table-cell font-medium">
                             <button
                                 className="text-blue-600 hover:text-blue-800 underline cursor-pointer"
@@ -46,7 +46,7 @@ export default function NavHistoryTable({data = [], onDelete, onEdit}) {
                                     {t('button_edit')}
                                 </button>
                                 <DeleteButton
-                                    onConfirm={() => onDelete(n.nav_id)}
+                                    onConfirm={() => onDelete(n.id)}
                                     description={`${t('msg_delete_confirmation')} ${n.ho_code} - ${n.nav_date} ?`}
                                 />
                             </div>

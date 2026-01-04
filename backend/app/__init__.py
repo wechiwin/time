@@ -17,9 +17,12 @@ from app.framework.interceptor import register_request_response_logger
 from app.framework.log_config import setup_logging, get_early_logger
 from app.routes.user_bp import user_bp
 from .config import Config
+from .routes import register_routes
 from .routes.alert_bp import alert_bp
+from .routes.dashboard_bp import dashboard_bp
 from .routes.holding_bp import holding_bp
 from .routes.nav_history_bp import nav_history_bp
+from .routes.portfolio_snapshot_bp import portfolio_snapshot_bp
 from .routes.trade_bp import trade_bp
 from .scheduler import init_scheduler
 
@@ -121,12 +124,8 @@ def create_app():
     # This is the crucial step to connect Flask-SQLAlchemy to your app
     db.init_app(app)
 
-    # --- Register Blueprints ---
-    app.register_blueprint(holding_bp)
-    app.register_blueprint(trade_bp)
-    app.register_blueprint(nav_history_bp)
-    app.register_blueprint(alert_bp)
-    app.register_blueprint(user_bp)
+    # Register Blueprints
+    register_routes(app)
 
     # 初始化调度器
     scheduler.init_app(app)

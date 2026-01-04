@@ -133,3 +133,21 @@ msgstr "Questa email è generata automaticamente dal sistema, non rispondere."
 
 msgid "ALL_RIGHTS_RESERVED"
 msgstr "Tutti i diritti riservati"
+
+msgid "HOLDING_TYPE_FUND"
+msgstr "Fondo"
+
+msgid "HOLDING_TYPE_STOCK"
+msgstr "Azione"
+
+msgid "FD_TR_EX"
+msgstr "Mercato regolamentato"
+msgid "FD_TR_OFF_EX"
+msgstr "Fuori mercato"
+msgid "FD_TR_BOTH"
+msgstr "Entrambi"
+
+msgid "FD_DIVIDEND_REINVEST"
+msgstr "Reinvestimento dei Dividendi"
+msgid "FD_DIVIDEND_CASH"
+msgstr "Dividendo in Contanti"

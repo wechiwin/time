@@ -12,6 +12,7 @@ import LoginPage from "./pages/LoginPage";
 import PrivateRoute from "./components/common/PrivateRoute";
 import RegisterPage from "./pages/RegisterPage";
 import {DarkModeProvider} from "./components/context/DarkModeContext";
+import HoldingSnapshotPage from "./pages/HoldingSnapshotPage";
 
 export default function App() {
     return (
@@ -31,9 +32,9 @@ export default function App() {
                             <Route path="trade" element={<TradePage/>}/>
                             <Route path="alert" element={<AlertPage/>}/>
                             <Route path="nav_history" element={<NavHistoryPage/>}/>
-                            {/* <Route path="/holding/:ho_code" element={<NavHistoryDetailPage/>}/> */}
-                            <Route path="/trade/:ho_code" element={<TradeHistoryDetailPage/>}/>
-                            <Route path="/nav_history/:ho_code" element={<NavHistoryDetailPage/>}/>
+                            <Route path="/trade/:ho_id" element={<TradeHistoryDetailPage/>}/>
+                            <Route path="/nav_history/:ho_id" element={<NavHistoryDetailPage/>}/>
+                            {/* <Route path="/holding_snapshot" element={<HoldingSnapshotPage/>}/> */}
                         </Route>
                     </Route>
                     {/* 任何其他未匹配的路径重定向到 Dashboard 或 404 */}

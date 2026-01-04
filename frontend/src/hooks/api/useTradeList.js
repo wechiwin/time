@@ -12,7 +12,8 @@ export default function useTradeList(options = {}) {
 
     // 业务层管理数据状态
     const [data, setData] = useState(null);
-    const {loading, error, get, post, put, del} = useApi();
+    const {loading, error, get, post, put, del, download} = useApi();
+    const urlPrefix = '/trade';
 
     const search = useCallback(async (searchKeyword = '', currentPage = 1, currentPerPage = 10) => {
         const params = new URLSearchParams({
@@ -53,32 +54,16 @@ export default function useTradeList(options = {}) {
     // 下载模板
     const downloadTemplate = useCallback(async () => {
         const url = '/trade/template';
-        const filename = 'template.xlsx';
+        const filename = 'TradeImportTemplate.xlsx';
 
         try {
-            // 使用 get 方法，并传递 responseType: 'blob' 配置
-            const response = await get(url, {
-                responseType: 'blob'
-            });
-
-            // Blob 处理
-            const blob = new Blob([response.data], {
-                type: response.headers['content-type'] || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            });
-
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.setAttribute('download', filename);
-            document.body.appendChild(link);
-            link.click();
-
-            document.body.removeChild(link);
-            URL.revokeObjectURL(link.href);
-
+            await download(url, filename);
         } catch (error) {
             console.error('下载模板失败:', error);
+            // 可以在这里添加更具体的错误提示
+            throw error;
         }
-    }, [get]);
+    }, [download]);
 
     const importData = useCallback(async (file) => {
         const formData = new FormData();
@@ -91,14 +76,11 @@ export default function useTradeList(options = {}) {
         });
     }, [post]);
 
-    const listByCode = useCallback(async (ho_code = '') => {
-        const params = new URLSearchParams({
-            ho_code: ho_code
-        }).toString();
-        const result = await get(`/trade/list_by_code?${params}`);
+    const listByHoId = useCallback(async (ho_id = '') => {
+        const result = await post(`${urlPrefix}/list_by_ho_id`,{ho_id});
         setData(result);  // 业务逻辑设置 data
         return result;
-    }, [get]);
+    }, [post]);
 
     const uploadTradeImg = useCallback(async (file) => {
         const formData = new FormData();
@@ -130,7 +112,7 @@ export default function useTradeList(options = {}) {
         search,
         downloadTemplate,
         importData,
-        listByCode,
+        listByHoId,
         uploadTradeImg,
         upload_sse
     };

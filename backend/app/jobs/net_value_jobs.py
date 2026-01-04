@@ -1,7 +1,7 @@
-from app.service.nav_history_service import NavHistoryService
+from app.service.nav_history_service import FundNavHistoryService
 from flask import current_app
 
-service = NavHistoryService()
+service = FundNavHistoryService()
 
 
 def crawl_all_fund_net_values():

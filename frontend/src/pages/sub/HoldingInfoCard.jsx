@@ -1,21 +1,13 @@
 import {useTranslation} from "react-i18next";
-import {
-    BanknotesIcon,
-    ChartPieIcon,
-    ClockIcon,
-    PresentationChartLineIcon,
-    ScaleIcon
-} from '@heroicons/react/24/outline';
+import {BanknotesIcon, ChartPieIcon, ScaleIcon} from '@heroicons/react/24/outline';
 
 /**
  * 基金持仓概览卡片
- * @param {string} code - 基金代码
  * @param {Object} fundInfo - 基金基本信息 (ho_name, ho_type)
  * @param {Object} globalStats - 统计数据 (totalProfit, isHolding, currentCost, etc.)
  * @param {Function} [onOpenTradeHistory] - 点击"交易记录"按钮的回调 (可选)
  */
 export default function HoldingInfoCard({
-                                            code,
                                             fundInfo,
                                             globalStats
                                         }) {
@@ -35,7 +27,9 @@ export default function HoldingInfoCard({
             <div
                 className="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 mb-4 border-gray-100 dark:border-gray-600">
                 <div>
-                    <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{code} {fundInfo?.ho_name}</h1>
+                    <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                        {fundInfo?.ho_code} {fundInfo?.ho_short_name}
+                    </h1>
                     <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-3">
                         {/* <span */}
                         {/*     className="bg-gray-100 dark:bg-gray-600 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300 font-mono">{code}</span> */}

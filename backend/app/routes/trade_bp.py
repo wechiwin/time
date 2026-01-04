@@ -9,14 +9,17 @@ import pandas as pd
 from flask import Blueprint, request, Response, stream_with_context, current_app
 from flask import send_file
 from flask_babel import gettext
-from sqlalchemy import desc, or_
+from sqlalchemy import desc, or_, func
+from sqlalchemy.orm import joinedload
 
+from app.constant.biz_enums import ErrorMessageEnum
 from app.framework.auth import auth_required
 from app.framework.exceptions import BizException
 from app.framework.res import Res
 from app.models import db, Trade, Holding
-from app.schemas_marshall import TradeSchema
+from app.schemas_marshall import TradeSchema, marshal_pagination
 from app.service.trade_service import TradeService
+from app.tools.date_tool import date_to_str
 
 trade_bp = Blueprint('trade', __name__, url_prefix='/api/trade')
 
@@ -35,9 +38,8 @@ def search_page():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 10, type=int)
 
-    query = db.session.query(Trade, Holding.ho_short_name).outerjoin(
-        Holding, Trade.ho_code == Holding.ho_code
-    )
+    query = Trade.query.options(joinedload(Trade.holding))
+
     if ho_code:
         query = query.filter_by(ho_code=ho_code)
     if start_date:
@@ -45,10 +47,10 @@ def search_page():
     if end_date:
         query = query.filter(Trade.tr_date <= end_date)
     if keyword:
-        query = query.filter(
+        query = query.join(Holding, Trade.ho_id == Holding.id).filter(
             or_(
                 Holding.ho_code.ilike(f'%{keyword}%'),
-                Holding.ho_name.ilike(f'%{keyword}%')
+                Holding.ho_short_name.ilike(f'%{keyword}%')
             )
         )
 
@@ -56,29 +58,8 @@ def search_page():
     pagination = query.order_by(desc(Trade.tr_date)).paginate(
         page=page, per_page=per_page, error_out=False
     )
-    transactions = pagination.items or []
-    data = [{
-        'tr_id': t.tr_id,
-        'ho_code': t.ho_code,
-        'ho_short_name': ho_short_name,
-        'tr_type': t.tr_type,
-        'tr_date': t.tr_date,
-        'tr_nav_per_unit': t.tr_nav_per_unit,
-        'tr_shares': t.tr_shares,
-        'tr_net_amount': t.tr_net_amount,
-        'tr_fee': t.tr_fee,
-        'tr_amount': t.tr_amount
-    } for t, ho_short_name in transactions]
-    # 返回分页信息
-    result = {
-        'items': data,
-        'pagination': {
-            'page': page,
-            'per_page': per_page,
-            'total': pagination.total,
-            'pages': pagination.pages
-        }
-    }
+    result = marshal_pagination(pagination, TradeSchema)
+
     return Res.success(result)
 
 
@@ -86,14 +67,14 @@ def search_page():
 @auth_required
 def create_transaction():
     data = request.get_json()
-    required_fields = ['ho_code', 'tr_type', 'tr_date', 'tr_nav_per_unit',
+    required_fields = ['ho_id', 'tr_type', 'tr_date', 'tr_nav_per_unit',
                        'tr_shares', 'tr_net_amount', 'tr_fee', 'tr_amount']
 
     if not all(field in data for field in required_fields):
-        raise BizException(msg="缺少必要字段")
+        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD)
 
     new_transaction = TradeSchema().load(data)
-    return Res.success(TradeService.create_transaction(new_transaction))
+    return Res.success() if TradeService.create_transaction(new_transaction) else Res.fail()
 
 
 @trade_bp.route('/<int:tr_id>', methods=['GET'])
@@ -278,14 +259,14 @@ def import_trade():
 
 ALL_TR_TYPE_TEXTS = {
     # 中文
-    "买入": 1,
-    "卖出": 0,
+    "买入": 'BUY',
+    "卖出": 'SELL',
     # 英文
-    "Buy": 1,
-    "Sell": 0,
+    "Buy": 'BUY',
+    "Sell": 'SELL',
     # 意大利语
-    "Acquisto": 1,
-    "Vendita": 0,
+    "Acquisto": 'BUY',
+    "Vendita": 'SELL',
 }
 
 
@@ -298,14 +279,15 @@ def map_trade_type(value):
     return ALL_TR_TYPE_TEXTS[value]
 
 
-@trade_bp.route('/list_by_code', methods=['GET'])
+@trade_bp.route('/list_by_ho_id', methods=['POST'])
 @auth_required
-def list_by_code():
-    ho_code = request.args.get('ho_code')
-    if not ho_code or not ho_code.strip():
+def list_by_ho_id():
+    data = request.get_json()
+    ho_id = data.get('ho_id')
+    if not ho_id:
         return ''
 
-    result_list = Trade.query.filter_by(ho_code=ho_code).all()
+    result_list = Trade.query.filter_by(ho_id=ho_id).order_by(Trade.tr_date.asc()).all()
     return Res.success(TradeSchema(many=True).dump(result_list))
 
 
@@ -320,7 +302,7 @@ def upload():
     # print(file_bytes)
     result = TradeService.process_trade_image(file_bytes)
 
-    resp =  {
+    resp = {
         "ocr_text": result["ocr_text"],
         "parsed_json": result["parsed_json"]
     }

@@ -12,9 +12,9 @@ class Res(object):
         return Res._create_response(RESPONSE_CODE_OK, msg, data)
 
     @staticmethod
-    def fail(code=RESPONSE_CODE_ERROR, msg="error", data=None):
+    def fail(msg="error", code=RESPONSE_CODE_ERROR):
         """失败响应"""
-        return Res._create_response(code, msg, data)
+        return Res._create_response(code, msg, None)
 
     @staticmethod
     def _create_response(code, msg, data):

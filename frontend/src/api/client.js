@@ -90,7 +90,10 @@ createAuthRefreshInterceptor(apiClient, refreshAuthLogic, {
     shouldRefresh: (error) => {
         // 排除刷新接口本身的 401 错误
         const config = error.config;
-        return !config._skipAuth && config.url !== '/api/user_setting/refresh';
+        const status = error.response?.status;
+        return status === 401 &&
+            !config._skipAuth &&
+            config.url !== '/api/user_setting/refresh';
     }
 });
 

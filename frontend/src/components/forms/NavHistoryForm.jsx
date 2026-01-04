@@ -4,11 +4,15 @@ import {useToast} from '../context/ToastContext';
 import {useTranslation} from "react-i18next";
 
 const init = {
-    nav_id: '',
+    id: '',
+    ho_id: '',
     ho_code: '',
     nav_date: '',
     nav_per_unit: '',
     nav_accumulated_per_unit: '',
+    nav_return: '',
+    dividend_method: '',
+    dividend_remark: '',
 };
 
 export default function NavHistoryForm({onSubmit, onClose, initialValues}) {
@@ -31,11 +35,15 @@ export default function NavHistoryForm({onSubmit, onClose, initialValues}) {
     useEffect(() => {
         if (initialValues) {
             setForm({
-                nav_id: initialValues.nav_id,
+                id: initialValues.id,
+                ho_id: initialValues.ho_id || '',
                 ho_code: initialValues.ho_code || '',
                 nav_date: initialValues.nav_date || '',
                 nav_per_unit: initialValues.nav_per_unit || '',
-                nav_accumulated_per_unit: initialValues.nav_accumulated_per_unit || ''
+                nav_accumulated_per_unit: initialValues.nav_accumulated_per_unit || '',
+                nav_return: initialValues.nav_return || '',
+                dividend_method: initialValues.dividend_method || '',
+                dividend_remark: initialValues.dividend_remark || '',
             });
         }
     }, [initialValues]);
@@ -52,8 +60,8 @@ export default function NavHistoryForm({onSubmit, onClose, initialValues}) {
                         value={form.ho_code}
                         onChange={(e) => setForm({...form, ho_code: e.target.value})}
                         required
-                        className={`input-field ${initialValues?.nav_id ? 'read-only-input' : ''}`}
-                        readOnly={!!initialValues?.nav_id}
+                        className={`input-field ${initialValues?.id ? 'read-only-input' : ''}`}
+                        readOnly={!!initialValues?.id}
                     />
                 </div>
                 <div className="flex flex-col">

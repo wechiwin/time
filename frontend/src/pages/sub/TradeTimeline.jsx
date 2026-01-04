@@ -32,7 +32,7 @@ export default function TradeTimeline({rounds = [], loading = false}) {
     };
 
     const getTypeStyle = (type) => {
-        const isBuy = type === 1 || type === '1';
+        const isBuy = type === 'BUY';
         return isBuy
             ? {
                 bg: 'bg-red-50 dark:bg-red-900/20',
@@ -177,7 +177,7 @@ export default function TradeTimeline({rounds = [], loading = false}) {
                                         {(sortOrder === 'asc' ? round.trades : [...round.trades].reverse()).map((trade) => {
                                             const style = getTypeStyle(trade.tr_type);
                                             return (
-                                                <div key={trade.tr_id} className="relative">
+                                                <div key={trade.id} className="relative">
                                                     <div
                                                         className={`absolute -left-[21px] top-1.5 w-3 h-3 rounded-full border-2 border-white dark:border-gray-700 ${style.dot} shadow-sm`}></div>
                                                     <div className="flex justify-between items-start group">
@@ -189,7 +189,7 @@ export default function TradeTimeline({rounds = [], loading = false}) {
                                                                 </span>
                                                                 <span
                                                                     className={`text-xs px-1.5 py-0.5 rounded border ${style.bg} ${style.text} ${style.border}`}>
-                                                                    {trade.tr_type === 1 || trade.tr_type === '1' ? t('tr_type_buy', '买入') : t('tr_type_sell', '卖出')}
+                                                                    {trade.tr_type$view}
                                                                 </span>
                                                             </div>
                                                             <div

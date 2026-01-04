@@ -5,11 +5,11 @@ from flask import current_app
 from flask_babel import gettext
 from sqlalchemy import func, desc, or_
 
-from app.constant.biz_enums import AlertActionStatusEnum, AlertEmailStatusEnum
+from app.constant.biz_enums import AlertRuleActionEnum, AlertEmailStatusEnum
 from app.framework.exceptions import BizException
-from app.models import db, AlertRule, AlertHistory, Holding, UserSetting, NavHistory
+from app.models import db, AlertRule, AlertHistory, Holding, UserSetting, FundNavHistory
 from app.service.mail_service import send_email
-from app.service.nav_history_service import NavHistoryService
+from app.service.nav_history_service import FundNavHistoryService
 from app.tools.date_tool import get_yesterday_date_str
 
 logger = logging.getLogger(__name__)
@@ -26,22 +26,22 @@ class AlertService:
         # nav_list= NavHistory.query.filter(NavHistory.ho_code.in_(ho_codes))
 
         latest_records_subq = db.session.query(
-            NavHistory,
+            FundNavHistory,
             func.row_number().over(
-                partition_by=NavHistory.ho_code,
-                order_by=desc(NavHistory.nav_date)
+                partition_by=FundNavHistory.ho_code,
+                order_by=desc(FundNavHistory.nav_date)
             ).label('row_num')
         ).join(
-            AlertRule, NavHistory.ho_code == AlertRule.ho_code
+            AlertRule, FundNavHistory.ho_code == AlertRule.ho_code
         ).filter(
             AlertRule.ar_is_active == 1
         ).subquery()
 
         # 查询每组的第一条记录
-        latest_nav_list = db.session.query(NavHistory) \
+        latest_nav_list = db.session.query(FundNavHistory) \
             .join(
             latest_records_subq,
-            NavHistory.ho_code == latest_records_subq.c.ho_code
+            FundNavHistory.ho_code == latest_records_subq.c.ho_code
         ) \
             .filter(latest_records_subq.c.row_num == 1) \
             .all()
@@ -58,34 +58,34 @@ class AlertService:
     @classmethod
     def check_single_rule(cls, rule, nav):
         """检查单个提醒规则"""
-        ar_tracked_date = rule.ar_tracked_date
+        ar_tracked_date = rule.tracked_date
         yesterday = get_yesterday_date_str()
         if ar_tracked_date >= yesterday:
             return
 
         # 获取从 ar_tracked_date 到昨天的净值
-        nav_data = NavHistoryService.search_list(
+        nav_data = FundNavHistoryService.search_list(
             ho_code=rule.ho_code,
             start_date=ar_tracked_date,
             end_date=yesterday
         )
         # nav_map = {nav.nav_date: nav.nav_per_unit for nav in nav_data}
-        ar_target_navpu = rule.ar_target_navpu
+        ar_target_navpu = rule.target_navpu
         for nav_item in nav_data:
             if nav_item['nav_date'] <= ar_tracked_date:
                 continue
 
-            ar_type = rule.ar_type
+            ar_type = rule.action
             nav_per_unit = nav_item['nav_per_unit']
             # 分情况判断
-            if AlertActionStatusEnum.BUY.code == ar_type or AlertActionStatusEnum.ADD_POSITION.code == ar_type:
+            if AlertRuleActionEnum.BUY.code == ar_type or AlertRuleActionEnum.ADD_POSITION.code == ar_type:
                 if nav_per_unit <= ar_target_navpu:
                     cls._add_history(rule, nav_item)
-            elif AlertActionStatusEnum.SELL.code == ar_type:
+            elif AlertRuleActionEnum.SELL.code == ar_type:
                 if nav_per_unit >= ar_target_navpu:
                     cls._add_history(rule, nav_item)
             # 更新rule追踪日期
-            rule.ar_tracked_date = nav_item['nav_date']
+            rule.tracked_date = nav_item['nav_date']
             db.session.add(rule)
             db.session.commit()
 
@@ -94,19 +94,19 @@ class AlertService:
         try:
             # 创建提醒历史记录
             history = AlertHistory(
-                ar_id=rule.ar_id,
-                ah_status=AlertEmailStatusEnum.PENDING.code,  # 初始状态为待发送
+                ar_id=rule.id,
+                ah_status=AlertEmailStatusEnum.PENDING,  # 初始状态为待发送
                 ho_code=rule.ho_code,
-                ah_ar_type=rule.ar_type,
+                ah_ar_type=rule.action,
                 ah_nav_per_unit=nav_item['nav_per_unit'],
                 ah_trigger_nav_date=nav_item['nav_date'],
-                ah_target_navpu=rule.ar_target_navpu,
+                ah_target_navpu=rule.target_navpu,
                 ah_ar_name=rule.ar_name,
             )
             db.session.add(history)
             # 更新rule跟踪日期
-            if history.ah_trigger_nav_date > rule.ar_tracked_date:
-                rule.ar_tracked_date = nav_item['nav_date']
+            if history.trigger_nav_date > rule.tracked_date:
+                rule.tracked_date = nav_item['nav_date']
             db.session.add(rule)
             db.session.commit()
         except Exception as e:
@@ -120,8 +120,8 @@ class AlertService:
         # 检查所有需要发送的
         pending_histories = AlertHistory.query.filter(
             or_(
-                AlertHistory.ah_status == AlertEmailStatusEnum.PENDING.code,
-                AlertHistory.ah_status == AlertEmailStatusEnum.FAILED.code
+                AlertHistory.send_status == AlertEmailStatusEnum.PENDING,
+                AlertHistory.send_status == AlertEmailStatusEnum.FAILED
             )
         ).all()
         if not pending_histories:
@@ -132,16 +132,16 @@ class AlertService:
         from collections import defaultdict
         histories_by_rule = defaultdict(list)
         for history in pending_histories:
-            histories_by_rule[history.ar_id].append(history)
+            histories_by_rule[history.id].append(history)
 
         # 获取rule
         ar_ids = list(histories_by_rule.keys())
         # ar_ids = set({ahl.ar_id for ahl in active_history_list})
-        alert_rules = AlertRule.query.filter(AlertRule.ar_id.in_(ar_ids)).all()
+        alert_rules = AlertRule.query.filter(AlertRule.id.in_(ar_ids)).all()
 
         for rule in alert_rules:
             # rule下所有的history
-            ah_list = histories_by_rule.get(rule.ar_id, [])
+            ah_list = histories_by_rule.get(rule.id, [])
             if not ah_list:
                 continue
 
@@ -155,8 +155,8 @@ class AlertService:
             if not user or not user.email_address:
                 for history in ah_list:
                     # 更新history状态
-                    history.ah_status = 'FAILED'
-                    history.ah_remark = '用户邮箱不存在'
+                    history.send_status = 'FAILED'
+                    history.remark = '用户邮箱不存在'
 
                 # db.session.add(ah_list)
                 # db.session.add(rule)
@@ -167,28 +167,28 @@ class AlertService:
                 try:
                     send_email(
                         to=user.email_address,
-                        subject=f"{gettext('EMAIL_SUBJECT_TRIGGER_ALERT')}: {history.ah_ar_name}",
+                        subject=f"{gettext('EMAIL_SUBJECT_TRIGGER_ALERT')}: {history.ar_name}",
                         template='alert_notification.html',
                         user=user,
                         history=history,
                         ho_code=rule.ho_code,
                         ho_name=holding.ho_name,
-                        action=AlertActionStatusEnum.get_desc_by_code(history.ah_ar_type),
+                        action=history.action,
                         current_year=datetime.now().year
                     )
 
                     # 更新状态为已发送
-                    history.ah_status = AlertEmailStatusEnum.SENT.code
-                    history.ah_sent_time = datetime.now()
-                    history.ah_remark = ''
-                    rule.ar_tracked_date = history.ah_trigger_nav_date
+                    history.send_status = AlertEmailStatusEnum.SENT
+                    history.sent_time = datetime.now()
+                    history.remark = ''
+                    rule.tracked_date = history.trigger_nav_date
                     # db.session.commit()
                 except Exception as e:
                     # db.session.rollback()
                     # 记录发送失败
-                    history.ah_status = AlertEmailStatusEnum.FAILED.code
+                    history.send_status = AlertEmailStatusEnum.FAILED
                     error_msg = f"发送提醒邮件失败: {str(e)}"
-                    history.ah_remark = error_msg
+                    history.remark = error_msg
                     # db.session.commit()
                     current_app.logger.error(error_msg, exc_info=True)
                 db.session.commit()

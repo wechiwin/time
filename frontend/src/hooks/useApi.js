@@ -28,7 +28,11 @@ export default function useApi() {
                 default:
                     throw new Error(`Unsupported method: ${method}`);
             }
-
+            // 如果是文件下载（blob），返回整个 response
+            if (config.responseType === 'blob') {
+                return response;
+            }
+            // 普通请求返回 data.data
             return response.data.data;
         } catch (err) {
             const msg = err.message || '请求失败';
@@ -41,9 +45,40 @@ export default function useApi() {
     }, []);
 
     const get = useCallback((url, options) => request(url, 'GET', null, options), [request]);
-    const post = useCallback((url, body, options) => request(url, 'POST', body, options), [request]);
+    const post = useCallback((url, body, options={}) => request(url, 'POST', body, options), [request]);
     const put = useCallback((url, body, options) => request(url, 'PUT', body, options), [request]);
     const del = useCallback((url, options) => request(url, 'DELETE', null, options), [request]);
+
+    // 专门的文件下载方法
+    const download = useCallback(async (url, filename, config = {}) => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await apiClient.get(url, {
+                ...config,
+                responseType: 'blob'
+            });
+            // 处理 Blob 下载
+            const blob = new Blob([response.data], {
+                type: response.headers['content-type'] || 'application/octet-stream'
+            });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+            return response;
+        } catch (err) {
+            const msg = err.message || '下载失败';
+            setError(msg);
+            console.error(`[useApi] 下载错误: ${msg}`, err);
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
     return {
         loading,
@@ -52,6 +87,7 @@ export default function useApi() {
         post,
         put,
         del,
+        download,
         request
     };
 }

@@ -66,7 +66,7 @@ def login():
     response = Res.success({
         "access_token": access_token,
         "user": {
-            "id": user.us_id,
+            "id": user.id,
             "username": user.username,
             "default_lang": user.default_lang,
             "email_address": user.email_address,
@@ -167,7 +167,7 @@ def get_user():
         raise BizException("用户不存在")
 
     result = {
-        "id": user.us_id,
+        "id": user.id,
         "username": user.username,
         "default_lang": user.default_lang,
         "email_address": user.email_address,
@@ -234,7 +234,7 @@ def register():
     response = Res.success({
         "access_token": access_token,
         "user": {
-            "id": new_user.us_id,
+            "id": new_user.id,
             "username": new_user.username,
         }
     })

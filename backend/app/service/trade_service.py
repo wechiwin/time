@@ -5,13 +5,17 @@ from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 
 import requests
+from sqlalchemy import desc
 
-from app.constant.biz_enums import HoldingStatusEnum, TradeStatusEnum
+from app.constant.biz_enums import HoldingStatusEnum, TradeTypeEnum
 from app.framework.exceptions import BizException
-from app.models import db, Holding, Trade
+from app.models import db, Holding, Trade, FundNavHistory
 from paddleocr import PaddleOCR
 import logging
 from typing import List, Dict, Tuple, Optional
+from collections import defaultdict
+
+from app.tools.date_tool import date_str_to_date
 
 ocr = PaddleOCR(use_angle_cls=True, lang='ch')
 # TODO 改为在线？
@@ -116,6 +120,7 @@ OCR 文本：
                 h = Holding.query.filter_by(ho_name=data.get('ho_name')).first()
                 if h:
                     data['ho_code'] = h.ho_code
+                    data['ho_id'] = h.id
             # logger.info("LLM解析json结果：%s", str(data))
             return data
         except Exception as e:
@@ -132,7 +137,7 @@ OCR 文本：
         results = query.all() or []
 
         data = [{
-            'tr_id': t.tr_id,
+            'tr_id': t.id,
             'ho_code': t.ho_code,
             'tr_type': t.tr_type,
             'tr_date': t.tr_date,
@@ -146,7 +151,6 @@ OCR 文本：
 
     @staticmethod
     def call_local_llm(prompt: str):
-
         """
         调用 Ollama 本地模型
         """
@@ -159,166 +163,244 @@ OCR 文本：
 
     @classmethod
     def create_transaction(cls, new_trade):
-        ho_code = new_trade.ho_code
-        # 更新持仓状态
-        holding = Holding.query.filter_by(ho_code=ho_code).first();
-        if not holding:
-            raise BizException("持仓不存在")
+        try:
+            ho_id = new_trade.ho_id
+            # 更新持仓状态
+            holding = Holding.query.filter_by(id=ho_id).first()
+            if not holding:
+                raise BizException("持仓不存在")
 
-        trades = cls.list_uncleared_by_ho_code(ho_code)
+            trades, tr_round = cls.list_uncleared(holding)
+            # 判空
+            if trades:
+                if TradeTypeEnum.SELL == new_trade.tr_type:  # 卖出
+                    # 分别计算目前持有的买入和卖出份额
+                    buy_shares = sum(t.tr_shares for t in trades if t.tr_type == TradeTypeEnum.BUY)
+                    sell_shares = sum(t.tr_shares for t in trades if t.tr_type == TradeTypeEnum.SELL)
 
-        # 分别计算目前持有的买入和卖出份数
-        current_buy_shares = sum(t.tr_shares for t in trades if t.tr_type == TradeStatusEnum.BUY.code)
-        current_sell_shares = sum(t.tr_shares for t in trades if t.tr_type == TradeStatusEnum.SELL.code)
-        # 检查卖出是否大于买入
-        if current_sell_shares > current_buy_shares:
-            raise BizException("交易数据有误：卖出份数大于买入份数")
+                    current_sell_shares = buy_shares - sell_shares - new_trade.tr_shares
+                    if current_sell_shares < 0:
+                        raise BizException("卖出份额大于买入份额")
+                    elif current_sell_shares == 0:  # 清仓
+                        holding.ho_status = HoldingStatusEnum.CLOSED
+                    else:  # 部分卖出
+                        holding.ho_status = HoldingStatusEnum.HOLDING
+                else:  # 买入
+                    holding.ho_status = HoldingStatusEnum.HOLDING
+            else:  # 之前没交易或已清仓
+                if TradeTypeEnum.SELL == new_trade.tr_type:
+                    raise BizException("卖出份额大于买入份额")
+                holding.ho_status = HoldingStatusEnum.HOLDING
 
-        if TradeStatusEnum.BUY.code == new_trade.tr_type:
-            # 如果之前不是持仓状态，现在买入则变为“持仓中”
-            if holding.ho_status != HoldingStatusEnum.HOLDING.code:
-                holding.ho_status = HoldingStatusEnum.HOLDING.code
-            # 买入不会导致清仓
-            new_trade.is_cleared = False
-        else:
-            # 卖出：检查是否清仓
-            after_sell_shares = current_buy_shares - current_sell_shares - new_trade.tr_shares
-            if after_sell_shares == 0:  # 清仓
-                new_trade.is_cleared = True
-                holding.ho_status = HoldingStatusEnum.CLEARED.code
-            else:
-                new_trade.is_cleared = False  # 部分清仓
-                if holding.ho_status != HoldingStatusEnum.HOLDING.code:
-                    holding.ho_status = HoldingStatusEnum.HOLDING.code
-
-        db.session.add(new_trade)
-        db.session.add(holding)
-        db.session.commit()
-        return ''
+            new_trade.ho_code = holding.ho_code
+            new_trade.tr_round = tr_round
+            db.session.add(new_trade)
+            db.session.add(holding)
+            db.session.commit()
+            return True
+        except Exception as e:
+            db.session.rollback()
+            logger.error(e, exc_info=True)
+            return False
 
     @classmethod
     def import_trade(cls, transactions):
-        # ho_code取出且去重
-        ho_codes = set(tx.ho_code for tx in transactions)
+        """
+        批量导入交易记录
+        """
+        if not transactions:
+            return True
+        # 1. 按 ho_code 分组并按交易日期排序
+        transactions_by_code = defaultdict(list)
+        for tx in transactions:
+            transactions_by_code[tx.ho_code].append(tx)
 
-        # 检查ho_code是否存在
-        existing_holdings = Holding.query.filter(Holding.ho_code.in_(ho_codes)).all()
-        existing_codes = {h.ho_code for h in existing_holdings}
-        missing_codes = ho_codes - existing_codes
+        for code in transactions_by_code:
+            transactions_by_code[code].sort(key=lambda x: x.tr_date)
+
+        ho_codes = list(transactions_by_code.keys())
+
+        # 2. 一次性查询所有相关的持仓记录
+        holdings = Holding.query.filter(Holding.ho_code.in_(ho_codes)).all()
+        holding_map = {h.ho_code: h for h in holdings}
+
+        # 3. 检查是否存在未创建的持仓
+        missing_codes = set(ho_codes) - set(holding_map.keys())
         if missing_codes:
-            raise BizException(
-                msg=f"以下基金代码不存在于持仓表中: {', '.join(map(str, missing_codes))}"
-            )
+            raise BizException(f"以下基金代码不存在于持仓表中，请先添加: {', '.join(map(str, missing_codes))}")
 
         try:
-            # 按ho_code分组处理交易
-            transactions_by_code = {}
-            for tx in transactions:
-                if tx.ho_code not in transactions_by_code:
-                    transactions_by_code[tx.ho_code] = []
-                transactions_by_code[tx.ho_code].append(tx)
-            # # 按交易日期排序每个ho_code的交易
-            # for code in transactions_by_code:
-            #     transactions_by_code[code].sort(key=lambda x: x.tr_date)
+            # 4. 循环处理每个基金的交易列表
+            for ho_code, new_trades in transactions_by_code.items():
+                holding = holding_map[ho_code]
 
-            # 处理每个ho_code的交易
-            for code in ho_codes:
-                # 获取该基金的所有未清仓交易
-                existing_trades = cls.list_uncleared_by_ho_code(code)
-                import_trades = transactions_by_code[code]
-                mixed_trades = set(existing_trades) | set(import_trades)
-                mixed_trades_sorted = sorted(
-                    mixed_trades,
-                    key=lambda t: datetime.strptime(t.tr_date, "%Y-%m-%d")
-                )
-                # # 分别计算数据库中已有的买入和卖出份额
-                # existing_buy_shares = sum(t.tr_shares for t in existing_trades
-                #                           if t.tr_type == TradeStatusEnum.BUY.code)
-                # existing_sell_shares = sum(t.tr_shares for t in existing_trades
-                #                            if t.tr_type == TradeStatusEnum.SELL.code)
-                # # 分别计算导入的买入和卖出份额
-                # import_trades = transactions_by_code[code]
-                # import_buy_shares = sum(t.tr_shares for t in import_trades if t.tr_type == TradeStatusEnum.BUY.code)
-                # import_sell_shares = sum(t.tr_shares for t in import_trades if t.tr_type == TradeStatusEnum.SELL.code)
-                #
-                # # 检查总数据是否有效（数据库+导入）
-                # total_buy_shares = existing_buy_shares + import_buy_shares
-                # total_sell_shares = existing_sell_shares + import_sell_shares
-                # if total_sell_shares > total_buy_shares:
-                #     raise BizException(f"基金代码 {code} 交易数据有误：卖出份数大于买入份数")
+                # 获取该基金在导入前数据库中的状态
+                uncleared_trades_db, initial_tr_round = cls.list_uncleared(holding)
 
-                # 获取持仓记录
-                holding = Holding.query.filter_by(ho_code=code).first()
+                # 计算当前数据库中未清算的份额（作为内存中计算的起点）
+                buy_shares_db = sum((Decimal(str(t.tr_shares)) for t in uncleared_trades_db if t.tr_type == TradeTypeEnum.BUY.value), start=Decimal('0'))
+                sell_shares_db = sum((Decimal(str(t.tr_shares)) for t in uncleared_trades_db if t.tr_type == TradeTypeEnum.SELL.value), start=Decimal('0'))
+                # 初始化内存中的状态变量
+                current_shares = buy_shares_db - sell_shares_db
+                current_tr_round = initial_tr_round
 
-                # 用来计算是否清仓
-                # current_share = existing_buy_shares - existing_sell_shares
-                current_share = Decimal('0.00')
+                # 5. 按时间顺序处理该基金的每一笔新交易
+                for trade in new_trades:
+                    trade_shares = Decimal(str(trade.tr_shares))
+                    if isinstance(trade.tr_date, str):
+                        trade.tr_date = date_str_to_date(trade.tr_date)
 
-                # 处理该基金的批量交易
-                for trade in mixed_trades_sorted:
-                    trade_shares = Decimal(str(trade.tr_shares)).quantize(
-                        Decimal('0.00'),
-                        rounding=ROUND_HALF_UP
-                    )
-                    # 买入
-                    if trade.tr_type == TradeStatusEnum.BUY.code:
-                        if holding.ho_status != HoldingStatusEnum.HOLDING.code:
-                            holding.ho_status = HoldingStatusEnum.HOLDING.code
-                        trade.is_cleared = False
-                        # 更新当前持仓数量
-                        current_share += trade_shares
-                    else:
-                        # 卖出交易：检查是否超过当前可卖份额
-                        if trade_shares > current_share:
+                    if current_shares.is_zero() and trade.tr_type == TradeTypeEnum.SELL.value:
+                        raise BizException(
+                            f"基金 {ho_code} 导入失败: 交易日 {trade.tr_date} 尝试从一个空仓中卖出份额。"
+                        )
+
+                    # 为当前交易分配正确的轮次
+                    trade.tr_round = current_tr_round
+
+                    if trade.tr_type == TradeTypeEnum.SELL.value:
+                        if trade_shares > current_shares:
                             raise BizException(
-                                f"基金代码 {code} 导入失败，请检查模板中交易日期{trade.tr_date}及之前的数据")
-                        current_share -= trade_shares
-                        # 计算卖出后的持仓
-                        if current_share == 0:  # 清仓
-                            trade.is_cleared = True
-                            holding.ho_status = HoldingStatusEnum.CLEARED.code
-                        else:
-                            trade.is_cleared = False  # 部分清仓
-                            if holding.ho_status != HoldingStatusEnum.HOLDING.code:
-                                holding.ho_status = HoldingStatusEnum.HOLDING.code
+                                f"基金 {ho_code} 导入失败: 交易日 {trade.tr_date} 尝试卖出 {trade_shares} 份, "
+                                f"但当时仅持有 {current_shares} 份。"
+                            )
+                        current_shares -= trade_shares
 
-                    trade.tr_shares = float(trade_shares)
+                        # 检测是否清仓
+                        if current_shares < Decimal('0.0001'):
+                            current_shares = Decimal('0') # 修正精度
+                            current_tr_round += 1 # 轮次+1
+                    else: # 买入
+                        current_shares += trade_shares
 
-                    if trade.tr_id:
-                        db.session.merge(trade)
-                    else:
-                        db.session.add(trade)
+                    # 设置交易的关联属性并添加到会话
+                    trade.ho_id = holding.id
+                    trade.ho_code = holding.ho_code
+                    db.session.add(trade)
 
-                # 更新持仓状态
-                db.session.add(holding)
+                # 6. 处理完一个基金的所有新交易后，根据最终份额更新持仓状态
+                # 使用一个小的阈值来判断是否为零，避免浮点精度问题
+                if current_shares < Decimal('0.0001'):
+                    holding.ho_status = HoldingStatusEnum.CLOSED.value
+                else:
+                    holding.ho_status = HoldingStatusEnum.HOLDING.value
 
-            # 提交所有更改
+                db.session.add(holding) # 添加到会话以更新状态
+
+            # 7. 所有基金都处理完毕后，统一提交事务
             db.session.commit()
-            return ''
+            return True
 
         except Exception as e:
             db.session.rollback()
-            error_message = str(e)
-            logger.error(error_message)
-            raise BizException(msg=f"导入失败: {error_message}")
+            logger.error(e, exc_info=True)
+            if isinstance(e, BizException):
+                raise e
+            raise BizException("导入过程中发生未知错误")
 
     @staticmethod
-    def list_uncleared_by_ho_code(ho_code) -> List[Trade]:
+    def list_uncleared(holding)-> Tuple[List[Trade], int]:
         """
-        获取自上次清仓后的所有交易记录
         参数:
-          ho_code: 持仓代码
+          holding: 持仓对象
+        返回：
+            一个元组 (trades, tr_round)，其中:
+            - trades: 未清仓的所有交易记录列表 (List[Trade])
+            - tr_round: 新建交易记录应使用的 tr_round (int)
         """
-        # 按交易日期排序（升序）
-        all_trades = Trade.query.filter_by(ho_code=ho_code).order_by(Trade.tr_date).all()
-        # 筛选出已清仓的交易
-        cleared_trades = [trade for trade in all_trades if trade.is_cleared == 1]
-        if cleared_trades:
-            # 找出最近的一条已清仓交易
-            latest_cleared_trade = max(cleared_trades, key=lambda x: x.tr_date)
-            # 获取这条清仓交易及之后的所有交易
-            latest_index = all_trades.index(latest_cleared_trade)
-            return all_trades[latest_index:]
+        # 获取最新一条记录
+        latest_trade = Trade.query.filter_by(ho_id=holding.id).order_by(desc(Trade.id)).first()
+
+        if not latest_trade:
+            # 如果没有任何交易记录，则为第一轮
+            return [], 1
+
+        if HoldingStatusEnum.HOLDING == holding.ho_status:
+            trades = Trade.query.filter_by(ho_id=holding.id, tr_round=latest_trade.tr_round).order_by(Trade.tr_date, Trade.id).all()
+            return trades, latest_trade.tr_round
         else:
-            # 没有已清仓的交易，返回所有交易
-            return all_trades
+            return [], latest_trade.tr_round + 1
+
+    @staticmethod
+    def calculate_position(uncleared_trade_list):
+        """
+        计算未清仓交易列表的持仓总份额和持仓总成本
+
+        参数:
+            uncleared_trade_list: 未清仓的交易列表(Trade对象列表)
+
+        返回:
+            tuple: (持仓总份额, 持仓总成本)
+        """
+        total_shares = 0.0
+        total_cost = 0.0
+
+        # 按交易日期排序，确保交易按时间顺序处理
+        sorted_trades = sorted(uncleared_trade_list, key=lambda x: x.tr_date)
+
+        for trade in sorted_trades:
+            if trade.tr_type == 1:  # 买入交易
+                total_shares += trade.tr_shares
+                total_cost += trade.tr_amount  # 总成本包含交易费用
+            elif trade.tr_type == 0:  # 卖出交易
+                # 使用移动平均法计算卖出成本 TODO 之后增加选项FIFO给用户
+                if total_shares > 0:
+                    avg_cost = total_cost / total_shares
+                    sell_cost = trade.tr_shares * avg_cost
+                    total_shares -= trade.tr_shares
+                    total_cost -= sell_cost
+
+        return total_shares, total_cost
+
+    @classmethod
+    def calculate_cumulative_profit(cls):
+        """
+        计算累计收益
+        累计收益 = 卖出总金额 + 当前持仓市值 - 买入总金额
+        其中：
+          - 买入总金额 = 所有买入交易的 tr_amount（含费用）之和
+          - 卖出总金额 = 所有卖出交易的 tr_amount（含费用）之和
+          - 当前持仓市值 = 所有未清仓持仓的份额 × 最新单位净值
+        """
+        # 1. 获取所有交易记录
+        trades = Trade.query.all() or []
+
+        # 2. 计算买入和卖出总额（含交易费用）
+        total_buy_amount = sum(trade.tr_amount for trade in trades if trade.tr_type == 1)
+        total_sell_amount = sum(trade.tr_amount for trade in trades if trade.tr_type == 0)
+
+        # 3. 获取所有未清仓的持仓（is_cleared == 0）
+        unclosed_holding_codes = set()
+        holding_shares = {}  # ho_code -> total shares
+
+        for trade in trades:
+            if trade.is_cleared == 0 and trade.tr_type == 1:  # 未清仓且是买入
+                holding_shares[trade.ho_code] = holding_shares.get(trade.ho_code, 0) + trade.tr_shares
+            elif trade.is_cleared == 0 and trade.tr_type == 0:  # 未清仓且是卖出
+                # 卖出会减少持仓
+                holding_shares[trade.ho_code] = holding_shares.get(trade.ho_code, 0) - trade.tr_shares
+                if holding_shares[trade.ho_code] <= 0:
+                    holding_shares[trade.ho_code] = 0  # 防止负数
+
+        # 4. 获取每个基金的最新单位净值（nav_per_unit）
+        # 使用 NavHistory 表，按 ho_code 和 nav_date 降序取最新一条
+        latest_navs = {}
+        for ho_code in holding_shares.keys():
+            if not ho_code:
+                continue
+            latest_nav = FundNavHistory.query.filter_by(ho_code=ho_code) \
+                .order_by(FundNavHistory.nav_date.desc()) \
+                .first()
+            if latest_nav:
+                latest_navs[ho_code] = latest_nav.market_price
+
+        # 5. 计算当前持仓市值
+        current_market_value = 0.0
+        for ho_code, shares in holding_shares.items():
+            if shares > 0 and ho_code in latest_navs:
+                current_market_value += shares * latest_navs[ho_code]
+
+        # 6. 计算累计收益
+        cumulative_profit = total_sell_amount + current_market_value - total_buy_amount
+
+        return cumulative_profit

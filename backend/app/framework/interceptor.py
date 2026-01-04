@@ -62,7 +62,8 @@ def register_request_response_logger(app):
             app.logger.info(f"""
             ===== Response Begin =====
             TraceId: {g.trace_id}
-            Path: {request.path}            Status: {response.status}
+            Path: {request.path}
+            Status: {response.status}
             Duration: {elapsed:.3f}s
             Response: {resp_data}
             ===== Response End =====

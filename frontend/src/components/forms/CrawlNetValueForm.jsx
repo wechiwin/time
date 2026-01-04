@@ -17,6 +17,7 @@ const getYesterdayDate = () => {
 
 export default function CrawlNetValueForm({onSubmit, onClose, initialValues}) {
     const [formData, setFormData] = useState({
+        ho_id: initialValues.ho_id || '',
         ho_code: initialValues.ho_code || '',
         start_date: initialValues.start_date || '',
         end_date: initialValues.end_date || ''
@@ -81,11 +82,12 @@ export default function CrawlNetValueForm({onSubmit, onClose, initialValues}) {
             try {
                 const holding = await getByCode(code);
                 if (holding && holding.created_at) {
-                    const creationDate = holding.ho_establish_date;
+                    const creationDate = holding.establishment_date;
                     setQuickStartDate(prev => ({...prev, creation: creationDate}));
                 } else {
                     setQuickStartDate(prev => ({...prev, creation: ''}));
                 }
+                handleChange('ho_id', holding.id);
             } catch (err) {
                 console.error("获取基金信息失败:", err);
                 setQuickStartDate(prev => ({...prev, creation: ''}));

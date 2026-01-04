@@ -20,10 +20,10 @@ def create_rule():
     data = request.get_json()
     if not data.get('ho_code') or not data.get('ar_type') or not data.get('ar_is_active') or not data.get(
             'ar_target_navpu'):
-        raise BizException(msg="缺少必要字段")
+        raise BizException(msg=ErrorMessage.MISSING_FIELD)
 
     new_rule = AlertRuleSchema().load(data)
-    new_rule.ar_tracked_date = get_yesterday_date_str()
+    new_rule.tracked_date = get_yesterday_date_str()
     db.session.add(new_rule)
     db.session.commit()
     return Res.success()
@@ -89,13 +89,13 @@ def search_rule_page():
         page=page, per_page=per_page, error_out=False)
     rules = pagination.items or []
     items = [{
-        'ar_id': r.ar_id,
+        'ar_id': r.id,
         'ho_code': r.ho_code,
         'ho_short_name': ho_short_name,
         'ar_is_active': r.ar_is_active,
-        'ar_target_navpu': r.ar_target_navpu,
-        'ar_tracked_date': r.ar_tracked_date,
-        'ar_type': r.ar_type,
+        'ar_target_navpu': r.target_navpu,
+        'ar_tracked_date': r.tracked_date,
+        'ar_type': r.action,
         'ar_name': r.ar_name,
         'created_at': r.created_at,
         'updated_at': r.updated_at
@@ -149,15 +149,15 @@ def search_history_page():
         page=page, per_page=per_page, error_out=False)
     rule_histories = pagination.items or []
     items = [{
-        'ah_id': r.ah_id,
-        'ar_id': r.ar_id,
+        'ah_id': r.id,
+        'ar_id': r.id,
         'ho_code': r.ho_code,
         'ho_short_name': ho_short_name,
         'ah_nav_date': r.ah_nav_date,
-        'ah_status': r.ah_status,
-        'ah_ar_type': r.ah_ar_type,
-        'ah_target_navpu': r.ah_target_navpu,
-        'ah_nav_per_unit': r.ah_nav_per_unit,
+        'ah_status': r.send_status,
+        'ah_ar_type': r.action,
+        'ah_target_navpu': r.target_navpu,
+        'ah_nav_per_unit': r.trigger_navpu,
         'created_at': r.created_at,
         'updated_at': r.updated_at
     } for r, ho_short_name in rule_histories]

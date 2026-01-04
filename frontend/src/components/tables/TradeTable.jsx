@@ -7,12 +7,12 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
     const {t} = useTranslation()
     const navigate = useNavigate();
     const handleRowClick = (tr) => {
-        navigate(`/trade/${tr.ho_code}`);
+        navigate(`/trade/${tr.ho_id}`);
     };
     // 移动端卡片式布局
     const renderMobileCard = (tr) => (
         <div
-            key={tr.tr_id}
+            key={tr.id}
             className="card mb-3 p-4 border border-gray-200 rounded-lg shadow-sm"
         >
             <div className="flex justify-between items-start mb-2">
@@ -22,20 +22,15 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                 >
                     {tr.ho_code}
                 </button>
-                <span
-                    className={`inline-flex px-2 py-1 text-xs rounded-full font-medium ${
-                        tr.tr_type === 1 || tr.tr_type === '1'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                    }`}
-                >
-                    {tr.tr_type === 1 || tr.tr_type === '1' ? t('tr_type_buy') : t('tr_type_sell')}
-                </span>
+                <div className="text-right font-medium">{tr.ho_short_name}</div>
             </div>
 
             <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="text-gray-600">{t('th_ho_short_name')}</div>
-                <div className="text-right font-medium">{tr.ho_short_name}</div>
+                <div className="text-gray-600">{t('th_tr_type')}</div>
+                <div className="text-right font-medium">{tr.tr_type$view}</div>
+
+                {/* <div className="text-gray-600">{t('th_ho_short_name')}</div> */}
+                {/* <div className="text-right font-medium">{tr.ho_short_name}</div> */}
 
                 <div className="text-gray-600">{t('th_nav_date')}</div>
                 <div className="text-right">{tr.tr_date}</div>
@@ -82,8 +77,8 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="page-bg">
                     <tr>
+                        <th className="table-header">{t('th_ho_code')}</th>
                         <th className="table-header">{t('th_ho_name')}</th>
-                        <th className="table-header">{t('th_ho_short_name')}</th>
                         <th className="table-header">{t('th_tr_type')}</th>
                         <th className="table-header">{t('th_nav_date')}</th>
                         <th className="table-header">{t('th_tr_nav_per_unit')}</th>
@@ -96,7 +91,7 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                     </thead>
                     <tbody className="card divide-y divide-gray-200">
                     {data.map((tr) => (
-                        <tr key={tr.tr_id} className="hover:page-bg">
+                        <tr key={tr.id} className="hover:page-bg">
                             <td className="table-cell">
                                 <button
                                     className="text-blue-600 hover:text-blue-800 underline cursor-pointer"
@@ -107,15 +102,15 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                             </td>
                             <td className="table-cell font-medium">{tr.ho_short_name}</td>
                             <td className="table-cell">
-                <span
-                    className={`inline-flex px-2 py-0.5 text-xs rounded-full font-medium ${
-                        tr.tr_type === 1 || tr.tr_type === '1'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                    }`}
-                >
-                    {tr.tr_type === 1 || tr.tr_type === '1' ? t('tr_type_buy') : t('tr_type_sell')}
-                </span>
+                                <span
+                                    className={`inline-flex px-2 py-0.5 text-xs rounded-full font-medium ${
+                                        tr.tr_type === 'BUY'
+                                            ? 'bg-green-100 text-green-800'
+                                            : 'bg-red-100 text-red-800'
+                                    }`}
+                                >
+                                    {tr.tr_type$view}
+                                </span>
                             </td>
                             <td className="table-cell">{tr.tr_date}</td>
                             <td className="table-cell">{tr.tr_nav_per_unit}</td>
