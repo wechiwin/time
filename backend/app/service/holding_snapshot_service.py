@@ -8,6 +8,7 @@ from typing import List, Tuple, Optional
 
 from app.calendars.trade_calendar import TradeCalendar
 from app.constant.biz_enums import TradeTypeEnum
+from app.framework.async_task_manager import async_task, create_task
 from app.framework.cache_manager import CacheManager
 from app.framework.exceptions import BizException
 from app.models import db, HoldingSnapshot, Holding, FundNavHistory, Trade
@@ -30,9 +31,6 @@ class HoldingSnapshotService:
 
         total_generated = 0
         errors = []
-
-        success_ho_ids = []
-        failed_ho_ids = []
 
         if ids:
             holdings = Holding.query.filter(Holding.id.in_(ids)).all()
@@ -61,9 +59,15 @@ class HoldingSnapshotService:
                 db.session.commit()
                 logger.info(f"Generated {len(to_add_snapshots)} holding snapshots for {holding.ho_code}")
             except Exception as e:
-                # TODO 增加缓存fallback机制 使用Flask-Caching 报错的holding重试 3次重试失败 则反馈到任务台(是否有必要新建表格)
                 error_msg = f"Error processing holding {holding.ho_code}: {str(e)}"
-                logger.error(error_msg, exc_info=True)
+                create_task(
+                    task_name=f"regenerate all holding snapshots for {holding.ho_code} - {holding.ho_short_name}",
+                    module_path="app.services.holding_snapshot_service",
+                    method_name="generate_all_holding_snapshots",
+                    kwargs={"ids": f"[{holding.id},]"},
+                    error_message=error_msg
+                )
+                logger.error(e, exc_info=True)
                 errors.append(error_msg)
 
         end_time = time.time()
@@ -75,151 +79,9 @@ class HoldingSnapshotService:
         return result
 
     @classmethod
-    def _generate_for_holding(cls, holding: Holding) -> List[HoldingSnapshot]:
-        """为单个持仓生成其生命周期内的所有快照（内部方法）"""
-        logger.info(f"Processing holding: {holding.ho_code} ({holding.ho_name})")
-        # 获取所有交易记录 时间升序
-        trade_list = Trade.query.filter(Trade.ho_id == holding.id).order_by(Trade.tr_date).all()
-        if not trade_list:
-            return []
-
-        # 根据tr_round分组
-        trades_by_round = defaultdict(list)
-        for trade in trade_list:
-            trades_by_round[trade.tr_round].append(trade)
-
-        snapshots = []
-
-        # 根据每轮交易记录，生成快照数据
-        for tr_round, round_trades in trades_by_round.items():
-            first_date = round_trades[0].tr_date
-            last_date = round_trades[-1].tr_date
-
-            # 获取区间内所有净值
-            nav_history_list = FundNavHistory.query.filter(
-                FundNavHistory.ho_id == holding.id,
-                FundNavHistory.nav_date >= first_date,
-                FundNavHistory.nav_date <= last_date
-            ).all()
-            nav_map = {date_to_str(nav.nav_date): nav for nav in nav_history_list}
-
-            trades_by_date = defaultdict(list)
-            for trade in round_trades:
-                trades_by_date[date_to_str(trade.tr_date)].append(trade)
-
-            # 初始化状态变量
-            current_shares = ZERO
-            current_total_cost = ZERO
-            cumulative_realized_pnl = ZERO
-            previous_snapshot = None
-            snapshots_to_add = []
-
-            # 逐日计算快照
-            current_date = first_date
-            while current_date <= last_date:
-                # 获取当日净值，如果不存在（如节假日），则跳过当天
-                nav_today = nav_map.get(date_to_str(current_date))
-                if not nav_today:
-                    current_date += timedelta(days=1)
-                    continue
-
-                net_investment_today = ZERO
-
-                # 处理[current_date]的所有交易
-                trades_in_current_date = trades_by_date.get(date_to_str(current_date))
-                if trades_in_current_date:
-                    for trade in trades_in_current_date:
-                        if trade.tr_type == TradeTypeEnum.BUY.value:
-                            current_shares += trade.tr_shares
-                            current_total_cost += trade.tr_amount
-                            net_investment_today += trade.tr_amount
-                        elif trade.tr_type == TradeTypeEnum.SELL.value:
-                            # 使用移动加权平均法计算卖出部分的成本
-                            if current_shares > 0:
-                                cost_of_sold_shares = (current_total_cost / current_shares) * trade.tr_shares
-                                current_total_cost -= cost_of_sold_shares
-
-                                realized_pnl_from_this_sell = trade.tr_amount - cost_of_sold_shares
-                                cumulative_realized_pnl += realized_pnl_from_this_sell
-                            else:
-                                # TODO 这里应该引入缓存队列，失败了之后重试
-                                # 如果在卖出前份额已为0（异常数据） 超卖
-                                raise BizException(
-                                    f"Sell trade on {current_date} for {holding.ho_code} but shares are zero.")
-
-                            current_shares -= trade.tr_shares
-                            # 卖出所得计为负向投资
-                            net_investment_today -= trade.tr_amount
-                # 根据数据，生成快照
-                snapshot, previous_snapshot, cumulative_realized_pnl = cls._get_snapshot(
-                    holding, current_date, nav_today, cumulative_realized_pnl, current_shares,
-                    net_investment_today, current_total_cost, previous_snapshot)
-
-                snapshots.append(snapshot)
-                current_date += timedelta(days=1)
-
-        return snapshots
-
-    @classmethod
-    def _get_snapshot(cls, holding, current_date, nav_today, cumulative_realized_pnl, current_shares,
-                      net_investment_today, current_total_cost, previous_snapshot):
-        snapshot = HoldingSnapshot()
-        # 不管是否清仓，通用记录数据：
-        snapshot.ho_id = holding.id
-        snapshot.snapshot_date = current_date
-        snapshot.market_price = nav_today.nav_per_unit
-        # 实现盈亏
-        snapshot.hos_realized_pnl = cumulative_realized_pnl
-
-        # 处理分红
-        if nav_today.dividend_price:
-            snapshot.dividend_amount = nav_today.dividend_price * current_shares
-            net_investment_today += snapshot.dividend_amount
-
-        if current_shares > ZERO:  # 未清仓
-            # 基本持仓信息
-            snapshot.holding_shares = current_shares
-            snapshot.hos_total_cost = current_total_cost
-            snapshot.cost_price = (current_total_cost / current_shares
-                                   if current_shares > 0 else ZERO)
-            # 市场价值信息
-            snapshot.hos_market_value = current_shares * nav_today.nav_per_unit
-            # 未实现盈亏
-            snapshot.hos_unrealized_pnl = snapshot.hos_market_value - snapshot.hos_total_cost
-        else:  # 清仓
-            snapshot.holding_shares = ZERO
-            snapshot.hos_total_cost = previous_snapshot.hos_total_cost
-            snapshot.cost_price = previous_snapshot.cost_price
-            snapshot.hos_market_value = previous_snapshot.holding_shares * nav_today.nav_per_unit
-            snapshot.hos_unrealized_pnl = ZERO
-
-        # 不管是否清仓，通用指标，但是必须后算
-        # 反映剔除现金流后的纯市场损益 当日盈亏 = (期末持仓市值 - 期初持仓市值) - 当日净现金流入
-        snapshot.hos_daily_pnl = snapshot.hos_market_value - previous_snapshot.hos_market_value - net_investment_today
-        snapshot.hos_daily_pnl_ratio = (
-            snapshot.hos_daily_pnl / previous_snapshot.hos_market_value
-            if previous_snapshot.hos_market_value > 0 else ZERO
-        )
-        # 累计盈亏
-        snapshot.hos_total_pnl = snapshot.hos_realized_pnl + snapshot.hos_unrealized_pnl
-        snapshot.hos_total_pnl_ratio = (
-            snapshot.hos_total_pnl / snapshot.hos_total_cost
-            if snapshot.hos_total_cost > 0 else ZERO
-        )
-
-        if current_shares > ZERO:  # 未清仓
-            previous_snapshot = snapshot
-        else:  # 清仓
-            previous_snapshot = None
-            cumulative_realized_pnl = ZERO
-
-        return snapshot, previous_snapshot, cumulative_realized_pnl
-
-    @classmethod
     def generate_yesterday_snapshots(cls):
         """
         每日增量任务：为所有持仓生成昨天的快照（如果有净值），利用前天的快照来提高效率
-        TODO 重构
         """
         logger.info("Starting daily task: generate_yesterday_snapshots.")
 
@@ -293,77 +155,59 @@ class HoldingSnapshotService:
                     logger.warning(f"Holding with id {ho_id} not found. Skipping.")
                     continue
 
-                # # 3.1 检查是否已存在快照，确保任务可重复执行
-                # if HoldingSnapshot.query.filter_by(ho_id=holding.id, snapshot_date=yesterday).first():
-                #     logger.info(f"Snapshot for {holding.ho_code} on {yesterday} already exists. Skipping.")
-                #     continue
                 # 昨天交易
-                trades_yesterday = trades_by_holding.get(holding.id)
+                trades_yesterday = trades_by_holding.get(holding.id, [])
 
-                # 3.2 昨天净值
+                # 昨天净值
                 nav_yesterday = nav_map.get(holding.id)
-                # if not nav_yesterday:
-                #     logger.warning(f"No NAV found for {holding.ho_code} on {yesterday}. Skipping.")
-                #     continue
+                if not nav_yesterday:
+                    error_msg = f"No NAV found for {holding.ho_code} - {holding.ho_short_name} on {yesterday}. Skipping."
+                    create_task(
+                        task_name=f"regenerate yesterday holding snapshots for {holding.ho_code} - {holding.ho_short_name}",
+                        module_path="app.services.holding_snapshot_service",
+                        method_name="generate_yesterday_snapshots",
+                        kwargs={"ids": f"[{holding.id},]"},
+                        error_message=error_msg
+                    )
+                    errors.append(error_msg)
+                    continue
 
                 # 3.3 前天快照
                 day_before_yesterday_snapshot = day_before_yesterday_snapshot_map.get(holding.id)
+                if not day_before_yesterday_snapshot:
+                    # 两种情况全部重新生成：1.新购买，昨天有交易记录，但是前天没有快照；2.问题数据
+                    create_task(
+                        task_name=f"regenerate all holding snapshots for {holding.ho_code} - {holding.ho_short_name}",
+                        module_path="app.services.holding_snapshot_service",
+                        method_name="generate_all_holding_snapshots",
+                        kwargs={"ids": f"[{holding.id},]"},
+                        error_message=f"no day_before_yesterday_snapshot from holding_snapshot_service: generate_yesterday_snapshots"
+                    )
+                    error_msg = f"Error processing generate_yesterday_snapshots of {holding.ho_code}, regenerated all."
+                    errors.append(error_msg)
+                    continue
 
-                if day_before_yesterday_snapshot and trades_yesterday:
-                    # 老持仓 增量计算：基于前一天的快照
-                    start_shares = day_before_yesterday_snapshot.holding_shares
-                    start_cost = day_before_yesterday_snapshot.hos_total_cost
-                    start_realized_pnl = day_before_yesterday_snapshot.hos_realized_pnl
-                elif day_before_yesterday_snapshot and not trades_yesterday:
-                # 新购买，昨天有交易记录，但是前天没有快照 TODO 完成业务逻辑
-                # start_shares, start_cost = cls._calculate_position_up_to_date(holding.id, day_before_yesterday)
-                # start_realized_pnl = cls._get_realized_pnl_up_to_date(holding.id, day_before_yesterday)
-                # # 对于高级指标，也需要回溯
-                # # start_peak_mv = cls._get_peak_mv_up_to_date(holding.id, day_before_yesterday)
-                # first_trade = Trade.query.filter_by(ho_id=holding.id).order_by(Trade.tr_date).first()
-                # start_holding_days = (day_before_yesterday - first_trade.tr_date).days + 1 if first_trade else 0
-                else:
-                    # TODO 问题数据 整个holding的数据要重新生成 应用generate all
-                    logger.warning(f"Previous day's snapshot not found for {holding.ho_code}. "
-                                   f"Falling back to full calculation up to {day_before_yesterday}.")
-                    data = CacheManager.set(cache_key)
+                # 老持仓 增量计算：基于前一天的快照
+                start_shares = day_before_yesterday_snapshot.holding_shares
+                start_cost = day_before_yesterday_snapshot.hos_total_cost
+                start_realized_pnl = day_before_yesterday_snapshot.hos_realized_pnl
 
-                # 3.4 应用昨天的交易 todo 和全量计算里的是否公用一个方法？
-                current_shares, current_total_cost, current_realized_pnl, net_investment_yesterday = cls._apply_trades_for_day(
+                # 3.4 应用昨天的交易
+                current_shares, current_total_cost, current_realized_pnl, net_investment_yesterday = cls._apply_trades(
                     start_shares, start_cost, start_realized_pnl, trades_yesterday
                 )
 
-                # 3.5 生成快照 TODO 检查业务逻辑是否完整
-                snapshot = HoldingSnapshot()
-                snapshot.ho_id = holding.id
-                snapshot.snapshot_date = yesterday
-
-                # 计算各项指标
-                snapshot.holding_shares = current_shares
-                snapshot.hos_total_cost = current_total_cost
-                snapshot.cost_price = (
-                        current_total_cost / current_shares) if current_shares > 0 else ZERO
-
-                snapshot.market_price = nav_yesterday.nav_per_unit
-                snapshot.hos_market_value = current_shares * nav_yesterday.nav_per_unit
-
-                snapshot.hos_unrealized_pnl = snapshot.hos_market_value - snapshot.hos_total_cost
-                snapshot.hos_realized_pnl = current_realized_pnl
-                snapshot.hos_total_pnl = snapshot.hos_realized_pnl + snapshot.hos_unrealized_pnl
-                snapshot.hos_total_pnl_ratio = (
-                        snapshot.hos_total_pnl / snapshot.hos_total_cost) if snapshot.hos_total_cost > 0 else ZERO
-
-                prev_market_value = day_before_yesterday_snapshot.hos_market_value if day_before_yesterday_snapshot else ZERO
-                snapshot.hos_daily_pnl = snapshot.hos_market_value - prev_market_value - net_investment_yesterday
-                snapshot.hos_daily_pnl_ratio = (snapshot.hos_daily_pnl / prev_market_value
-                                                if prev_market_value > 0 else ZERO)
+                # 3.5 生成快照
+                snapshot = cls._create_snapshot_from_state(
+                    holding, yesterday, nav_yesterday, current_realized_pnl, current_shares,
+                    net_investment_yesterday, current_total_cost, day_before_yesterday_snapshot)
 
                 snapshots_to_add.append(snapshot)
             # 4. 批量提交
             if snapshots_to_add:
                 # 删除旧记录
                 deleted = HoldingSnapshot.query.filter(
-                    HoldingSnapshot.ho_idin_(target_holding_ids)
+                    HoldingSnapshot.ho_id.in_(target_holding_ids)
                 ).delete(synchronize_session=False)
 
                 db.session.add_all(snapshots_to_add)
@@ -374,27 +218,85 @@ class HoldingSnapshotService:
 
             return result
         except Exception as e:
+            # TODO 向上抛出异常 使之重试
             db.session.rollback()
-            logger.error(f"An error occurred during snapshot generation: {e}", exc_info=True)
-            errors.append(str(e))
+            error_msg = f"An error occurred during snapshot generation: {e}"
+            create_task(
+                task_name=f"regenerate yesterday holding snapshots for all",
+                module_path="app.services.holding_snapshot_service",
+                method_name="generate_yesterday_snapshots",
+                error_message=error_msg
+            )
+            errors.append(error_msg)
+            logger.error(error_msg, exc_info=True)
             return result
 
-    # @classmethod
-    # def _apply_trades_for_day(cls, start_shares, start_cost, trades):
-    #     """辅助方法：应用当日交易，返回期末份额、成本和当日净投入"""
-    #     net_investment = ZERO
-    #     for trade in trades:
-    #         if trade.tr_type == TradeTypeEnum.BUY:
-    #             start_shares += trade.tr_shares
-    #             start_cost += trade.tr_amount
-    #             net_investment += trade.tr_amount
-    #         elif trade.tr_type == TradeTypeEnum.SELL:
-    #             if start_shares > 0:
-    #                 cost_of_sold = (start_cost / start_shares) * trade.tr_shares
-    #                 start_cost -= cost_of_sold
-    #             start_shares -= trade.tr_shares
-    #             net_investment -= trade.tr_amount
-    #     return start_shares, start_cost, net_investment
+    @classmethod
+    def _generate_for_holding(cls, holding: Holding) -> List[HoldingSnapshot]:
+        """为单个持仓生成其生命周期内的所有快照（内部方法）"""
+        logger.info(f"Processing holding: {holding.ho_code} ({holding.ho_name})")
+        # 获取所有交易记录 时间升序
+        trade_list = Trade.query.filter(Trade.ho_id == holding.id).order_by(Trade.tr_date).all()
+        if not trade_list:
+            return []
+
+        # 根据tr_round分组
+        trades_by_round = defaultdict(list)
+        for trade in trade_list:
+            trades_by_round[trade.tr_round].append(trade)
+
+        snapshots = []
+
+        # 根据每轮交易记录，生成快照数据
+        for tr_round, round_trades in trades_by_round.items():
+            first_date = round_trades[0].tr_date
+            last_date = round_trades[-1].tr_date
+
+            # 获取区间内所有净值
+            nav_history_list = FundNavHistory.query.filter(
+                FundNavHistory.ho_id == holding.id,
+                FundNavHistory.nav_date >= first_date,
+                FundNavHistory.nav_date <= last_date
+            ).all()
+            nav_map = {date_to_str(nav.nav_date): nav for nav in nav_history_list}
+
+            trades_by_date = defaultdict(list)
+            for trade in round_trades:
+                trades_by_date[date_to_str(trade.tr_date)].append(trade)
+
+            # 初始化状态变量
+            current_shares = ZERO
+            current_total_cost = ZERO
+            cumulative_realized_pnl = ZERO
+            previous_snapshot = None
+            # snapshots_to_add = []
+
+            # 逐日计算快照
+            current_date = first_date
+            while current_date <= last_date:
+                # 获取当日净值，如果不存在（如节假日），则跳过当天
+                nav_today = nav_map.get(date_to_str(current_date))
+                if not nav_today:
+                    current_date += timedelta(days=1)
+                    continue
+
+                net_investment_today = ZERO
+
+                # 处理当日的所有交易
+                trades_in_current_date = trades_by_date.get(date_to_str(current_date))
+                if trades_in_current_date:
+                    current_shares, current_total_cost, cumulative_realized_pnl, net_investment_today = cls._apply_trades(
+                        current_shares, current_total_cost, cumulative_realized_pnl, trades_in_current_date)
+
+                # 根据数据，生成当日快照
+                snapshot, previous_snapshot, cumulative_realized_pnl = cls._create_snapshot_from_state(
+                    holding, current_date, nav_today, cumulative_realized_pnl, current_shares,
+                    net_investment_today, current_total_cost, previous_snapshot)
+
+                snapshots.append(snapshot)
+                current_date += timedelta(days=1)
+
+        return snapshots
 
     @staticmethod
     def _apply_trades(
@@ -436,56 +338,69 @@ class HoldingSnapshotService:
     @staticmethod
     def _create_snapshot_from_state(
             holding: Holding,
-            snapshot_date: date,
+            current_date: date,
             nav_today: FundNavHistory,
-            current_shares: Decimal,
-            current_total_cost: Decimal,
             cumulative_realized_pnl: Decimal,
+            current_shares: Decimal,
             net_investment_today: Decimal,
+            current_total_cost: Decimal,
             prev_snapshot: Optional[HoldingSnapshot]
-    ) -> HoldingSnapshot:
+    ) -> tuple[HoldingSnapshot, HoldingSnapshot | None, Decimal]:
         """
         根据当前状态和前一日快照，创建新的快照对象。
         """
         snapshot = HoldingSnapshot()
+        # 不管是否清仓，通用记录数据：
         snapshot.ho_id = holding.id
-        snapshot.snapshot_date = snapshot_date
+        snapshot.snapshot_date = current_date
         snapshot.market_price = nav_today.nav_per_unit
+        # 实现盈亏
         snapshot.hos_realized_pnl = cumulative_realized_pnl
+
+        # 处理分红
         dividend_amount = ZERO
         if nav_today.dividend_price:
             dividend_amount = nav_today.dividend_price * current_shares
         snapshot.dividend_amount = dividend_amount
         # 分红计入净投入，因为它增加了持仓的“价值”但没有现金流出
+        # TODO 根据用户选择的分红方式选择是现金分红还是分红再投资
         net_investment_today += dividend_amount
-        if current_shares > ZERO:
+
+        if current_shares > ZERO:  # 未清仓
             snapshot.holding_shares = current_shares
             snapshot.hos_total_cost = current_total_cost
             snapshot.cost_price = current_total_cost / current_shares
             snapshot.hos_market_value = current_shares * nav_today.nav_per_unit
+            # 未实现盈亏
             snapshot.hos_unrealized_pnl = snapshot.hos_market_value - current_total_cost
-        else:  # 清仓状态
+        else:  # 清仓
             snapshot.holding_shares = ZERO
             # 清仓后，成本价和总成本保留清仓前的最后一个值，用于计算累计收益率等
             if prev_snapshot:
                 snapshot.hos_total_cost = prev_snapshot.hos_total_cost
                 snapshot.cost_price = prev_snapshot.cost_price
-            else:  # 如果没有历史快照，只能归零
-                snapshot.hos_total_cost = ZERO
-                snapshot.cost_price = ZERO
+                snapshot.hos_market_value = prev_snapshot.holding_shares * nav_today.nav_per_unit
+                snapshot.hos_unrealized_pnl = ZERO
+            else:  # 如果没有历史快照，说明数据有问题
+                raise BizException(f"{holding.ho_code} - {holding.ho_short_name}: no prev_snapshot from holding_snapshot_service: _create_snapshot_from_state")
 
-            snapshot.hos_market_value = ZERO
-            snapshot.hos_unrealized_pnl = ZERO
-        # 计算需要前一日快照的指标
+        # 不管是否清仓，通用指标，但是必须后算
+        # 反映剔除现金流后的纯市场损益 当日盈亏 = (期末持仓市值 - 期初持仓市值) - 当日净现金流入
         prev_market_value = prev_snapshot.hos_market_value if prev_snapshot else ZERO
         snapshot.hos_daily_pnl = snapshot.hos_market_value - prev_market_value - net_investment_today
         snapshot.hos_daily_pnl_ratio = (
             snapshot.hos_daily_pnl / prev_market_value if prev_market_value > ZERO else ZERO
         )
-
+        # 累计盈亏
         snapshot.hos_total_pnl = snapshot.hos_realized_pnl + snapshot.hos_unrealized_pnl
         snapshot.hos_total_pnl_ratio = (
             snapshot.hos_total_pnl / snapshot.hos_total_cost if snapshot.hos_total_cost > ZERO else ZERO
         )
 
-        return snapshot
+        if current_shares > ZERO:  # 未清仓
+            previous_snapshot = snapshot
+        else:  # 清仓
+            previous_snapshot = None
+            cumulative_realized_pnl = ZERO
+        # 返回三个参数作为下一轮计算的依据
+        return snapshot, previous_snapshot, cumulative_realized_pnl

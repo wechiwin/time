@@ -434,7 +434,7 @@ class BenchmarkHistory(TimestampMixin, BaseModel):
     benchmark_return_daily = db.Column(db.Numeric(18, 6))
 
 
-class AsyncTaskLog(db.Model):
+class AsyncTaskLog(TimestampMixin, BaseModel):
     __tablename__ = 'async_task_log'
     id = db.Column(db.Integer, primary_key=True)
     # 任务类型，可以是一个友好的名字，如 'Full Snapshot Generation'
@@ -448,18 +448,9 @@ class AsyncTaskLog(db.Model):
     #   "kwargs": {"ids": ["id1", "id2"]}
     # }
     params = db.Column(db.JSON, nullable=False)
-
     status = db.Column(db.Enum(TaskStatusEnum), nullable=False, default=TaskStatusEnum.PENDING, index=True)
-
     result_summary = db.Column(db.Text)
     error_message = db.Column(db.Text)
-
     max_retries = db.Column(db.Integer, default=3, nullable=False)
     retry_count = db.Column(db.Integer, default=0, nullable=False)
-
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     next_retry_at = db.Column(db.DateTime, nullable=True, index=True)
-
-    def __repr__(self):
-        return f'<AsyncTaskLog {self.id} - {self.task_name} - {self.status.value}>'
