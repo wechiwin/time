@@ -120,6 +120,11 @@ class HoldingSnapshotSchema(BaseSchema):
         model = HoldingSnapshot
 
 
+class HoldingAnalyticsSnapshotSchema(BaseSchema):
+    class Meta(BaseSchema.Meta):
+        model = HoldingAnalyticsSnapshot
+
+
 class PortfolioSnapshotSchema(BaseSchema):
     class Meta(BaseSchema.Meta):
         model = PortfolioSnapshot

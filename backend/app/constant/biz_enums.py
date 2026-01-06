@@ -127,3 +127,12 @@ class ErrorMessageEnum(Enum):
     """
     MISSING_FIELD = "缺少必要字段"
     NO_SUCH_DATA = "数据不存在"
+
+
+class TaskStatusEnum(Enum):
+    PENDING = 'PENDING'  # 已创建，等待执行
+    RUNNING = 'RUNNING'  # 正在执行
+    SUCCESS = 'SUCCESS'  # 执行成功
+    RETRYING = 'RETRYING'  # 执行失败，等待重试
+    FAILED = 'FAILED'  # 达到最大重试次数，最终失败
+    CANCELLED = 'CANCELLED'  # 手动取消

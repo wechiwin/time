@@ -1,13 +1,14 @@
 import re
 from datetime import datetime, date, time
 from decimal import Decimal
+from email.policy import default
 
 from flask import current_app as app
 from passlib.exc import InvalidHashError
 from passlib.hash import pbkdf2_sha256
 from sqlalchemy import inspect
 
-from app.constant.biz_enums import HoldingTypeEnum, HoldingStatusEnum, AlertEmailStatusEnum, AlertRuleActionEnum, TradeTypeEnum, FundTradeMarketEnum
+from app.constant.biz_enums import HoldingTypeEnum, HoldingStatusEnum, AlertEmailStatusEnum, AlertRuleActionEnum, TradeTypeEnum, FundTradeMarketEnum, TaskStatusEnum
 from app.database import db
 
 
@@ -208,6 +209,7 @@ class Trade(TimestampMixin, BaseModel):
     tr_fee = db.Column(db.Numeric(18, 2))  # 交易费用
     tr_amount = db.Column(db.Numeric(18, 2))  # 交易总额(含交易费用)
     tr_round = db.Column(db.Integer, index=True)  # 轮次
+    is_cleared = db.Column(db.Boolean, default=False)  # 是否清仓
     remark = db.Column(db.String(200))
 
     holding = db.relationship(
@@ -307,30 +309,78 @@ class HoldingSnapshot(TimestampMixin, BaseModel):
 
     ho_id = db.Column(db.Integer)
     snapshot_date = db.Column(db.Date, nullable=False, index=True)
+    # -------- Position --------
+    holding_shares = db.Column(db.Numeric(18, 4))  # 持仓份额
+    cost_price = db.Column(db.Numeric(18, 4))  # 当前持仓成本单价:加权平均成本=holding_cost/holding_shares
+    holding_cost = db.Column(db.Numeric(18, 4))  # 当前持仓成本 = 成本单价 * 持仓份额
 
-    hos_shares = db.Column(db.Numeric(18, 4))  # 持仓份额
-    hos_cost_price = db.Column(db.Numeric(18, 4))  # 成本单价 加权平均成本。总成本 / 总份额。
-    hos_total_cost = db.Column(db.Numeric(18, 4))  # 总成本 = Σ(买入金额) - Σ(卖出金额)
-
+    # -------- Price / Value --------
     market_price = db.Column(db.Numeric(18, 4))  # 单位净值
-    accum_market_price = db.Column(db.Numeric(18, 4))  # 累计净值
-    hos_price_return = db.Column(db.Numeric(18, 4))  # 日价格收益率=(今日价格 - 昨日价格) / 昨日价格
-    hos_market_value = db.Column(db.Numeric(18, 4))  # 总市值 = 持仓份额*单位净值
+    hos_market_value = db.Column(db.Numeric(18, 4))  # 总市值 = 持仓份额 * 单位净值
 
-    hos_daily_pnl = db.Column(db.Numeric(18, 4))  # 当日盈亏 = 当日市值 - 昨日市值
-    hos_daily_pnl_ratio = db.Column(db.Numeric(18, 4))  # 当日盈亏率 = (当日盈亏 / 昨日市值) × 100%
+    # -------- Cash / Cost --------
+    hos_total_cost = db.Column(db.Numeric(18, 4))  # 历史累计投入总成本 = Σ(买入金额)
+    hos_total_sell_cash = db.Column(db.Numeric(18, 4))  # 累计卖出回款
+    hos_net_external_cash_flow = db.Column(db.Numeric(18, 2))  # 当日净现金流：买入为负，卖出/分红为正
 
-    hos_realized_pnl = db.Column(db.Numeric(18, 4))  # 已实现盈亏
-    hos_unrealized_pnl = db.Column(db.Numeric(18, 4))  # 未实现盈亏
-    hos_total_pnl = db.Column(db.Numeric(18, 4))  # 累计盈亏 = 总市值 - 总成本
-    hos_total_pnl_ratio = db.Column(db.Numeric(18, 4))  # 累计盈亏率 = (累计盈亏 / 总成本) × 100%
+    # -------- PnL --------
+    hos_realized_pnl = db.Column(db.Numeric(18, 4))  # 已实现盈亏 = （卖出单位净值 - 成本单价） * 卖出份额
+    hos_unrealized_pnl = db.Column(db.Numeric(18, 4))  # 未实现盈亏 = hos_market_value - holding_cost
+    hos_total_pnl = db.Column(db.Numeric(18, 4))  # 累计盈亏 = 已实现盈亏 + 未实现盈亏
 
-    hos_position_ratio = db.Column(db.Numeric(18, 4))  # 仓位占比
-    hos_holding_days = db.Column(db.Integer)  # 持仓天数
-    hos_max_profit_ratio = db.Column(db.Numeric(18, 4))  # 持仓期最大浮盈
-    hos_peak_market_value = db.Column(db.Numeric(18, 4))  # 截至当日的历史市值峰值，用于可靠地计算最大回撤
-    hos_max_drawdown = db.Column(db.Numeric(18, 4))  # 单品最大回撤率 = (峰值市值 - 谷底市值) / 峰值市值
-    hos_dividend_return = db.Column(db.Numeric(18, 4))  # 分红收益
+    # -------- Return --------
+    hos_daily_pnl = db.Column(db.Numeric(18, 4))  # 当日盈亏 = 当日市值 - 昨日市值 - 当日净现金流
+    hos_daily_pnl_ratio = db.Column(db.Numeric(18, 4))  # 当日盈亏率 = (hos_daily_pnl / 昨日市值) × 100%
+    hos_total_pnl_ratio = db.Column(db.Numeric(18, 4))  # 累计盈亏率 = (hos_total_pnl / 总成本) × 100%
+
+    # -------- Other --------
+    dividend_amount = db.Column(db.Numeric(18, 4))  # 分红收益
+    is_cleared = db.Column(db.Boolean)  # 是否清仓
+
+    __table_args__ = (
+        db.Index('holding_snapshot_ho_id_snapshot_date_index', 'ho_id', 'snapshot_date'),
+    )
+
+
+class HoldingAnalyticsSnapshot(TimestampMixin, BaseModel):
+    """
+    分析 / 展示 / 研究专用 Snapshot
+    不参与账务与PnL强一致计算
+    """
+
+    __tablename__ = 'holding_analytics_snapshot'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    ho_id = db.Column(db.Integer, index=True)
+    snapshot_date = db.Column(db.Date, nullable=False, index=True)
+
+    # ---------- Path-dependent Metrics ----------
+    # has_holding_days = db.Column(db.Integer)
+    has_peak_market_value = db.Column(db.Numeric(18, 4))
+    has_trough_market_value = db.Column(db.Numeric(18, 4))
+
+    # ---------- Drawdown / Run-up ----------
+    has_max_drawdown = db.Column(db.Numeric(18, 4))
+    has_max_drawdown_days = db.Column(db.Integer)
+
+    has_max_profit_ratio = db.Column(db.Numeric(18, 4))  # 最大盈利比例 = (历史最高市值 - 当前市值) / 历史最高市值
+    has_max_profit_value = db.Column(db.Numeric(18, 4))
+
+    # ---------- Volatility / Return ----------
+    has_daily_return = db.Column(db.Numeric(18, 6))
+    has_return_volatility = db.Column(db.Numeric(18, 6))
+
+    # ---------- Allocation / Exposure ----------
+    has_position_ratio = db.Column(db.Numeric(18, 4))  # 持仓比例 = 某一持仓市值 / 组合总市值
+    has_portfolio_contribution = db.Column(db.Numeric(18, 4))
+
+    # ---------- Corporate Action ----------
+    has_total_dividend = db.Column(db.Numeric(18, 4))
+
+    # ---------- Meta ----------
+    has_calc_version = db.Column(db.String(20))
+    has_calc_comment = db.Column(db.String(255))
 
 
 class PortfolioSnapshot(TimestampMixin, BaseModel):
@@ -382,3 +432,34 @@ class BenchmarkHistory(TimestampMixin, BaseModel):
     bmh_close_price = db.Column(db.Numeric(18, 4), nullable=False)  # 收盘点位
     bmh_return = db.Column(db.Numeric(18, 6))
     benchmark_return_daily = db.Column(db.Numeric(18, 6))
+
+
+class AsyncTaskLog(db.Model):
+    __tablename__ = 'async_task_log'
+    id = db.Column(db.Integer, primary_key=True)
+    # 任务类型，可以是一个友好的名字，如 'Full Snapshot Generation'
+    task_name = db.Column(db.String(150), nullable=False, index=True)
+    # params 现在存储用于反射调用的所有信息
+    # {
+    #   "module_path": "app.service.holding_snapshot_service",
+    #   "class_name": "HoldingSnapshotService",
+    #   "method_name": "generate_all_holding_snapshots",
+    #   "args": [],
+    #   "kwargs": {"ids": ["id1", "id2"]}
+    # }
+    params = db.Column(db.JSON, nullable=False)
+
+    status = db.Column(db.Enum(TaskStatusEnum), nullable=False, default=TaskStatusEnum.PENDING, index=True)
+
+    result_summary = db.Column(db.Text)
+    error_message = db.Column(db.Text)
+
+    max_retries = db.Column(db.Integer, default=3, nullable=False)
+    retry_count = db.Column(db.Integer, default=0, nullable=False)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    next_retry_at = db.Column(db.DateTime, nullable=True, index=True)
+
+    def __repr__(self):
+        return f'<AsyncTaskLog {self.id} - {self.task_name} - {self.status.value}>'

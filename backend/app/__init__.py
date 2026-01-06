@@ -17,6 +17,7 @@ from app.framework.interceptor import register_request_response_logger
 from app.framework.log_config import setup_logging, get_early_logger
 from app.routes.user_bp import user_bp
 from .config import Config
+from .framework.cache_manager import CacheManager
 from .routes import register_routes
 from .routes.alert_bp import alert_bp
 from .routes.dashboard_bp import dashboard_bp
@@ -36,6 +37,7 @@ limiter = Limiter(
 )
 # 初始化邮件扩展
 mail = Mail()
+cache_manager = CacheManager()
 
 
 def get_locale():
@@ -123,6 +125,9 @@ def create_app():
     # Initialize the SQLAlchemy instance with the Flask app
     # This is the crucial step to connect Flask-SQLAlchemy to your app
     db.init_app(app)
+
+    # 初始化缓存
+    cache_manager.init_app(app)
 
     # Register Blueprints
     register_routes(app)

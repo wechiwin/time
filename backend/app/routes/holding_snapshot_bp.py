@@ -75,5 +75,4 @@ def list_hos():
 @holding_snapshot_bp.route('/generate_all_snapshots', methods=['GET'])
 def generate_all_snapshots():
     data = HoldingSnapshotService.generate_all_snapshots()
-    data = HoldingSnapshotService.backfill_advanced_metrics()
     return Res.success(data)

@@ -182,12 +182,13 @@ OCR 文本：
                     if current_sell_shares < 0:
                         raise BizException("卖出份额大于买入份额")
                     elif current_sell_shares == 0:  # 清仓
+                        new_trade.is_cleared = True
                         holding.ho_status = HoldingStatusEnum.CLOSED
                     else:  # 部分卖出
                         holding.ho_status = HoldingStatusEnum.HOLDING
                 else:  # 买入
                     holding.ho_status = HoldingStatusEnum.HOLDING
-            else:  # 之前没交易或已清仓
+            else:  # 超卖
                 if TradeTypeEnum.SELL == new_trade.tr_type:
                     raise BizException("卖出份额大于买入份额")
                 holding.ho_status = HoldingStatusEnum.HOLDING
@@ -268,6 +269,7 @@ OCR 文本：
 
                         # 检测是否清仓
                         if current_shares < Decimal('0.0001'):
+                            trade.is_cleared = True
                             current_shares = Decimal('0') # 修正精度
                             current_tr_round += 1 # 轮次+1
                     else: # 买入
@@ -285,7 +287,7 @@ OCR 文本：
                 else:
                     holding.ho_status = HoldingStatusEnum.HOLDING.value
 
-                db.session.add(holding) # 添加到会话以更新状态
+                db.session.add(holding)  # 添加到会话以更新状态
 
             # 7. 所有基金都处理完毕后，统一提交事务
             db.session.commit()
@@ -299,7 +301,7 @@ OCR 文本：
             raise BizException("导入过程中发生未知错误")
 
     @staticmethod
-    def list_uncleared(holding)-> Tuple[List[Trade], int]:
+    def list_uncleared(holding) -> Tuple[List[Trade], int]:
         """
         参数:
           holding: 持仓对象

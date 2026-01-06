@@ -26,7 +26,7 @@ def page_history():
 
     query = FundNavHistory.query.options(joinedload(FundNavHistory.holding))
     if ho_id:
-        query = query.filter_by(ho_code=ho_id)
+        query = query.filter_by(ho_id=ho_id)
 
     # 分页查询
     pagination = query.order_by(FundNavHistory.nav_date.desc()).paginate(
