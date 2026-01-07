@@ -9,7 +9,7 @@ from sqlalchemy.orm import joinedload
 
 from app.framework.exceptions import BizException
 from app.models import db, FundNavHistory, Holding
-from app.tools.date_tool import date_str_to_date
+from app.tools.date_tool import str_to_date
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +155,7 @@ class FundNavHistoryService:
                     record = FundNavHistory(
                         ho_id=holding.id,
                         ho_code=ho_code,
-                        nav_date=date_str_to_date(item['FSRQ']) if item['FSRQ'] else None,
+                        nav_date=str_to_date(item['FSRQ']) if item['FSRQ'] else None,
                         nav_per_unit=Decimal(item['DWJZ']),
                         nav_accumulated_per_unit=Decimal(item['LJJZ']) if item['LJJZ'] else None,
                         nav_return=float(item['JZZZL']) if item['JZZZL'] else None,

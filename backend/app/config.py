@@ -63,6 +63,8 @@ class Config:
                           'Set-Cookie']
     CORS_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
 
+    SCHEDULER_TIMEZONE = "Asia/Shanghai"
+
     # 自动识别当前环境配置
     @classmethod
     def get_config(cls):
@@ -81,10 +83,12 @@ class DevelopmentConfig(Config):
     JWT_AUTH_REQUIRED = False
     JWT_COOKIE_SECURE = False
     MAIL_DEBUG = True  # 开启调试
+    SCHEDULER_ENABLED = True
 
 
 class TestingConfig(Config):
     JWT_AUTH_REQUIRED = os.getenv('JWT_AUTH_REQUIRED', 'True').lower() == 'true'
+    SCHEDULER_ENABLED = True
     # JWT_COOKIE_SECURE = True
     # """测试环境配置"""
     # TESTING = True
@@ -97,6 +101,9 @@ class TestingConfig(Config):
 class ProductionConfig(Config):
     JWT_AUTH_REQUIRED = True
     JWT_COOKIE_SECURE = True
+
+    SCHEDULER_ENABLED = True
+    SCHEDULER_API_ENABLED = False
     # """生产环境配置"""
     # SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
     pass

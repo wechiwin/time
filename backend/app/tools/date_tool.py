@@ -25,12 +25,13 @@ def date_to_str(date_entity):
     return date_str
 
 
-def date_str_to_date(date_str):
+def str_to_date(date_str: str):
     """
     根据日期字符串YYYY-MM-DD，返回日期date对象
     """
     date_entity = datetime.strptime(date_str, '%Y-%m-%d').date()
     return date_entity
+
 
 def the_day_after_date_str():
     """

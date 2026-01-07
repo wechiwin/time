@@ -321,7 +321,7 @@ class HoldingSnapshot(TimestampMixin, BaseModel):
     # -------- Cash / Cost --------
     hos_total_cost = db.Column(db.Numeric(18, 4))  # 历史累计投入总成本 = Σ(买入金额)
     hos_total_sell_cash = db.Column(db.Numeric(18, 4))  # 累计卖出回款
-    hos_net_external_cash_flow = db.Column(db.Numeric(18, 2))  # 当日净现金流：买入为负，卖出/分红为正
+    hos_net_cash_flow = db.Column(db.Numeric(18, 2))  # 当日净现金流：买入为负，卖出/分红为正
 
     # -------- PnL --------
     hos_realized_pnl = db.Column(db.Numeric(18, 4))  # 已实现盈亏 = （卖出单位净值 - 成本单价） * 卖出份额
@@ -335,7 +335,6 @@ class HoldingSnapshot(TimestampMixin, BaseModel):
 
     # -------- Other --------
     dividend_amount = db.Column(db.Numeric(18, 4))  # 分红收益
-    is_cleared = db.Column(db.Boolean)  # 是否清仓
 
     __table_args__ = (
         db.Index('holding_snapshot_ho_id_snapshot_date_index', 'ho_id', 'snapshot_date'),
@@ -399,7 +398,7 @@ class PortfolioSnapshot(TimestampMixin, BaseModel):
     # 当日发生的净外部现金流，计算 IRR 的关键。
     # 买入证券（现金->证券）为负数，卖出证券（证券->现金）为正数。无流动则为0。
     # 例如：用户买入 1000 元，记录为 -1000.00；用户卖出 500 元，记录为 500.00
-    pos_net_external_cash_flow = db.Column(db.Numeric(20, 2), default=0)
+    pos_net_cash_flow = db.Column(db.Numeric(20, 2), default=0)
     # 收益
     pos_total_cost = db.Column(db.Numeric(18, 4))  # 截止当日的总投入成本
     pos_total_pnl = db.Column(db.Numeric(18, 4))  # 截止当日的累计盈亏

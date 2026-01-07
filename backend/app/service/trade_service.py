@@ -15,7 +15,7 @@ import logging
 from typing import List, Dict, Tuple, Optional
 from collections import defaultdict
 
-from app.tools.date_tool import date_str_to_date
+from app.tools.date_tool import str_to_date
 
 ocr = PaddleOCR(use_angle_cls=True, lang='ch')
 # TODO 改为在线？
@@ -249,7 +249,7 @@ OCR 文本：
                 for trade in new_trades:
                     trade_shares = Decimal(str(trade.tr_shares))
                     if isinstance(trade.tr_date, str):
-                        trade.tr_date = date_str_to_date(trade.tr_date)
+                        trade.tr_date = str_to_date(trade.tr_date)
 
                     if current_shares.is_zero() and trade.tr_type == TradeTypeEnum.SELL.value:
                         raise BizException(

@@ -140,7 +140,7 @@ def async_task(task_name: str, max_retries: int = 3, queue: str = 'default'):
                 module_path=module_path,
                 class_name=class_name,
                 method_name=func.__name__,
-                args=args,
+                args=list(args),
                 kwargs=kwargs,
                 max_retries=max_retries
             )
