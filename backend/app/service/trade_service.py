@@ -170,7 +170,7 @@ OCR 文本：
             if not holding:
                 raise BizException("持仓不存在")
 
-            trades, tr_round = cls.list_uncleared(holding)
+            trades, tr_cycle = cls.list_uncleared(holding)
             # 判空
             if trades:
                 if TradeTypeEnum.SELL == new_trade.tr_type:  # 卖出
@@ -194,7 +194,7 @@ OCR 文本：
                 holding.ho_status = HoldingStatusEnum.HOLDING
 
             new_trade.ho_code = holding.ho_code
-            new_trade.tr_round = tr_round
+            new_trade.tr_cycle = tr_cycle
             db.session.add(new_trade)
             db.session.add(holding)
             db.session.commit()
@@ -236,14 +236,16 @@ OCR 文本：
                 holding = holding_map[ho_code]
 
                 # 获取该基金在导入前数据库中的状态
-                uncleared_trades_db, initial_tr_round = cls.list_uncleared(holding)
+                uncleared_trades_db, initial_tr_cycle = cls.list_uncleared(holding)
 
                 # 计算当前数据库中未清算的份额（作为内存中计算的起点）
-                buy_shares_db = sum((Decimal(str(t.tr_shares)) for t in uncleared_trades_db if t.tr_type == TradeTypeEnum.BUY.value), start=Decimal('0'))
-                sell_shares_db = sum((Decimal(str(t.tr_shares)) for t in uncleared_trades_db if t.tr_type == TradeTypeEnum.SELL.value), start=Decimal('0'))
+                buy_shares_db = sum((Decimal(str(t.tr_shares)) for t in uncleared_trades_db if
+                                     t.tr_type == TradeTypeEnum.BUY.value), start=Decimal('0'))
+                sell_shares_db = sum((Decimal(str(t.tr_shares)) for t in uncleared_trades_db if
+                                      t.tr_type == TradeTypeEnum.SELL.value), start=Decimal('0'))
                 # 初始化内存中的状态变量
                 current_shares = buy_shares_db - sell_shares_db
-                current_tr_round = initial_tr_round
+                current_tr_cycle = initial_tr_cycle
 
                 # 5. 按时间顺序处理该基金的每一笔新交易
                 for trade in new_trades:
@@ -257,7 +259,7 @@ OCR 文本：
                         )
 
                     # 为当前交易分配正确的轮次
-                    trade.tr_round = current_tr_round
+                    trade.tr_cycle = current_tr_cycle
 
                     if trade.tr_type == TradeTypeEnum.SELL.value:
                         if trade_shares > current_shares:
@@ -270,9 +272,9 @@ OCR 文本：
                         # 检测是否清仓
                         if current_shares < Decimal('0.0001'):
                             trade.is_cleared = True
-                            current_shares = Decimal('0') # 修正精度
-                            current_tr_round += 1 # 轮次+1
-                    else: # 买入
+                            current_shares = Decimal('0')  # 修正精度
+                            current_tr_cycle += 1  # 轮次+1
+                    else:  # 买入
                         current_shares += trade_shares
 
                     # 设置交易的关联属性并添加到会话
@@ -306,9 +308,9 @@ OCR 文本：
         参数:
           holding: 持仓对象
         返回：
-            一个元组 (trades, tr_round)，其中:
+            一个元组 (trades, tr_cycle)，其中:
             - trades: 未清仓的所有交易记录列表 (List[Trade])
-            - tr_round: 新建交易记录应使用的 tr_round (int)
+            - tr_cycle: 新建交易记录应使用的 tr_cycle (int)
         """
         # 获取最新一条记录
         latest_trade = Trade.query.filter_by(ho_id=holding.id).order_by(desc(Trade.id)).first()
@@ -318,10 +320,10 @@ OCR 文本：
             return [], 1
 
         if HoldingStatusEnum.HOLDING == holding.ho_status:
-            trades = Trade.query.filter_by(ho_id=holding.id, tr_round=latest_trade.tr_round).order_by(Trade.tr_date, Trade.id).all()
-            return trades, latest_trade.tr_round
+            trades = Trade.query.filter_by(ho_id=holding.id, tr_cycle=latest_trade.tr_cycle).order_by(Trade.tr_date, Trade.id).all()
+            return trades, latest_trade.tr_cycle
         else:
-            return [], latest_trade.tr_round + 1
+            return [], latest_trade.tr_cycle + 1
 
     @staticmethod
     def calculate_position(uncleared_trade_list):

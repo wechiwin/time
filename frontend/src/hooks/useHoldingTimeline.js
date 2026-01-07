@@ -19,10 +19,10 @@ export default function useHoldingTimeline(trades = [], snapshots = [], fundInfo
         // 1. 创建快照的快速查找 Map (O(1) 访问)
         const snapshotMap = new Map(snapshots.map(s => [s.snapshot_date, s]));
 
-        // 2. 按 tr_round 字段对交易进行分组
+        // 2. 按 tr_cycle 字段对交易进行分组
         const roundsMap = new Map();
         trades.forEach(trade => {
-            const roundKey = trade.tr_round || 0; // 如果没有轮次信息，归为第0轮
+            const roundKey = trade.tr_cycle || 0; // 如果没有轮次信息，归为第0轮
             if (!roundsMap.has(roundKey)) {
                 roundsMap.set(roundKey, []);
             }

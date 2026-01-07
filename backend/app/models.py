@@ -208,7 +208,7 @@ class Trade(TimestampMixin, BaseModel):
     tr_net_amount = db.Column(db.Numeric(18, 2))  # 交易净额(不含交易费用)
     tr_fee = db.Column(db.Numeric(18, 2))  # 交易费用
     tr_amount = db.Column(db.Numeric(18, 2))  # 交易总额(含交易费用)
-    tr_round = db.Column(db.Integer, index=True)  # 轮次
+    tr_cycle = db.Column(db.Integer, index=True)  # 轮次
     is_cleared = db.Column(db.Boolean, default=False)  # 是否清仓
     remark = db.Column(db.String(200))
 
