@@ -27,7 +27,7 @@ def retry_pending_tasks():
             scheduler.add_job(
                 func=AsyncTaskManager.run_by_log_id,
                 trigger='date',  # 立即执行
-                run_date=datetime.utcnow(),
+                run_date=datetime.now(),
                 args=[task_log.id],
                 id=f"retry_task_{task_log.id}_{int(time.time())}",  # 确保job_id唯一
                 replace_existing=True

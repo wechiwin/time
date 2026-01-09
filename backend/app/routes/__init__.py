@@ -3,6 +3,7 @@ from flask import Flask
 from .alert_bp import alert_bp
 from .common_bp import common_bp
 from .dashboard_bp import dashboard_bp
+from .holding_analytics_snapshot_bp import holding_analytics_snapshot_bp
 from .holding_bp import holding_bp
 from .holding_snapshot_bp import holding_snapshot_bp
 from .nav_history_bp import nav_history_bp
@@ -23,3 +24,4 @@ def register_routes(app: Flask):
     app.register_blueprint(holding_snapshot_bp)
     # app.register_blueprint(stock_price_history_bp)
     app.register_blueprint(common_bp)
+    app.register_blueprint(holding_analytics_snapshot_bp)
