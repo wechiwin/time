@@ -363,60 +363,83 @@ class AnalyticsWindow(BaseModel):
 class HoldingAnalyticsSnapshot(TimestampMixin, BaseModel):
     """
     分析 / 展示 / 研究专用 Snapshot
-    不参与账务与PnL强一致计算
+    基于 analytics_window 计算的聚合指标
+    核心逻辑：所有 Performance 指标基于【收益率 (Return)】而非【市值 (Market Value)】
     """
-
     __tablename__ = 'holding_analytics_snapshot'
     __table_args__ = (
-        db.UniqueConstraint('ho_id', 'snapshot_date', name='uk_ho_snapshot_date'),
-        db.Index('idx_ho_snapshot_date', 'ho_id', 'snapshot_date'),
+        # 联合唯一索引，确保同一个持仓、同一天、同一个窗口只有一条记录
+        db.UniqueConstraint('ho_id', 'snapshot_date', 'window_key', name='uq_ho_date_window'),
+        db.Index('idx_ho_window_date', 'ho_id', 'window_key', 'snapshot_date'),
     )
-
     id = db.Column(db.Integer, primary_key=True)
-    ho_id = db.Column(db.Integer, index=True)
-    snapshot_date = db.Column(db.Date, nullable=False, index=True)
+    ho_id = db.Column(db.Integer, nullable=False)
+    snapshot_date = db.Column(db.Date, nullable=False)
+    window_key = db.Column(db.String(32), nullable=False)  # ALL, CUR, R20, R252...
+    # --------- 1. Return Metrics (收益指标) ---------
+    # 窗口内的累计收益率 (Time-Weighted Return)
+    # 比如 R20：过去20个交易日的累计涨幅
+    has_cumulative_return = db.Column(db.Numeric(18, 6))
 
-    window_key = db.Column(db.String(32), nullable=False)
+    # 窗口内的年化收益率 (仅对 >1年的窗口或 ALL 有意义，短期年化会失真)
+    has_annualized_return = db.Column(db.Numeric(18, 6))
+    # 窗口内的累计盈亏金额 (Absolute PnL)
+    # 注意：金额受加减仓影响，但在展示“这波赚了多少钱”时很直观
+    has_cumulative_pnl = db.Column(db.Numeric(18, 4))
+    # 窗口内的累计分红
+    has_total_dividend = db.Column(db.Numeric(18, 4))
+    # --------- 2. Risk / Volatility (风险指标) ---------
+    # 年化波动率 (Standard Deviation of Daily Returns * sqrt(252))
+    has_return_volatility = db.Column(db.Numeric(18, 6))
 
-    has_days_since_open = db.Column(db.Integer)  # 持仓已持续天数
-    has_days_since_peak = db.Column(db.Integer)  # 距离历史高点的天数
+    # 下行风险波动率 (Downside Deviation)
+    has_downside_risk = db.Column(db.Numeric(18, 6))
+    # Sharpe Ratio ( (Rp - Rf) / Sigma )
+    has_sharpe_ratio = db.Column(db.Numeric(18, 4))
 
-    has_peak_market_value = db.Column(db.Numeric(18, 4))  # 历史最高市值:从持仓建立日起，到当前分析日为止，该持仓达到过的最高市值。
-    has_trough_market_value = db.Column(db.Numeric(18, 4))  # 历史最低市值（回撤低点）:在最近一次高点之后，持仓市值出现的最低值，用于回撤计算。
+    # Sortino Ratio ( (Rp - Rf) / Downside Sigma )
+    has_sortino_ratio = db.Column(db.Numeric(18, 4))
 
-    # Drawdown
-    has_max_drawdown = db.Column(db.Numeric(18, 4))  # 最大回撤比例:历史上，从任一高点到随后低点的最大跌幅比例。
-    has_max_drawdown_days = db.Column(db.Integer)  # 最大回撤持续天数:对应最大回撤那一段，从高点日期 → 低点日期经历的交易日数。
-    has_max_drawdown_peak_date = db.Column(db.Date)  # 最大回撤高点日期
-    has_max_drawdown_trough_date = db.Column(db.Date)  # 最大回撤低点日期
-    # Run-up
-    has_max_runup_ratio = db.Column(db.Numeric(18, 6))  # 历史最大上涨幅度（Run-up）
-    has_max_runup_value = db.Column(db.Numeric(18, 4))  # 历史最大浮盈金额
+    # Calmar Ratio ( Annualized Return / Max Drawdown )
+    has_calmar_ratio = db.Column(db.Numeric(18, 4))
+    # 胜率 (窗口内日收益率 > 0 的天数占比)
+    has_win_rate = db.Column(db.Numeric(18, 4))
+    # --------- 3. Drawdown (回撤 - 基于累计收益率曲线) ---------
+    # 窗口内最大回撤幅度 (始终 <= 0，例如 -0.15 表示 -15%)
+    has_max_drawdown = db.Column(db.Numeric(18, 6))
 
-    has_max_profit_ratio = db.Column(db.Numeric(18, 4))  # 历史最大浮盈比例 = (历史最高市值 - 当前市值) / 历史最高市值
-    has_max_profit_value = db.Column(db.Numeric(18, 4))  # 历史最大浮盈金额
+    # 最大回撤发生的起止日期
+    has_max_drawdown_start_date = db.Column(db.Date)  # 高点日期
+    has_max_drawdown_end_date = db.Column(db.Date)  # 低点日期
 
-    # Return
-    has_cumulative_profit = db.Column(db.Numeric(18, 4))  # 跨周期累计收益金额
-    has_cumulative_return = db.Column(db.Numeric(18, 6))  # 跨周期累计收益率
+    # 最大回撤恢复日期 (从低点回到原高点的日期，如果没有恢复则为 NULL)
+    has_max_drawdown_recovery_date = db.Column(db.Date)
 
-    # Risk Metrics
-    has_return_volatility = db.Column(db.Numeric(18, 6))  # 收益波动率
-    has_sharpe_ratio = db.Column(db.Numeric(18, 4))  # Sharpe Ratio 总体波动
-    has_sortino_ratio = db.Column(db.Numeric(18, 4))  # Sortino Ratio 下行风险
+    # 最大回撤持续交易日天数 (Peak to Trough)
+    has_max_drawdown_days = db.Column(db.Integer)
+    # --------- 4. Run-up (上涨/反弹) ---------
+    # 窗口内最大上涨幅度 (从最低点到随后的最高点)
+    has_max_runup = db.Column(db.Numeric(18, 6))
+    # --------- 5. Benchmark & Alpha (相对表现) ---------
+    # 同期基准收益率
+    has_benchmark_return = db.Column(db.Numeric(18, 6))
 
-    has_position_ratio = db.Column(db.Numeric(18, 6))  # 持仓比例 = 某一持仓市值 / 组合总市值
-    has_portfolio_contribution = db.Column(db.Numeric(18, 6))  # 该持仓对组合整体收益的实际贡献。
+    # Alpha (超额收益，简单减法或回归 Alpha)
+    has_alpha = db.Column(db.Numeric(18, 6))
 
-    has_total_dividend = db.Column(db.Numeric(18, 4))  # 累计分红金额
+    # Beta (相对于基准的敏感度)
+    has_beta = db.Column(db.Numeric(18, 6))
 
-    # bench
-    has_benchmark_return = db.Column(db.Numeric(18, 6))  # 基准累计收益率
-    has_alpha = db.Column(db.Numeric(18, 6))  # Alpha
-    has_beta = db.Column(db.Numeric(18, 6))  # Beta
+    # 跟踪误差 (Tracking Error)
+    has_tracking_error = db.Column(db.Numeric(18, 6))
 
+    # 信息比率 (Information Ratio = Alpha / Tracking Error)
+    has_information_ratio = db.Column(db.Numeric(18, 4))
+    # --------- 6. Contribution (贡献) ---------
+    # 该持仓在窗口期内对组合总收益的贡献点数 (例如 0.02 表示贡献了 2%)
+    has_portfolio_contribution = db.Column(db.Numeric(18, 6))
+    # --------- 7. Meta ---------
     has_calc_version = db.Column(db.String(20))
-    has_calc_comment = db.Column(db.String(255))
 
 
 class PortfolioSnapshot(TimestampMixin, BaseModel):
