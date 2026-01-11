@@ -136,3 +136,31 @@ class TaskStatusEnum(Enum):
     RETRYING = 'RETRYING'  # 执行失败，等待重试
     FAILED = 'FAILED'  # 达到最大重试次数，最终失败
     CANCELLED = 'CANCELLED'  # 手动取消
+
+
+class AnalyticsWindowEnum(str, Enum):
+    # expanding
+    ALL = "ALL"  # 自建仓以来
+    CUR = "CUR"  # 本轮持仓（since last clear）
+
+    # rolling
+    ONE_MONTH = "R21"
+    THREE_MONTH = "R63"
+    SIX_MONTH = "R126"
+    ONE_YEAR = "R252"
+
+    @classmethod
+    def rolling_windows(cls):
+        return {
+            cls.ONE_MONTH,
+            cls.THREE_MONTH,
+            cls.SIX_MONTH,
+            cls.ONE_YEAR,
+        }
+
+    @classmethod
+    def expanding_windows(cls):
+        return {
+            cls.ALL,
+            cls.CUR,
+        }

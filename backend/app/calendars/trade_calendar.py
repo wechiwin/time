@@ -216,6 +216,50 @@ class TradeCalendar:
             logger.warning(f"Invalid date input: {date_input}")
             return None
 
+    def count_trade_days_between(
+            self,
+            start_date: Union[str, date, datetime],
+            end_date: Union[str, date, datetime],
+            inclusive: bool = True,
+    ) -> int:
+        """
+        计算两个日期之间的交易日天数。
+
+        :param start_date: 起始日期（支持字符串、date、datetime）
+        :param end_date: 结束日期（支持字符串、date、datetime）
+        :param inclusive: 是否包含起始和结束当天（若它们本身是交易日）
+        :return: 两个日期之间的交易日天数（int，>=0）
+        :raises ValueError: 当输入非法或 start_date > end_date 时
+        """
+        self._ensure_loaded()
+
+        try:
+            start = self._normalize_date(start_date)
+            end = self._normalize_date(end_date)
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Invalid date input: {e}") from e
+
+        if start > end:
+            raise ValueError("start_date must not be later than end_date")
+
+        start_ts = pd.Timestamp(start)
+        end_ts = pd.Timestamp(end)
+
+        # 使用二分查找快速定位索引
+        left_idx = self._dt_index.searchsorted(start_ts, side="left")
+        right_idx = self._dt_index.searchsorted(end_ts, side="right")
+
+        # 如果不包含边界，调整索引
+        if not inclusive:
+            # 排除 start 当天
+            if left_idx < len(self._dt_index) and self._dt_index[left_idx] == start_ts:
+                left_idx += 1
+            # 排除 end 当天
+            if right_idx > 0 and self._dt_index[right_idx - 1] == end_ts:
+                right_idx -= 1
+
+        return max(0, right_idx - left_idx)
+
 
 if __name__ == '__main__':
     calendar = TradeCalendar()

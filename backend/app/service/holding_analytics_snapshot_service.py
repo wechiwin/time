@@ -1,21 +1,24 @@
 import logging
 import time
 import traceback
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from decimal import Decimal
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 
 import numpy as np
 import pandas as pd
+from scipy import optimize
 
 from app.calendars.trade_calendar import TradeCalendar
 from app.database import db
+from app.framework.async_task_manager import create_task
 from app.models import (
     Holding, HoldingSnapshot, AnalyticsWindow, HoldingAnalyticsSnapshot
 )
 
 logger = logging.getLogger(__name__)
 trade_calendar = TradeCalendar()
+ZERO = Decimal('0')
 
 # 配置化常量
 RISK_FREE_RATE = 0.02  # TODO 目前硬编码为 0.02 (2%)。建议放入系统配置表或常量类中。
@@ -30,8 +33,6 @@ class HoldingAnalyticsSnapshotService:
     #  这需要引入 BenchmarkHistory 数据。逻辑是：将持仓的 df 与基准的 df 按日期 join，然后计算协方差（Covariance）得出 Beta，
     #  再计算 Alpha。目前的实现暂未包含此部分，如果需要可以后续添加。
     #  2.has_portfolio_contribution 需要等到 portfolio snapshot 算完了才计算
-    #  3.最大回撤恢复日期 (has_max_drawdown_recovery_date)：这是一个非线性的搜索过程，需要找到从最低点开始，净值何时重新回到最高点。
-    #  4.最大上涨幅度 (has_max_runup)：与最大回撤逻辑相反，计算从低点到高点的最大涨幅。
 
     @classmethod
     def generate_all_analytics(cls, ho_ids: List[int] = None):
@@ -59,9 +60,10 @@ class HoldingAnalyticsSnapshotService:
         for ho_id, ho_code in holdings:
             try:
                 # 为单个持仓生成所有历史分析数据
-                snapshots = cls._process_single_holding_full(ho_id, windows)
+                snapshots = cls._process_single_holding(ho_id, windows, mode='full')
 
                 if snapshots:
+                    # cls._save_snapshots(ho_id, snapshots, mode='full')
                     # 批量删除旧数据 (覆盖模式)
                     db.session.query(HoldingAnalyticsSnapshot).filter(
                         HoldingAnalyticsSnapshot.ho_id == ho_id
@@ -78,6 +80,13 @@ class HoldingAnalyticsSnapshotService:
                 db.session.rollback()
                 logger.error(f"Error processing holding {ho_code}: {str(e)}")
                 logger.error(traceback.format_exc())
+                create_task(
+                    task_name=f"redo-has-all-ho_id={ho_id}",
+                    module_path="app.services.holding_analytics_snapshot_service",
+                    method_name="generate_all_analytics",
+                    kwargs={"ids": f"[{ho_id},]"},
+                    error_message=str(e)
+                )
 
         duration = time.time() - start_time
         logger.info(f"Finished generate_all_analytics. Total: {total_count}, Duration: {duration:.2f}s")
@@ -110,11 +119,12 @@ class HoldingAnalyticsSnapshotService:
             return {"generated": 0}
 
         total_count = 0
+        errors = []
 
         for ho_id in target_ho_ids:
             try:
                 # 增量计算：只计算 yesterday 这一天
-                snapshots = cls._process_single_holding_incremental(ho_id, target_date, windows)
+                snapshots = cls._process_single_holding(ho_id, windows, mode='incremental', target_date=target_date)
 
                 if snapshots:
                     # 删除可能存在的当天重复数据（防重入）
@@ -127,87 +137,81 @@ class HoldingAnalyticsSnapshotService:
                     db.session.commit()
                     total_count += len(snapshots)
             except Exception as e:
-                db.session.rollback()
-                logger.error(f"Error generating yesterday analytics for ho_id={ho_id}: {e}")
+                err_msg = f"Error generating yesterday analytics for ho_id={ho_id}: {e}"
+                logger.error()
+                create_task(
+                    task_name=f"regenerate holding analytics snapshots for ho_id={ho_id} at {datetime.now()}",
+                    module_path="app.services.holding_analytics_snapshot_service",
+                    method_name="generate_yesterday_analytics",
+                    kwargs={"ids": f"[{ho_id},]"},
+                    error_message=err_msg
+                )
+                errors.append(err_msg)
 
         logger.info(f"Finished generate_yesterday_analytics. Generated: {total_count}")
         duration = time.time() - start_time
-        return {"generated": total_count, "duration": duration}
+        return {"generated": total_count, "duration": duration, "errors": errors}
 
     # -------------------------------------------------------------------------
     # 核心处理逻辑
     # -------------------------------------------------------------------------
-
     @classmethod
-    def _process_single_holding_full(cls, ho_id: int, windows: List[AnalyticsWindow]) -> List[HoldingAnalyticsSnapshot]:
+    def _process_single_holding(cls, ho_id: int, windows: List[AnalyticsWindow],
+                                mode: str = 'full', target_date: date = None) -> List[HoldingAnalyticsSnapshot]:
         """
-        处理单个持仓的全量历史数据
+        处理单个持仓的数据。
+        :param mode: 'full' (全量历史) 或 'incremental' (仅计算 target_date)
         """
-        # 1. 加载该持仓所有历史基础快照
-        # 我们需要: date, daily_pnl_ratio (收益率), daily_pnl (盈亏额), holding_shares (判断是否持仓)
-        raw_data = db.session.query(
-            HoldingSnapshot.snapshot_date,
-            HoldingSnapshot.hos_daily_pnl_ratio,
-            HoldingSnapshot.hos_daily_pnl,
-            HoldingSnapshot.holding_shares,
-            HoldingSnapshot.dividend_amount
-        ).filter(
-            HoldingSnapshot.ho_id == ho_id
-        ).order_by(HoldingSnapshot.snapshot_date).all()
+        # 1. 加载数据
+        # 必须加载历史数据才能计算 Rolling/Expanding 指标
+        df = cls._load_holding_data(ho_id, up_to_date=target_date if mode == 'incremental' else None)
 
-        if not raw_data:
+        if df.empty:
             return []
-
-        # 2. 转换为 Pandas DataFrame (这是高性能计算的关键)
-        df = pd.DataFrame(raw_data, columns=['date', 'ret', 'pnl', 'shares', 'dividend'])
-        # 转换类型: Decimal -> Float (Pandas计算需要Float)
-        df['ret'] = df['ret'].apply(lambda x: float(x) if x is not None else 0.0)
-        df['pnl'] = df['pnl'].apply(lambda x: float(x) if x is not None else 0.0)
-        df['shares'] = df['shares'].apply(lambda x: float(x) if x is not None else 0.0)
-        df['dividend'] = df['dividend'].apply(lambda x: float(x) if x is not None else 0.0)
-        df['date'] = pd.to_datetime(df['date'])
-        df.set_index('date', inplace=True)
-
-        # 3. 预计算辅助列：是否持仓中
-        # 只要 shares > 0 或者 当天虽然 shares=0 但有 pnl (清仓日)，都算有效交易日
-        # 简单起见，我们认为只要有 Snapshot 记录就是有效的一天
-
-        # 识别 "本轮持仓" (CUR) 的起点
-        # 逻辑：如果前一天的 shares <= 0 且 今天 shares > 0，则今天是新一轮的开始
-        df['prev_shares'] = df['shares'].shift(1).fillna(0)
-        df['is_new_cycle'] = (df['prev_shares'] <= 0) & (df['shares'] > 0)
-        # 给每一轮持仓打上 ID (cumsum)
-        df['cycle_id'] = df['is_new_cycle'].cumsum()
-
+        # 如果是增量模式，检查最后一天是否匹配
+        if mode == 'incremental':
+            last_date = df.index[-1].date()
+            if last_date != target_date:
+                # 数据尚未同步或日期不匹配
+                return []
+            # 只需要计算最后一行对应的日期
+            calc_dates = [df.index[-1]]
+        else:
+            # 全量模式：计算每一天
+            calc_dates = df.index
         results = []
 
-        # 4. 逐日循环计算 (虽然 Pandas 有 rolling/expanding，但我们需要针对不同 Window 混合处理)
-        # 优化：对于几千条数据，Python 循环 + Pandas 切片计算是可以接受的
-        dates = df.index
-        for i, current_date in enumerate(dates):
-            # 截取截止到当天的数据
-            # 注意：iloc[0 : i+1] 包含第 i 行
-            df_upto_now = df.iloc[:i + 1]
-            current_cycle_id = df.iloc[i]['cycle_id']
+        # 2. 遍历日期进行计算
+        # 性能优化提示：对于极大规模数据，这里应该使用 Pandas 的 rolling().apply() 或向量化操作。
+        # 但考虑到金融指标（如最大回撤日期）的复杂性，以及单只持仓数据量通常 < 5000 条，
+        # 逐日切片计算的可读性和维护性优于复杂的向量化代码。
 
+        for current_ts in calc_dates:
+            # 截止到当前日期的切片 (包含当前日期)
+            # 使用 loc 切片，效率尚可
+            df_upto_now = df.loc[:current_ts]
+
+            # 获取当前日期的 cycle_id (用于 CUR 窗口)
+            current_cycle = df_upto_now.iloc[-1]['cycle']
+            current_date_obj = current_ts.date()
             for window in windows:
-                # 获取窗口对应的数据切片
-                df_window = cls._get_window_slice(df_upto_now, window, current_cycle_id)
-
+                # 获取窗口数据切片
+                df_window = cls._get_window_slice(df_upto_now, window, current_cycle)
                 if df_window is None or df_window.empty:
                     continue
-
                 # 计算指标
                 metrics = cls._calculate_metrics(df_window, window.annualization_factor)
-
-                # 构建 ORM 对象
+                # 构建对象
                 snapshot = HoldingAnalyticsSnapshot(
                     ho_id=ho_id,
-                    snapshot_date=current_date.date(),
+                    snapshot_date=current_date_obj,
                     window_key=window.window_key,
-                    # 映射计算结果
-                    has_cumulative_return=metrics['cum_ret'],
-                    has_annualized_return=metrics['ann_ret'],
+                    # Return Metrics
+                    twrr_cumulative=metrics['twrr'],  # 映射 TWRR
+                    twrr_annualized=metrics['twrr_ann'],  # 映射 IRR
+                    irr_cumulative=metrics['irr'],
+                    irr_annualized=metrics['ann_irr'],
+
                     has_cumulative_pnl=metrics['cum_pnl'],
                     has_total_dividend=metrics['total_div'],
                     has_return_volatility=metrics['volatility'],
@@ -215,99 +219,54 @@ class HoldingAnalyticsSnapshotService:
                     has_max_drawdown=metrics['mdd'],
                     has_max_drawdown_start_date=metrics['mdd_start'],
                     has_max_drawdown_end_date=metrics['mdd_end'],
+                    has_max_drawdown_recovery_date=metrics['mdd_recovery_date'],
                     has_max_drawdown_days=metrics['mdd_days'],
+                    has_max_runup=metrics['max_runup'],
                     has_win_rate=metrics['win_rate'],
                     has_calmar_ratio=metrics['calmar'],
                     has_sortino_ratio=metrics['sortino'],
                     has_downside_risk=metrics['downside_risk'],
-                    has_calc_version="v1.0"
                 )
                 results.append(snapshot)
-
         return results
 
     @classmethod
-    def _process_single_holding_incremental(cls, ho_id: int, target_date: date, windows: List[AnalyticsWindow]):
+    def _load_holding_data(cls, ho_id: int, up_to_date: date = None) -> pd.DataFrame:
         """
-        增量处理：只计算 target_date 这一天的指标
-        注意：虽然只计算一天，但需要加载足够的历史数据来计算 Rolling/Expanding 指标
+        加载持仓的基础快照数据并转换为 DataFrame
         """
-        # 1. 确定需要加载的历史数据范围
-        # 为了安全起见，对于 Rolling 窗口，我们需要 max_days + buffer
-        # 对于 Expanding (ALL/CUR)，我们需要全部历史
-        # 简单策略：加载全部历史。对于单个持仓，几千条数据内存开销很小，且逻辑最简单安全。
-
-        raw_data = db.session.query(
+        query = db.session.query(
             HoldingSnapshot.snapshot_date,
             HoldingSnapshot.hos_daily_pnl_ratio,
             HoldingSnapshot.hos_daily_pnl,
             HoldingSnapshot.holding_shares,
-            HoldingSnapshot.dividend_amount
+            HoldingSnapshot.hos_daily_dividend,
+            HoldingSnapshot.tr_cycle,
+            HoldingSnapshot.hos_net_cash_inflow,
+            HoldingSnapshot.hos_market_value,
         ).filter(
-            HoldingSnapshot.ho_id == ho_id,
-            HoldingSnapshot.snapshot_date <= target_date
-        ).order_by(HoldingSnapshot.snapshot_date).all()
-
+            HoldingSnapshot.ho_id == ho_id
+        )
+        if up_to_date:
+            query = query.filter(HoldingSnapshot.snapshot_date <= up_to_date)
+        raw_data = query.order_by(HoldingSnapshot.snapshot_date).all()
         if not raw_data:
-            return []
+            return pd.DataFrame()
+        df = pd.DataFrame(raw_data, columns=['date', 'daily_pnl_ratio', 'daily_pnl', 'shares', 'dividend', 'cycle',
+                                             'net_cash_inflow', 'mv'])
 
-        # 检查最后一条数据是否是 target_date
-        if raw_data[-1].snapshot_date != target_date:
-            # 可能是数据同步延迟，target_date 的 snapshot 还没生成
-            return []
+        # 类型转换: Decimal -> Float
+        cols_to_float = ['daily_pnl_ratio', 'daily_pnl', 'shares', 'dividend', 'net_cash_inflow', 'mv']
+        for col in cols_to_float:
+            df[col] = df[col].apply(lambda x: float(x) if x is not None else 0.0)
 
-        # 2. 转 DataFrame
-        df = pd.DataFrame(raw_data, columns=['date', 'ret', 'pnl', 'shares', 'dividend'])
-        df['ret'] = df['ret'].apply(lambda x: float(x) if x is not None else 0.0)
-        df['pnl'] = df['pnl'].apply(lambda x: float(x) if x is not None else 0.0)
-        df['shares'] = df['shares'].apply(lambda x: float(x) if x is not None else 0.0)
-        df['dividend'] = df['dividend'].apply(lambda x: float(x) if x is not None else 0.0)
+        # 确保 cycle 是 int
+        df['cycle'] = df['cycle'].fillna(0).astype(int)
+
         df['date'] = pd.to_datetime(df['date'])
         df.set_index('date', inplace=True)
 
-        # 3. 辅助列 (Cycle ID)
-        df['prev_shares'] = df['shares'].shift(1).fillna(0)
-        df['is_new_cycle'] = (df['prev_shares'] <= 0) & (df['shares'] > 0)
-        df['cycle_id'] = df['is_new_cycle'].cumsum()
-
-        # 4. 只计算最后一天 (target_date)
-        current_cycle_id = df.iloc[-1]['cycle_id']
-        results = []
-
-        for window in windows:
-            df_window = cls._get_window_slice(df, window, current_cycle_id)
-            if df_window is None or df_window.empty:
-                continue
-
-            metrics = cls._calculate_metrics(df_window, window.annualization_factor)
-
-            snapshot = HoldingAnalyticsSnapshot(
-                ho_id=ho_id,
-                snapshot_date=target_date,
-                window_key=window.window_key,
-                has_cumulative_return=metrics['cum_ret'],
-                has_annualized_return=metrics['ann_ret'],
-                has_cumulative_pnl=metrics['cum_pnl'],
-                has_total_dividend=metrics['total_div'],
-                has_return_volatility=metrics['volatility'],
-                has_sharpe_ratio=metrics['sharpe'],
-                has_max_drawdown=metrics['mdd'],
-                has_max_drawdown_start_date=metrics['mdd_start'],
-                has_max_drawdown_end_date=metrics['mdd_end'],
-                has_max_drawdown_days=metrics['mdd_days'],
-                has_win_rate=metrics['win_rate'],
-                has_calmar_ratio=metrics['calmar'],
-                has_sortino_ratio=metrics['sortino'],
-                has_downside_risk=metrics['downside_risk'],
-                has_calc_version="v1.0"
-            )
-            results.append(snapshot)
-
-        return results
-
-    # -------------------------------------------------------------------------
-    # 辅助方法
-    # -------------------------------------------------------------------------
+        return df
 
     @staticmethod
     def _get_window_slice(df: pd.DataFrame, window: AnalyticsWindow, current_cycle_id: int) -> Optional[pd.DataFrame]:
@@ -326,73 +285,93 @@ class HoldingAnalyticsSnapshotService:
                 return df
             elif window.window_key == 'CUR':
                 # 本轮持仓：过滤出 cycle_id 等于当前 cycle_id 的行
-                return df[df['cycle_id'] == current_cycle_id]
+                return df[df['cycle'] == current_cycle_id]
             else:
                 # 其他 expanding 逻辑，默认全部
                 return df
 
         return None
 
-    @staticmethod
-    def _calculate_metrics(df: pd.DataFrame, annual_factor: int = 252) -> Dict:
+    @classmethod
+    def _calculate_metrics(cls, df: pd.DataFrame, annual_factor: int = 252) -> Dict:
         """
-        核心计算引擎：输入一个 DataFrame（包含 ret, pnl），输出所有指标字典
+        核心计算引擎：输入一个 DataFrame（包含 daily_pnl_ratio, pnl），输出所有指标字典
         """
         # 提取 Series
-        returns = df['ret']  # 日收益率 (0.01 代表 1%)
-        pnls = df['pnl']  # 日盈亏金额
+        daily_pnl_ratio_list = df['daily_pnl_ratio']  # 日收益率 (0.01 代表 1%)
+        pnls = df['daily_pnl']  # 日盈亏金额
         dividends = df['dividend']
 
-        n = len(returns)
+        n = len(daily_pnl_ratio_list)
         if n == 0:
             return {}
 
-        # 1. 累计收益率 (Cumulative Return)
-        # 公式: (1+r1)*(1+r2)... - 1
-        cum_return = (1 + returns).prod() - 1
-
-        # 2. 年化收益率 (Annualized Return)
-        # 公式: (1 + cum_ret) ^ (252/n) - 1
-        # 注意：如果天数太少（<30天），年化通常没有意义或极度失真，这里做个保护或者照常计算
-        if n > 5:
-            ann_return = (1 + cum_return) ** (annual_factor / n) - 1
-        else:
-            ann_return = 0  # 时间太短不计算年化
+        # 1. twrr_cum 公式: (1+r1)*(1+r2)... - 1
+        twrr_cum = (1 + daily_pnl_ratio_list).prod() - 1
 
         # 3. 累计盈亏 & 分红
         cum_pnl = pnls.sum()
         total_div = dividends.sum()
 
+        # 2. twrr_cum 年化收益率 (Annualized Return)
+        # 公式: (1 + cum_ret) ^ (252/n) - 1
+        # 注意：如果天数太少（<30天），年化通常没有意义或极度失真
+        if n >= MIN_ANNUALIZATION_DAYS:
+            twrr_ann = (1 + twrr_cum) ** (annual_factor / n) - 1
+        else:
+            twrr_ann = None  # 用None表示不适用
+
+        # 3. IRR (XIRR)
+        # 仅对长周期或 ALL 窗口计算，短周期 XIRR 意义不大且耗时
+        # XIRR 本身就是年化指标
+        irr_ann = None
+        irr_cum = None
+        if n >= MIN_ANNUALIZATION_DAYS:
+            try:
+                irr_ann = cls._calculate_xirr(df)
+                if irr_ann is not None:
+                    # 根据年化 IRR 反推这段时间的累计 IRR
+                    # 累计 = (1 + 年化) ^ (自然日天数 / 365) - 1
+                    days_diff = (df.index[-1] - df.index[0]).days
+                    if days_diff > 0:
+                        irr_cum = (1 + irr_ann) ** (days_diff / 365.0) - 1
+                    else:
+                        irr_cum = 0.0
+            except Exception as e:
+                # XIRR 计算可能不收敛，记录日志或忽略
+                logger.debug(f"XIRR calculation failed: {e}")
+                pass
+
         # 4. 波动率 (Volatility)
         # 标准差 * sqrt(252)
         if n > 1:
-            volatility = returns.std(ddof=1) * np.sqrt(annual_factor)
+            volatility = daily_pnl_ratio_list.std(ddof=1) * np.sqrt(annual_factor)
         else:
             volatility = 0
 
         # 5. 夏普比率 (Sharpe Ratio)
-        # (Ann_Ret - Rf) / Vol
-        if volatility > 0:
-            sharpe = (ann_return - RISK_FREE_RATE) / volatility
+        # (Rp - Rf) / Vol
+        if volatility > EPSILON:
+            sharpe = (twrr_ann - RISK_FREE_RATE) / volatility if twrr_ann is not None else 0.0
         else:
             sharpe = 0
 
         # 6. 下行风险 & Sortino
         # 只取负收益计算标准差
-        neg_returns = returns[returns < 0]
-        if len(neg_returns) > 1:
-            downside_std = neg_returns.std(ddof=1) * np.sqrt(annual_factor)
+        negtive_returns = daily_pnl_ratio_list[daily_pnl_ratio_list < 0]
+        if len(negtive_returns) > 1:
+            downside_std = negtive_returns.std(ddof=1) * np.sqrt(annual_factor)
         else:
             downside_std = 0
 
-        if downside_std > 0:
-            sortino = (ann_return - RISK_FREE_RATE) / downside_std
+        if downside_std > EPSILON:
+            sortino = (twrr_ann - RISK_FREE_RATE) / downside_std if twrr_ann is not None else 0.0
         else:
             sortino = 0
 
-        # 7. 最大回撤 (Max Drawdown)
+        # 7. 最大回撤 (Max Drawdown) TODO 跳过多个持仓周期之间的空仓期 还是说在各个周期内进行寻找
         # 构造净值曲线 (假设初始为1)
-        nav_series = (1 + returns).cumprod()
+        nav_series = (1 + daily_pnl_ratio_list).cumprod()
         # 历史累计最大值
         running_max = nav_series.cummax()
         # 回撤序列 (始终 <= 0)
@@ -401,46 +380,211 @@ class HoldingAnalyticsSnapshotService:
         mdd = drawdown_series.min()  # e.g. -0.15
 
         # 计算回撤日期
-        mdd_end_idx = drawdown_series.idxmin()  # 回撤最低点的日期
-        mdd_end_date = mdd_end_idx.date()
+        mdd_end_ts = drawdown_series.idxmin()  # 回撤最低点的日期  Timestamp
+        mdd_end_date = mdd_end_ts.date()
 
         # 找到最低点之前的那个最高点日期
         # 在 mdd_end_idx 之前的数据中，找到等于 running_max[mdd_end_idx] 的最后一天
-        peak_val = running_max.loc[mdd_end_idx]
-        # 截取到最低点之前
-        series_before_trough = running_max.loc[:mdd_end_idx]
-        # 找到等于峰值的日期
-        mdd_start_idx = series_before_trough[series_before_trough == peak_val].index[-1]
-        mdd_start_date = mdd_start_idx.date()
+        subset_before_trough = running_max.loc[:mdd_end_ts]
+        peak_val = subset_before_trough.iloc[-1]
+        # 在这之前，最后一次出现该 peak_val 的日期即为开始日期
+        mdd_start_ts = subset_before_trough[subset_before_trough == peak_val].index[-1]
+        mdd_start_date = mdd_start_ts.date()
 
-        # 回撤天数 (交易日)
-        # Pandas index 两个日期之间的行数
-        mdd_days = df.index.get_loc(mdd_end_idx) - df.index.get_loc(mdd_start_idx)
+        # 回撤天数 (交易日) 通常指 Peak 到 Trough 之间的间隔
+        try:
+            mdd_days = trade_calendar.count_trade_days_between(
+                mdd_start_date, mdd_end_date, inclusive=False
+            )
+        except Exception:
+            # 降级处理：如果日历报错，使用自然日或列表长度
+            mdd_days = (mdd_end_date - mdd_start_date).days
+
+        # 最大回撤恢复日期
+        # 直接复用 nav_series, mdd_end_date, peak_val
+        recovery_date = cls._calc_recovery_date(nav_series, mdd_end_date, peak_val)
+        # 最大上涨幅度
+        # 直接复用 nav_series
+        max_runup = cls._calc_max_runup(nav_series)
 
         # 8. 卡玛比率 (Calmar)
         # Ann_Ret / abs(MDD)
         if mdd < 0:
-            calmar = ann_return / abs(mdd)
+            calmar = twrr_ann / abs(mdd) if twrr_ann is not None else 0.0
         else:
             calmar = 0
 
         # 9. 胜率 (Win Rate)
-        win_count = (returns > 0).sum()
+        win_count = (daily_pnl_ratio_list > 0).sum()
         win_rate = win_count / n
 
         return {
-            'cum_ret': Decimal(str(cum_return)),
-            'ann_ret': Decimal(str(ann_return)),
-            'cum_pnl': Decimal(str(cum_pnl)),
-            'total_div': Decimal(str(total_div)),
-            'volatility': Decimal(str(volatility)),
-            'sharpe': Decimal(str(sharpe)),
-            'sortino': Decimal(str(sortino)),
-            'downside_risk': Decimal(str(downside_std)),
-            'mdd': Decimal(str(mdd)),
+            'twrr_cum': Decimal(f"{twrr_cum:.6f}"),
+            'twrr_ann': Decimal(f"{twrr_ann:.6f}") if twrr_ann is not None else None,
+            'irr_ann': Decimal(f"{irr_ann:.6f}"),
+            'irr_cum': Decimal(f"{irr_cum:.6f}") if irr_cum is not None else None,
+            'cum_pnl': Decimal(f"{cum_pnl:.4f}"),
+            'total_div': Decimal(f"{total_div:.4f}"),
+            'volatility': Decimal(f"{volatility:.6f}"),
+            'sharpe': Decimal(f"{sharpe:.4f}"),
+            'sortino': Decimal(f"{sortino:.4f}"),
+            'downside_risk': Decimal(f"{downside_std:.6f}"),
+            'mdd': Decimal(f"{mdd:.6f}"),
             'mdd_start': mdd_start_date,
             'mdd_end': mdd_end_date,
             'mdd_days': int(mdd_days),
-            'calmar': Decimal(str(calmar)),
-            'win_rate': Decimal(str(win_rate))
+            'calmar': Decimal(f"{calmar:.4f}"),
+            'win_rate': Decimal(f"{win_rate:.4f}"),
+            'mdd_recovery_date': recovery_date,
+            'max_runup': max_runup,
         }
+
+    def _calculate_xirr(df: pd.DataFrame) -> Optional[float]:
+        """
+        计算单只持仓的 XIRR
+        现金流定义 (站在用户口袋角度):
+        - 买入 (net_inflow > 0): 现金流出，记为负。
+        - 卖出 (net_inflow < 0): 现金流入，记为正。
+        - 现金分红 (dividend > 0): 现金流入，记为正。
+        - 期末市值 (mv): 视为全部赎回，记为正。
+        """
+        # 1. 构造现金流 Flow = (-1 * net_inflow) + dividend
+        # 注意：net_inflow字段定义是买入为正，所以取反。
+        df['flow'] = (-1 * df['net_cash_inflow']) + df['dividend']
+
+        # 过滤出有现金流的日子
+        flows = df[df['flow'].abs() > EPSILON].copy()
+
+        dates = list(flows.index)
+        amounts = list(flows['flow'])
+
+        # 添加期末市值 (视为全部赎回)
+        last_date = df.index[-1]
+        last_mv = df.iloc[-1]['mv']
+        # 如果最后一天已经有现金流，累加；否则追加
+        if dates and dates[-1] == last_date:
+            amounts[-1] += last_mv
+        else:
+            dates.append(last_date)
+            amounts.append(last_mv)
+
+        if not dates:
+            return None
+
+        # 只有一笔正现金流（只有市值没有投入），无法计算
+        if all(a >= 0 for a in amounts) or all(a <= 0 for a in amounts):
+            return None
+
+        # 2. 计算 XNPV 方程
+        def xnpv(rate, dates, amounts):
+            if rate <= -1.0:
+                return float('inf')
+            d0 = dates[0]
+            # 核心公式：Sum( CashFlow_i / (1+r)^((d_i - d0)/365) )
+            # 这里的 365 是金融学定义 XIRR 的标准，代表自然年
+            return sum([a / ((1.0 + rate) ** ((d - d0).days / 365.0)) for d, a in zip(dates, amounts)])
+
+        try:
+            # 使用 Newton-Raphson 方法求解 f(r) = 0
+            # 初始猜测值 0.1 (10%)
+            return optimize.newton(lambda r: xnpv(r, dates, amounts), 0.1, tol=0.0001, maxiter=100)
+        except:
+            # 如果不收敛，尝试使用 brentq (区间法) 或者直接返回 None
+            return None
+
+    # @staticmethod
+    # def _save_snapshots(ho_id: int, snapshots: List[HoldingAnalyticsSnapshot], mode: str):
+    #     """
+    #     批量保存快照到数据库
+    #     """
+    #     try:
+    #         if mode == 'full':
+    #             # 全量模式：先删除该持仓的所有分析数据
+    #             db.session.query(HoldingAnalyticsSnapshot).filter(
+    #                 HoldingAnalyticsSnapshot.ho_id == ho_id
+    #             ).delete(synchronize_session=False)
+    #         elif mode == 'incremental':
+    #             # 增量模式：删除待插入日期的旧数据（防重入）
+    #             dates = {s.snapshot_date for s in snapshots}
+    #             if dates:
+    #                 db.session.query(HoldingAnalyticsSnapshot).filter(
+    #                     HoldingAnalyticsSnapshot.ho_id == ho_id,
+    #                     HoldingAnalyticsSnapshot.snapshot_date.in_(dates)
+    #                 ).delete(synchronize_session=False)
+    #         # 批量插入
+    #         db.session.bulk_save_objects(snapshots)
+    #         db.session.commit()
+    #     except Exception as e:
+    #         db.session.rollback()
+    #         logger.error(e, exc_info=True)
+    #         if mode == 'full':
+    #             create_task(
+    #                 task_name=f"regenerate holding analytics snapshots for mode={mode} and ho_id={ho_id} at {datetime.now()}",
+    #                 module_path="app.services.holding_analytics_snapshot_service",
+    #                 method_name="generate_all_analytics",
+    #                 kwargs={"ids": f"[{ho_id},]", "mode": f"['{mode}']"},
+    #                 error_message=str(e)
+    #             )
+    #         elif mode == 'incremental':
+    #             create_task(
+    #                 task_name=f"regenerate holding analytics snapshots for mode={mode} and ho_id={ho_id} at {datetime.now()}",
+    #                 module_path="app.services.holding_analytics_snapshot_service",
+    #                 method_name="generate_yesterday_analytics",
+    #                 kwargs={"ids": f"[{ho_id},]", "mode": f"['{mode}']"},
+    #                 error_message=str(e)
+    #             )
+    #         raise e
+
+    @staticmethod
+    def _calc_recovery_date(nav_series: pd.Series, mdd_end_date: date, peak_val: float) -> Optional[date]:
+        """
+        计算最大回撤恢复日期
+        逻辑：在最大回撤低点(mdd_end_date)之后，寻找第一个净值 >= 回撤前最高点(peak_val)的日期
+        """
+        if mdd_end_date is None or peak_val is None:
+            return None
+
+        # 1. 截取低点之后的数据
+        # 注意：nav_series 的索引必须是 datetime 类型
+        # mdd_end_date 是 date 类型，Pandas 切片通常兼容，但最好转一下
+        after_trough = nav_series.loc[pd.Timestamp(mdd_end_date):]
+
+        # 排除掉低点当天（如果低点当天就恢复了，那是V型反转，逻辑上也成立，但通常是之后）
+        if len(after_trough) <= 1:
+            return None
+
+        after_trough = after_trough.iloc[1:]
+
+        # 2. 寻找第一个大于等于 peak_val 的位置
+        # idxmax() 在布尔序列中会返回第一个 True 的索引
+        recovery_mask = after_trough >= peak_val
+
+        if not recovery_mask.any():
+            return None  # 至今尚未恢复
+
+        recovery_ts = recovery_mask.idxmax()
+        return recovery_ts.date()
+
+    @staticmethod
+    def _calc_max_runup(nav_series: pd.Series) -> Decimal:
+        """
+        计算最大上涨幅度 (Max Run-up)
+        逻辑：与最大回撤相反。计算 (当前净值 - 历史最低净值) / 历史最低净值 的最大值
+        """
+        if nav_series.empty:
+            return ZERO
+
+        # 1. 计算历史累计最小值
+        running_min = nav_series.cummin()
+
+        # 2. 防止除以0 (虽然净值通常 > 0，但防守一下 将0替换为极小值或处理异常)
+        running_min = running_min.replace(0, np.nan)
+        # 3. 计算潜在上涨幅度序列 公式：(Price / Low) - 1
+        runup_series = (nav_series / running_min) - 1
+        if runup_series.isnull().all():
+            return ZERO
+
+        # 4. 取最大值
+        max_runup = runup_series.max()
+
+        return Decimal(f"{max_runup:.6f}")

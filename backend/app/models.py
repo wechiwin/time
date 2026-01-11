@@ -303,38 +303,52 @@ class TokenBlacklist(TimestampMixin, BaseModel):
 
 
 class HoldingSnapshot(TimestampMixin, BaseModel):
+    """
+    单只持仓每日快照表
+    记录该持仓在 当天 or 周期tr_cycle内 的状态、盈亏和资金变动。
+    """
     __tablename__ = 'holding_snapshot'
 
     id = db.Column(db.Integer, primary_key=True)
 
     ho_id = db.Column(db.Integer)
     snapshot_date = db.Column(db.Date, nullable=False, index=True)
+
     # -------- Position --------
     holding_shares = db.Column(db.Numeric(18, 4))  # 持仓份额
-    cost_price = db.Column(db.Numeric(18, 4))  # 当前持仓成本单价:加权平均成本=holding_cost/holding_shares
-    holding_cost = db.Column(db.Numeric(18, 4))  # 当前持仓成本 = 成本单价 * 持仓份额
+    hos_holding_cost = db.Column(db.Numeric(18, 4))
+    """
+    当前持仓成本 = 上一日成本 + 今日买入金额 - 今日卖出结转成本
+    """
+    avg_cost = db.Column(db.Numeric(18, 4))  # 当前持仓成本单价:加权平均成本=hos_holding_cost/holding_shares
 
     # -------- Price / Value --------
     market_price = db.Column(db.Numeric(18, 4))  # 单位净值
     hos_market_value = db.Column(db.Numeric(18, 4))  # 总市值 = 持仓份额 * 单位净值
 
     # -------- Cash / Cost --------
-    hos_total_cost = db.Column(db.Numeric(18, 4))  # 历史累计投入总成本 = Σ(买入金额)
-    hos_total_sell_cash = db.Column(db.Numeric(18, 4))  # 累计卖出回款
-    hos_net_cash_flow = db.Column(db.Numeric(18, 2))  # 当日净现金流：买入为负，卖出/分红为正
-
+    hos_total_buy_amount = db.Column(db.Numeric(18, 4))  # 历史累计投入总成本 = Σ(买入金额)
+    hos_total_sell_amount = db.Column(db.Numeric(18, 4))  # 历史累计卖出总额
+    hos_net_cash_inflow = db.Column(db.Numeric(18, 2))
+    """
+    当日净投入现金流：买入为正，卖出为负（不含分红）
+    """
     # -------- PnL --------
     hos_realized_pnl = db.Column(db.Numeric(18, 4))  # 已实现盈亏 = （卖出单位净值 - 成本单价） * 卖出份额
-    hos_unrealized_pnl = db.Column(db.Numeric(18, 4))  # 未实现盈亏 = hos_market_value - holding_cost
-    hos_total_pnl = db.Column(db.Numeric(18, 4))  # 累计盈亏 = 已实现盈亏 + 未实现盈亏
-
-    # -------- Return --------
-    hos_daily_pnl = db.Column(db.Numeric(18, 4))  # 当日盈亏 = 当日市值 - 昨日市值 - 当日净现金流
-    hos_daily_pnl_ratio = db.Column(db.Numeric(18, 4))  # 当日盈亏率 = (hos_daily_pnl / 昨日市值) × 100%
-    hos_total_pnl_ratio = db.Column(db.Numeric(18, 4))  # 累计盈亏率 = (hos_total_pnl / 总成本) × 100%
+    hos_unrealized_pnl = db.Column(db.Numeric(18, 4))  # 未实现盈亏 = hos_market_value - hos_holding_cost
+    hos_daily_pnl = db.Column(db.Numeric(18, 4))
+    """
+    当日盈亏 = 当日市值 - 昨日市值 - hos_net_cash_inflow + hos_daily_dividend
+    """
+    hos_total_pnl = db.Column(db.Numeric(18, 4))  # 累计盈亏 = 已实现盈亏 + 未实现盈亏 + 累计分红：Σ(hos_daily_dividend)
+    hos_daily_pnl_ratio = db.Column(db.Numeric(18, 4))  # 当日盈亏率 = (hos_daily_pnl / 昨日市值)
+    hos_total_pnl_ratio = db.Column(db.Numeric(18, 4))  # 累计盈亏率 = (hos_total_pnl / 总成本)
+    hos_daily_dividend = db.Column(db.Numeric(18, 4))  # 当日收到的现金分红
+    hos_total_dividend = db.Column(db.Numeric(18, 4))  # 累计收到的分红总额 包含现金分红和分红再投资
 
     # -------- Other --------
-    dividend_amount = db.Column(db.Numeric(18, 4))  # 分红收益
+    tr_cycle = db.Column(db.Integer)  # 持仓周期
+    is_cleared = db.Column(db.Boolean, default=False)  # 是否清仓
 
     __table_args__ = (
         db.Index('holding_snapshot_ho_id_snapshot_date_index', 'ho_id', 'snapshot_date'),
@@ -345,18 +359,22 @@ class AnalyticsWindow(BaseModel):
     __tablename__ = 'analytics_window'
 
     id = db.Column(db.Integer, primary_key=True)
-
-    # 示例: 'ALL', 'R60', 'R120', 'R252'
     window_key = db.Column(db.String(32), unique=True, nullable=False)
-
-    # 'expanding' | 'rolling'
+    """
+    示例: 'ALL', 'CUR', 'R21', 'R63', 'R126'，'R252'（交易日）
+    """
     window_type = db.Column(db.String(20), nullable=False)
-
-    # expanding 时可为 NULL
+    """
+    'expanding' | 'rolling'
+    """
     window_days = db.Column(db.Integer)
-
+    """
+    expanding 时可为 NULL
+    """
     annualization_factor = db.Column(db.Integer, default=252)
-
+    """
+    年化因子
+    """
     description = db.Column(db.String(255))
 
 
@@ -376,50 +394,93 @@ class HoldingAnalyticsSnapshot(TimestampMixin, BaseModel):
     ho_id = db.Column(db.Integer, nullable=False)
     snapshot_date = db.Column(db.Date, nullable=False)
     window_key = db.Column(db.String(32), nullable=False)  # ALL, CUR, R20, R252...
+
     # --------- 1. Return Metrics (收益指标) ---------
-    # 窗口内的累计收益率 (Time-Weighted Return)
-    # 比如 R20：过去20个交易日的累计涨幅
-    has_cumulative_return = db.Column(db.Numeric(18, 6))
-
-    # 窗口内的年化收益率 (仅对 >1年的窗口或 ALL 有意义，短期年化会失真)
-    has_annualized_return = db.Column(db.Numeric(18, 6))
-    # 窗口内的累计盈亏金额 (Absolute PnL)
-    # 注意：金额受加减仓影响，但在展示“这波赚了多少钱”时很直观
+    twrr_cumulative = db.Column(db.Numeric(18, 6))
+    """
+    窗口内的时间加权收益率 (Time-Weighted Return)
+    含义：假设一开始买入并持有不动，该标的的涨幅。比如 R20：过去20个交易日的累计涨幅
+    用途：衡量这只基金/股票本身的质量，不包含用户的择时(操作)因素。
+    大白话：只和market_price相关，和持仓份额无关
+    """
+    twrr_annualized = db.Column(db.Numeric(18, 6))
+    """
+    年化twrr
+    """
+    irr_cumulative = db.Column(db.Numeric(18, 6))
+    """
+    资金加权年化收益率 (Internal Rate of Return)
+    含义：考虑了用户的加减仓行为后的实际年化回报率。
+    用途：衡量用户在该标的上的实际操作结果。
+    大白话：不仅和market_price相关，而且和持仓份额有关
+    """
+    irr_annualized = db.Column(db.Numeric(18, 6))
+    """
+    年化irr
+    """
     has_cumulative_pnl = db.Column(db.Numeric(18, 4))
-    # 窗口内的累计分红
+    """
+    窗口期内的累计盈亏金额 (Absolute PnL)
+    """
     has_total_dividend = db.Column(db.Numeric(18, 4))
+    """
+    窗口期内收到的分红总额
+    """
     # --------- 2. Risk / Volatility (风险指标) ---------
-    # 年化波动率 (Standard Deviation of Daily Returns * sqrt(252))
     has_return_volatility = db.Column(db.Numeric(18, 6))
-
-    # 下行风险波动率 (Downside Deviation)
+    """
+    年化波动率 (Standard Deviation of Daily Returns * sqrt(252))
+    """
     has_downside_risk = db.Column(db.Numeric(18, 6))
-    # Sharpe Ratio ( (Rp - Rf) / Sigma )
+    """
+    下行风险波动率 (Downside Deviation, 只计算收益率为负的日子)
+    """
     has_sharpe_ratio = db.Column(db.Numeric(18, 4))
-
-    # Sortino Ratio ( (Rp - Rf) / Downside Sigma )
+    """
+    夏普比率 (Return - Rf) / Volatility
+    Sharpe Ratio ( (Rp - Rf) / Sigma )
+    """
     has_sortino_ratio = db.Column(db.Numeric(18, 4))
-
-    # Calmar Ratio ( Annualized Return / Max Drawdown )
+    """
+    索提诺比率 (Return - Rf) / Downside Deviation
+    Sortino Ratio ( (Rp - Rf) / Downside Sigma )
+    """
     has_calmar_ratio = db.Column(db.Numeric(18, 4))
-    # 胜率 (窗口内日收益率 > 0 的天数占比)
+    """
+    卡玛比率 Annualized Return / Max Drawdown
+    Calmar Ratio ( Annualized Return / Max Drawdown )
+    """
     has_win_rate = db.Column(db.Numeric(18, 4))
+    """
+    胜率：窗口期内 (日收益率 > 0 的天数) / 总交易日
+    胜率 (窗口内日收益率 > 0 的天数占比)
+    """
     # --------- 3. Drawdown (回撤 - 基于累计收益率曲线) ---------
-    # 窗口内最大回撤幅度 (始终 <= 0，例如 -0.15 表示 -15%)
     has_max_drawdown = db.Column(db.Numeric(18, 6))
-
-    # 最大回撤发生的起止日期
-    has_max_drawdown_start_date = db.Column(db.Date)  # 高点日期
-    has_max_drawdown_end_date = db.Column(db.Date)  # 低点日期
-
-    # 最大回撤恢复日期 (从低点回到原高点的日期，如果没有恢复则为 NULL)
+    """
+    窗口内最大回撤幅度 (始终 <= 0，例如 -0.15 表示 -15%)
+    """
+    has_max_drawdown_start_date = db.Column(db.Date)
+    """
+    最大回撤发生的起止日期 - 见顶日期
+    """
+    has_max_drawdown_end_date = db.Column(db.Date)
+    """
+    最大回撤发生的起止日期 - 见底日期
+    """
     has_max_drawdown_recovery_date = db.Column(db.Date)
-
-    # 最大回撤持续交易日天数 (Peak to Trough)
+    """
+    最大回撤恢复日期 (从低点回到原高点的日期，如果没有恢复则为 NULL)
+    """
     has_max_drawdown_days = db.Column(db.Integer)
+    """
+    最大回撤持续交易日天数 (Peak to Trough)
+    """
     # --------- 4. Run-up (上涨/反弹) ---------
-    # 窗口内最大上涨幅度 (从最低点到随后的最高点)
     has_max_runup = db.Column(db.Numeric(18, 6))
+    """
+    窗口内最大上涨幅度 (从最低点到随后的最高点)
+    """
     # --------- 5. Benchmark & Alpha (相对表现) ---------
     # 同期基准收益率
     has_benchmark_return = db.Column(db.Numeric(18, 6))
@@ -435,45 +496,146 @@ class HoldingAnalyticsSnapshot(TimestampMixin, BaseModel):
 
     # 信息比率 (Information Ratio = Alpha / Tracking Error)
     has_information_ratio = db.Column(db.Numeric(18, 4))
+
     # --------- 6. Contribution (贡献) ---------
-    # 该持仓在窗口期内对组合总收益的贡献点数 (例如 0.02 表示贡献了 2%)
     has_portfolio_contribution = db.Column(db.Numeric(18, 6))
-    # --------- 7. Meta ---------
-    has_calc_version = db.Column(db.String(20))
+    """
+    组合贡献度
+    该持仓在窗口期内对组合总收益的贡献点数 (例如 0.02 表示贡献了 2%)
+    公式：(该持仓当日收益额 / 整个组合昨日总市值) 的累加
+    或者近似：该持仓平均权重 * 该持仓收益率
+    注意：计算此字段需要读取 InvestedAssetSnapshot 的数据。
+    """
 
 
-class PortfolioSnapshot(TimestampMixin, BaseModel):
+class InvestedAssetSnapshot(TimestampMixin, BaseModel):
     """
-    投资组合快照表（账户水位表）
-    用于记录用户在特定日期的账户总市值和外部现金流，
-    是计算总持仓收益率（IRR/TWRR）的核心数据源。
+    投资资产整体快照（仅基于已投入资本形成的资产）
+    不包含账户现金，不等同于账户净资产
     """
-    __tablename__ = 'portfolio_snapshot'
+
+    __tablename__ = 'invested_asset_snapshot'
+
+    id = db.Column(db.Integer, primary_key=True)
+    snapshot_date = db.Column(db.Date, nullable=False, index=True)  # 快照日期，YYYY-MM-DD 格式。
+    # -------- Point-in-Time (时点状态) --------
+    ias_market_value = db.Column(db.Numeric(20, 4), nullable=False)
+    """
+    当日收盘时的总市值
+    """
+    ias_holding_cost = db.Column(db.Numeric(20, 4), nullable=False)
+    """
+    当前持仓的成本
+    """
+    ias_unrealized_pnl = db.Column(db.Numeric(20, 4), nullable=False)
+    """
+    浮动盈亏 = 市值 - 持仓成本
+    """
+    # -------- Daily Flow (当日流量 - 用于计算日收益率) --------
+    ias_net_cash_inflow = db.Column(db.Numeric(20, 4))
+    """
+    当日净投入现金流：买入为正，卖出为负（不含分红）
+    """
+    ias_daily_dividend = db.Column(db.Numeric(20, 4))  # 当日分红
+    ias_daily_pnl = db.Column(db.Numeric(20, 4))
+    """
+    当日盈亏金额 (绝对值)
+    公式: Today_MV - Yesterday_MV - Net_Inflow + Daily_Dividend
+    """
+    ias_daily_pnl_ratio = db.Column(db.Numeric(18, 6))
+    """
+    ias_daily_pnl_ratio = daily_pnl / 昨日市值
+    当日收益率 (Simple Return)
+    公式 (Modified Dietz 简化版): 
+    ias_daily_pnl / (Yesterday_MV + (ias_net_inflow / 2))
+    如果当日没有大额进出，近似等于 ias_daily_pnl / Yesterday_MV
+    """
+    # -------- Cumulative (历史累计) --------
+    ias_total_buy_amount = db.Column(db.Numeric(20, 4))  # 历史累计买入总额
+    ias_total_sell_amount = db.Column(db.Numeric(20, 4))  # 历史累计卖出总额 包含收益
+    """
+    净投入本金 = total_buy - total_sell (如果卖出包含收益，这里逻辑要小心)
+    """
+    ias_realized_pnl = db.Column(db.Numeric(20, 4), nullable=False)  # 历史已实现盈亏
+    ias_dividend_income = db.Column(db.Numeric(20, 4), nullable=False)  # 历史分红总额
+
+    ias_total_pnl = db.Column(db.Numeric(20, 4), nullable=False)  # 总盈亏 = 浮盈 + 已实现 + 分红
+    """
+    ias_total_pnl = total_realized_pnl + total_unrealized_pnl + total_dividend_income
+    """
+    ias_total_pnl_ratio = db.Column(db.Numeric(18, 6))
+    """
+    累计收益率 (Simple Return = Total PnL / Net Invested Capital)
+    ias_total_pnl_ratio = ias_total_pnl / ias_total_buy_amount
+    """
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            'snapshot_date',
+            name='uq_invested_asset_snapshot_date'
+        ),
+    )
+
+
+class InvestedAssetAnalyticsSnapshot(TimestampMixin, BaseModel):
+    """
+    投资资产表现分析快照
+    基于已投入资产，不包含现金
+    """
+
+    __tablename__ = 'invested_asset_analytics_snapshot'
 
     id = db.Column(db.Integer, primary_key=True)
 
-    snapshot_date = db.Column(db.Date, nullable=False, index=True)  # 快照日期，通常为每日收盘后。YYYY-MM-DD 格式。
-    pos_market_value = db.Column(db.Numeric(20, 4), nullable=False)  # 持仓的总市值 = Σ (持仓数量 × 当日收盘价)
+    snapshot_date = db.Column(db.Date, nullable=False)
+    window_key = db.Column(db.String(32), nullable=False)
 
-    # 当日发生的净外部现金流，计算 IRR 的关键。
-    # 买入证券（现金->证券）为负数，卖出证券（证券->现金）为正数。无流动则为0。
-    # 例如：用户买入 1000 元，记录为 -1000.00；用户卖出 500 元，记录为 500.00
-    pos_net_cash_flow = db.Column(db.Numeric(20, 2), default=0)
-    # 收益
-    pos_total_cost = db.Column(db.Numeric(18, 4))  # 截止当日的总投入成本
-    pos_total_pnl = db.Column(db.Numeric(18, 4))  # 截止当日的累计盈亏
-    pos_total_pnl_ratio = db.Column(db.Numeric(18, 4))  # 截止当日的累计盈亏率
-    pos_daily_pnl = db.Column(db.Numeric(18, 4))  # 当日盈亏
-    pos_daily_pnl_ratio = db.Column(db.Numeric(18, 4))  # 当日盈亏
-    # 指标
-    pos_twrr = db.Column(db.Numeric(18, 6))  # 时间加权收益率。标准业绩基准。消除了资金流入流出的影响，纯粹衡量投资组合本身的“增长”表现。计算方法是分段计算收益率再复合。基金公司公布的收益率就是TWRR。
-    pos_irr = db.Column(db.Numeric(18, 6))  # 内部收益率 / 资金加权收益率。个人投资者的真实回报率。它考虑了资金流入流出的时机和大小。如果你在市场高点投入大笔资金，IRR会很低；反之则高。这是衡量你个人投资决策（何时买卖）能力的最佳指标。
-    pos_peak_market_value = db.Column(db.Numeric(18, 4))  # 截至当日的历史市值峰值
-    pos_max_drawdown = db.Column(db.Numeric(18, 4))  # 历史最大回撤（截至当天）
-    pos_volatility = db.Column(db.Numeric(18, 4))  # 波动率
-    pos_sharpe_ratio = db.Column(db.Numeric(18, 4))  # 夏普比率。核心风险调整后收益指标。(组合年化收益率 - 无风险利率) / 组合年化波动率。衡量每承担一单位风险，能获得多少超额回报。越高越好。
-    # Benchmark
-    excess_return = db.Column(db.Numeric(18, 6))  # 超额收益。组合收益率 - 基准收益率。衡量你跑赢（或跑输）市场基准（如沪深300）的程度。
+    # -------- Return Metrics --------
+    twrr_cumulative = db.Column(db.Numeric(18, 6))
+    """
+    时间加权收益率 (Time-Weighted Return Rate) 基金净值法收益率，衡量策略好坏，不受资金进出影响
+    计算方式：Link daily returns. (1+r1)*(1+r2)... - 1
+    最能体现投资组合的策略表现，剔除了用户加减仓时机的影响。
+    """
+    twrr_annualized = db.Column(db.Numeric(18, 6))  # 仅当 window_days > 365 时计算
+
+    # MWRR / IRR (Money-Weighted): 资金加权收益率，衡量口袋里真赚了多少比例
+    irr_annualized = db.Column(db.Numeric(18, 6))
+    """
+    内部收益率 (XIRR / MWRR)
+    体现用户实际到手的年化回报率，受加减仓时机影响大。
+    """
+    period_pnl = db.Column(db.Numeric(18, 4))
+    """
+    Absolute PnL in this window (这个窗口期内赚了多少钱)
+    """
+    # -------- Risk Metrics --------
+    volatility = db.Column(db.Numeric(18, 6))  # 波动率
+    max_drawdown = db.Column(db.Numeric(18, 6))  # 最大回撤 (e.g. -0.15)
+    # 回撤详情，前端绘图非常需要
+    max_drawdown_start_date = db.Column(db.Date)  # 峰值日期
+    max_drawdown_end_date = db.Column(db.Date)  # 谷值日期
+    max_drawdown_recovery_date = db.Column(db.Date)  # 恢复日期 (回到峰值的日期，未恢复则Null
+
+    sharpe_ratio = db.Column(db.Numeric(18, 4))
+    sortino_ratio = db.Column(db.Numeric(18, 4))
+    calmar_ratio = db.Column(db.Numeric(18, 4))
+
+    # --------  Distribution --------
+    win_rate = db.Column(db.Numeric(18, 4))  # 盈利天数占比
+    worst_day_return = db.Column(db.Numeric(18, 6))  # 单日最大跌幅
+    best_day_return = db.Column(db.Numeric(18, 6))  # 单日最大涨幅
+
+    # -------- Benchmark (Optional) --------
+    benchmark_cumulative_return = db.Column(db.Numeric(18, 6))
+    excess_return = db.Column(db.Numeric(18, 6))
+    beta = db.Column(db.Numeric(18, 6))
+    alpha = db.Column(db.Numeric(18, 6))
+
+    __table_args__ = (
+        db.UniqueConstraint('snapshot_date', 'window_key', name='uq_invested_asset_analytics'),
+        db.Index('idx_iaas_date_window', 'snapshot_date', 'window_key'),
+    )
 
 
 class Benchmark(TimestampMixin, BaseModel):
