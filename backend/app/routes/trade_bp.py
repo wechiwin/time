@@ -68,7 +68,7 @@ def search_page():
 def create_transaction():
     data = request.get_json()
     required_fields = ['ho_id', 'tr_type', 'tr_date', 'tr_nav_per_unit',
-                       'tr_shares', 'tr_net_amount', 'tr_fee', 'tr_amount']
+                       'tr_shares', 'gross_amount', 'tr_fee', 'tr_net_amount']
 
     if not all(field in data for field in required_fields):
         raise BizException(msg=ErrorMessageEnum.MISSING_FIELD)
@@ -115,9 +115,9 @@ def export_trade():
         gettext('COL_TR_DATE'): t.tr_date,
         gettext('COL_TR_NAV_PER_UNIT'): t.tr_nav_per_unit,
         gettext('COL_TR_SHARES'): t.tr_shares,
-        gettext('COL_TR_NET_AMOUNT'): t.tr_net_amount,
+        gettext('COL_GROSS_AMOUNT'): t.gross_amount,
         gettext('COL_TR_FEE'): t.tr_fee,
-        gettext('COL_TR_AMOUNT'): t.tr_amount
+        gettext('COL_TR_NET_AMOUNT'): t.tr_net_amount
     } for t in trade])
 
     output = BytesIO()
@@ -149,11 +149,11 @@ def download_template():
         gettext('COL_TR_NAV_PER_UNIT'),
         # '交易份数',
         gettext('COL_TR_SHARES'),
-        gettext('COL_TR_NET_AMOUNT'),
+        gettext('COL_GROSS_AMOUNT'),
         # '交易费用',
         gettext('COL_TR_FEE'),
         # '交易金额',
-        gettext('COL_TR_AMOUNT'),
+        gettext('COL_TR_NET_AMOUNT'),
     ])
 
     # 添加示例数据（使用concat替代append）
@@ -163,9 +163,9 @@ def download_template():
         gettext('COL_TR_DATE'): '2023-01-01',
         gettext('COL_TR_NAV_PER_UNIT'): 1.0,
         gettext('COL_TR_SHARES'): 100,
-        gettext('COL_TR_NET_AMOUNT'): 100,
+        gettext('COL_GROSS_AMOUNT'): 100,
         gettext('COL_TR_FEE'): 0.1,
-        gettext('COL_TR_AMOUNT'): 100.1
+        gettext('COL_TR_NET_AMOUNT'): 100.1
     }])
 
     df = pd.concat([df, example_data], ignore_index=True)
@@ -216,11 +216,11 @@ def import_trade():
         gettext('COL_TR_NAV_PER_UNIT'),
         # '交易份数',
         gettext('COL_TR_SHARES'),
-        gettext('COL_TR_NET_AMOUNT'),
+        gettext('COL_GROSS_AMOUNT'),
         # '交易费用',
         gettext('COL_TR_FEE'),
         # '交易金额',
-        gettext('COL_TR_AMOUNT'),
+        gettext('COL_TR_NET_AMOUNT'),
     ]
     if not all(col in df.columns for col in required_columns):
         raise BizException(msg="Excel缺少必要列")
@@ -233,9 +233,9 @@ def import_trade():
     numeric_cols = [
         gettext('COL_TR_NAV_PER_UNIT'),
         gettext('COL_TR_SHARES'),
-        gettext('COL_TR_NET_AMOUNT'),
+        gettext('COL_GROSS_AMOUNT'),
         gettext('COL_TR_FEE'),
-        gettext('COL_TR_AMOUNT')
+        gettext('COL_TR_NET_AMOUNT')
     ]
     for col in numeric_cols:
         df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
@@ -248,9 +248,9 @@ def import_trade():
             tr_date=str(row[gettext('COL_TR_DATE')]),
             tr_nav_per_unit=float(row[gettext('COL_TR_NAV_PER_UNIT')]),
             tr_shares=float(row[gettext('COL_TR_SHARES')]),
-            tr_net_amount=float(row[gettext('COL_TR_NET_AMOUNT')]),
+            gross_amount=float(row[gettext('COL_GROSS_AMOUNT')]),
             tr_fee=float(row[gettext('COL_TR_FEE')]),
-            tr_amount=float(row[gettext('COL_TR_AMOUNT')]),
+            tr_net_amount=float(row[gettext('COL_TR_NET_AMOUNT')]),
         )
         transactions.append(transaction)
 

@@ -201,7 +201,7 @@ export default function TradeTimeline({rounds = [], loading = false}) {
                                                         <div className="text-right">
                                                             <div
                                                                 className="font-medium text-gray-900 dark:text-gray-100">
-                                                                {fmtNum(trade.tr_amount)}
+                                                                {fmtNum(trade.tr_net_amount)}
                                                             </div>
                                                             <div className="text-xs text-gray-400 dark:text-gray-500">
                                                                 {t('th_tr_fee', '交易费用')}: {trade.tr_fee}

@@ -34,7 +34,7 @@ export default function useTradeAnalysis(trades, fundInfo, latestNav) {
         const currentNav = latestNav?.nav_per_unit ?? 1;
         sortedTrades.forEach((trade, index) => {
             const isBuy = trade.tr_type === 1 || trade.tr_type === '1';
-            const amount = parseFloat(trade.tr_amount || 0);
+            const amount = parseFloat(trade.tr_net_amount || 0);
             const shares = parseFloat(trade.tr_shares || 0);
             const fee = parseFloat(trade.tr_fee || 0);
 
@@ -70,7 +70,7 @@ export default function useTradeAnalysis(trades, fundInfo, latestNav) {
                 // 计算本轮实际投入的总本金（只统计买入金额）
                 const roundInvestment = currentRoundTrades
                     .filter(t => [1, '1'].includes(t.tr_type))
-                    .reduce((sum, t) => sum + parseFloat(t.tr_amount || 0), 0);
+                    .reduce((sum, t) => sum + parseFloat(t.tr_net_amount || 0), 0);
                 // 回报率 = 总收益 / 实际投入本金
                 const returnRate =
                     roundInvestment > 0 ? totalProfit / roundInvestment : 0;
@@ -115,7 +115,7 @@ export default function useTradeAnalysis(trades, fundInfo, latestNav) {
                 }
                 totalInvestmentGlobal += currentRoundTrades
                     .filter(t => [1, '1'].includes(t.tr_type))
-                    .reduce((sum, t) => sum + parseFloat(t.tr_amount || 0), 0);
+                    .reduce((sum, t) => sum + parseFloat(t.tr_net_amount || 0), 0);
                 // 清仓则重置引擎，开启下一轮
                 if (isCleared) {
                     engine = new PositionEngine('MOVING_AVERAGE');
@@ -164,7 +164,7 @@ function calculateWeightedCapital(tradesInRound) {
             const days = d.diff(lastTime, 'day');
             weightedSum += capital * days;
         }
-        const amount = parseFloat(trade.tr_amount || 0);
+        const amount = parseFloat(trade.tr_net_amount || 0);
         if ([1, '1'].includes(trade.tr_type)) {
             capital += amount;
         } else {

@@ -62,14 +62,14 @@ msgstr "Valore netto"
 msgid "COL_TR_SHARES"
 msgstr "Azioni della transazione"
 
-msgid "COL_TR_NET_AMOUNT"
-msgstr "Importo Netto della transazione"
+msgid "COL_GROSS_AMOUNT"
+msgstr "Importo Lordo"
 
 msgid "COL_TR_FEE"
 msgstr "Commissione della transazione"
 
-msgid "COL_TR_AMOUNT"
-msgstr "Importo della transazione"
+msgid "COL_TR_NET_AMOUNT"
+msgstr "Importo Netto"
 
 msgid "TEMPLATE_TR_IMPORT"
 msgstr "Modello di importazione"

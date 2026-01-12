@@ -63,14 +63,14 @@ msgstr "单位净值"
 msgid "COL_TR_SHARES"
 msgstr "交易份数"
 
-msgid "COL_TR_NET_AMOUNT"
-msgstr "交易净额"
+msgid "COL_GROSS_AMOUNT"
+msgstr "交易总额"
 
 msgid "COL_TR_FEE"
 msgstr "交易费用"
 
-msgid "COL_TR_AMOUNT"
-msgstr "交易总额"
+msgid "COL_TR_NET_AMOUNT"
+msgstr "交易净额"
 
 msgid "TEMPLATE_TR_IMPORT"
 msgstr "交易记录导入模板"

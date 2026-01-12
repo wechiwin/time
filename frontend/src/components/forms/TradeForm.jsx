@@ -14,9 +14,9 @@ const init = {
     tr_date: '',
     tr_nav_per_unit: '',
     tr_shares: '',
-    tr_net_amount: '',
+    gross_amount: '',
     tr_fee: '',
-    tr_amount: '',
+    tr_net_amount: '',
 };
 
 export default function TradeForm({onSubmit, onClose, initialValues}) {
@@ -112,12 +112,12 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                             ...prev,
                             // 使用 nullish coalescing  仅当 LLM 返回有效值时覆盖
                             ho_code: isEditMode ? prev.ho_code : (o.ho_code ?? prev.ho_code ?? ''), // 在编辑模式下禁止被覆盖
-                            tr_amount: o.tr_amount ?? prev.tr_amount ?? '',
+                            tr_net_amount: o.tr_net_amount ?? prev.tr_net_amount ?? '',
                             tr_date: o.tr_date ?? prev.tr_date ?? '',
                             tr_fee: o.tr_fee ?? prev.tr_fee ?? '',
                             tr_nav_per_unit: o.tr_nav_per_unit ?? prev.tr_nav_per_unit ?? '',
                             tr_shares: o.tr_shares ?? prev.tr_shares ?? '',
-                            tr_net_amount: o.tr_net_amount ?? prev.tr_net_amount ?? '',
+                            gross_amount: o.gross_amount ?? prev.gross_amount ?? '',
                             tr_type: o.tr_type ?? prev.tr_type ?? 1,
                         };
                     });
@@ -176,9 +176,9 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                 tr_date: initialValues.tr_date || '',
                 tr_nav_per_unit: initialValues.tr_nav_per_unit || '',
                 tr_shares: initialValues.tr_shares || '',
-                tr_net_amount: initialValues.tr_net_amount || '',
+                gross_amount: initialValues.gross_amount || '',
                 tr_fee: initialValues.tr_fee || '',
-                tr_amount: initialValues.tr_amount || ''
+                tr_net_amount: initialValues.tr_net_amount || ''
             });
         }
     }, [initialValues]);
@@ -247,14 +247,14 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                         />
                     </div>
                     <div className="flex flex-col">
-                        <label className="text-sm font-medium mb-1">{t('th_tr_net_amount')}</label>
+                        <label className="text-sm font-medium mb-1">{t('th_gross_amount')}</label>
                         <input
                             type="number"
                             step="0.0001"
-                            placeholder={t('th_tr_net_amount')}
+                            placeholder={t('th_gross_amount')}
                             required
-                            value={form.tr_net_amount}
-                            onChange={(e) => setForm({...form, tr_net_amount: e.target.value})}
+                            value={form.gross_amount}
+                            onChange={(e) => setForm({...form, gross_amount: e.target.value})}
                             className="input-field"
                         />
                     </div>
@@ -274,14 +274,14 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                         />
                     </div>
                     <div className="flex flex-col">
-                        <label className="text-sm font-medium mb-1">{t('th_tr_amount')}</label>
+                        <label className="text-sm font-medium mb-1">{t('th_tr_net_amount')}</label>
                         <input
                             type="number"
                             step="0.0001"
-                            placeholder={t('th_tr_amount')}
+                            placeholder={t('th_tr_net_amount')}
                             required
-                            value={form.tr_amount}
-                            onChange={(e) => setForm({...form, tr_amount: e.target.value})}
+                            value={form.tr_net_amount}
+                            onChange={(e) => setForm({...form, tr_net_amount: e.target.value})}
                             className="input-field"
                         />
                     </div>

@@ -57,19 +57,19 @@ msgid "COL_TR_DATE"
 msgstr "Trade Date"
 
 msgid "COL_TR_NAV_PER_UNIT"
-msgstr "Trade NAV Per Unit"
+msgstr "NAV Per Unit"
 
 msgid "COL_TR_SHARES"
 msgstr "Trade Shares"
 
-msgid "COL_TR_NET_AMOUNT"
-msgstr "Trade Net Amount"
+msgid "COL_GROSS_AMOUNT"
+msgstr "Gross Amount"
 
 msgid "COL_TR_FEE"
 msgstr "Trade Fee"
 
-msgid "COL_TR_AMOUNT"
-msgstr "Total Trade Amount"
+msgid "COL_TR_NET_AMOUNT"
+msgstr "Net Amount"
 
 msgid "TEMPLATE_TR_IMPORT"
 msgstr "Trade Import Template"
