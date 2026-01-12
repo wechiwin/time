@@ -1,9 +1,10 @@
+# app/service/holding_analytics_snapshot_service.py
 import logging
 import time
 import traceback
-from datetime import date, timedelta, datetime
+from datetime import date, timedelta
 from decimal import Decimal
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional
 
 import numpy as np
 import pandas as pd
@@ -137,10 +138,11 @@ class HoldingAnalyticsSnapshotService:
                     db.session.commit()
                     total_count += len(snapshots)
             except Exception as e:
+                db.session.rollback()
                 err_msg = f"Error generating yesterday analytics for ho_id={ho_id}: {e}"
-                logger.error()
+                logger.error(err_msg)
                 create_task(
-                    task_name=f"regenerate holding analytics snapshots for ho_id={ho_id} at {datetime.now()}",
+                    task_name=f"regenerate holding analytics snapshots for ho_id={ho_id}",
                     module_path="app.services.holding_analytics_snapshot_service",
                     method_name="generate_yesterday_analytics",
                     kwargs={"ids": f"[{ho_id},]"},
@@ -207,10 +209,10 @@ class HoldingAnalyticsSnapshotService:
                     snapshot_date=current_date_obj,
                     window_key=window.window_key,
                     # Return Metrics
-                    twrr_cumulative=metrics['twrr'],  # 映射 TWRR
-                    twrr_annualized=metrics['twrr_ann'],  # 映射 IRR
-                    irr_cumulative=metrics['irr'],
-                    irr_annualized=metrics['ann_irr'],
+                    twrr_cumulative=metrics['twrr_cum'],
+                    twrr_annualized=metrics['twrr_ann'],
+                    irr_cumulative=metrics['irr_cum'],
+                    irr_annualized=metrics['irr_ann'],
 
                     has_cumulative_pnl=metrics['cum_pnl'],
                     has_total_dividend=metrics['total_div'],
@@ -240,9 +242,9 @@ class HoldingAnalyticsSnapshotService:
             HoldingSnapshot.hos_daily_pnl_ratio,
             HoldingSnapshot.hos_daily_pnl,
             HoldingSnapshot.holding_shares,
-            HoldingSnapshot.hos_daily_dividend,
+            HoldingSnapshot.hos_daily_cash_dividend,
             HoldingSnapshot.tr_cycle,
-            HoldingSnapshot.hos_net_cash_inflow,
+            HoldingSnapshot.hos_net_external_cash_flow,
             HoldingSnapshot.hos_market_value,
         ).filter(
             HoldingSnapshot.ho_id == ho_id
@@ -252,11 +254,13 @@ class HoldingAnalyticsSnapshotService:
         raw_data = query.order_by(HoldingSnapshot.snapshot_date).all()
         if not raw_data:
             return pd.DataFrame()
-        df = pd.DataFrame(raw_data, columns=['date', 'daily_pnl_ratio', 'daily_pnl', 'shares', 'dividend', 'cycle',
-                                             'net_cash_inflow', 'mv'])
+        df = pd.DataFrame(raw_data, columns=['date', 'daily_pnl_ratio', 'daily_pnl', 'shares', 'daily_cash_dividend',
+                                             'cycle',
+                                             'net_external_cash_flow', 'mv'])
 
         # 类型转换: Decimal -> Float
-        cols_to_float = ['daily_pnl_ratio', 'daily_pnl', 'shares', 'dividend', 'net_cash_inflow', 'mv']
+        cols_to_float = ['daily_pnl_ratio', 'daily_pnl', 'shares', 'daily_cash_dividend', 'net_external_cash_flow',
+                         'mv']
         for col in cols_to_float:
             df[col] = df[col].apply(lambda x: float(x) if x is not None else 0.0)
 
@@ -300,7 +304,7 @@ class HoldingAnalyticsSnapshotService:
         # 提取 Series
         daily_pnl_ratio_list = df['daily_pnl_ratio']  # 日收益率 (0.01 代表 1%)
         pnls = df['daily_pnl']  # 日盈亏金额
-        dividends = df['dividend']
+        dividends = df['daily_cash_dividend']
 
         n = len(daily_pnl_ratio_list)
         if n == 0:
@@ -336,9 +340,9 @@ class HoldingAnalyticsSnapshotService:
                     if days_diff > 0:
                         irr_cum = (1 + irr_ann) ** (days_diff / 365.0) - 1
                     else:
-                        irr_cum = 0.0
+                        irr_cum = ZERO
             except Exception as e:
-                # XIRR 计算可能不收敛，记录日志或忽略
+                # XIRR 计算可能不收敛
                 logger.debug(f"XIRR calculation failed: {e}")
                 pass
 
@@ -347,14 +351,14 @@ class HoldingAnalyticsSnapshotService:
         if n > 1:
             volatility = daily_pnl_ratio_list.std(ddof=1) * np.sqrt(annual_factor)
         else:
-            volatility = 0
+            volatility = ZERO
 
         # 5. 夏普比率 (Sharpe Ratio)
         # (Rp - Rf) / Vol
         if volatility > EPSILON:
             sharpe = (twrr_ann - RISK_FREE_RATE) / volatility if twrr_ann is not None else 0.0
         else:
-            sharpe = 0
+            sharpe = ZERO
 
         # 6. 下行风险 & Sortino
         # 只取负收益计算标准差
@@ -362,12 +366,12 @@ class HoldingAnalyticsSnapshotService:
         if len(negtive_returns) > 1:
             downside_std = negtive_returns.std(ddof=1) * np.sqrt(annual_factor)
         else:
-            downside_std = 0
+            downside_std = ZERO
 
         if downside_std > EPSILON:
             sortino = (twrr_ann - RISK_FREE_RATE) / downside_std if twrr_ann is not None else 0.0
         else:
-            sortino = 0
+            sortino = ZERO
 
         # 7. 最大回撤 (Max Drawdown) TODO 跳过多个持仓周期之间的空仓期 还是说在各个周期内进行寻找
         # 构造净值曲线 (假设初始为1)
@@ -376,7 +380,6 @@ class HoldingAnalyticsSnapshotService:
         running_max = nav_series.cummax()
         # 回撤序列 (始终 <= 0)
         drawdown_series = (nav_series - running_max) / running_max
-
         mdd = drawdown_series.min()  # e.g. -0.15
 
         # 计算回撤日期
@@ -412,7 +415,7 @@ class HoldingAnalyticsSnapshotService:
         if mdd < 0:
             calmar = twrr_ann / abs(mdd) if twrr_ann is not None else 0.0
         else:
-            calmar = 0
+            calmar = ZERO
 
         # 9. 胜率 (Win Rate)
         win_count = (daily_pnl_ratio_list > 0).sum()
@@ -439,18 +442,18 @@ class HoldingAnalyticsSnapshotService:
             'max_runup': max_runup,
         }
 
+    @staticmethod
     def _calculate_xirr(df: pd.DataFrame) -> Optional[float]:
         """
         计算单只持仓的 XIRR
-        现金流定义 (站在用户口袋角度):
+        现金流定义 :
         - 买入 (net_inflow > 0): 现金流出，记为负。
         - 卖出 (net_inflow < 0): 现金流入，记为正。
         - 现金分红 (dividend > 0): 现金流入，记为正。
         - 期末市值 (mv): 视为全部赎回，记为正。
         """
-        # 1. 构造现金流 Flow = (-1 * net_inflow) + dividend
-        # 注意：net_inflow字段定义是买入为正，所以取反。
-        df['flow'] = (-1 * df['net_cash_inflow']) + df['dividend']
+        # 1. 构造现金流 Flow = net_external_cash_flow + dividend
+        df['flow'] = (df['net_external_cash_flow']) + df['daily_cash_dividend']
 
         # 过滤出有现金流的日子
         flows = df[df['flow'].abs() > EPSILON].copy()
@@ -491,49 +494,6 @@ class HoldingAnalyticsSnapshotService:
         except:
             # 如果不收敛，尝试使用 brentq (区间法) 或者直接返回 None
             return None
-
-    # @staticmethod
-    # def _save_snapshots(ho_id: int, snapshots: List[HoldingAnalyticsSnapshot], mode: str):
-    #     """
-    #     批量保存快照到数据库
-    #     """
-    #     try:
-    #         if mode == 'full':
-    #             # 全量模式：先删除该持仓的所有分析数据
-    #             db.session.query(HoldingAnalyticsSnapshot).filter(
-    #                 HoldingAnalyticsSnapshot.ho_id == ho_id
-    #             ).delete(synchronize_session=False)
-    #         elif mode == 'incremental':
-    #             # 增量模式：删除待插入日期的旧数据（防重入）
-    #             dates = {s.snapshot_date for s in snapshots}
-    #             if dates:
-    #                 db.session.query(HoldingAnalyticsSnapshot).filter(
-    #                     HoldingAnalyticsSnapshot.ho_id == ho_id,
-    #                     HoldingAnalyticsSnapshot.snapshot_date.in_(dates)
-    #                 ).delete(synchronize_session=False)
-    #         # 批量插入
-    #         db.session.bulk_save_objects(snapshots)
-    #         db.session.commit()
-    #     except Exception as e:
-    #         db.session.rollback()
-    #         logger.error(e, exc_info=True)
-    #         if mode == 'full':
-    #             create_task(
-    #                 task_name=f"regenerate holding analytics snapshots for mode={mode} and ho_id={ho_id} at {datetime.now()}",
-    #                 module_path="app.services.holding_analytics_snapshot_service",
-    #                 method_name="generate_all_analytics",
-    #                 kwargs={"ids": f"[{ho_id},]", "mode": f"['{mode}']"},
-    #                 error_message=str(e)
-    #             )
-    #         elif mode == 'incremental':
-    #             create_task(
-    #                 task_name=f"regenerate holding analytics snapshots for mode={mode} and ho_id={ho_id} at {datetime.now()}",
-    #                 module_path="app.services.holding_analytics_snapshot_service",
-    #                 method_name="generate_yesterday_analytics",
-    #                 kwargs={"ids": f"[{ho_id},]", "mode": f"['{mode}']"},
-    #                 error_message=str(e)
-    #             )
-    #         raise e
 
     @staticmethod
     def _calc_recovery_date(nav_series: pd.Series, mdd_end_date: date, peak_val: float) -> Optional[date]:

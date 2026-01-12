@@ -21,12 +21,6 @@ from .config import Config
 from .framework.cache_manager import CacheManager
 from .scheduler import init_scheduler
 from .routes import register_routes
-from .routes.alert_bp import alert_bp
-from .routes.dashboard_bp import dashboard_bp
-from .routes.holding_bp import holding_bp
-from .routes.nav_history_bp import nav_history_bp
-from .routes.portfolio_snapshot_bp import portfolio_snapshot_bp
-from .routes.trade_bp import trade_bp
 
 scheduler = APScheduler()
 babel = Babel()

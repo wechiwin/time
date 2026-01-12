@@ -205,9 +205,9 @@ class Trade(TimestampMixin, BaseModel):
     tr_date = db.Column(db.Date, index=True, nullable=False)  # 交易日期
     tr_nav_per_unit = db.Column(db.Numeric(18, 4))  # 单位净值
     tr_shares = db.Column(db.Numeric(18, 2))  # 交易份额
-    tr_net_amount = db.Column(db.Numeric(18, 2))  # 交易净额(不含交易费用)
+    gross_amount = db.Column(db.Numeric(18, 2))  # 交易本金(不计交易费用损益)
     tr_fee = db.Column(db.Numeric(18, 2))  # 交易费用
-    tr_amount = db.Column(db.Numeric(18, 2))  # 交易总额(含交易费用)
+    tr_net_amount = db.Column(db.Numeric(18, 2))  # 交易净额(计交易费用损益)
     tr_cycle = db.Column(db.Integer, index=True)  # 轮次
     is_cleared = db.Column(db.Boolean, default=False)  # 是否清仓
     remark = db.Column(db.String(200))
@@ -327,28 +327,67 @@ class HoldingSnapshot(TimestampMixin, BaseModel):
     hos_market_value = db.Column(db.Numeric(18, 4))  # 总市值 = 持仓份额 * 单位净值
 
     # -------- Cash / Cost --------
-    hos_total_buy_amount = db.Column(db.Numeric(18, 4))  # 历史累计投入总成本 = Σ(买入金额)
-    hos_total_sell_amount = db.Column(db.Numeric(18, 4))  # 历史累计卖出总额
-    hos_net_cash_inflow = db.Column(db.Numeric(18, 2))
+    hos_total_buy_amount = db.Column(db.Numeric(18, 4))
     """
-    当日净投入现金流：买入为正，卖出为负（不含分红）
+    累计投入总成本 = Σ(买入金额)
+    """
+    hos_total_sell_amount = db.Column(db.Numeric(18, 4))
+    """
+    累计卖出总额
+    """
+    hos_net_external_cash_flow = db.Column(db.Numeric(18, 2))
+    """
+    当日外部现金流：买入为负(现金->证券)，卖出为正(证券->现金)（不含分红）
     """
     # -------- PnL --------
-    hos_realized_pnl = db.Column(db.Numeric(18, 4))  # 已实现盈亏 = （卖出单位净值 - 成本单价） * 卖出份额
-    hos_unrealized_pnl = db.Column(db.Numeric(18, 4))  # 未实现盈亏 = hos_market_value - hos_holding_cost
+    hos_realized_pnl = db.Column(db.Numeric(18, 4))
+    """
+    已实现盈亏 = （卖出单位净值 - 成本单价） * 卖出份额
+    """
+    hos_unrealized_pnl = db.Column(db.Numeric(18, 4))
+    """
+    未实现盈亏 = 当日市值 - 当前持仓成本
+    """
     hos_daily_pnl = db.Column(db.Numeric(18, 4))
     """
-    当日盈亏 = 当日市值 - 昨日市值 - hos_net_cash_inflow + hos_daily_dividend
+    反映剔除现金流后的纯市场损益
+    当日盈亏 = 当日市值 - 昨日市值 + 当日外部现金流(买负卖正)
     """
-    hos_total_pnl = db.Column(db.Numeric(18, 4))  # 累计盈亏 = 已实现盈亏 + 未实现盈亏 + 累计分红：Σ(hos_daily_dividend)
-    hos_daily_pnl_ratio = db.Column(db.Numeric(18, 4))  # 当日盈亏率 = (hos_daily_pnl / 昨日市值)
-    hos_total_pnl_ratio = db.Column(db.Numeric(18, 4))  # 累计盈亏率 = (hos_total_pnl / 总成本)
-    hos_daily_dividend = db.Column(db.Numeric(18, 4))  # 当日收到的现金分红
-    hos_total_dividend = db.Column(db.Numeric(18, 4))  # 累计收到的分红总额 包含现金分红和分红再投资
+    hos_daily_pnl_ratio = db.Column(db.Numeric(18, 4))
+    """
+    当日盈亏率 = (当日盈亏 / 昨日市值) + 当日现金分红
+    """
+    hos_total_pnl = db.Column(db.Numeric(18, 4))
+    """
+    累计盈亏 = 累计已实现盈亏 + 累计未实现盈亏 + 累计现金分红
+    """
+    hos_total_pnl_ratio = db.Column(db.Numeric(18, 4))
+    """
+    累计盈亏率 = (累计盈亏 / 总成本)
+    """
+
+    hos_daily_cash_dividend = db.Column(db.Numeric(18, 4))
+    """
+    当日收到的现金分红
+    """
+    hos_total_cash_dividend = db.Column(db.Numeric(18, 4))
+    """
+    累计收到的现金分红
+    """
+    hos_total_dividend = db.Column(db.Numeric(18, 4))
+    """
+    累计收到的分红总额，包含现金分红和分红再投资
+    """
 
     # -------- Other --------
-    tr_cycle = db.Column(db.Integer)  # 持仓周期
-    is_cleared = db.Column(db.Boolean, default=False)  # 是否清仓
+    tr_cycle = db.Column(db.Integer)
+    """
+    持仓周期，每次清仓加一，从1开始
+    """
+    is_cleared = db.Column(db.Boolean, default=False)
+    """
+    是否清仓日
+    """
 
     __table_args__ = (
         db.Index('holding_snapshot_ho_id_snapshot_date_index', 'ho_id', 'snapshot_date'),
@@ -453,7 +492,6 @@ class HoldingAnalyticsSnapshot(TimestampMixin, BaseModel):
     has_win_rate = db.Column(db.Numeric(18, 4))
     """
     胜率：窗口期内 (日收益率 > 0 的天数) / 总交易日
-    胜率 (窗口内日收益率 > 0 的天数占比)
     """
     # --------- 3. Drawdown (回撤 - 基于累计收益率曲线) ---------
     has_max_drawdown = db.Column(db.Numeric(18, 6))
@@ -510,8 +548,7 @@ class HoldingAnalyticsSnapshot(TimestampMixin, BaseModel):
 
 class InvestedAssetSnapshot(TimestampMixin, BaseModel):
     """
-    投资资产整体快照（仅基于已投入资本形成的资产）
-    不包含账户现金，不等同于账户净资产
+    投资资产整体快照
     """
 
     __tablename__ = 'invested_asset_snapshot'
@@ -532,14 +569,14 @@ class InvestedAssetSnapshot(TimestampMixin, BaseModel):
     浮动盈亏 = 市值 - 持仓成本
     """
     # -------- Daily Flow (当日流量 - 用于计算日收益率) --------
-    ias_net_cash_inflow = db.Column(db.Numeric(20, 4))
+    ias_net_external_cash_flow = db.Column(db.Numeric(20, 4))
     """
-    当日净投入现金流：买入为正，卖出为负（不含分红）
+    当日外部现金流：买入为负(现金->证券)，卖出为正(证券->现金)（不含分红）
     """
     ias_daily_dividend = db.Column(db.Numeric(20, 4))  # 当日分红
     ias_daily_pnl = db.Column(db.Numeric(20, 4))
     """
-    当日盈亏金额 (绝对值)
+    当日盈亏金额
     公式: Today_MV - Yesterday_MV - Net_Inflow + Daily_Dividend
     """
     ias_daily_pnl_ratio = db.Column(db.Numeric(18, 6))

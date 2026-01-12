@@ -68,9 +68,9 @@ class TradeService:
     "tr_date": "YYYY-MM-DD",
     "tr_nav_per_unit": 1.0,
     "tr_shares": 100.0,
-    "tr_net_amount": 100.0,
+    "gross_amount": 100.0,
     "tr_fee": 0.1,
-    "tr_amount": 100.1
+    "tr_net_amount": 100.1
 }"""
 
         prompt = f"""
@@ -83,27 +83,27 @@ class TradeService:
    - tr_date: string，交易时间(YYYY-MM-DD格式)
    - tr_nav_per_unit: float，交易净值(单位净值)
    - tr_shares: float，交易份额
-   - tr_net_amount: float，交易净额，计算公式：tr_nav_per_unit * tr_shares
+   - gross_amount: float，交易净额，计算公式：tr_nav_per_unit * tr_shares
    - tr_fee: float，手续费
-   - tr_amount: float，交易总额，买入时tr_amount=tr_net_amount + tr_fee，卖出时tr_amount=tr_net_amount - tr_fee
+   - tr_net_amount: float，交易总额，买入时tr_net_amount=gross_amount + tr_fee，卖出时tr_net_amount=gross_amount - tr_fee
 2. 根据 tr_type 判断是买入还是卖出
-3. 计算理论上的 tr_net_amount = tr_nav_per_unit × tr_shares
-4. 检查 tr_amount 和 tr_net_amount 的关系是否符合业务规则：
-   - 买入时：tr_amount 应该大于 tr_net_amount（因为含手续费）
-   - 卖出时：tr_amount 应该小于 tr_net_amount（因为扣手续费）
-5. 如果发现数值颠倒，请自动交换 tr_amount 和 tr_net_amount 的值
+3. 计算理论上的 gross_amount = tr_nav_per_unit × tr_shares
+4. 检查 tr_net_amount 和 gross_amount 的关系是否符合业务规则：
+   - 买入时：tr_net_amount 应该大于 gross_amount（因为含手续费）
+   - 卖出时：tr_net_amount 应该小于 gross_amount（因为扣手续费）
+5. 如果发现数值颠倒，请自动交换 tr_net_amount 和 gross_amount 的值
 【输出要求】
 - 只输出最终 JSON，不含任何解释或代码块
 - 必须是合法 JSON
-- 字段必须包含：ho_code, ho_name, tr_type, tr_date, tr_nav_per_unit, tr_shares, tr_net_amount, tr_fee, tr_amount
+- 字段必须包含：ho_code, ho_name, tr_type, tr_date, tr_nav_per_unit, tr_shares, gross_amount, tr_fee, tr_net_amount
 - 无法识别的string设为空字符串，无法识别的int或者float设为0
 - 数值字段必须为 float/int，不能加引号
 【金额逻辑规则】
-- tr_net_amount 是扣除/获得手续费前的金额（= 单位净值 × 份额）
-- tr_amount 是实际支付（买入）或到账（卖出）的总金额
-- 买入：tr_amount = tr_net_amount + tr_fee → 所以 tr_amount > tr_net_amount
-- 卖出：tr_amount = tr_net_amount - tr_fee → 所以 tr_amount < tr_net_amount
-【示例格式】（注意 tr_net_amount 和 tr_amount 的大小关系）
+- gross_amount 是扣除/获得手续费前的金额（= 单位净值 × 份额）
+- tr_net_amount 是实际支付（买入）或到账（卖出）的总金额
+- 买入：tr_net_amount = gross_amount + tr_fee → 所以 tr_net_amount > gross_amount
+- 卖出：tr_net_amount = gross_amount - tr_fee → 所以 tr_net_amount < gross_amount
+【示例格式】（注意 gross_amount 和 tr_net_amount 的大小关系）
 {template}
 OCR 文本：
 {text}
@@ -143,9 +143,9 @@ OCR 文本：
             'tr_date': t.tr_date,
             'tr_nav_per_unit': t.tr_nav_per_unit,
             'tr_shares': t.tr_shares,
-            'tr_net_amount': t.tr_net_amount,
+            'gross_amount': t.gross_amount,
             'tr_fee': t.tr_fee,
-            'tr_amount': t.tr_amount
+            'tr_net_amount': t.tr_net_amount
         } for t in results]
         return data
 
@@ -345,7 +345,7 @@ OCR 文本：
         for trade in sorted_trades:
             if trade.tr_type == 1:  # 买入交易
                 total_shares += trade.tr_shares
-                total_cost += trade.tr_amount  # 总成本包含交易费用
+                total_cost += trade.tr_net_amount  # 总成本包含交易费用
             elif trade.tr_type == 0:  # 卖出交易
                 # 使用移动平均法计算卖出成本 TODO 之后增加选项FIFO给用户
                 if total_shares > 0:
@@ -362,16 +362,16 @@ OCR 文本：
         计算累计收益
         累计收益 = 卖出总金额 + 当前持仓市值 - 买入总金额
         其中：
-          - 买入总金额 = 所有买入交易的 tr_amount（含费用）之和
-          - 卖出总金额 = 所有卖出交易的 tr_amount（含费用）之和
+          - 买入总金额 = 所有买入交易的 tr_net_amount（含费用）之和
+          - 卖出总金额 = 所有卖出交易的 tr_net_amount（含费用）之和
           - 当前持仓市值 = 所有未清仓持仓的份额 × 最新单位净值
         """
         # 1. 获取所有交易记录
         trades = Trade.query.all() or []
 
         # 2. 计算买入和卖出总额（含交易费用）
-        total_buy_amount = sum(trade.tr_amount for trade in trades if trade.tr_type == 1)
-        total_sell_amount = sum(trade.tr_amount for trade in trades if trade.tr_type == 0)
+        total_buy_amount = sum(trade.tr_net_amount for trade in trades if trade.tr_type == 1)
+        total_sell_amount = sum(trade.tr_net_amount for trade in trades if trade.tr_type == 0)
 
         # 3. 获取所有未清仓的持仓（is_cleared == 0）
         unclosed_holding_codes = set()

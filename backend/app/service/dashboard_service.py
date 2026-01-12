@@ -147,8 +147,8 @@ class DashboardService:
                 ).all()
 
                 if buy_trades:
-                    avg_buy_price = sum(t.tr_amount for t in buy_trades) / sum(t.tr_shares for t in buy_trades)
-                    profit = trade.tr_amount - (trade.tr_shares * avg_buy_price)
+                    avg_buy_price = sum(t.tr_net_amount for t in buy_trades) / sum(t.tr_shares for t in buy_trades)
+                    profit = trade.tr_net_amount - (trade.tr_shares * avg_buy_price)
                     total_profit += profit
 
         return round(total_profit, 2)
@@ -203,11 +203,11 @@ class DashboardService:
                 # 找到对应的买入（简化：使用平均买入价）
                 if buy_trades:
                     total_buy_shares = sum(b.tr_shares for b in buy_trades)
-                    total_buy_amount = sum(b.tr_amount for b in buy_trades)
+                    total_buy_amount = sum(b.tr_net_amount for b in buy_trades)
 
                     if total_buy_shares > 0:
                         avg_buy_price = total_buy_amount / total_buy_shares
-                        profit = sell.tr_amount - (sell.tr_shares * avg_buy_price)
+                        profit = sell.tr_net_amount - (sell.tr_shares * avg_buy_price)
 
                         if profit > 0:
                             winning_trades += 1

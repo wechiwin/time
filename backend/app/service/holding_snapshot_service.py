@@ -5,13 +5,15 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, timedelta, datetime
 from decimal import Decimal
-from typing import List, Tuple, Optional
+from typing import List, Tuple
+
+from click import clear
 
 from app.calendars.trade_calendar import TradeCalendar
 from app.constant.biz_enums import TradeTypeEnum, FundDividendMethodEnum
-from app.framework.async_task_manager import create_task, async_task
-from app.framework.exceptions import BizException, AsyncTaskException
-from app.models import db, HoldingSnapshot, Holding, FundNavHistory, Trade, AsyncTaskLog
+from app.framework.async_task_manager import create_task
+from app.framework.exceptions import AsyncTaskException
+from app.models import db, HoldingSnapshot, Holding, FundNavHistory, Trade
 from app.tools.date_tool import date_to_str
 
 logger = logging.getLogger(__name__)
@@ -25,7 +27,8 @@ class PositionState:
     hos_holding_cost: Decimal = ZERO
     total_buy_amount: Decimal = ZERO  # 累计买入金额 (本金投入)
     total_sell_amount: Decimal = ZERO  # 累计卖出金额 (含收益)
-    total_dividend: Decimal = ZERO  # 累计分红金额
+    total_dividend: Decimal = ZERO  # 累计分红金额，包含现金分红和分红再投资
+    total_cash_dividend: Decimal = ZERO  # 累计现金分红金额
     realized_pnl: Decimal = ZERO  # 累计已实现盈亏
 
 
@@ -71,7 +74,7 @@ class HoldingSnapshotService:
             except Exception as e:
                 error_msg = f"Error processing holding {holding.ho_code}: {str(e)}"
                 create_task(
-                    task_name=f"regenerate all holding snapshots for {holding.ho_code} - {holding.ho_short_name} at {datetime.now()}",
+                    task_name=f"regenerate all holding snapshots for {holding.ho_code} - {holding.ho_short_name}",
                     module_path="app.services.holding_snapshot_service",
                     method_name="generate_all_holding_snapshots",
                     kwargs={"ids": [holding.id]},
@@ -104,9 +107,11 @@ class HoldingSnapshotService:
 
         snapshots = []
 
-        # 根据每轮交易记录，生成快照数据
+        # 根据每周期交易记录，生成快照数据
         for tr_cycle, round_trades in trades_by_cycle.items():
+            # 周期内第一次交易日期
             first_date = round_trades[0].tr_date
+            # 周期内最后一次交易日期
             last_date = round_trades[-1].tr_date
 
             # 获取区间内所有净值
@@ -135,16 +140,13 @@ class HoldingSnapshotService:
                     continue
 
                 trades_in_current_date = trades_by_date.get(date_to_str(current_date), [])
-                # 处理当日的所有交易
-                state, net_cash_inflow = cls._apply_trades(state, trades_in_current_date)
-                # 处理当日分红 和 累计分红
-                hos_daily_dividend = cls._apply_dividend(state, holding, nav_today)
-                # 当日现金流入
-                # net_cash_flow = net_investment_today + cash_from_dividend
 
-                # 根据数据，生成当日快照
-                snapshot = cls._create_snapshot_from_state(state, holding, nav_today, net_cash_inflow,
-                                                           hos_daily_dividend, prev_snapshot)
+                state, net_external_cash_flow = cls._apply_trades(state, trades_in_current_date)
+
+                hos_cash_dividend = cls._apply_dividend(state, holding, nav_today)
+
+                snapshot = cls._create_snapshot_from_state(state, holding, nav_today, net_external_cash_flow,
+                                                           hos_cash_dividend, prev_snapshot)
 
                 snapshot.tr_cycle = tr_cycle
                 snapshots.append(snapshot)
@@ -171,6 +173,7 @@ class HoldingSnapshotService:
         if not trade_calendar.is_trade_day(current_date):
             logger.info("No target holdings found. Task finished.")
             return result
+
         # 获取上上个交易日
         prev_date = trade_calendar.prev_trade_day(current_date)
 
@@ -238,7 +241,7 @@ class HoldingSnapshotService:
                 if not nav:
                     error_msg = f"No NAV found for {holding.ho_code} - {holding.ho_short_name} on {current_date}. Skipping."
                     create_task(
-                        task_name=f"regenerate yesterday holding snapshots for {holding.ho_code} - {holding.ho_short_name} at {datetime.now()}",
+                        task_name=f"regenerate yesterday holding snapshots for {holding.ho_code} - {holding.ho_short_name}",
                         module_path="app.services.holding_snapshot_service",
                         method_name="generate_yesterday_snapshots",
                         kwargs={"ids": f"[{holding.id},]"},
@@ -252,7 +255,7 @@ class HoldingSnapshotService:
                 if not prev_snapshot:
                     # 两种情况全部重新生成：1.新购买，昨天有交易记录，但是前天没有快照；2.问题数据
                     create_task(
-                        task_name=f"regenerate all holding snapshots for {holding.ho_code} - {holding.ho_short_name} at {datetime.now()}",
+                        task_name=f"regenerate all holding snapshots for {holding.ho_code} - {holding.ho_short_name}",
                         module_path="app.services.holding_snapshot_service",
                         method_name="generate_all_holding_snapshots",
                         kwargs={"ids": f"[{holding.id},]"},
@@ -273,13 +276,11 @@ class HoldingSnapshotService:
                 # 3.4 应用昨天的交易
                 state, net_cash_flow = cls._apply_trades(state, trades)
                 # 处理当日分红
-                dividend_amount = cls._apply_dividend(state, holding, nav)
-                # 当日现金流入
-                # net_cash_flow = net_investment_today + cash_from_dividend
+                cash_dividend = cls._apply_dividend(state, holding, nav)
 
                 # 3.5 生成快照
                 snapshot = cls._create_snapshot_from_state(state, holding, nav, net_cash_flow,
-                                                           dividend_amount, prev_snapshot)
+                                                           cash_dividend, prev_snapshot)
 
                 snapshot.tr_cycle = trades[-1].tr_cycle if trades else prev_snapshot.tr_cycle
                 snapshots_to_add.append(snapshot)
@@ -306,7 +307,7 @@ class HoldingSnapshotService:
             db.session.rollback()
             error_msg = f"An error occurred during snapshot generation: {e}"
             create_task(
-                task_name=f"regenerate yesterday holding snapshots at {datetime.now()}",
+                task_name=f"regenerate yesterday holding snapshots",
                 module_path="app.services.holding_snapshot_service",
                 method_name="generate_yesterday_snapshots",
                 error_message=error_msg
@@ -318,6 +319,7 @@ class HoldingSnapshotService:
     @staticmethod
     def _apply_trades(state: PositionState, trades: List[Trade]) -> Tuple[PositionState, Decimal]:
         """
+        处理当日的所有交易
         Applies trades to current position state and calculates net investment.
 
         Business Rules:
@@ -328,22 +330,23 @@ class HoldingSnapshotService:
         Returns:
             Tuple of (updated_state, net_investment_today)
         """
-        net_cash_inflow = ZERO
+        net_external_cash_flow = ZERO
 
         for trade in trades:
             # 买入
             if trade.tr_type == TradeTypeEnum.BUY.value:
                 state.shares += trade.tr_shares
-                state.hos_holding_cost += trade.tr_amount
-                net_cash_inflow += trade.tr_amount
-                state.total_buy_amount += trade.tr_amount
+                state.hos_holding_cost += trade.tr_net_amount
+                state.total_buy_amount += trade.tr_net_amount
+
+                net_external_cash_flow -= trade.gross_amount
 
             # 卖出
             elif trade.tr_type == TradeTypeEnum.SELL.value:
                 if state.shares <= ZERO:
                     # 数据质量问题：超卖
                     async_task_log = create_task(
-                        task_name=f"regenerate all holding snapshots for {trade.ho_id} in _apply_trades at {datetime.now()}",
+                        task_name=f"regenerate all holding snapshots for {trade.ho_id} in _apply_trades",
                         module_path="app.services.holding_snapshot_service",
                         method_name="generate_all_holding_snapshots",
                         kwargs={"ids": [trade.ho_id]},
@@ -359,18 +362,19 @@ class HoldingSnapshotService:
                 cost_of_sold_shares = (state.hos_holding_cost / state.shares) * trade.tr_shares
                 state.shares -= trade.tr_shares
                 state.hos_holding_cost -= cost_of_sold_shares
+                state.total_sell_amount += trade.tr_net_amount
 
-                realized_pnl_from_this_sell = trade.tr_amount - cost_of_sold_shares
+                realized_pnl_from_this_sell = trade.tr_net_amount - cost_of_sold_shares
                 state.realized_pnl += realized_pnl_from_this_sell
 
-                net_cash_inflow -= trade.tr_amount
-                state.total_sell_amount += trade.tr_amount
+                net_external_cash_flow += trade.gross_amount
 
-        return state, net_cash_inflow
+        return state, net_external_cash_flow
 
     @staticmethod
     def _apply_dividend(state: PositionState, holding: Holding, nav: FundNavHistory) -> Decimal:
         """
+        处理分红
         返回：分红产生的现金流
         """
         if not nav.dividend_price or state.shares <= ZERO:
@@ -390,14 +394,15 @@ class HoldingSnapshotService:
             state.total_buy_amount += dividend_amount  # 视为追加投入
             return ZERO
         else:
+            state.total_cash_dividend += dividend_amount
             return dividend_amount
 
     @staticmethod
     def _create_snapshot_from_state(state: PositionState,
                                     holding: Holding,
                                     nav_today: FundNavHistory,
-                                    net_cash_inflow: Decimal,
-                                    dividend_amount: Decimal,
+                                    net_external_cash_flow: Decimal,
+                                    cash_dividend: Decimal,
                                     prev_snapshot: HoldingSnapshot | None
                                     ) -> HoldingSnapshot:
         """
@@ -411,34 +416,45 @@ class HoldingSnapshotService:
 
         snapshot.hos_total_buy_amount = state.total_buy_amount
         snapshot.hos_total_sell_amount = state.total_sell_amount
-        snapshot.hos_daily_dividend = dividend_amount
+
+        snapshot.hos_daily_cash_dividend = cash_dividend
+        snapshot.hos_total_cash_dividend = state.total_cash_dividend
         snapshot.hos_total_dividend = state.total_dividend
-        snapshot.hos_realized_pnl = state.realized_pnl + dividend_amount
-        snapshot.hos_net_cash_inflow = net_cash_inflow
+
+        snapshot.hos_realized_pnl = state.realized_pnl
+        snapshot.hos_net_external_cash_flow = net_external_cash_flow
 
         if state.shares > ZERO:  # 未清仓
             snapshot.holding_shares = state.shares
             snapshot.hos_holding_cost = state.hos_holding_cost
             snapshot.avg_cost = state.hos_holding_cost / state.shares
             snapshot.hos_market_value = state.shares * nav_today.nav_per_unit
-            # 未实现盈亏
             snapshot.hos_unrealized_pnl = snapshot.hos_market_value - state.hos_holding_cost
-            # 反映剔除现金流后的纯市场损益 当日盈亏 = (期末持仓市值 - 期初持仓市值) - 当日净现金流入
-            prev_market_value = prev_snapshot.hos_market_value if prev_snapshot else ZERO
-            snapshot.hos_daily_pnl = snapshot.hos_market_value - prev_market_value - net_cash_inflow + dividend_amount
-            snapshot.hos_daily_pnl_ratio = (
-                snapshot.hos_daily_pnl / prev_market_value if prev_market_value > ZERO else ZERO
-            )
             # 累计盈亏
-            snapshot.hos_total_pnl = snapshot.hos_realized_pnl + snapshot.hos_unrealized_pnl
-            snapshot.hos_total_pnl_ratio = (
-                snapshot.hos_total_pnl / state.total_buy_amount if state.total_buy_amount > ZERO else ZERO
-            )
+            snapshot.hos_total_pnl = snapshot.hos_realized_pnl + snapshot.hos_unrealized_pnl + state.total_cash_dividend
+
+            if prev_snapshot and prev_snapshot.hos_market_value > ZERO: # 非t0购入
+                snapshot.hos_daily_pnl = (
+                        snapshot.hos_market_value - prev_snapshot.hos_market_value
+                        + net_external_cash_flow + cash_dividend
+                )
+                snapshot.hos_daily_pnl_ratio = snapshot.hos_daily_pnl / prev_snapshot.hos_market_value
+                snapshot.hos_total_pnl_ratio = snapshot.hos_total_pnl / state.total_buy_amount
+
+            else:  # t0购入 当天：当日盈亏 = 累计盈亏
+                snapshot.hos_daily_pnl = snapshot.hos_total_pnl
+                if state.total_buy_amount > ZERO:
+                    snapshot.hos_daily_pnl_ratio = snapshot.hos_daily_pnl / state.total_buy_amount
+                    snapshot.hos_total_pnl_ratio = snapshot.hos_daily_pnl_ratio # T0天，累计率=当日率
+                else:
+                    snapshot.hos_daily_pnl_ratio = ZERO
+                    snapshot.hos_total_pnl_ratio = ZERO
+
         else:  # 清仓
             if not prev_snapshot:
-                # 清仓如果没有历史快照，说明历史数据有问题，重新生成这个持仓的所有快照
+                # 清仓时，如果没有 prev_snapshot，说明历史数据有问题，重新生成这个持仓的所有快照
                 async_task_log = create_task(
-                    task_name=f"regenerate all holding snapshots for {holding.ho_code} - {holding.ho_short_name} at {datetime.now()}",
+                    task_name=f"regenerate all holding snapshots for {holding.ho_code} - {holding.ho_short_name}",
                     module_path="app.services.holding_snapshot_service",
                     method_name="generate_all_holding_snapshots",
                     kwargs={"ids": [holding.id]},
@@ -446,19 +462,19 @@ class HoldingSnapshotService:
                 )
                 raise AsyncTaskException(async_task_log)
 
-            # 清仓后，成本价和总成本保留清仓前的最后一个值，用于计算累计收益率等
             snapshot.holding_shares = ZERO
+            snapshot.hos_market_value = ZERO
             snapshot.hos_holding_cost = ZERO
             snapshot.avg_cost = ZERO
-            snapshot.hos_market_value = ZERO
             snapshot.hos_unrealized_pnl = ZERO
 
-            # 反映剔除现金流后的纯市场损益 当日盈亏 = (清仓前一天持仓*今天净值 - 清仓前一天持仓市值) - 当日净现金流入
-            snapshot.hos_daily_pnl = (prev_snapshot.holding_shares * nav_today.nav_per_unit -
-                                      prev_snapshot.hos_market_value - net_cash_inflow + dividend_amount)
+            snapshot.hos_daily_pnl = (
+                    snapshot.hos_market_value - prev_snapshot.hos_market_value
+                    + net_external_cash_flow + cash_dividend
+            )
             snapshot.hos_daily_pnl_ratio = snapshot.hos_daily_pnl / prev_snapshot.hos_market_value
-            # 累计盈亏 清仓当天没有 holding cost，要用total cost计算
-            snapshot.hos_total_pnl = state.realized_pnl
+            # 清仓当天 hos_unrealized_pnl 为0
+            snapshot.hos_total_pnl = state.realized_pnl + state.total_cash_dividend
             snapshot.hos_total_pnl_ratio = state.realized_pnl / snapshot.hos_total_buy_amount
 
             snapshot.is_cleared = True

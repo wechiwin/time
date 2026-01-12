@@ -1,6 +1,7 @@
 from flask import Blueprint, request
 from sqlalchemy import or_, desc
 
+from app.constant.biz_enums import ErrorMessageEnum
 from app.framework.auth import auth_required
 from app.framework.exceptions import BizException
 from app.framework.res import Res
@@ -20,7 +21,7 @@ def create_rule():
     data = request.get_json()
     if not data.get('ho_code') or not data.get('ar_type') or not data.get('ar_is_active') or not data.get(
             'ar_target_navpu'):
-        raise BizException(msg=ErrorMessage.MISSING_FIELD)
+        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD)
 
     new_rule = AlertRuleSchema().load(data)
     new_rule.tracked_date = get_yesterday_date_str()
