@@ -658,8 +658,7 @@ class BenchmarkHistory(TimestampMixin, BaseModel):
 class AsyncTaskLog(TimestampMixin, BaseModel):
     __tablename__ = 'async_task_log'
     id = db.Column(db.Integer, primary_key=True)
-    # 任务类型，可以是一个友好的名字，如 'Full Snapshot Generation'
-    task_name = db.Column(db.String(150), nullable=False, index=True)
+    task_name = db.Column(db.String(150), nullable=False, index=True)  # 任务类型
     # params 现在存储用于反射调用的所有信息
     # {
     #   "module_path": "app.service.holding_snapshot_service",
@@ -675,3 +674,12 @@ class AsyncTaskLog(TimestampMixin, BaseModel):
     max_retries = db.Column(db.Integer, default=3, nullable=False)
     retry_count = db.Column(db.Integer, default=0, nullable=False)
     next_retry_at = db.Column(db.DateTime, nullable=True, index=True)
+    task_fingerprint = db.Column(db.String(64), index=True, comment='任务指纹，用于去重')
+    business_key = db.Column(db.String(255), index=True, comment='业务关键字段')
+    deduplication_strategy = db.Column(db.String(50), default='exact_match', comment='去重策略')
+
+    __table_args__ = (
+        db.Index('idx_task_fingerprint_status', 'task_fingerprint', 'status'),
+        db.Index('idx_task_name_business_key', 'task_name', 'business_key'),
+        db.Index('idx_task_name_created_at', 'task_name', 'created_at'),
+    )

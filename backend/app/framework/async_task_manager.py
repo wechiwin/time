@@ -1,11 +1,12 @@
 # app/framework/async_task_manager.py
+import hashlib
 import importlib
 import json
 import logging
 import time
 from datetime import datetime, timedelta
-from functools import wraps
-from typing import Callable
+from enum import Enum
+from typing import List, Any, Dict, Optional
 
 from app.constant.biz_enums import TaskStatusEnum
 from app.models import db, AsyncTaskLog
@@ -15,6 +16,14 @@ logger = logging.getLogger(__name__)
 
 class AsyncTaskExecutionError(Exception):
     pass
+
+
+class DeduplicationStrategy(Enum):
+    """去重策略枚举"""
+    NONE = "none"  # 不去重
+    EXACT_MATCH = "exact_match"  # 精确匹配所有参数
+    BUSINESS_KEY = "business_key"  # 业务关键字段匹配
+    TIME_WINDOW = "time_window"  # 时间窗口内去重
 
 
 class AsyncTaskManager:
@@ -116,48 +125,70 @@ class AsyncTaskManager:
         delay = base_delay * (2 ** (attempt - 1))
         return min(delay, max_delay)
 
+    @staticmethod
+    def _generate_task_fingerprint(
+            task_name: str,
+            module_path: str,
+            method_name: str,
+            args: List[Any],
+            kwargs: Dict[str, Any],
+            class_name: Optional[str] = None
+    ) -> str:
+        """
+        生成任务指纹，用于去重判断
 
-def async_task(task_name: str, max_retries: int = 3, queue: str = 'default'):
-    """
-    装饰器：将一个普通方法转变为可管理的异步任务。
-    """
+        使用 SHA256 生成唯一标识，确保相同参数的任务生成相同的指纹
+        """
+        # 构建可序列化的字典
+        fingerprint_data = {
+            "task_name": task_name,
+            "module_path": module_path,
+            "method_name": method_name,
+            "class_name": class_name,
+            "args": args,
+            "kwargs": kwargs
+        }
 
-    def decorator(func: Callable):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            # 检查是否已经由任务管理器调用（避免无限递归）
-            # 可以通过一个特殊的上下文变量或 kwargs 中的标志来判断
-            is_direct_call = kwargs.pop('_is_direct_task_call', False)
-            if is_direct_call:
-                return func(*args, **kwargs)
+        # 序列化为 JSON 字符串，确保顺序一致
+        fingerprint_str = json.dumps(
+            fingerprint_data,
+            sort_keys=True,  # 确保键的顺序一致
+            default=str  # 处理非序列化对象
+        )
 
-            # --- 拦截调用，获取反射信息 ---
-            module_path = func.__module__
-            class_name = args[0].__class__.__name__ if args and hasattr(args[0], '__class__') else None
+        # 生成 SHA256 哈希
+        return hashlib.sha256(fingerprint_str.encode()).hexdigest()
 
-            task_log = create_task(
-                task_name=task_name,
-                module_path=module_path,
-                class_name=class_name,
-                method_name=func.__name__,
-                args=list(args),
-                kwargs=kwargs,
-                max_retries=max_retries
-            )
+    @staticmethod
+    def _find_existing_task(
+            task_fingerprint: str,
+            statuses: List[TaskStatusEnum] = None,
+            time_window_minutes: int = 30
+    ) -> Optional[AsyncTaskLog]:
+        """
+        查找已存在的任务
 
-            # --- 触发执行 ---
-            # 在生产环境中，这里是推送到消息队列
-            # queue.enqueue(AsyncTaskManager.run_by_log_id, task_log.id)
-            # 为了演示，我们直接同步调用执行器
-            try:
-                return AsyncTaskManager.run_by_log_id(task_log.id)
-            except AsyncTaskExecutionError:
-                logger.error(f"Execution of task {task_log.id} failed permanently.")
-                return {"error": "Task failed permanently.", "task_log_id": task_log.id}
+        Args:
+            task_fingerprint: 任务指纹
+            statuses: 需要检查的状态列表，默认检查 PENDING 和 RUNNING 状态
+            time_window_minutes: 时间窗口（分钟），用于 TIME_WINDOW 策略
 
-        return wrapper
+        Returns:
+            已存在的任务记录，如果不存在则返回 None
+        """
+        if statuses is None:
+            statuses = [TaskStatusEnum.PENDING, TaskStatusEnum.RUNNING, TaskStatusEnum.RETRYING]
 
-    return decorator
+        query = AsyncTaskLog.query.filter(
+            AsyncTaskLog.task_fingerprint == task_fingerprint,
+            AsyncTaskLog.status.in_(statuses)
+        )
+
+        if time_window_minutes > 0:
+            time_threshold = datetime.utcnow() - timedelta(minutes=time_window_minutes)
+            query = query.filter(AsyncTaskLog.created_at >= time_threshold)
+
+        return query.order_by(AsyncTaskLog.created_at.desc()).first()
 
 
 def create_task(
@@ -169,21 +200,74 @@ def create_task(
         class_name: str = None,
         max_retries: int = 3,
         error_message: str = None,
+        deduplication_strategy: DeduplicationStrategy = DeduplicationStrategy.EXACT_MATCH,
+        deduplication_window_minutes: int = 30,
+        business_key: str = None,
+        force_create: bool = False
 ) -> AsyncTaskLog:
     """
-    手动创建一个异步任务记录。
-
-    :param task_name: 任务的友好名称。
-    :param module_path: 方法所在的模块路径，如 'app.services.my_service'。
-    :param method_name: 方法名，如 'my_complex_method'。
-    :param args: 调用方法时传递的位置参数列表。
-    :param kwargs: 调用方法时传递的关键字参数字典。
-    :param class_name: 如果是类方法，提供类名。
-    :param max_retries: 最大重试次数。
-    :param error_message: 错误消息。
-    :return: 创建的 AsyncTaskLog 对象。
+    手动创建一个异步任务记录，支持去重机制。
+    Args:
+        task_name: 任务的友好名称。
+        module_path: 方法所在的模块路径，如 'app.services.my_service'。
+        method_name: 方法名，如 'my_complex_method'。
+        args: 调用方法时传递的位置参数列表。
+        kwargs: 调用方法时传递的关键字参数字典。
+        class_name: 如果是类方法，提供类名。
+        max_retries: 最大重试次数。
+        error_message: 错误消息。
+        deduplication_strategy: 去重策略，默认使用精确匹配。
+        deduplication_window_minutes: 去重时间窗口（分钟）。
+        business_key: 业务关键字段，用于 BUSINESS_KEY 策略。
+        force_create: 是否强制创建新任务（忽略去重）。
+    Returns:
+        创建的 AsyncTaskLog 对象或已存在的任务记录。
     """
-    # TODO 是否存在多次插入的可能行？是否需要根据task_name查询是否已存在相同记录
+
+    args = args or []
+    kwargs = kwargs or {}
+
+    # 生成任务指纹
+    task_fingerprint = AsyncTaskManager._generate_task_fingerprint(
+        task_name=task_name,
+        module_path=module_path,
+        method_name=method_name,
+        args=args,
+        kwargs=kwargs,
+        class_name=class_name
+    )
+    # 检查是否已存在相同任务（根据策略）
+    existing_task = None
+    if not force_create and deduplication_strategy != DeduplicationStrategy.NONE:
+        if deduplication_strategy == DeduplicationStrategy.EXACT_MATCH:
+            # 精确匹配：检查完全相同的任务
+            existing_task = AsyncTaskManager._find_existing_task(
+                task_fingerprint=task_fingerprint,
+                time_window_minutes=deduplication_window_minutes
+            )
+
+        elif deduplication_strategy == DeduplicationStrategy.BUSINESS_KEY and business_key:
+            # 业务关键字段匹配
+            existing_task = AsyncTaskLog.query.filter(
+                AsyncTaskLog.task_name == task_name,
+                AsyncTaskLog.business_key == business_key,
+                AsyncTaskLog.status.in_([TaskStatusEnum.PENDING, TaskStatusEnum.RUNNING, TaskStatusEnum.RETRYING])
+            ).first()
+
+        elif deduplication_strategy == DeduplicationStrategy.TIME_WINDOW:
+            # 时间窗口内去重：检查相同任务名称在时间窗口内是否存在
+            time_threshold = datetime.utcnow() - timedelta(minutes=deduplication_window_minutes)
+            existing_task = AsyncTaskLog.query.filter(
+                AsyncTaskLog.task_name == task_name,
+                AsyncTaskLog.created_at >= time_threshold,
+                AsyncTaskLog.status.in_([TaskStatusEnum.PENDING, TaskStatusEnum.RUNNING, TaskStatusEnum.RETRYING])
+            ).order_by(AsyncTaskLog.created_at.desc()).first()
+
+    # 如果存在相同任务，返回现有任务
+    if existing_task:
+        logger.info(f"Found existing task '{task_name}' with ID {existing_task.id}, skipping creation.")
+        return existing_task
+
     params = {
         "module_path": module_path,
         "class_name": class_name,

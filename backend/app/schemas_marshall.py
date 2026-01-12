@@ -125,9 +125,14 @@ class HoldingAnalyticsSnapshotSchema(BaseSchema):
         model = HoldingAnalyticsSnapshot
 
 
-class PortfolioSnapshotSchema(BaseSchema):
+class InvestedAssetSnapshotSchema(BaseSchema):
     class Meta(BaseSchema.Meta):
-        model = PortfolioSnapshot
+        model = InvestedAssetSnapshot
+
+
+class InvestedAssetAnalyticsSnapshotSchema(BaseSchema):
+    class Meta(BaseSchema.Meta):
+        model = InvestedAssetAnalyticsSnapshot
 
 
 class BenchmarkSchema(BaseSchema):
@@ -143,6 +148,11 @@ class BenchmarkHistorySchema(BaseSchema):
 
     date = fields.Date(attribute='bmh_date', dump_only=True)
     closePrice = fields.Float(attribute='bmh_close_price', dump_only=True)
+
+
+class AsyncTaskLogSchema(BaseSchema):
+    class Meta(BaseSchema.Meta):
+        model = AsyncTaskLog
 
 
 def marshal_pagination(pagination, schema_cls):
