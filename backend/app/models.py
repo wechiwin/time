@@ -653,6 +653,7 @@ class InvestedAssetAnalyticsSnapshot(TimestampMixin, BaseModel):
     内部收益率 (XIRR / MWRR)
     体现用户实际到手的年化回报率，受加减仓时机影响大。
     """
+    irr_cumulative = db.Column(db.Numeric(18, 6))
     period_pnl = db.Column(db.Numeric(18, 4))
     """
     Absolute PnL in this window (这个窗口期内赚了多少钱)

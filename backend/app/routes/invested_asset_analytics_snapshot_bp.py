@@ -10,5 +10,5 @@ invested_asset_analytics_snapshot_bp = Blueprint('invested_asset_analytics_snaps
 
 @invested_asset_analytics_snapshot_bp.route('/remake_all', methods=['GET'])
 def remake_all():
-    data = InvestedAssetAnalyticsSnapshotService.generate_analytics()
+    data = InvestedAssetAnalyticsSnapshotService.regenerate_all()
     return Res.success(data)

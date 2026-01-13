@@ -36,18 +36,74 @@ class HoldingAnalyticsSnapshotService:
     #  2.has_portfolio_contribution 需要等到 portfolio snapshot 算完了才计算
 
     @classmethod
+    def generate_yesterday_analytics(cls):
+        """
+        增量生成：仅生成“昨天”（最近一个交易日）的分析快照
+        """
+        logger.info("Starting generate_yesterday_analytics...")
+        start_time = time.time()
+
+        # 1. 确定日期
+        target_date = date.today() - timedelta(days=1)
+        if not trade_calendar.is_trade_day(target_date):
+            logger.info(f"{target_date} is not a trading day. Skipping.")
+            return {"generated": 0}
+
+        # 3. 找出昨天有 HoldingSnapshot 的持仓 ID, 只有昨天生成了基础快照，才能生成分析快照
+        target_ho_ids = db.session.query(HoldingSnapshot.ho_id).filter(
+            HoldingSnapshot.snapshot_date == target_date
+        ).distinct().all()
+        target_ho_ids = [t[0] for t in target_ho_ids]
+        if not target_ho_ids:
+            logger.info("No holding snapshots found for yesterday.")
+            return {"generated": 0, "duration": 0, "errors": []}
+
+        total_count = 0
+        errors = []
+
+        try:
+            # 生成指定日期的分析快照
+            snapshots = cls.generate_analytics(
+                start_date=target_date,
+                end_date=target_date,
+                ho_ids=target_ho_ids
+            )
+
+            if snapshots:
+                # 删除可能存在的当天重复数据（防重入） TODO 改成删除 target_ho_ids 的数据
+                db.session.query(HoldingAnalyticsSnapshot).filter(
+                    HoldingAnalyticsSnapshot.snapshot_date == target_date,
+                    HoldingAnalyticsSnapshot.ho_id.in_(target_ho_ids)
+                ).delete(synchronize_session=False)
+
+                db.session.bulk_save_objects(snapshots)
+                db.session.commit()
+                total_count += len(snapshots)
+                logger.info(f"Successfully generated {total_count} analytics records for {target_date}")
+        except Exception as e:
+            db.session.rollback()
+            err_msg = f"Error generating yesterday analytics: {str(e)}"
+            logger.error(err_msg)
+            errors.append(err_msg)
+            create_task(
+                task_name=f"retry_holding_analytics_{target_date}",
+                module_path="app.service.holding_analytics_snapshot_service",
+                class_name="HoldingAnalyticsSnapshotService",
+                method_name="generate_yesterday_analytics",
+                kwargs={},
+                error_message=err_msg
+            )
+
+        duration = time.time() - start_time
+        return {"generated": total_count, "duration": duration, "errors": errors}
+
+    @classmethod
     def generate_all_analytics(cls, ho_ids: List[int] = None):
         """
         全量生成：为指定持仓（或所有持仓）生成历史所有日期的分析快照
         """
         logger.info("Starting generate_all_analytics...")
         start_time = time.time()
-
-        # 1. 获取所有分析窗口定义
-        windows = AnalyticsWindow.query.all()
-        if not windows:
-            logger.warning("No AnalyticsWindow defined.")
-            return {"total_generated": 0, "duration": 0}
 
         # 2. 确定要处理的持仓
         query = db.session.query(Holding.id, Holding.ho_code)
@@ -57,11 +113,11 @@ class HoldingAnalyticsSnapshotService:
 
         total_count = 0
         errors = []
-
+        # 这里改成取 ho_ids 一次性传进去即可
         for ho_id, ho_code in holdings:
             try:
                 # 为单个持仓生成所有历史分析数据
-                snapshots = cls._process_single_holding(ho_id, windows, mode='full')
+                snapshots = cls.generate_analytics(start_date=None, end_date=None, ho_ids=[ho_id])
 
                 if snapshots:
                     # cls._save_snapshots(ho_id, snapshots, mode='full')
@@ -79,123 +135,96 @@ class HoldingAnalyticsSnapshotService:
 
             except Exception as e:
                 db.session.rollback()
-                logger.error(f"Error processing holding {ho_code}: {str(e)}")
-                logger.error(traceback.format_exc())
+                msg = f"Error processing holding {ho_code}: {str(e)}"
+                logger.error(msg, exc_info=True)
+                errors.append(msg)
                 create_task(
-                    task_name=f"redo-has-all-ho_id={ho_id}",
-                    module_path="app.services.holding_analytics_snapshot_service",
+                    task_name=f"retry_holding_analytics_full_{ho_id}",
+                    module_path="app.service.holding_analytics_snapshot_service",
+                    class_name="HoldingAnalyticsSnapshotService",
                     method_name="generate_all_analytics",
-                    kwargs={"ids": f"[{ho_id},]"},
+                    kwargs={"ho_ids": [ho_id]},
                     error_message=str(e)
                 )
 
         duration = time.time() - start_time
-        logger.info(f"Finished generate_all_analytics. Total: {total_count}, Duration: {duration:.2f}s")
         return {"total_generated": total_count, "duration": duration, "errors": errors}
 
     @classmethod
-    def generate_yesterday_analytics(cls):
+    def generate_analytics(cls,
+                           start_date: Optional[date],
+                           end_date: Optional[date],
+                           ho_ids: List[int] = None
+                           ) -> Optional[List[HoldingAnalyticsSnapshot]]:
         """
-        增量生成：仅生成“昨天”（最近一个交易日）的分析快照
+        核心方法：按持仓、窗口和时间范围生成分析快照
+        :param start_date: 开始日期 (None表示从最早数据开始)
+        :param end_date: 结束日期 (None表示到最新数据结束)
+        :param ho_ids: 指定持仓ID列表
+        :return: 生成的快照列表
         """
-        logger.info("Starting generate_yesterday_analytics...")
-        start_time = time.time()
-
-        # 1. 确定日期
-        target_date = date.today() - timedelta(days=1)
-        if not trade_calendar.is_trade_day(target_date):
-            logger.info(f"{target_date} is not a trading day. Skipping.")
-            return {"generated": 0}
-
-        # 2. 获取窗口定义
+        # 获取所有分析窗口定义
         windows = AnalyticsWindow.query.all()
+        if not windows:
+            logger.warning("No AnalyticsWindow defined.")
+            return None
 
-        # 3. 找出昨天有 HoldingSnapshot 的持仓 ID, 只有昨天生成了基础快照，才能生成分析快照
-        target_ho_ids = db.session.query(HoldingSnapshot.ho_id).filter(
-            HoldingSnapshot.snapshot_date == target_date
-        ).distinct().all()
-        target_ho_ids = [t[0] for t in target_ho_ids]
-        if not target_ho_ids:
-            logger.info("No holding snapshots found for yesterday.")
-            return {"generated": 0}
+        # 确定要处理的持仓
+        query = db.session.query(Holding.id, Holding.ho_code)
+        if ho_ids:
+            query = query.filter(Holding.id.in_(ho_ids))
+        holdings = query.all()
 
-        total_count = 0
-        errors = []
+        all_snapshots = []
 
-        for ho_id in target_ho_ids:
-            try:
-                # 增量计算：只计算 yesterday 这一天
-                snapshots = cls._process_single_holding(ho_id, windows, mode='incremental', target_date=target_date)
+        for ho_id, ho_code in holdings:
+            # 为单个持仓生成分析数据
+            holding_snapshots = cls._process_single_holding_analytics(
+                ho_id=ho_id,
+                ho_code=ho_code,
+                windows=windows,
+                start_date=start_date,
+                end_date=end_date
+            )
 
-                if snapshots:
-                    # 删除可能存在的当天重复数据（防重入）
-                    db.session.query(HoldingAnalyticsSnapshot).filter(
-                        HoldingAnalyticsSnapshot.ho_id == ho_id,
-                        HoldingAnalyticsSnapshot.snapshot_date == target_date
-                    ).delete(synchronize_session=False)
+            all_snapshots.extend(holding_snapshots)
 
-                    db.session.bulk_save_objects(snapshots)
-                    db.session.commit()
-                    total_count += len(snapshots)
-            except Exception as e:
-                db.session.rollback()
-                err_msg = f"Error generating yesterday analytics for ho_id={ho_id}: {e}"
-                logger.error(err_msg)
-                create_task(
-                    task_name=f"regenerate holding analytics snapshots for ho_id={ho_id}",
-                    module_path="app.services.holding_analytics_snapshot_service",
-                    method_name="generate_yesterday_analytics",
-                    kwargs={"ids": f"[{ho_id},]"},
-                    error_message=err_msg
-                )
-                errors.append(err_msg)
+        return all_snapshots
 
-        logger.info(f"Finished generate_yesterday_analytics. Generated: {total_count}")
-        duration = time.time() - start_time
-        return {"generated": total_count, "duration": duration, "errors": errors}
-
-    # -------------------------------------------------------------------------
-    # 核心处理逻辑
-    # -------------------------------------------------------------------------
     @classmethod
-    def _process_single_holding(cls, ho_id: int, windows: List[AnalyticsWindow],
-                                mode: str = 'full', target_date: date = None) -> List[HoldingAnalyticsSnapshot]:
+    def _process_single_holding_analytics(cls, ho_id: int,
+                                          ho_code: str,
+                                          windows: List[AnalyticsWindow],
+                                          start_date: Optional[date],
+                                          end_date: Optional[date]
+                                          ) -> List[HoldingAnalyticsSnapshot]:
         """
-        处理单个持仓的数据。
-        :param mode: 'full' (全量历史) 或 'incremental' (仅计算 target_date)
+        处理单个持仓的分析数据生成
         """
-        # 1. 加载数据
-        # 必须加载历史数据才能计算 Rolling/Expanding 指标
-        df = cls._load_holding_data(ho_id, up_to_date=target_date if mode == 'incremental' else None)
-
+        # 加载持仓数据
+        df = cls._load_holding_data(ho_id, up_to_date=end_date)
         if df.empty:
             return []
-        # 如果是增量模式，检查最后一天是否匹配
-        if mode == 'incremental':
-            last_date = df.index[-1].date()
-            if last_date != target_date:
-                # 数据尚未同步或日期不匹配
-                return []
-            # 只需要计算最后一行对应的日期
-            calc_dates = [df.index[-1]]
-        else:
-            # 全量模式：计算每一天
-            calc_dates = df.index
+
+        # 2. 确定需要计算的日期范围 (Target Range)
+        # 注意：df 包含历史数据用于计算 Rolling/Expanding，但我们只需要生成 target_range 内的快照
+        target_df = df
+        if start_date:
+            target_df = target_df[target_df.index.date >= start_date]
+        if end_date:
+            target_df = target_df[target_df.index.date <= end_date]
+
         results = []
 
         # 2. 遍历日期进行计算
-        # 性能优化提示：对于极大规模数据，这里应该使用 Pandas 的 rolling().apply() 或向量化操作。
-        # 但考虑到金融指标（如最大回撤日期）的复杂性，以及单只持仓数据量通常 < 5000 条，
-        # 逐日切片计算的可读性和维护性优于复杂的向量化代码。
-
-        for current_ts in calc_dates:
-            # 截止到当前日期的切片 (包含当前日期)
-            # 使用 loc 切片，效率尚可
+        for current_ts in target_df.index:
+            current_date_obj = current_ts.date()
+            # 截止到当前日期的切片 (包含当前日期) 使用 loc 切片，效率尚可
             df_upto_now = df.loc[:current_ts]
 
             # 获取当前日期的 cycle_id (用于 CUR 窗口)
             current_cycle = df_upto_now.iloc[-1]['cycle']
-            current_date_obj = current_ts.date()
+
             for window in windows:
                 # 获取窗口数据切片
                 df_window = cls._get_window_slice(df_upto_now, window, current_cycle)
@@ -394,10 +423,13 @@ class HoldingAnalyticsSnapshotService:
         # 找到最低点之前的那个最高点日期
         # 在 mdd_end_idx 之前的数据中，找到等于 running_max[mdd_end_idx] 的最后一天
         subset_before_trough = running_max.loc[:mdd_end_ts]
-        peak_val = subset_before_trough.iloc[-1]
-        # 在这之前，最后一次出现该 peak_val 的日期即为开始日期
-        mdd_start_ts = subset_before_trough[subset_before_trough == peak_val].index[-1]
-        mdd_start_date = mdd_start_ts.date()
+        if not subset_before_trough.empty:
+            peak_val = subset_before_trough.iloc[-1]
+            mdd_start_ts = subset_before_trough[subset_before_trough == peak_val].index[-1]
+            mdd_start_date = mdd_start_ts.date()
+        else:
+            mdd_start_date = df.index[0].date()
+            peak_val = nav_series.iloc[0]
 
         # 回撤天数 (交易日) 通常指 Peak 到 Trough 之间的间隔
         try:
