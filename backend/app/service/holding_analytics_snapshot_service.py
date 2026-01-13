@@ -254,15 +254,20 @@ class HoldingAnalyticsSnapshotService:
         raw_data = query.order_by(HoldingSnapshot.snapshot_date).all()
         if not raw_data:
             return pd.DataFrame()
-        df = pd.DataFrame(raw_data, columns=['date', 'daily_pnl_ratio', 'daily_pnl', 'shares', 'daily_cash_dividend',
-                                             'cycle',
-                                             'net_external_cash_flow', 'mv'])
+
+        # 使用列表推导式和 zip 更高效地构建字典列表
+        column_names = [
+            'date', 'daily_pnl_ratio', 'daily_pnl', 'shares', 'daily_cash_dividend',
+            'cycle', 'net_external_cash_flow', 'mv'
+        ]
+        data_dicts = [dict(zip(column_names, row)) for row in raw_data]
+        df = pd.DataFrame(data_dicts)
 
         # 类型转换: Decimal -> Float
         cols_to_float = ['daily_pnl_ratio', 'daily_pnl', 'shares', 'daily_cash_dividend', 'net_external_cash_flow',
                          'mv']
         for col in cols_to_float:
-            df[col] = df[col].apply(lambda x: float(x) if x is not None else 0.0)
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0.0)
 
         # 确保 cycle 是 int
         df['cycle'] = df['cycle'].fillna(0).astype(int)
@@ -424,7 +429,7 @@ class HoldingAnalyticsSnapshotService:
         return {
             'twrr_cum': Decimal(f"{twrr_cum:.6f}"),
             'twrr_ann': Decimal(f"{twrr_ann:.6f}") if twrr_ann is not None else None,
-            'irr_ann': Decimal(f"{irr_ann:.6f}"),
+            'irr_ann': Decimal(f"{irr_ann:.6f}") if irr_ann is not None else None,
             'irr_cum': Decimal(f"{irr_cum:.6f}") if irr_cum is not None else None,
             'cum_pnl': Decimal(f"{cum_pnl:.4f}"),
             'total_div': Decimal(f"{total_div:.4f}"),
@@ -452,12 +457,15 @@ class HoldingAnalyticsSnapshotService:
         - 现金分红 (dividend > 0): 现金流入，记为正。
         - 期末市值 (mv): 视为全部赎回，记为正。
         """
-        # 1. 构造现金流 Flow = net_external_cash_flow + dividend
-        df['flow'] = (df['net_external_cash_flow']) + df['daily_cash_dividend']
+        if df.empty:
+            return None
 
+        # 显式创建副本
+        df = df.copy()
+        # 1. 构造现金流 Flow = net_external_cash_flow + dividend
+        df['flow'] = df['net_external_cash_flow'] + df['daily_cash_dividend']
         # 过滤出有现金流的日子
         flows = df[df['flow'].abs() > EPSILON].copy()
-
         dates = list(flows.index)
         amounts = list(flows['flow'])
 
@@ -471,15 +479,25 @@ class HoldingAnalyticsSnapshotService:
             dates.append(last_date)
             amounts.append(last_mv)
 
-        if not dates:
+        if not dates or len(dates) < 2:
             return None
 
-        # 只有一笔正现金流（只有市值没有投入），无法计算
-        if all(a >= 0 for a in amounts) or all(a <= 0 for a in amounts):
+        # 增强的数据有效性检查 检查现金流是否只有单一方向（全是流入或全是流出）
+        positive_flows = sum(1 for a in amounts if a > 0)
+        negative_flows = sum(1 for a in amounts if a < 0)
+        if positive_flows == 0 or negative_flows == 0:
+            logger.debug("XIRR skipped: Cash flows are all positive or all negative.")
+            return None
+        # 检查总期间是否过短，XIRR 对于短周期意义不大且不稳定
+        total_days = (dates[-1] - dates[0]).days
+        if total_days < MIN_ANNUALIZATION_DAYS:  # 复用你定义的常量
+            logger.debug(f"XIRR skipped: Period too short ({total_days} days).")
             return None
 
-        # 2. 计算 XNPV 方程
         def xnpv(rate, dates, amounts):
+            """
+            XNPV 方程定义
+            """
             if rate <= -1.0:
                 return float('inf')
             d0 = dates[0]
@@ -487,12 +505,60 @@ class HoldingAnalyticsSnapshotService:
             # 这里的 365 是金融学定义 XIRR 的标准，代表自然年
             return sum([a / ((1.0 + rate) ** ((d - d0).days / 365.0)) for d, a in zip(dates, amounts)])
 
+        # 一个简单的近似IRR，作为牛顿法的初始猜测
+        total_inflow = sum(a for a in amounts if a < 0)
+        total_outflow = sum(a for a in amounts if a > 0)
+        # 避免除以零
+        if total_inflow == 0:
+            initial_guess = 0.1
+        else:
+            # 简单回报率 / 年数
+            simple_return = (total_outflow + total_inflow) / abs(total_inflow)
+            years = total_days / 365.0
+            initial_guess = simple_return / years if years > 0 else 0.1
+            # 限制猜测值在合理范围内，避免极端情况
+            initial_guess = max(-0.99, min(10.0, initial_guess))
         try:
             # 使用 Newton-Raphson 方法求解 f(r) = 0
             # 初始猜测值 0.1 (10%)
-            return optimize.newton(lambda r: xnpv(r, dates, amounts), 0.1, tol=0.0001, maxiter=100)
-        except:
-            # 如果不收敛，尝试使用 brentq (区间法) 或者直接返回 None
+            result = optimize.newton(
+                lambda r: xnpv(r, dates, amounts),
+                initial_guess,
+                tol=1e-6,  # 更严格的容差
+                maxiter=200,  # 更多迭代次数
+                disp=False  # 不打印收敛信息到stderr
+            )
+            # 检查结果是否为有效数字
+            if not np.isfinite(result):
+                raise RuntimeError("Newton method resulted in non-finite value.")
+            return result
+        except (RuntimeError, ValueError) as e:
+            # --- 备用算法：二分法 ---
+            # 牛顿法失败时，二分法虽然慢，但更稳定，只要能确定一个包含根的区间
+            logger.warning(f"XIRR Newton method failed: {e}. Trying bisection method.")
+            try:
+                # 二分法需要一个区间 [a, b]，其中 f(a) 和 f(b) 符号相反
+                # 我们尝试一个很宽的范围，比如 [-99%, 1000%]
+                a, b = -0.99, 10.0
+                fa, fb = xnpv(a, dates, amounts), xnpv(b, dates, amounts)
+                # 如果边界值同号，说明根不在这个区间，或者无解
+                if fa * fb > 0:
+                    logger.warning(f"XIRR Bisection failed: f(a) and f(b) have same sign. No root in interval.")
+                    return None
+
+                root, info = optimize.bisect(
+                    lambda r: xnpv(r, dates, amounts),
+                    a, b,
+                    xtol=1e-6,
+                    maxiter=500,
+                    disp=False
+                )
+                return root
+            except Exception as e_bisect:
+                logger.error(f"XIRR Bisection method also failed: {e_bisect}")
+                return None
+        except Exception as e:
+            logger.error(f"Unexpected error during XIRR calculation: {e}")
             return None
 
     @staticmethod

@@ -327,10 +327,12 @@ class HoldingSnapshot(TimestampMixin, BaseModel):
     hos_market_value = db.Column(db.Numeric(18, 4))  # 总市值 = 持仓份额 * 单位净值
 
     # -------- Cash / Cost --------
+    hos_daily_buy_amount = db.Column(db.Numeric(18, 4))
     hos_total_buy_amount = db.Column(db.Numeric(18, 4))
     """
     累计投入总成本 = Σ(买入金额)
     """
+    hos_daily_sell_amount = db.Column(db.Numeric(18, 4))
     hos_total_sell_amount = db.Column(db.Numeric(18, 4))
     """
     累计卖出总额
@@ -350,8 +352,7 @@ class HoldingSnapshot(TimestampMixin, BaseModel):
     """
     hos_daily_pnl = db.Column(db.Numeric(18, 4))
     """
-    反映剔除现金流后的纯市场损益
-    当日盈亏 = 当日市值 - 昨日市值 + 当日外部现金流(买负卖正)
+    当日盈亏 = 当日市值 - 昨日市值 + 当日外部现金流(买负卖正) + 当日现金分红
     """
     hos_daily_pnl_ratio = db.Column(db.Numeric(18, 4))
     """
@@ -359,7 +360,7 @@ class HoldingSnapshot(TimestampMixin, BaseModel):
     """
     hos_total_pnl = db.Column(db.Numeric(18, 4))
     """
-    累计盈亏 = 累计已实现盈亏 + 累计未实现盈亏 + 累计现金分红
+    累计盈亏 = 累计已实现盈亏 + 累计未实现盈亏 + 累计分红
     """
     hos_total_pnl_ratio = db.Column(db.Numeric(18, 4))
     """
@@ -369,6 +370,10 @@ class HoldingSnapshot(TimestampMixin, BaseModel):
     hos_daily_cash_dividend = db.Column(db.Numeric(18, 4))
     """
     当日收到的现金分红
+    """
+    hos_daily_reinvest_dividend = db.Column(db.Numeric(18, 4))
+    """
+    当日分红再投资
     """
     hos_total_cash_dividend = db.Column(db.Numeric(18, 4))
     """
@@ -476,18 +481,15 @@ class HoldingAnalyticsSnapshot(TimestampMixin, BaseModel):
     """
     has_sharpe_ratio = db.Column(db.Numeric(18, 4))
     """
-    夏普比率 (Return - Rf) / Volatility
-    Sharpe Ratio ( (Rp - Rf) / Sigma )
+    夏普比率 Sharpe Ratio (Return - Rf) / Volatility
     """
     has_sortino_ratio = db.Column(db.Numeric(18, 4))
     """
-    索提诺比率 (Return - Rf) / Downside Deviation
-    Sortino Ratio ( (Rp - Rf) / Downside Sigma )
+    索提诺比率 Sortino Ratio = (Return - Rf) / Downside Deviation
     """
     has_calmar_ratio = db.Column(db.Numeric(18, 4))
     """
-    卡玛比率 Annualized Return / Max Drawdown
-    Calmar Ratio ( Annualized Return / Max Drawdown )
+    卡玛比率Calmar Ratio= Annualized Return / Max Drawdown
     """
     has_win_rate = db.Column(db.Numeric(18, 4))
     """
@@ -566,44 +568,53 @@ class InvestedAssetSnapshot(TimestampMixin, BaseModel):
     """
     ias_unrealized_pnl = db.Column(db.Numeric(20, 4), nullable=False)
     """
-    浮动盈亏 = 市值 - 持仓成本
+    未实现盈亏 = 市值 - 持仓成本
     """
     # -------- Daily Flow (当日流量 - 用于计算日收益率) --------
     ias_net_external_cash_flow = db.Column(db.Numeric(20, 4))
     """
     当日外部现金流：买入为负(现金->证券)，卖出为正(证券->现金)（不含分红）
     """
-    ias_daily_dividend = db.Column(db.Numeric(20, 4))  # 当日分红
+    ias_daily_cash_dividend = db.Column(db.Numeric(20, 4))
+    """
+    当日现金分红
+    """
     ias_daily_pnl = db.Column(db.Numeric(20, 4))
     """
-    当日盈亏金额
-    公式: Today_MV - Yesterday_MV - Net_Inflow + Daily_Dividend
+    当日盈亏金额 = 当日市值 - 昨日市值 + 当日外部现金流(买负卖正) + 当日现金分红
     """
     ias_daily_pnl_ratio = db.Column(db.Numeric(18, 6))
     """
-    ias_daily_pnl_ratio = daily_pnl / 昨日市值
-    当日收益率 (Simple Return)
-    公式 (Modified Dietz 简化版): 
-    ias_daily_pnl / (Yesterday_MV + (ias_net_inflow / 2))
-    如果当日没有大额进出，近似等于 ias_daily_pnl / Yesterday_MV
+    当日收益率 (Simple Return) = 当日盈亏金额 / 昨日市值 (Modified Dietz 简化版)
     """
     # -------- Cumulative (历史累计) --------
-    ias_total_buy_amount = db.Column(db.Numeric(20, 4))  # 历史累计买入总额
-    ias_total_sell_amount = db.Column(db.Numeric(20, 4))  # 历史累计卖出总额 包含收益
+    ias_total_buy_amount = db.Column(db.Numeric(20, 4))
     """
-    净投入本金 = total_buy - total_sell (如果卖出包含收益，这里逻辑要小心)
+    历史累计买入总额
     """
-    ias_realized_pnl = db.Column(db.Numeric(20, 4), nullable=False)  # 历史已实现盈亏
-    ias_dividend_income = db.Column(db.Numeric(20, 4), nullable=False)  # 历史分红总额
-
-    ias_total_pnl = db.Column(db.Numeric(20, 4), nullable=False)  # 总盈亏 = 浮盈 + 已实现 + 分红
+    ias_total_sell_amount = db.Column(db.Numeric(20, 4))
     """
-    ias_total_pnl = total_realized_pnl + total_unrealized_pnl + total_dividend_income
+    历史累计卖出总额
+    """
+    ias_total_realized_pnl = db.Column(db.Numeric(20, 4), nullable=False)
+    """
+    历史累计已实现盈亏
+    """
+    ias_total_cash_dividend = db.Column(db.Numeric(20, 4), nullable=False)
+    """
+    历史累计收到的现金分红
+    """
+    ias_total_dividend = db.Column(db.Numeric(20, 4), nullable=False)
+    """
+    历史累计分红总额，包含现金分红和分红再投资
+    """
+    ias_total_pnl = db.Column(db.Numeric(20, 4), nullable=False)
+    """
+    历史累计收益 = 历史累计已实现盈亏 + 当日未实现盈亏 + 历史累计现金分红
     """
     ias_total_pnl_ratio = db.Column(db.Numeric(18, 6))
     """
-    累计收益率 (Simple Return = Total PnL / Net Invested Capital)
-    ias_total_pnl_ratio = ias_total_pnl / ias_total_buy_amount
+    历史累计收益率 (Simple Return = 累计收益 / 总成本)
     """
 
     __table_args__ = (

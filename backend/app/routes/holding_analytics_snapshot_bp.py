@@ -12,5 +12,5 @@ holding_analytics_snapshot_bp = Blueprint('holding_analytics_snapshot', __name__
 
 @holding_analytics_snapshot_bp.route('/generate_analysis', methods=['GET'])
 def remake_all():
-    flag1 = HoldingAnalyticsSnapshotService.generate_all_analytics()
-    return Res.success() if flag1 else Res.fail()
+    data = HoldingAnalyticsSnapshotService.generate_all_analytics()
+    return Res.success(data)
