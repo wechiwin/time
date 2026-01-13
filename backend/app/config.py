@@ -65,6 +65,10 @@ class Config:
 
     SCHEDULER_TIMEZONE = "Asia/Shanghai"
 
+    LOG_DIR = 'logs'
+    LOG_FILE = 'app.log'
+    LOG_MAX_BYTES = 8 * 1024 * 1024
+
     # 自动识别当前环境配置
     @classmethod
     def get_config(cls):
@@ -84,6 +88,8 @@ class DevelopmentConfig(Config):
     JWT_COOKIE_SECURE = False
     MAIL_DEBUG = True  # 开启调试
     SCHEDULER_ENABLED = True
+    LOG_LEVEL = 'DEBUG'
+    LOG_BACKUP_COUNT = 7
 
 
 class TestingConfig(Config):
@@ -95,6 +101,7 @@ class TestingConfig(Config):
     # SQLALCHEMY_DATABASE_URI = os.getenv('TEST_DATABASE_URL',
     #                                     'sqlite:///test.db')
     # WTF_CSRF_ENABLED = False  # 测试时禁用 CSRF
+    LOG_LEVEL = 'INFO'  # 生产环境推荐 INFO
     pass
 
 
@@ -106,4 +113,6 @@ class ProductionConfig(Config):
     SCHEDULER_API_ENABLED = False
     # """生产环境配置"""
     # SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
+    LOG_LEVEL = 'INFO'  # 生产环境推荐 INFO
+    LOG_BACKUP_COUNT = 30  # 保留30天日志
     pass
