@@ -2,21 +2,18 @@ import {Fragment} from 'react';
 import {Menu, Transition} from '@headlessui/react';
 import {GlobeAltIcon} from '@heroicons/react/24/outline';
 import {useTranslation} from 'react-i18next';
+import {LANGUAGES} from "../constants/sysConst";
 
 function classNames(...classes) {
     return classes.filter(Boolean).join(' ');
 }
 
-const languages = [
-    {code: 'zh', name: '中文'},
-    {code: 'it', name: 'Italiano'},
-    {code: 'en', name: 'English'},
-];
-
 export default function LanguageSwitcher() {
     const {i18n} = useTranslation();
 
     const handleChangeLanguage = (code) => {
+        // 立即保存到localStorage以确保记住用户选择
+        localStorage.setItem('i18nextLng', code);
         i18n.changeLanguage(code);
     };
 
@@ -27,6 +24,10 @@ export default function LanguageSwitcher() {
                 <Menu.Button
                     className="flex items-center justify-center p-2 text-gray-500 rounded-md hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 focus:outline-none transition-colors">
                     <GlobeAltIcon className="w-6 h-6" aria-hidden="true"/>
+                    {/* 显示当前语言缩写 */}
+                    <span className="ml-1 text-xs font-medium">
+                        {i18n.language ? i18n.language.toUpperCase() : 'ZH'}
+                    </span>
                 </Menu.Button>
             </div>
 
@@ -40,11 +41,11 @@ export default function LanguageSwitcher() {
                 leaveFrom="transform opacity-100 scale-100"
                 leaveTo="transform opacity-0 scale-95"
             >
-                {/* 注意：这里使用 bottom-full 和 mb-2 让菜单向上弹出 */}
+                {/* 这里使用 bottom-full 和 mb-2 让菜单向上弹出 */}
                 <Menu.Items
                     className="absolute bottom-full right-0 mb-2 w-32 origin-bottom-right bg-white dark:bg-gray-700 divide-y divide-gray-100 dark:divide-gray-600 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                     <div className="py-1">
-                        {languages.map((lang) => (
+                        {LANGUAGES.map((lang) => (
                             <Menu.Item key={lang.code}>
                                 {({active}) => (
                                     <button

@@ -1,35 +1,158 @@
+import logging
+
+from marshmallow import fields, EXCLUDE, post_dump
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
-from marshmallow import fields
-from app.models import Holding, Trade, NavHistory
+
+from app.constant.biz_enums import *
 from app.database import db
+from app.models import *
+
+logger = logging.getLogger(__name__)
 
 
-class HoldingSchema(SQLAlchemyAutoSchema):
-    # # 重命名、加校验、格式化
-    # ho_code = fields.Str(data_key='code', validate=validate.Length(6))
-    # created_at = fields.DateTime(format='%Y-%m-%d %H:%M')
+class BaseSchema(SQLAlchemyAutoSchema):
+    # 你可能已经有了一些通用配置
     class Meta:
-        model = Holding  # 对应 ORM 模型
         sqla_session = db.session  # 用于懒加载查询
-        # 只吐出这些字段
-        # fields = ('id', 'ho_name', 'ho_code', 'ho_type', 'created_at')
-        load_instance = True  # 反序列化时可直接得到模型实例（可选）
+        load_instance = True  # 反序列化时可直接得到模型实例
+        unknown = EXCLUDE  # 忽略未知字段
 
-    ho_establish_date = fields.Date(format="%Y-%m-%d")
+    id = fields.Int(dump_only=True)
+
+    @post_dump
+    def trim_decimal_zero(self, data, **kwargs):
+        """
+        全局处理 Decimal 展示：
+        - 去掉无意义的尾随 0
+        - 避免 scientific notation
+        """
+        for key, value in data.items():
+            if isinstance(value, Decimal):
+                normalized = value.normalize()
+                data[key] = format(normalized, 'f')
+        return data
 
 
-class TradeSchema(SQLAlchemyAutoSchema):
-    class Meta:
+class EnumViewMixin:
+    """
+    自动给枚举类添加释义
+    """
+    enum_map: dict[str, type] = {}
+
+    @post_dump
+    def auto_add_enum_views(self, data, **kwargs):
+        for field_name, enum_cls in self.enum_map.items():
+            value = data.get(field_name)
+            if value is None:
+                continue
+
+            try:
+                enum_member = enum_cls(value)
+                if hasattr(enum_member, 'view'):
+                    data[f"{field_name}$view"] = str(enum_member.view)
+            except Exception as e:
+                logger.error(e, exc_info=True)
+
+        return data
+
+
+class FundDetailSchema(BaseSchema, EnumViewMixin):
+    enum_map = {
+        'trade_market': FundTradeMarketEnum,
+        'dividend_method': FundDividendMethodEnum,
+    }
+
+    class Meta(BaseSchema.Meta):
+        model = FundDetail
+
+
+class HoldingSchema(BaseSchema, EnumViewMixin):
+    enum_map = {
+        'ho_type': HoldingTypeEnum,
+        'ho_status': HoldingStatusEnum,
+        'currency': CurrencyEnum,
+    }
+    fund_detail = fields.Nested(FundDetailSchema, required=False, allow_none=True)
+
+    class Meta(BaseSchema.Meta):
+        model = Holding  # 对应 ORM 模型
+
+
+class TradeSchema(BaseSchema, EnumViewMixin):
+    enum_map = {
+        'tr_type': TradeTypeEnum,
+    }
+
+    ho_code = fields.String(attribute='holding.ho_code', dump_only=True)
+    ho_short_name = fields.String(attribute='holding.ho_short_name', dump_only=True)
+
+    class Meta(BaseSchema.Meta):
         model = Trade
-        sqla_session = db.session
-        load_instance = True
+        include_fk = True
+
+    # tr_date = fields.Date(format='%Y-%m-%d')
 
 
-class NavHistorySchema(SQLAlchemyAutoSchema):
-    class Meta:
-        model = NavHistory
-        sqla_session = db.session
-        load_instance = True
+class FundNavHistorySchema(BaseSchema):
+    ho_code = fields.String(attribute='holding.ho_code', dump_only=True)
+    ho_short_name = fields.String(attribute='holding.ho_short_name', dump_only=True)
+
+    class Meta(BaseSchema.Meta):
+        model = FundNavHistory
+        include_fk = True
+
+
+class AlertRuleSchema(BaseSchema):
+    class Meta(BaseSchema.Meta):
+        model = AlertRule
+
+    # 如果需要在响应中返回主键
+    ar_id = fields.Integer(dump_only=True)
+
+
+class AlertHistorySchema(BaseSchema):
+    class Meta(BaseSchema.Meta):
+        model = AlertHistory
+
+
+class HoldingSnapshotSchema(BaseSchema):
+    class Meta(BaseSchema.Meta):
+        model = HoldingSnapshot
+
+
+class HoldingAnalyticsSnapshotSchema(BaseSchema):
+    class Meta(BaseSchema.Meta):
+        model = HoldingAnalyticsSnapshot
+
+
+class InvestedAssetSnapshotSchema(BaseSchema):
+    class Meta(BaseSchema.Meta):
+        model = InvestedAssetSnapshot
+
+
+class InvestedAssetAnalyticsSnapshotSchema(BaseSchema):
+    class Meta(BaseSchema.Meta):
+        model = InvestedAssetAnalyticsSnapshot
+
+
+class BenchmarkSchema(BaseSchema):
+    class Meta(BaseSchema.Meta):
+        model = Benchmark
+        fields = ('id', 'bm_code', 'bm_name')
+
+
+class BenchmarkHistorySchema(BaseSchema):
+    class Meta(BaseSchema.Meta):
+        model = BenchmarkHistory
+        fields = ('id', 'bm_id', 'bmh_date', 'bmh_close_price')
+
+    date = fields.Date(attribute='bmh_date', dump_only=True)
+    closePrice = fields.Float(attribute='bmh_close_price', dump_only=True)
+
+
+class AsyncTaskLogSchema(BaseSchema):
+    class Meta(BaseSchema.Meta):
+        model = AsyncTaskLog
 
 
 def marshal_pagination(pagination, schema_cls):

@@ -1,137 +1,114 @@
+import logging
 import time
 from datetime import datetime, timedelta
+from decimal import Decimal
 
 import requests
+from sqlalchemy import func, desc
+from sqlalchemy.orm import joinedload
+
 from app.framework.exceptions import BizException
-from app.models import db, NavHistory, Holding
-from app.schemas_marshall import NavHistorySchema
-from sqlalchemy import func, or_
+from app.models import db, FundNavHistory, Holding
+from app.tools.date_tool import str_to_date
+
+logger = logging.getLogger(__name__)
 
 
-class NavHistoryService:
-    def __init__(self):
-        pass
-
-    def search_list(self, ho_code: int, start_date, end_date):
-        if not ho_code:
+class FundNavHistoryService:
+    @classmethod
+    def search_list(cls, ho_id: int, start_date, end_date):
+        if not ho_id:
             return ''
 
         # 基础查询：左连接 Holding 表
-        query = db.session.query(NavHistory, Holding.ho_short_name).outerjoin(
-            Holding, NavHistory.ho_code == Holding.ho_code
-        )
+        query = FundNavHistory.query.options(joinedload(FundNavHistory.holding))
+
         filters = []
 
-        if ho_code:
-            filters.append(NavHistory.ho_code == ho_code)
+        if ho_id:
+            filters.append(FundNavHistory.ho_id == ho_id)
         if start_date:
-            filters.append(NavHistory.nav_date >= start_date)
+            filters.append(FundNavHistory.nav_date >= start_date)
         if end_date:
-            filters.append(NavHistory.nav_date <= end_date)
+            filters.append(FundNavHistory.nav_date <= end_date)
         if filters:
             query = query.filter(*filters)
 
-        results = query.order_by(NavHistory.nav_date).all() or []
+        results = query.order_by(FundNavHistory.nav_date).all() or []
 
-        data = [{
-            'nav_id': nv.nav_id,
-            'ho_code': nv.ho_code,
-            'ho_short_name': ho_short_name,
-            'nav_date': nv.nav_date,
-            'nav_per_unit': nv.nav_per_unit,
-            'nav_accumulated_per_unit': nv.nav_accumulated_per_unit
-        } for nv, ho_short_name in results]
-        return data
+        return results
 
-    def crawl_all_nav_history(self, ):
+    @classmethod
+    def crawl_all_nav_history(cls, ):
+        """
+        爬取所有基金的市场数据
+        """
         yesterday = datetime.now() - timedelta(days=1)
-        yesterday_str = yesterday.strftime('%Y-%m-%d')
 
         # 查询所有基金的信息
         all_holdings = Holding.query.all()
+        if not all_holdings:
+            return {'inserted': 0, 'errors': []}
 
-        # 查询所有基金的最晚净值日期
-        max_subquery = db.session.query(
-            NavHistory.ho_code,
-            func.max(NavHistory.nav_date).label('max_date')
-        ).group_by(NavHistory.ho_code).subquery()
-        # 然后关联查询获取完整记录
-        max_nav_his_list = db.session.query(NavHistory).join(
-            max_subquery,
-            db.and_(
-                NavHistory.ho_code == max_subquery.c.ho_code,
-                NavHistory.nav_date == max_subquery.c.max_date
-            )
-        ).all()
-        max_nav_by_code = {}
-        for nav in max_nav_his_list:
-            max_nav_by_code[nav.ho_code].add(nav.nav_date)
+        # 一次查询获取所有持仓的最大和最小日期
+        date_stats_query = db.session.query(
+            FundNavHistory.ho_id,
+            func.min(FundNavHistory.nav_date).label('min_date'),
+            func.max(FundNavHistory.nav_date).label('max_date')
+        ).group_by(FundNavHistory.ho_id).all()
 
-        # 查询所有基金的最早净值日期
-        min_subquery = db.session.query(
-            NavHistory.ho_code,
-            func.min(NavHistory.nav_date).label('min_date')
-        ).group_by(NavHistory.ho_code).subquery()
-        # 然后关联查询获取完整记录
-        min_nav_his_list = db.session.query(NavHistory).join(
-            min_subquery,
-            db.and_(
-                NavHistory.ho_code == min_subquery.c.ho_code,
-                NavHistory.nav_date == min_subquery.c.min_date
-            )
-        ).all()
-        min_nav_by_code = {}
-        for nav in min_nav_his_list:
-            min_nav_by_code[nav.ho_code].add(nav.nav_date)
+        date_stats = {row.ho_id: {'min': row.min_date, 'max': row.max_date} for row in date_stats_query}
 
         total_inserted = 0
-        errors = []
 
         for holding in all_holdings:
+            ho_id = holding.id
             ho_code = holding.ho_code
-            ho_establish_date = holding.ho_establish_date
+            ho_establish_date = holding.establishment_date
 
-            max_nav_date = max_nav_by_code.get(ho_code)
-            min_nav_date = min_nav_by_code.get(ho_code)
+            if not ho_establish_date:
+                msg = f"Skipping {ho_code}: establish date is not set."
+                logger.warning(msg)
+                continue
 
-            #  如果没有最早或者最晚，说明数据库没有相关净值历史记录，直接查创立日期-昨天
-            if not max_nav_date or not min_nav_date:
-                data = self.crawl_one_nav_history(ho_code, ho_establish_date, yesterday_str)
-                if data:
-                    try:
-                        self.save_nav_history_to_db(data, ho_code, ho_establish_date, yesterday_str)
-                        total_inserted += len(data)
-                        time.sleep(0.5)
-                    except Exception as e:
-                        db.session.rollback()
-                        errors.append(f"{ho_code}: {e}")
-                break
-            # 最晚净值日期-昨天
-            if max_nav_date < yesterday_str:
-                data = self.crawl_one_nav_history(ho_code, max_nav_date, yesterday_str)
-                if data:
-                    try:
-                        self.save_nav_history_to_db(data, ho_code, max_nav_date, yesterday_str)
-                        total_inserted += len(data)
-                        time.sleep(0.5)
-                    except Exception as e:
-                        db.session.rollback()
-                        errors.append(f"{ho_code}: {e}")
-            # 创立日期-最早净值日期
-            if min_nav_date > ho_establish_date:
-                data = self.crawl_one_nav_history(ho_code, ho_establish_date, min_nav_date)
-                if data:
-                    try:
-                        self.save_nav_history_to_db(data, ho_code, ho_establish_date, min_nav_date)
-                        total_inserted += len(data)
-                        time.sleep(0.5)
-                    except Exception as e:
-                        db.session.rollback()
-                        errors.append(f"{ho_code}: {e}")
+            stats = date_stats.get(ho_id)
 
-        return {'inserted': total_inserted, 'errors': errors}
+            ranges_to_crawl = []
 
-    def crawl_one_nav_history(self, ho_code, start_date=None, end_date=None):
+            if not stats:
+                # 情况1: 数据库无任何记录，从成立日爬到昨天
+                ranges_to_crawl.append((ho_establish_date, yesterday))
+            else:
+                # 情况2: 补充最新数据 (从已有最大日期的后一天 -> 昨天)
+                if stats['max'] < yesterday:
+                    start_date = stats['max'] + timedelta(days=1)
+                    ranges_to_crawl.append((start_date, yesterday))
+
+                # 情况3: 补充早期缺失数据 (从成立日 -> 已有最小日期的前一天)
+                if stats['min'] > ho_establish_date:
+                    end_date = stats['min'] - timedelta(days=1)
+                    ranges_to_crawl.append((ho_establish_date, end_date))
+            # 遍历所有需要爬取的范围，执行爬取和保存
+            for start_date, end_date in ranges_to_crawl:
+                try:
+                    # inserted_count = cls._crawl_and_save_single_range(
+                    #     holding, start_date, end_date
+                    # )
+                    data = cls.crawl_one_nav_and_insert(holding, start_date, end_date)
+                    # logger.info(data)
+                    # cls.save_market_data_to_db(data, holding, start_date, end_date)
+                    time.sleep(0.5)
+                except Exception as e:
+                    msg = f"Failed to crawl/save for {ho_code} in range [{start_date}, {end_date}]: {e}"
+                    # 使用 logger 记录完整错误堆栈，便于排查
+                    logger.error(msg, exc_info=True)
+        return True
+
+    @classmethod
+    def crawl_one_nav_and_insert(cls,
+                                 holding: Holding,
+                                 start_date=None,
+                                 end_date=None):
         """
         爬取单只基金的历史净值
         :param ho_code: 基金代码，如 '000001'
@@ -139,6 +116,8 @@ class NavHistoryService:
         :param end_date: 结束日期，格式 'YYYY-MM-DD'
         :return: 净值列表（字典）
         """
+        logger.info("crawl_one_nav_and_insert")
+        ho_code = holding.ho_code
 
         url = "https://api.fund.eastmoney.com/f10/lsjz"
         headers = {
@@ -149,21 +128,21 @@ class NavHistoryService:
         params = {
             "fundCode": ho_code,
             "pageIndex": 1,
-            "pageSize": 20,  # 最大一页1000条
+            "pageSize": 20,  # 超过了不返回数据
             "startDate": start_date or "",
             "endDate": end_date or "",
         }
 
-        all_data = []
+        all_data: list[FundNavHistory] = []
         page = 1
 
         while True:
             params['pageIndex'] = page
             try:
                 resp = requests.get(url, headers=headers, params=params, timeout=10)
-                print("接口返回内容：", resp.json())
+                # print("接口返回内容：", resp.json())
                 if resp.status_code != 200:
-                    print(f"请求失败: {resp.status_code}")
+                    logger.info(f"请求失败: {resp.status_code}")
                     break
 
                 # 接口返回的是 JSON，不是 JSONP（即使有 callback）
@@ -173,13 +152,16 @@ class NavHistoryService:
 
                 items = data['Data']['LSJZList']
                 for item in items:
-                    all_data.append({
-                        'ho_code': ho_code,
-                        # 'nav_date': datetime.strptime(item['FSRQ'], '%Y-%m-%d').date(),
-                        'nav_date': item['FSRQ'],
-                        'nav_per_unit': float(item['DWJZ']),
-                        'nav_accumulated_per_unit': float(item['LJJZ']) if item['LJJZ'] else None,
-                    })
+                    record = FundNavHistory(
+                        ho_id=holding.id,
+                        ho_code=ho_code,
+                        nav_date=str_to_date(item['FSRQ']) if item['FSRQ'] else None,
+                        nav_per_unit=Decimal(item['DWJZ']),
+                        nav_accumulated_per_unit=Decimal(item['LJJZ']) if item['LJJZ'] else None,
+                        nav_return=float(item['JZZZL']) if item['JZZZL'] else None,
+                        dividend_price=Decimal(item.get('FHFCZ')) if item['FHFCZ'] else None,
+                    )
+                    all_data.append(record)
 
                 # 判断是否还有下一页
                 total_pages = data['TotalCount'] // params['pageSize'] + 1
@@ -189,44 +171,32 @@ class NavHistoryService:
                 page += 1
                 time.sleep(0.5)  # 防爬，避免请求过快
             except Exception as e:
-                print(f"爬取第 {page} 页出错: {e}")
-                break
+                logger.error(e, exc_info=True)
+                raise BizException(f"{holding.ho_code}爬取第 {page} 页出错")
 
-        return all_data
-
-    def save_nav_history_to_db(self, data_list, ho_code, start_date, end_date):
-        # 查询日期内的数据
-        result = NavHistory.query.filter(
-            NavHistory.ho_code == ho_code,
-            NavHistory.nav_date >= start_date,
-            NavHistory.nav_date <= end_date
-        ).all()
-        # key:date val:identity
-        result_map = {item.nav_date: item for item in result}
-
-        """
-        将爬取的数据存入数据库，避免重复插入
-        """
-        for item in data_list:
-            # 检查是否已存在该基金+日期的记录
-            net_val_db = result_map.get(item['nav_date'])
-            if net_val_db:
-                # 检查数据是否有变化，避免不必要的更新
-                if (net_val_db.nav_per_unit != item['nav_per_unit'] or
-                        net_val_db.nav_accumulated_per_unit != item['nav_accumulated_per_unit']):
-                    net_val_db.nav_per_unit = item['nav_per_unit']
-                    net_val_db.nav_accumulated_per_unit = item['nav_accumulated_per_unit']
-            else:
-                nv = NavHistory(
-                    ho_code=item['ho_code'],
-                    nav_date=item['nav_date'],
-                    nav_per_unit=item['nav_per_unit'],
-                    nav_accumulated_per_unit=item['nav_accumulated_per_unit']
-                )
-                db.session.add(nv)
-
+        # 储存数据
         try:
+            # 删除日期内的数据，避免重复插入
+            deleted = FundNavHistory.query.filter(
+                FundNavHistory.ho_id == holding.id,
+                FundNavHistory.nav_date >= start_date,
+                FundNavHistory.nav_date <= end_date
+            ).delete(synchronize_session=False)
+            logger.info(f"deleted {deleted} records for {holding.ho_code} in save_market_data_to_db.")
+
+            db.session.bulk_save_objects(all_data)
             db.session.commit()
+            logger.info(f"Successfully inserted {len(all_data)} records for {holding.ho_code}.")
+            return len(all_data)
         except Exception as e:
             db.session.rollback()
-            raise BizException(f"保存失败: {e}")
+            logger.error(e, exc_info=True)
+            raise BizException(f"{holding.ho_code}数据保存失败")
+
+    @staticmethod
+    def get_latest_by_ho_code(ho_code):
+        """获取最新净值"""
+        nav = FundNavHistory.query.filter_by(
+            ho_code=ho_code
+        ).order_by(desc(FundNavHistory.nav_date)).first()
+        return nav if nav else None

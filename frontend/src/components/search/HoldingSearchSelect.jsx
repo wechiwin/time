@@ -10,11 +10,22 @@ export default function HoldingSearchSelect({value, onChange, placeholder = '搜
     const {data, searchPage} = useHoldingList({autoLoad: false});
     const [keyword, setKeyword] = useDebouncedSearch(searchPage, 500);
     const wrapperRef = useRef(null);
+    const [selectedFund, setSelectedFund] = useState(null);
 
     // 每次外部传入的 value 变化时，同步到 keyword（用于回显）
     useEffect(() => {
-        if (value !== undefined && value !== null && value !== '') {
-            setKeyword(value);
+        if (value) {
+            if (typeof value === 'string') {
+                // 如果是字符串，设置为搜索关键词
+                setKeyword(value);
+            } else if (value.ho_code) {
+                // 如果是基金对象，设置选中状态
+                setSelectedFund(value);
+                setKeyword(value.ho_code);
+            }
+        } else {
+            setKeyword('');
+            setSelectedFund(null);
         }
     }, [value]);
 
@@ -55,6 +66,14 @@ export default function HoldingSearchSelect({value, onChange, placeholder = '搜
         }
     };
 
+    // 处理选择基金
+    const handleSelectFund = (fund) => {
+        setSelectedFund(fund);
+        setKeyword(fund.ho_code);
+        setOpen(false);
+        // 通知父组件
+        onChange(fund);
+    };
 
     return (
         <div className="relative" ref={wrapperRef}>
@@ -63,32 +82,40 @@ export default function HoldingSearchSelect({value, onChange, placeholder = '搜
                 onChange={(val) => {
                     setKeyword(val);
                     setOpen(true);
+                    // 如果清空了输入，清除选中状态
+                    if (!val && selectedFund) {
+                        setSelectedFund(null);
+                        onChange(null);
+                    }
+
                 }}
                 placeholder={placeholder}
                 onSearchNow={() => handleSearch(keyword)}
             />
-
             {open && (
                 <div className="absolute z-10 mt-1 w-full card border rounded-md shadow-lg max-h-60 overflow-auto">
                     {list.length ? (
-                        list.map((f) => (
+                        list.map((holding) => (
                             <div
-                                key={f.ho_id}
+                                key={holding.id}
                                 className="px-3 py-2 hover:bg-blue-50 dark:hover:bg-blue-900 cursor-pointer"
-                                onMouseDown={() => {
-                                    onChange(f.ho_code);
-                                    setKeyword(f.ho_code);
-                                    setOpen(false);
-                                }}
+                                onMouseDown={() => handleSelectFund(holding)}
                             >
-                                {f.ho_code} - {f.ho_name}
+                                <div className="font-medium">{holding.ho_code} - {holding.ho_short_name}</div>
                             </div>
                         ))
+                    ) : keyword ? (
+                        <div className="px-3 py-2 text-sm text-gray-400 dark:text-gray-200">
+                            无匹配基金
+                        </div>
                     ) : (
-                        <div className="px-3 py-2 text-sm text-gray-400 dark:text-gray-200">无匹配基金</div>
+                        <div className="px-3 py-2 text-sm text-gray-400 dark:text-gray-200">
+                            输入基金代码或名称搜索
+                        </div>
                     )}
                 </div>
             )}
+
         </div>
     );
 }

@@ -4,7 +4,7 @@ import HoldingTable from '../components/tables/HoldingTable';
 import useHoldingList from '../hooks/api/useHoldingList';
 import {useCallback, useState} from 'react';
 import FormModal from "../components/common/FormModal";
-import {useToast} from "../components/toast/ToastContext";
+import {useToast} from "../components/context/ToastContext";
 import Pagination from "../components/common/Pagination";
 import {usePaginationState} from "../hooks/usePaginationState";
 import {useTranslation} from "react-i18next";
@@ -104,12 +104,29 @@ export default function HoldingPage() {
         async (code, setFormPatch) => {
             try {
                 const info = await crawlFundInfo(code);
+                // 更新表单，包含所有可能爬取到的字段
                 setFormPatch({
                     ho_name: info.ho_name || '',
+                    ho_short_name: info.ho_short_name || '',
                     ho_type: info.ho_type || '',
-                    ho_establish_date: info.ho_establish_date || ''
+                    establishment_date: info.establishment_date || '',
+                    exchange: info.exchange || '',
+                    currency: info.currency || '',
+                    fund_type: info.fund_type || '',
+                    risk_level: info.risk_level || '',
+                    trade_type: info.trade_type || '',
+                    manage_exp_rate: info.manage_exp_rate || '',
+                    trustee_exp_rate: info.trustee_exp_rate || '',
+                    sales_exp_rate: info.sales_exp_rate || '',
+                    company_id: info.company_id || '',
+                    company_name: info.company_name || '',
+                    fund_manager: info.fund_manager || '',
+                    dividend_method: info.dividend_method || '',
+                    index_code: info.index_code || '',
+                    index_name: info.index_name || '',
+                    feature: info.feature || '',
                 });
-                showSuccessToast();
+                showSuccessToast('基金信息爬取成功');
             } catch (e) {
                 showErrorToast(e.message);
             }

@@ -4,3 +4,7 @@ frontend/dist
 frontend/node_modules
 test.py
 logs
+.env
+.env.*.local
+.env.local
+*.db

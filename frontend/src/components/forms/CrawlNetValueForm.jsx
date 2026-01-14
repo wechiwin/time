@@ -3,7 +3,7 @@ import {useCallback, useEffect, useState} from 'react';
 import HoldingSearchSelect from '../search/HoldingSearchSelect';
 import useHoldingList from '../../hooks/api/useHoldingList';
 import useNavHistoryList from '../../hooks/api/useNavHistoryList';
-import {useToast} from "../toast/ToastContext";
+import {useToast} from "../context/ToastContext";
 import {useTranslation} from "react-i18next";
 
 /**
@@ -17,6 +17,7 @@ const getYesterdayDate = () => {
 
 export default function CrawlNetValueForm({onSubmit, onClose, initialValues}) {
     const [formData, setFormData] = useState({
+        ho_id: initialValues.ho_id || '',
         ho_code: initialValues.ho_code || '',
         start_date: initialValues.start_date || '',
         end_date: initialValues.end_date || ''
@@ -69,7 +70,8 @@ export default function CrawlNetValueForm({onSubmit, onClose, initialValues}) {
     }, []);
 
     // 处理基金选择变化的函数
-    const handleFundSelectChange = useCallback(async (code) => {
+    const handleFundSelectChange = useCallback(async (ho) => {
+        const code = ho?.ho_code || '';
         handleChange('ho_code', code); // 更新表单的 ho_code
 
         if (code) {
@@ -80,11 +82,12 @@ export default function CrawlNetValueForm({onSubmit, onClose, initialValues}) {
             try {
                 const holding = await getByCode(code);
                 if (holding && holding.created_at) {
-                    const creationDate = holding.ho_establish_date;
+                    const creationDate = holding.establishment_date;
                     setQuickStartDate(prev => ({...prev, creation: creationDate}));
                 } else {
                     setQuickStartDate(prev => ({...prev, creation: ''}));
                 }
+                handleChange('ho_id', holding.id);
             } catch (err) {
                 console.error("获取基金信息失败:", err);
                 setQuickStartDate(prev => ({...prev, creation: ''}));

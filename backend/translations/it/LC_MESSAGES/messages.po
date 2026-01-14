@@ -1,0 +1,153 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Project Name\n"
+"POT-Creation-Date: 2025-11-26 16:53+0800\n"
+"PO-Revision-Date: 2025-11-26 16:53+0800\n"
+"Last-Translator: Your Name\n"
+"Language-Team: \n"
+"Language: it\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Poedit-SourceCharset: utf-8\n"
+
+msgid "COL_HO_CODE"
+msgstr "Codice"
+
+msgid "COL_HO_NAME"
+msgstr "Nome"
+
+msgid "COL_HO_TYPE"
+msgstr "Tipo"
+
+msgid "COL_HO_ESTABLISH_DATE"
+msgstr "Data di Costituzione"
+
+msgid "COL_HO_SHORT_NAME"
+msgstr "Nome Breve"
+
+msgid "COL_HO_MANAGE_EXP_RATE"
+msgstr "Commissione di Gestione"
+
+msgid "COL_HO_TRUSTEE_EXP_RATE"
+msgstr "Commissione di Custodia"
+
+msgid "COL_HO_SALES_EXP_RATE"
+msgstr "Commissione di Vendita"
+
+msgid "COL_HO_STATUS"
+msgstr "Stato"
+
+msgid "HO_LOG"
+msgstr "Registro delle Posizioni"
+
+msgid "HO_STATUS_HOLDING"
+msgstr "In possesso"
+
+msgid "HO_STATUS_NOT_HOLDING"
+msgstr "Non in possesso"
+
+msgid "HO_STATUS_CLEARED"
+msgstr "Liquidato"
+
+msgid "COL_TR_TYPE"
+msgstr "Tipo di Transazione"
+
+msgid "COL_TR_DATE"
+msgstr "Data di Transazione"
+
+msgid "COL_TR_NAV_PER_UNIT"
+msgstr "Valore netto"
+
+msgid "COL_TR_SHARES"
+msgstr "Azioni della transazione"
+
+msgid "COL_GROSS_AMOUNT"
+msgstr "Importo Lordo"
+
+msgid "COL_TR_FEE"
+msgstr "Commissione della transazione"
+
+msgid "COL_TR_NET_AMOUNT"
+msgstr "Importo Netto"
+
+msgid "TEMPLATE_TR_IMPORT"
+msgstr "Modello di importazione"
+
+msgid "TEMPLATE_HO_IMPORT"
+msgstr "Modello di importazione fondi"
+
+msgid "TR_BUY"
+msgstr "Acquisto"
+
+msgid "TR_SELL"
+msgstr "Vendita"
+
+msgid "TR_LOG"
+msgstr "Registri delle transazioni"
+
+msgid "TR_EXAMPLE"
+msgstr "Esempio"
+
+msgid "AR_EM_PENDING"
+msgstr "Da inviare"
+
+msgid "AR_EM_SENT"
+msgstr "Inviato"
+
+msgid "AR_EM_FAILED"
+msgstr "Invio fallito"
+
+msgid "AR_TR_ADD_POSITION"
+msgstr "Aggiungi Posizione"
+
+msgid "EMAIL_SUBJECT_TRIGGER_ALERT"
+msgstr "Avviso di Attivazione del Monitoraggio"
+msgid "EMAIL_TITLE"
+msgstr "Avviso di monitoraggio del portafoglio"
+
+msgid "RECIPIENT_TITLE"
+msgstr "Gentile"
+msgid "RECIPIENT_PUNCTUATION"
+msgstr ","
+
+msgid "CONTENT_FIRST"
+msgstr "Il tuo monitoraggio"
+msgid "CONTENT_SECOND"
+msgstr "è stato attivato"
+
+msgid "COL_AH_TRIGGER_NAV_DATE"
+msgstr "Data di attivazione"
+
+msgid "COL_AH_NAV_PER_UNIT"
+msgstr "Valore quota alla data di attivazione"
+
+msgid "COL_AH_TARGET_NAVPU"
+msgstr "Valore obiettivo"
+
+msgid "COL_AH_AR_TYPE"
+msgstr "Azione consigliata"
+
+msgid "EMAIL_DO_NOT_REPLY"
+msgstr "Questa email è generata automaticamente dal sistema, non rispondere."
+
+msgid "ALL_RIGHTS_RESERVED"
+msgstr "Tutti i diritti riservati"
+
+msgid "HOLDING_TYPE_FUND"
+msgstr "Fondo"
+
+msgid "HOLDING_TYPE_STOCK"
+msgstr "Azione"
+
+msgid "FD_TR_EX"
+msgstr "Mercato regolamentato"
+msgid "FD_TR_OFF_EX"
+msgstr "Fuori mercato"
+msgid "FD_TR_BOTH"
+msgstr "Entrambi"
+
+msgid "FD_DIVIDEND_REINVEST"
+msgstr "Reinvestimento dei Dividendi"
+msgid "FD_DIVIDEND_CASH"
+msgstr "Dividendo in Contanti"

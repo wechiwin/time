@@ -1,95 +1,6 @@
-# stock_fund_tool
+# Time Invest My Elevation
 
-一个基于 Flask + React + TailwindCSS的轻量持仓管理工具。
-
-## 项目结构
-
-```
-├── .gitignore
-├── Dockerfile
-├── README.md
-├── backend
-│   ├── app
-│   │   ├── __init__.py
-│   │   ├── database.py
-│   │   ├── framework
-│   │   │   ├── log_config.py
-│   │   │   └── response.py
-│   │   ├── models.py
-│   │   └── routes
-│   │       ├── __init__.py
-│   │       ├── holdings.py
-│   │       ├── net_values.py
-│   │       └── transactions.py
-│   ├── instance
-│   │   └── site.db
-│   ├── requirements.txt
-│   └── run.py
-├── docker-compose.yml
-└── frontend
-    ├── index.html
-    ├── package-lock.json
-    ├── package.json
-    ├── postcss.config.js
-    ├── public
-    │   └── manifest.json
-    ├── src
-    │   ├── App.jsx
-    │   ├── api
-    │   │   └── client.js
-    │   ├── components
-    │   │   ├── common
-    │   │   │   ├── DeleteButton.jsx
-    │   │   │   ├── FormModal.jsx
-    │   │   │   ├── Modal.jsx
-    │   │   │   ├── Pagination.jsx
-    │   │   │   └── withPagination.jsx
-    │   │   ├── forms
-    │   │   │   ├── HoldingForm.jsx
-    │   │   │   ├── NavHistoryForm.jsx
-    │   │   │   └── TradeForm.jsx
-    │   │   ├── layout
-    │   │   │   ├── DarkToggle.jsx
-    │   │   │   ├── Header.jsx
-    │   │   │   ├── Layout.jsx
-    │   │   │   └── Sidebar.jsx
-    │   │   ├── searchList
-    │   │   │   ├── HoldingSearchBox.jsx
-    │   │   │   ├── HoldingSearchSelect.jsx
-    │   │   │   ├── NetValueSearchBox.jsx
-    │   │   │   ├── SearchBox.jsx
-    │   │   │   └── TransactionSearchBox.jsx
-    │   │   ├── tables
-    │   │   │   ├── HoldingTable.jsx
-    │   │   │   ├── NavHistoryTable.jsx
-    │   │   │   └── TradeTable.jsx
-    │   │   └── toast
-    │   │       ├── Toast.jsx
-    │   │       └── ToastContext.jsx
-    │   ├── constants
-    │   │   └── sysConst.js
-    │   ├── context
-    │   ├── hooks
-    │   │   ├── api
-    │   │   │   ├── useHoldingList.js
-    │   │   │   ├── useNavHistoryList.js
-    │   │   │   └── useTradeList.js
-    │   │   ├── useApi.js
-    │   │   ├── useDarkMode.js
-    │   │   ├── useDebouncedSearch.js
-    │   │   ├── useDeleteWithToast.js
-    │   │   └── usePagination.js
-    │   ├── index.css
-    │   ├── main.jsx
-    │   └── pages
-    │       ├── Dashboard.jsx
-    │       ├── HoldingPage.jsx
-    │       ├── NavHistoryPage.jsx
-    │       └── TradePage.jsx
-    ├── tailwind.config.js
-    └── vite.config.js
-
-```
+一个践行长期投资理念的持仓管理工具。
 
 ## 🧩 功能模块
 
@@ -159,12 +70,7 @@ Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 docker-compose up --build
 ```
 
-## 🗃 数据表结构
+## 版本
 
-- Holding: id, ho_name, fund_code, fund_type
-- Transaction: id, fund_code, transaction_type, transaction_date, transaction_net_value, transaction_shares,
-  transaction_fee
-- NetValue: id, fund_code, date, unit_net_value
-
----
-如需扩展如净值爬虫、收益计算或分析图表，请联系作者。
+node v16.20.2
+python 3.11.8 

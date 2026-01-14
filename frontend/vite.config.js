@@ -16,9 +16,25 @@ export default defineConfig({
         outDir: 'dist'
     },
     server: {
+        host: '0.0.0.0',
         proxy: {
             // Proxy API requests to the backend Flask server (assuming backend runs on port 5000)
-            '/api': 'http://localhost:5000'
+            '/api': {
+                target: 'http://192.168.3.33:5000',
+                changeOrigin: true,
+                secure: false,
+                headers: {
+                    'Connection': 'keep-alive'
+                },
+                configure: (proxy, options) => {
+                    proxy.on('proxyRes', (proxyRes, req, res) => {
+                        // 确保所有头部都被传递
+                        Object.keys(proxyRes.headers).forEach((key) => {
+                            res.setHeader(key, proxyRes.headers[key]);
+                        });
+                    });
+                }
+            }
         }
     }
 })

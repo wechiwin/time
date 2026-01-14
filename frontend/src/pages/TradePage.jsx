@@ -4,7 +4,7 @@ import TradeTable from '../components/tables/TradeTable';
 import useTradeList from '../hooks/api/useTradeList';
 import FormModal from "../components/common/FormModal";
 import {useCallback, useState} from "react";
-import {useToast} from "../components/toast/ToastContext";
+import {useToast} from "../components/context/ToastContext";
 import Pagination from "../components/common/Pagination";
 import {usePaginationState} from "../hooks/usePaginationState";
 import {useTranslation} from "react-i18next";
@@ -21,7 +21,18 @@ export default function TradePage() {
     const [keyword, setKeyword] = useState("");
     const {t} = useTranslation()
 
-    const {data, loading, error, add, remove, search, update, importData, downloadTemplate} = useTradeList({
+    const {
+        data,
+        loading,
+        error,
+        add,
+        remove,
+        search,
+        update,
+        importData,
+        downloadTemplate,
+        uploadTradeImg
+    } = useTradeList({
         page,
         perPage,
         keyword,

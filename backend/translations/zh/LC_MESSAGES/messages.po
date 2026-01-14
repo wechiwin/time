@@ -1,0 +1,155 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Project Name\n"
+"POT-Creation-Date: 2025-11-26 16:53+0800\n"
+"PO-Revision-Date: 2025-11-26 16:53+0800\n"
+"Last-Translator: Your Name\n"
+"Language-Team: \n"
+"Language: zh\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Poedit-SourceCharset: utf-8\n"
+
+
+msgid "COL_HO_CODE"
+msgstr "持仓代码"
+
+msgid "COL_HO_NAME"
+msgstr "持仓名称"
+
+msgid "COL_HO_TYPE"
+msgstr "持仓类型"
+
+msgid "COL_HO_ESTABLISH_DATE"
+msgstr "成立日期"
+
+msgid "COL_HO_SHORT_NAME"
+msgstr "持仓简称"
+
+msgid "COL_HO_MANAGE_EXP_RATE"
+msgstr "基金管理费率"
+
+msgid "COL_HO_TRUSTEE_EXP_RATE"
+msgstr "基金托管费率"
+
+msgid "COL_HO_SALES_EXP_RATE"
+msgstr "基金销售费率"
+
+msgid "COL_HO_STATUS"
+msgstr "状态"
+
+msgid "HO_LOG"
+msgstr "持仓记录"
+
+msgid "HO_STATUS_HOLDING"
+msgstr "持仓中"
+
+msgid "HO_STATUS_NOT_HOLDING"
+msgstr "未持仓"
+
+msgid "HO_STATUS_CLEARED"
+msgstr "已清仓"
+
+msgid "COL_TR_TYPE"
+msgstr "交易类型"
+
+msgid "COL_TR_DATE"
+msgstr "交易日期"
+
+msgid "COL_TR_NAV_PER_UNIT"
+msgstr "单位净值"
+
+msgid "COL_TR_SHARES"
+msgstr "交易份数"
+
+msgid "COL_GROSS_AMOUNT"
+msgstr "交易总额"
+
+msgid "COL_TR_FEE"
+msgstr "交易费用"
+
+msgid "COL_TR_NET_AMOUNT"
+msgstr "交易净额"
+
+msgid "TEMPLATE_TR_IMPORT"
+msgstr "交易记录导入模板"
+
+msgid "TEMPLATE_HO_IMPORT"
+msgstr "基金导入模板"
+
+msgid "TR_BUY"
+msgstr "买入"
+
+msgid "TR_SELL"
+msgstr "卖出"
+
+msgid "TR_LOG"
+msgstr "交易记录"
+
+msgid "TR_EXAMPLE"
+msgstr "示例"
+
+msgid "AR_EM_PENDING"
+msgstr "待发送"
+
+msgid "AR_EM_SENT"
+msgstr "已发送"
+
+msgid "AR_EM_FAILED"
+msgstr "发送失败"
+
+msgid "AR_TR_ADD_POSITION"
+msgstr "加仓"
+
+msgid "EMAIL_SUBJECT_TRIGGER_ALERT"
+msgstr "监控触发提醒"
+
+msgid "EMAIL_TITLE"
+msgstr "持仓监控触发通知"
+
+msgid "RECIPIENT_TITLE"
+msgstr "尊敬的用户"
+msgid "RECIPIENT_PUNCTUATION"
+msgstr "："
+
+msgid "CONTENT_FIRST"
+msgstr "您的监控"
+msgid "CONTENT_SECOND"
+msgstr "已触发"
+
+msgid "COL_AH_TRIGGER_NAV_DATE"
+msgstr "触发日期"
+
+msgid "COL_AH_NAV_PER_UNIT"
+msgstr "触发单位净值"
+
+msgid "COL_AH_TARGET_NAVPU"
+msgstr "监控净值"
+
+msgid "COL_AH_AR_TYPE"
+msgstr "建议操作"
+
+msgid "EMAIL_DO_NOT_REPLY"
+msgstr "此邮件由系统自动发送，请勿直接回复。"
+
+msgid "ALL_RIGHTS_RESERVED"
+msgstr "版权所有"
+
+msgid "HOLDING_TYPE_FUND"
+msgstr "基金"
+
+msgid "HOLDING_TYPE_STOCK"
+msgstr "股票"
+
+msgid "FD_TR_EX"
+msgstr "场内交易"
+msgid "FD_TR_OFF_EX"
+msgstr "场外交易"
+msgid "FD_TR_BOTH"
+msgstr "内外皆可"
+
+msgid "FD_DIVIDEND_REINVEST"
+msgstr "分红再投资"
+msgid "FD_DIVIDEND_CASH"
+msgstr "现金分红"

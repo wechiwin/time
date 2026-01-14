@@ -1,23 +1,60 @@
 # app/framework/error_handler.py
-from flask import Flask
-from app.framework.res import Res
+from flask import Flask, jsonify
+from werkzeug.exceptions import HTTPException
+
 from app.framework.exceptions import BizException
-from app.framework.sys_constant import RESPONSE_CODE_OK, RESPONSE_CODE_ERROR, RESPONSE_CODE_NOT_FOUND
 
 
 def register_error_handler(app: Flask):
-    # 业务异常
-    @app.errorhandler(BizException)
-    def handle_biz(err):
-        return Res.fail(err.code, err.msg), 200  # http 状态码仍是 200，业务码在 body
-
-    # 404
-    @app.errorhandler(RESPONSE_CODE_NOT_FOUND)
-    def handle_404(_):
-        return Res.fail(RESPONSE_CODE_NOT_FOUND, "resource not found"), 200
-
-    # 500 / 未捕获异常
     @app.errorhandler(Exception)
-    def handle_all(err):
-        app.logger.exception(err)
-        return Res.fail(RESPONSE_CODE_ERROR, "internal error"), 200
+    def handle_exception(e):
+        # 1. 如果是已知业务异常 (BizException)
+        if isinstance(e, BizException):
+            app.logger.warning(
+                f"Business exception: {e.msg} (code: {e.code})",
+                exc_info=True  # 关键：添加这个参数来记录stacktrace
+            )
+            # 关键修改：HTTP状态码直接使用 e.code (如 401, 403)，而不是固定 200
+            return jsonify({
+                "code": e.code,
+                "msg": e.msg,
+                "data": None
+            }), e.code
+
+        # 2. 如果是 Flask/Werkzeug 的标准 HTTP 异常 (如 404, 405)
+        if isinstance(e, HTTPException):
+            app.logger.warning(
+                f"HTTP exception: {e.description} (code: {e.code})",
+                exc_info=True
+            )
+            return jsonify({
+                "code": e.code,
+                "msg": e.description,
+                "data": None
+            }), e.code
+
+        # 3. 未知系统异常 (500)
+        app.logger.exception("Internal Server Error")
+        return jsonify({
+            "code": 500,
+            "msg": "Internal Server Error",
+            "data": str(e) if app.debug else None
+        }), 500
+
+    # # 注册SQLAlchemy异常处理（可选，更精细）
+    # try:
+    #     from sqlalchemy.exc import IntegrityError, OperationalError
+    #
+    #     @app.errorhandler(IntegrityError)
+    #     def handle_db_integrity(err):
+    #         trace_id = generate_trace_id()
+    #         app.logger.error(f"【数据库约束错误】TraceID: {trace_id} | {err}", exc_info=True)
+    #         return Res.fail(RESPONSE_CODE_ERROR, "数据冲突或违反约束"), 500
+    #
+    #     @app.errorhandler(OperationalError)
+    #     def handle_db_connection(err):
+    #         trace_id = generate_trace_id()
+    #         app.logger.error(f"【数据库连接错误】TraceID: {trace_id} | {err}", exc_info=True)
+    #         return Res.fail(RESPONSE_CODE_ERROR, "数据库连接失败"), 500
+    # except ImportError:
+    #     pass
