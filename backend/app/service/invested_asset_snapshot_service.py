@@ -246,8 +246,8 @@ class InvestedAssetSnapshotService:
         # 5. 累计收益率 (Total Return) 使用 (累计买入 - 累计卖出) 作为净投入估算，如果小于等于0，则使用当前持仓成本。
         net_invested = snapshot.ias_total_buy_amount - snapshot.ias_total_sell_amount
         if net_invested <= ZERO:
-            # 如果净投入为负（卖出超过买入），使用当前持仓成本作为分母
-            cost_base = snapshot.ias_holding_cost
+            # 如果净投入为负（卖出超过买入），使用当前持仓成本作为分母 如果当天的持仓成本为0 说明清仓 用上一天的
+            cost_base = snapshot.ias_holding_cost if snapshot.ias_holding_cost != ZERO else prev_snapshot.ias_holding_cost
         else:
             cost_base = net_invested
 

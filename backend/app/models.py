@@ -662,6 +662,7 @@ class InvestedAssetAnalyticsSnapshot(TimestampMixin, BaseModel):
     """
     Absolute PnL in this window (这个窗口期内赚了多少钱)
     """
+    period_pnl_ratio = db.Column(db.Numeric(18, 4))
     # -------- Risk Metrics --------
     volatility = db.Column(db.Numeric(18, 6))  # 波动率
     max_drawdown = db.Column(db.Numeric(18, 6))  # 最大回撤 (e.g. -0.15)

@@ -210,7 +210,7 @@ class InvestedAssetAnalyticsSnapshotService:
                     irr_cumulative=metrics['irr_cum'],
                     irr_annualized=metrics['irr_ann'],
                     period_pnl=metrics['period_pnl'],
-
+                    period_pnl_ratio=metrics['period_pnl_ratio'],
                     # Risk Metrics
                     volatility=metrics['volatility'],
                     max_drawdown=metrics['mdd'],
@@ -299,15 +299,28 @@ class InvestedAssetAnalyticsSnapshotService:
         # 2. Period PnL
         period_pnl = pnls.sum()
 
+        # 逻辑：区间盈亏 / 区间期初本金
+        # 期初本金 = 第一天的期末市值 - 第一天的盈亏 - 第一天的净流入 (即 T-1 日的市值)
+        first_row = df.iloc[0]
+        start_mv_t_minus_1 = first_row['mv'] - first_row['pnl'] - first_row['net_inflow']
+
+        # 确定分母（本金）：
+        # 如果 T-1 市值几乎为0（例如新开仓），则使用第一天的净流入作为本金
+        base_capital = start_mv_t_minus_1
+        if base_capital < 1.0:  # 使用 1.0 作为金额的最小阈值，避免浮点误差
+            base_capital = base_capital + first_row['net_inflow']
+
+        if base_capital > 1.0:
+            period_pnl_ratio = period_pnl / base_capital
+        else:
+            period_pnl_ratio = 0.0
+
         # 3. IRR (Money-Weighted Return) - XIRR
-        # 仅对 'ALL' 或长周期窗口计算，短周期计算 XIRR 容易不收敛且意义不大
         irr_ann_val = None
         irr_cum_val = None
-
-        # 只有数据量足够且有资金变动时才算 IRR
+        # 仅对 'ALL' 或长周期窗口计算，短周期计算 XIRR 容易不收敛且意义不大
         if n > MIN_ANNUALIZATION_DAYS:
             irr_ann_val = cls._calculate_xirr(df)
-
             # 如果算出了年化 IRR，尝试计算累计 IRR
             if irr_ann_val is not None:
                 # 计算时间跨度（年）
@@ -319,7 +332,7 @@ class InvestedAssetAnalyticsSnapshotService:
                     except:
                         irr_cum_val = None
 
-        # 4. Risk Metrics (复用逻辑)
+        # 4. Risk Metrics
         if n > 1:
             volatility = returns.std(ddof=1) * np.sqrt(annual_factor)
         else:
@@ -393,6 +406,7 @@ class InvestedAssetAnalyticsSnapshotService:
             'irr_cum': Decimal(f"{irr_cum_val:.6f}") if irr_cum_val is not None else None,
             'irr_ann': Decimal(f"{irr_ann_val:.6f}") if irr_ann_val is not None else None,
             'period_pnl': Decimal(f"{period_pnl:.4f}"),
+            'period_pnl_ratio': Decimal(f"{period_pnl_ratio:.6f}"),
             'volatility': Decimal(f"{volatility:.6f}"),
             'mdd': Decimal(f"{mdd:.6f}"),
             'mdd_start': mdd_start_ts.date() if isinstance(mdd_start_ts, pd.Timestamp) else mdd_start_ts,
@@ -414,8 +428,7 @@ class InvestedAssetAnalyticsSnapshotService:
         1. 现金流 = 每日净投入 (net_inflow)。
         2. 最后一天的现金流 = 最后一天的市值 (视为全部赎回，正数流入)。
         """
-        # 1. 提取非零现金流
-        # 过滤出有资金进出的日子
+        # 1. 获取 非零现金流 的日期
         flows_df = df[df['net_inflow'] != 0].copy()
 
         dates = []
