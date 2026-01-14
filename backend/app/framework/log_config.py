@@ -1,46 +1,98 @@
+import glob
 import logging
 import os
 import re
 import time
-from logging.handlers import TimedRotatingFileHandler
+from logging.handlers import BaseRotatingHandler
 
 
-class SizedTimedRotatingFileHandler(TimedRotatingFileHandler):
+class SizedDailyRotatingFileHandler(BaseRotatingHandler):
     """
-    自定义Handler，同时满足：
-    1. 每天午夜轮转（TimedRotatingFileHandler的基础功能）
-    2. 如果当天日志超过指定大小（maxBytes）则立即轮转
+    同时按天和大小轮转的日志处理器
+
+    特性：
+    1. 每天午夜自动创建新日志文件
+    2. 当天日志超过指定大小时，自动分片（.1, .2, .3...）
+    3. 自动清理超过指定天数的旧日志（包括所有分片）
+    4. 线程安全，性能更好
     """
 
-    def __init__(self, filename, maxBytes=0, **kwargs):
+    def __init__(self, filename, maxBytes=0, backupDays=7, encoding=None, delay=False):
         self.maxBytes = maxBytes
+        self.backupDays = backupDays
+        self.base_filename = filename
         self.current_day = time.strftime("%Y-%m-%d")
-        super().__init__(filename, **kwargs)
+        self.current_filename = self._get_current_filename()
+
+        super().__init__(self.current_filename, 'a', encoding, delay)
+
+    def _get_current_filename(self):
+        """获取当前日期对应的日志文件名"""
+        today = time.strftime("%Y-%m-%d")
+        return f"{self.base_filename}.{today}"
+
+    def _get_next_filename(self, base_name):
+        """获取下一个可用的分片文件名"""
+        counter = 1
+        while os.path.exists(f"{base_name}.{counter}"):
+            counter += 1
+        return f"{base_name}.{counter}"
 
     def shouldRollover(self, record):
-        """
-        双重检查：
-        1. 是否到了时间轮转点（父类逻辑）
-        2. 当前文件是否超过maxBytes
-        """
-        # 检查日期变化
+        """检查是否需要轮转"""
         now_day = time.strftime("%Y-%m-%d")
         if now_day != self.current_day:
-            self.current_day = now_day
-            return 1  # 强制轮转
+            return True
 
-        # 检查文件大小
-        if self.maxBytes > 0:
+        if self.maxBytes > 0 and os.path.exists(self.baseFilename):
+            return os.path.getsize(self.baseFilename) >= self.maxBytes
+
+        return False
+
+    def doRollover(self):
+        """执行轮转"""
+        if self.stream:
+            self.stream.close()
+            self.stream = None
+
+        now_day = time.strftime("%Y-%m-%d")
+        if now_day != self.current_day:
+            # 日期变化，重置
+            self.current_day = now_day
+            self.current_filename = self._get_current_filename()
+            self.baseFilename = self.current_filename
+        else:
+            # 同一天内分片
+            self.baseFilename = self._get_next_filename(self.current_filename)
+
+        if not self.delay:
+            self.stream = self._open()
+
+        self._cleanup_old_files()
+
+    def _cleanup_old_files(self):
+        """清理超过指定天数的旧日志文件"""
+        if self.backupDays <= 0:
+            return
+
+        cutoff_time = time.time() - (self.backupDays * 86400)
+        pattern = f"{self.base_filename}.*"
+
+        for filepath in glob.glob(pattern):
             try:
-                # 使用 os.path.getsize 更可靠，即使 stream 未打开也能工作
-                if os.path.getsize(self.baseFilename) >= self.maxBytes:
-                    return 1
-            except FileNotFoundError:
-                # 如果文件不存在，则不需要轮转
+                if filepath != self.baseFilename and os.path.getmtime(filepath) < cutoff_time:
+                    os.remove(filepath)
+            except (OSError, FileNotFoundError):
                 pass
 
-        # 父类的时间检查（when/interval）
-        return super().shouldRollover(record)
+    def emit(self, record):
+        """线程安全的日志输出"""
+        try:
+            if self.shouldRollover(record):
+                self.doRollover()
+            super().emit(record)
+        except Exception:
+            self.handleError(record)
 
 
 # 设置日志格式
@@ -52,12 +104,6 @@ formatter = logging.Formatter(
 def setup_logging(app):
     """
     配置应用日志系统。
-    期望在 app.config 中有以下配置项：
-    - LOG_DIR: 日志文件目录 (默认: 'logs')
-    - LOG_FILE: 日志文件名 (默认: 'app.log')
-    - LOG_LEVEL: 应用日志级别 (默认: 'INFO')
-    - LOG_MAX_BYTES: 日志文件最大大小 (默认: 10MB)
-    - LOG_BACKUP_COUNT: 日志备份数量 (默认: 7)
     """
     # 1. 从配置中获取参数，提供默认值
     log_dir = app.config.get('LOG_DIR', 'logs')
@@ -89,16 +135,13 @@ def setup_logging(app):
         handlers.append(console_handler)
 
     # 文件Handler
-    file_handler = SizedTimedRotatingFileHandler(
+    file_handler = SizedDailyRotatingFileHandler(
         filename='logs/app.log',  # 自动生成 app.log.2025-10-23 等文件
         maxBytes=2 * 1024 * 1024,  # 2MB大小限制
-        when='midnight',  # 每天凌晨轮转
-        interval=1,  # 间隔 1 天
-        backupCount=7,  # 最多保留 7 天日志
         encoding='utf-8',
         delay=True
     )
-    file_handler.setLevel(logging.DEBUG) if app.debug else logging.INFO
+    file_handler.setLevel(logging.DEBUG if app.debug else logging.INFO)
     file_handler.setFormatter(formatter)
     file_handler.suffix = '%Y-%m-%d'  # 按日期命名日志文件
     file_handler.extMatch = re.compile(r'^\d{4}-\d{2}-\d{2}(\.\d+)?$')  # 匹配带数字后缀的文件
@@ -153,3 +196,5 @@ def get_early_logger(name: str = 'flask.app'):
         logger.addHandler(tmp_handler)
         logger.setLevel(logging.DEBUG)
         return logger
+
+    return logger
