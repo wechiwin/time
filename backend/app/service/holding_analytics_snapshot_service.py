@@ -1,7 +1,7 @@
 # app/service/holding_analytics_snapshot_service.py
 import logging
 import time
-import traceback
+from collections import defaultdict
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import List, Dict, Optional
@@ -9,12 +9,13 @@ from typing import List, Dict, Optional
 import numpy as np
 import pandas as pd
 from scipy import optimize
+from sqlalchemy import or_
 
 from app.calendars.trade_calendar import TradeCalendar
 from app.database import db
 from app.framework.async_task_manager import create_task
 from app.models import (
-    Holding, HoldingSnapshot, AnalyticsWindow, HoldingAnalyticsSnapshot
+    Holding, HoldingSnapshot, AnalyticsWindow, HoldingAnalyticsSnapshot, InvestedAssetSnapshot
 )
 
 logger = logging.getLogger(__name__)
@@ -29,11 +30,9 @@ EPSILON = 1e-6  # 浮点精度阈值
 
 
 class HoldingAnalyticsSnapshotService:
-    # TODO 之后需要计算的字段or逻辑
-    #  1.has_benchmark_return，has_alpha, has_beta，has_tracking_error，has_information_ratio
+    # TODO has_benchmark_return，has_alpha, has_beta，has_tracking_error，has_information_ratio
     #  这需要引入 BenchmarkHistory 数据。逻辑是：将持仓的 df 与基准的 df 按日期 join，然后计算协方差（Covariance）得出 Beta，
     #  再计算 Alpha。目前的实现暂未包含此部分，如果需要可以后续添加。
-    #  2.has_portfolio_contribution 需要等到 portfolio snapshot 算完了才计算
 
     @classmethod
     def generate_yesterday_analytics(cls):
@@ -70,7 +69,7 @@ class HoldingAnalyticsSnapshotService:
             )
 
             if snapshots:
-                # 删除可能存在的当天重复数据（防重入） TODO 改成删除 target_ho_ids 的数据
+                # 删除可能存在的当天重复数据（防重入）
                 db.session.query(HoldingAnalyticsSnapshot).filter(
                     HoldingAnalyticsSnapshot.snapshot_date == target_date,
                     HoldingAnalyticsSnapshot.ho_id.in_(target_ho_ids)
@@ -407,7 +406,7 @@ class HoldingAnalyticsSnapshotService:
         else:
             sortino = ZERO
 
-        # 7. 最大回撤 (Max Drawdown) TODO 跳过多个持仓周期之间的空仓期 还是说在各个周期内进行寻找
+        # 7. 最大回撤 (Max Drawdown)
         # 构造净值曲线 (假设初始为1)
         nav_series = (1 + daily_pnl_ratio_list).cumprod()
         # 历史累计最大值
@@ -646,3 +645,97 @@ class HoldingAnalyticsSnapshotService:
         max_runup = runup_series.max()
 
         return Decimal(f"{max_runup:.6f}")
+
+    @classmethod
+    def update_position_ratios_and_contributions(cls):
+        """
+        定时任务：计算并更新指定日期的 has_position_ratio 和 has_portfolio_contribution。
+        计算逻辑：
+          - position_ratio = holding_mv / portfolio_mv
+          - contribution = holding_daily_pnl / portfolio_mv_yesterday
+                贡献度基于简单收益率法计算。当日大额资金进出可能会导致贡献度数值失真。
+        """
+        start_time = time.time()
+
+        # 获取需要更新字段的列表
+        to_update_has_list = HoldingAnalyticsSnapshot.query.filter(
+            or_(
+                HoldingAnalyticsSnapshot.has_position_ratio.is_(None),
+                HoldingAnalyticsSnapshot.has_portfolio_contribution.is_(None)
+            )
+        ).order_by(HoldingAnalyticsSnapshot.snapshot_date).all()
+        if not to_update_has_list:
+            logger.info(f"Nothing in to_update_has_list.")
+            return {"updated": 0}
+
+        # 1. 构建需要更新的 HoldingAnalyticsSnapshot 日期映射
+        has_to_update_date_map = defaultdict(list)
+        for has in to_update_has_list:
+            has_to_update_date_map[has.snapshot_date].append(has)
+        # 2. 获取日期范围并批量查询 InvestedAssetSnapshot
+        min_date = min(has_to_update_date_map.keys())
+        max_date = max(has_to_update_date_map.keys())
+
+        # 3. 获取所有需要的持仓快照
+        holding_snapshots = HoldingSnapshot.query.filter(
+            HoldingSnapshot.snapshot_date.between(min_date, max_date)
+        ).all()
+
+        holding_data_map = defaultdict(list)
+        for snap in holding_snapshots:
+            holding_data_map[snap.snapshot_date].append(snap)
+
+        # 获取所有需要的投资组合快照 往前倒一天
+        ias_list = InvestedAssetSnapshot.query.filter(
+            InvestedAssetSnapshot.snapshot_date.between(trade_calendar.prev_trade_day(min_date), max_date)
+        ).all()
+        ias_date_map = {ps.snapshot_date: ps for ps in ias_list}
+
+        updated_count = 0
+
+        for target_date, has_records in has_to_update_date_map.items():
+            # 获取当日组合市值
+            ias_today = ias_date_map.get(target_date)
+            if not ias_today:
+                logger.warning(f"No ias_today found for {target_date}")
+                continue
+
+            # 获取前一日组合市值
+            ias_prev = ias_date_map.get(trade_calendar.prev_trade_day(target_date))
+            if ias_prev is None:
+                logger.debug(f"No ias_prev found for {target_date}")
+                continue
+
+            holding_snaps_target = holding_data_map.get(target_date)
+            if not holding_snaps_target:
+                logger.debug(f"no holding_snaps_target for {target_date}")
+                continue
+            holding_snaps_target_map = {hst.ho_id: hst for hst in holding_snaps_target}
+
+            # 更新每个记录
+            for has in has_records:
+                holding_data = holding_snaps_target_map.get(has.ho_id)
+                if not holding_data:
+                    logger.debug(f"No holding data found for {target_date}, ho_id={has.ho_id}")
+                    continue
+
+                prev_mv = ias_prev.ias_market_value if ias_prev else ZERO
+                if prev_mv and prev_mv != ZERO:
+                    has.has_portfolio_contribution = holding_data.hos_daily_pnl / prev_mv
+                else:
+                    has.has_portfolio_contribution = ZERO
+
+                if ias_today.ias_market_value and ias_today.ias_market_value != ZERO:
+                    has.has_position_ratio = holding_data.hos_market_value / ias_today.ias_market_value
+                else:
+                    has.has_position_ratio = ZERO
+
+                updated_count += 1
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error in update_position_ratios_and_contributions: {e}", exc_info=True)
+            raise
+
+        return {"updated": updated_count, "duration": round(time.time() - start_time, 2)}

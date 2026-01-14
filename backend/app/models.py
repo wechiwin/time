@@ -538,6 +538,10 @@ class HoldingAnalyticsSnapshot(TimestampMixin, BaseModel):
     has_information_ratio = db.Column(db.Numeric(18, 4))
 
     # --------- 6. Contribution (贡献) ---------
+    has_position_ratio = db.Column(db.Numeric(18, 6))
+    """
+    仓位占比
+    """
     has_portfolio_contribution = db.Column(db.Numeric(18, 6))
     """
     组合贡献度

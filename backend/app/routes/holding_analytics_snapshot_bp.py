@@ -14,3 +14,9 @@ holding_analytics_snapshot_bp = Blueprint('holding_analytics_snapshot', __name__
 def remake_all():
     data = HoldingAnalyticsSnapshotService.generate_all_analytics()
     return Res.success(data)
+
+
+@holding_analytics_snapshot_bp.route('/update_ratios', methods=['GET'])
+def update_ratios():
+    data = HoldingAnalyticsSnapshotService.update_position_ratios_and_contributions()
+    return Res.success(data)
