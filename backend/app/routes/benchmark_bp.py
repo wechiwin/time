@@ -17,3 +17,12 @@ def sync_benchmark():
         return Res.success()
     except Exception as e:
         return Res.fail(str(e))
+
+
+@benchmark_bp.route('/update_iaas', methods=['GET'])
+def update_iaas():
+    try:
+        BenchmarkService.batch_update_benchmark_metrics()
+        return Res.success()
+    except Exception as e:
+        return Res.fail(str(e))
