@@ -1,6 +1,7 @@
 from flask import Flask
 
 from .alert_bp import alert_bp
+from .benchmark_bp import benchmark_bp
 from .common_bp import common_bp
 from .dashboard_bp import dashboard_bp
 from .holding_analytics_snapshot_bp import holding_analytics_snapshot_bp
@@ -25,3 +26,4 @@ def register_routes(app: Flask):
     app.register_blueprint(holding_analytics_snapshot_bp)
     app.register_blueprint(invested_asset_snapshot_bp)
     app.register_blueprint(invested_asset_analytics_snapshot_bp)
+    app.register_blueprint(benchmark_bp)

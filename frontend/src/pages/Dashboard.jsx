@@ -1,683 +1,409 @@
-// src/pages/Dashboard.jsx
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useMemo, useState} from 'react';
 import {useTranslation} from 'react-i18next';
-import {useToast} from '../components/context/ToastContext';
 import useDashboard from '../hooks/api/useDashboard';
 import ReactECharts from 'echarts-for-react';
-import {getGaugeOption, getLineChartOption, getPieChartOption} from '../utils/echartsConfig';
-
-// 导入图标组件 (使用 heroicons/react)
 import {
     ArrowPathIcon,
-    ArrowTrendingDownIcon,
-    ArrowTrendingUpIcon,
-    CalendarIcon,
-    ChartBarIcon,
     ChartPieIcon,
-    ChevronRightIcon,
     ClockIcon,
     CurrencyDollarIcon,
     ExclamationTriangleIcon,
-    ShieldCheckIcon,
-    CircleStackIcon
+    PresentationChartLineIcon,
+    ScaleIcon
 } from '@heroicons/react/24/outline';
+import useDarkMode from "../hooks/useDarkMode";
+import {formatCurrency, formatPercent, getColor} from '../utils/formatters';
+import {getLineOption, getPieOption} from '../utils/chartOptions';
+
+// 窗口名称映射表
+const WINDOW_NAME_MAP = {
+    'ALL': '成立以来',
+    'CUR': '本轮持仓',
+    'R21': '近一月',
+    'R63': '近三月',
+    'R126': '近半年',
+    'R252': '近一年'
+};
 
 export default function Dashboard() {
     const {t} = useTranslation();
-    const {showErrorToast} = useToast();
-    const [timeRange, setTimeRange] = useState('30d');
-    const [isDarkMode, setIsDarkMode] = useState(false);
-
-    // 检测暗黑模式
-    useEffect(() => {
-        const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-        setIsDarkMode(darkModeMediaQuery.matches);
-
-        const handleChange = (e) => setIsDarkMode(e.matches);
-        darkModeMediaQuery.addEventListener('change', handleChange);
-
-        return () => darkModeMediaQuery.removeEventListener('change', handleChange);
-    }, []);
-
+    const [timeRange, setTimeRange] = useState('1y');
+    const isDarkMode = useDarkMode();
+    // 获取账户整体状况
     const {
         data,
+        overviewData,
         loading,
+        overviewLoading,
         error,
-        fetchDashboardData
+        fetchSummaryData,
+        fetchOverviewData
     } = useDashboard({
         autoLoad: true,
-        days: parseInt(timeRange.replace('d', ''))
+        defaultDays: 365,
+        defaultWindow: 'R252'
     });
 
-    // 图表引用
-    const pieChartRef = useRef(null);
-    const lineChartRef = useRef(null);
-    const gaugeChartRef = useRef(null);
+    // Memoized chart options
+    const lineOption = useMemo(() =>
+            getLineOption(data?.trend, isDarkMode),
+        [data?.trend, isDarkMode]
+    );
+    const pieOption = useMemo(() =>
+            getPieOption(data?.allocation, isDarkMode),
+        [data?.allocation, isDarkMode]
+    );
 
-    // 处理时间范围变化
-    const handleTimeRangeChange = (range) => {
-        setTimeRange(range);
-        const days = parseInt(range.replace('d', ''));
-        fetchDashboardData(days);
+    const handleRangeChange = (e) => {
+        const val = e.target.value;
+        setTimeRange(val);
+
+        const rangeMap = {
+            '1m': {win: 'R21', days: 30},
+            '3m': {win: 'R63', days: 90},
+            '6m': {win: 'R126', days: 180},
+            '1y': {win: 'R252', days: 365},
+            'all': {win: 'ALL', days: 3650}
+        };
+
+        const {win, days} = rangeMap[val] || {win: 'R252', days: 365};
+        fetchSummaryData(days, win);
     };
+    // 性能数据简写
+    const performance = data?.performance;
 
-    // 刷新数据
     const handleRefresh = () => {
-        fetchDashboardData(parseInt(timeRange.replace('d', '')));
+        fetchSummaryData();
+        fetchOverviewData();
     };
 
-    // 格式化货币
-    const formatCurrency = (value) => {
-        if (value === undefined || value === null) return '¥0.00';
-        return new Intl.NumberFormat('zh-CN', {
-            style: 'currency',
-            currency: 'CNY',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(value);
-    };
+    // 计算派生数据
+    const lastUpdateDate = useMemo(() => {
+        return (data?.trend && data.trend.length > 0)
+            ? data.trend[data.trend.length - 1].date
+            : (overviewData?.date || null);
+    }, [data, overviewData]);
 
-    // 格式化百分比
-    const formatPercent = (value) => {
-        if (value === undefined || value === null) return '0.00%';
-        const sign = value >= 0 ? '+' : '';
-        return `${sign}${value.toFixed(2)}%`;
-    };
+    // 窗口名称
+    const windowName = useMemo(() => {
+        return WINDOW_NAME_MAP[data?.performance?.window] || data?.performance?.window || '近一年';
+    }, [performance?.window]);
 
-    // 获取颜色基于数值
-    const getColorForValue = (value) => {
-        if (value > 0) return 'text-green-600 dark:text-green-400';
-        if (value < 0) return 'text-red-600 dark:text-red-400';
-        return 'text-gray-600 dark:text-gray-400';
-    };
-
-    // 获取背景颜色基于数值
-    const getBgColorForValue = (value) => {
-        if (value > 0) return 'bg-green-100 dark:bg-green-900/30';
-        if (value < 0) return 'bg-red-100 dark:bg-red-900/30';
-        return 'bg-gray-100 dark:bg-gray-800';
-    };
-
-    // 模拟收益趋势数据（实际项目中应从API获取）
-    const getProfitTrendData = () => {
-        const days = parseInt(timeRange.replace('d', ''));
-        const data = [];
-        const today = new Date();
-
-        for (let i = days - 1; i >= 0; i--) {
-            const date = new Date(today);
-            date.setDate(date.getDate() - i);
-
-            // 模拟数据
-            const profit = Math.random() * 5000 - 1000;
-            data.push({
-                date: date.toLocaleDateString('zh-CN', {month: 'short', day: 'numeric'}),
-                profit: Math.round(profit)
-            });
-        }
-
-        return data;
-    };
-
-    if (loading) {
+    if (loading && !data) {
         return (
             <div className="flex justify-center items-center min-h-[400px]">
-                <div className="text-center">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    <p className="mt-2 text-gray-500 dark:text-gray-400">
-                        {t('dashboard.loading')}
-                    </p>
-                </div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="text-center py-8">
-                <ExclamationTriangleIcon className="w-12 h-12 text-red-500 mx-auto mb-4"/>
-                <div className="text-red-600 dark:text-red-400 mb-4">
-                    {t('dashboard.loadError')}
-                </div>
-                <button
-                    onClick={handleRefresh}
-                    className="btn-primary"
-                >
-                    {t('button_retry')}
-                </button>
+            <div className="text-center py-12 text-red-500">
+                <ExclamationTriangleIcon className="w-12 h-12 mx-auto mb-2"/>
+                <p>数据加载失败</p>
+                <button onClick={handleRefresh} className="mt-4 text-blue-500 underline">重试</button>
             </div>
         );
     }
 
-    if (!data) {
-        return null;
-    }
-
-    const {
-        holdings_summary,
-        trade_statistics,
-        recent_alerts,
-        portfolio_volatility,
-        asset_allocation
-    } = data;
-
-    // 准备图表数据
-    const pieChartData = asset_allocation || [];
-    const lineChartData = getProfitTrendData();
-    const gaugeData = {
-        volatility: portfolio_volatility?.volatility || 0,
-        beta: portfolio_volatility?.beta || 1
-    };
+    if (!data) return null;
 
     return (
-        <div className="space-y-6 p-4 md:p-6">
-            {/* 头部区域 */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-                        {t('dashboard.title')}
-                    </h1>
-                    <p className="text-gray-500 dark:text-gray-400 mt-1">
-                        {t('dashboard.subtitle')}
-                    </p>
+        <div className="p-2 md:p-4 max-w-7xl mx-auto space-y-3">
+            {/* 第一部分：账户整体概览 (来自 /overview 接口) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                <KpiCard
+                    title="总资产"
+                    value={formatCurrency(overviewData?.total_mv)}
+                    subValue={overviewData?.holding_cost ? `持仓成本 ${formatCurrency(overviewData?.holding_cost)}` : null}
+                    icon={<CurrencyDollarIcon className="w-5 h-5 text-blue-500"/>}
+                    loading={overviewLoading}
+                />
+                <KpiCard
+                    title="累计盈亏"
+                    value={formatCurrency(overviewData?.total_pnl)}
+                    valueColor={getColor(overviewData?.total_pnl)}
+                    subValue={overviewData?.total_pnl_ratio ? `${formatPercent(overviewData?.total_pnl_ratio)}` : '0.00%'}
+                    subValueColor={getColor(overviewData?.total_pnl_ratio)}
+                    icon={<ScaleIcon className="w-5 h-5 text-purple-500"/>}
+                    loading={overviewLoading}
+                />
+                <KpiCard
+                    title="累计 TWRR"
+                    value={formatPercent(overviewData?.twrr_cum)}
+                    valueColor={getColor(overviewData?.twrr_cum)}
+                    subValue={`年化 IRR: ${formatPercent(overviewData?.irr_ann)}`}
+                    subValueColor={getColor(overviewData?.total_pnl_ratio)}
+                    icon={<PresentationChartLineIcon className="w-5 h-5 text-orange-500"/>}
+                    tooltip="时间加权收益率：反映策略自成立以来的累计表现，剔除资金进出影响。"
+                    loading={overviewLoading}
+                />
+                <KpiCard
+                    title="历史最大回撤"
+                    value={formatPercent(overviewData?.max_drawdown)}
+                    valueColor={getColor(overviewData?.max_drawdown)}
+                    icon={<ClockIcon className="w-5 h-5 text-green-500"/>}
+                    tooltip="内部收益率：反映实际资金的年化回报，包含加减仓时机的影响。"
+                    loading={overviewLoading}
+                />
+            </div>
+            {/* 分隔线与控制栏 */}
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-1">
+                <div className="flex items-center gap-2 text-xs text-gray-400">
+                    <span>以下数据更新于: {overviewData?.update_date || '-'}</span>
+                    {overviewData?.total_mv === 0 && <span className="text-orange-500">(空仓)</span>}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-                    {/* 时间范围选择器 */}
-                    <div className="relative">
-                        <select
-                            value={timeRange}
-                            onChange={(e) => handleTimeRangeChange(e.target.value)}
-                            className="appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                            <option value="7d">最近7天</option>
-                            <option value="30d">最近30天</option>
-                            <option value="90d">最近90天</option>
-                            <option value="1y">最近1年</option>
-                        </select>
-                        <CalendarIcon
-                            className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"/>
-                    </div>
-
-                    {/* 刷新按钮 */}
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <select
+                        value={timeRange}
+                        onChange={handleRangeChange}
+                        className="flex-1 sm:flex-none bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md px-3 py-1.5 text-sm focus:ring-1 focus:ring-blue-500 dark:text-white outline-none shadow-sm"
+                    >
+                        <option value="1m">近1月</option>
+                        <option value="3m">近3月</option>
+                        <option value="6m">近半年</option>
+                        <option value="1y">近1年</option>
+                        <option value="all">成立以来</option>
+                    </select>
                     <button
                         onClick={handleRefresh}
-                        className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm"
+                        title="刷新数据"
                     >
-                        <ArrowPathIcon className="w-4 h-4"/>
-                        <span className="text-sm">{t('button_refresh')}</span>
+                        <ArrowPathIcon className={`w-4 h-4 text-gray-500 ${loading ? 'animate-spin' : ''}`}/>
                     </button>
                 </div>
             </div>
 
-            {/* KPI卡片网格 */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* 总资产 */}
-                <div className="card p-5">
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                                {t('dashboard.totalAssets')}
-                            </p>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                                {formatCurrency(holdings_summary?.total_value)}
-                            </p>
-                            <div className="flex items-center gap-1 mt-2">
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {t('dashboard.cost')}:
-                </span>
-                                <span className="text-xs font-medium">
-                  {formatCurrency(holdings_summary?.total_cost)}
-                </span>
-                            </div>
-                        </div>
-                        <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                            <CurrencyDollarIcon className="w-6 h-6 text-blue-600 dark:text-blue-400"/>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 持仓收益 */}
-                <div className="card p-5">
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                                {t('dashboard.holdingProfit')}
-                            </p>
-                            <p className={`text-2xl font-bold ${getColorForValue(holdings_summary?.total_profit)}`}>
-                                {formatCurrency(holdings_summary?.total_profit)}
-                            </p>
-                            <div
-                                className={`flex items-center gap-1 mt-2 ${getColorForValue(holdings_summary?.total_profit_rate)}`}>
-                                {holdings_summary?.total_profit_rate >= 0 ? (
-                                    <ArrowTrendingUpIcon className="w-4 h-4"/>
-                                ) : (
-                                    <ArrowTrendingDownIcon className="w-4 h-4"/>
-                                )}
-                                <span className="text-sm font-medium">
-                  {formatPercent(holdings_summary?.total_profit_rate)}
-                </span>
-                            </div>
-                        </div>
-                        <div className={`p-3 rounded-lg ${getBgColorForValue(holdings_summary?.total_profit)}`}>
-                            <ChartBarIcon
-                                className={`w-6 h-6 ${getColorForValue(holdings_summary?.total_profit).replace('text-', '')}`}/>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 今日收益 */}
-                <div className="card p-5">
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                                {t('dashboard.todayProfit')}
-                            </p>
-                            <p className={`text-2xl font-bold ${getColorForValue(holdings_summary?.today_profit)}`}>
-                                {formatCurrency(holdings_summary?.today_profit)}
-                            </p>
-                            <div
-                                className={`flex items-center gap-1 mt-2 ${getColorForValue(holdings_summary?.today_profit_rate)}`}>
-                                {holdings_summary?.today_profit_rate >= 0 ? (
-                                    <ArrowTrendingUpIcon className="w-4 h-4"/>
-                                ) : (
-                                    <ArrowTrendingDownIcon className="w-4 h-4"/>
-                                )}
-                                <span className="text-sm font-medium">
-                  {formatPercent(holdings_summary?.today_profit_rate)}
-                </span>
-                            </div>
-                        </div>
-                        <div className={`p-3 rounded-lg ${getBgColorForValue(holdings_summary?.today_profit)}`}>
-                            <CircleStackIcon
-                                className={`w-6 h-6 ${getColorForValue(holdings_summary?.today_profit).replace('text-', '')}`}/>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 累计收益 */}
-                <div className="card p-5">
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                                {t('dashboard.cumulativeProfit')}
-                            </p>
-                            <p className={`text-2xl font-bold ${getColorForValue(holdings_summary?.cumulative_profit)}`}>
-                                {formatCurrency(holdings_summary?.cumulative_profit)}
-                            </p>
-                            <div
-                                className={`flex items-center gap-1 mt-2 ${getColorForValue(holdings_summary?.cumulative_profit_rate)}`}>
-                                {holdings_summary?.cumulative_profit_rate >= 0 ? (
-                                    <ArrowTrendingUpIcon className="w-4 h-4"/>
-                                ) : (
-                                    <ArrowTrendingDownIcon className="w-4 h-4"/>
-                                )}
-                                <span className="text-sm font-medium">
-                  {formatPercent(holdings_summary?.cumulative_profit_rate)}
-                </span>
-                            </div>
-                        </div>
-                        <div className={`p-3 rounded-lg ${getBgColorForValue(holdings_summary?.cumulative_profit)}`}>
-                            <ShieldCheckIcon
-                                className={`w-6 h-6 ${getColorForValue(holdings_summary?.cumulative_profit).replace('text-', '')}`}/>
-                        </div>
-                    </div>
-                </div>
+            {/* 第二部分：区间分析 (来自 /summary 接口) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <KpiCard
+                    title={`区间盈亏 (${windowName})`}
+                    value={formatCurrency(performance?.period_pnl)}
+                    valueColor={getColor(performance?.period_pnl)}
+                    subValue={formatPercent(performance?.period_pnl_ratio)}
+                    subValueColor={getColor(overviewData?.total_pnl_ratio)}
+                    icon={<ScaleIcon className="w-6 h-6 text-purple-500"/>}
+                />
+                <KpiCard
+                    title="TWRR"
+                    value={formatPercent(performance?.twrr_cumulative)}
+                    valueColor={getColor(performance?.twrr_cumulative)}
+                    subValue={performance?.irr_annualized === 0
+                        ? '年化 IRR: -'
+                        : `年化 IRR: ${formatPercent(performance?.irr_annualized)}`}
+                    icon={<PresentationChartLineIcon className="w-6 h-6 text-orange-500"/>}
+                    tooltip="TWRR衡量策略表现(剔除资金进出影响)，IRR衡量实际到手回报"
+                />
+                {/* 卡片 3: 超额收益 (Alpha) - 替换原来的波动率 */}
+                <KpiCard
+                    title="超额收益 (Alpha)"
+                    value={formatPercent(performance?.alpha)}
+                    valueColor={getColor(performance?.alpha)}
+                    // Beta 衡量对市场的敏感度，与 Alpha 成对出现最合适
+                    subValue={`Beta: ${performance?.beta ? formatPercent(performance.beta) : '-'}`}
+                    subValueColor="text-gray-500"
+                    icon={<CurrencyDollarIcon className="w-6 h-6 text-orange-500"/>}
+                    tooltip="Alpha: 跑赢基准的超额收益；Beta: 相对基准的波动敏感度 (>1 表示比基准波动大)"
+                />
+                {/* 卡片 4: 基准表现*/}
+                <KpiCard
+                    title="同期基准收益"
+                    value={formatPercent(performance?.benchmark_cumulative_return)}
+                    valueColor={getColor(performance?.benchmark_cumulative_return)}
+                    // 显示具体的基准名称，让用户知道在和谁比
+                    subValue={performance?.benchmark_name || '沪深300'}
+                    icon={<ChartPieIcon className="w-6 h-6 text-gray-500"/>}
+                    tooltip="同一时间区间内，对标指数（如沪深300）的涨跌幅"
+                />
             </div>
 
             {/* 图表区域 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* 资产配置饼图 */}
-                <div className="card p-5">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                            {t('dashboard.assetAllocation')}
-                        </h2>
-                        <ChartPieIcon className="w-5 h-5 text-gray-400"/>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* 资产走势 */}
+                <div
+                    className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700">
+                    <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
+                        资产走势 <span className="text-sm font-normal text-gray-500">({windowName})</span>
+                    </h3>
+                    <div className="h-80">
+                        <ReactECharts
+                            option={lineOption}
+                            style={{height: '100%', width: '100%'}}
+                            theme={isDarkMode ? 'dark' : 'light'}
+                            notMerge={true}
+                        />
                     </div>
-                    <div className="h-64 md:h-80">
-                        {pieChartData.length > 0 ? (
-                            <ReactECharts
-                                ref={pieChartRef}
-                                option={getPieChartOption(pieChartData, isDarkMode)}
-                                style={{height: '100%', width: '100%'}}
-                                theme={isDarkMode ? 'dark' : 'light'}
-                            />
-                        ) : (
-                            <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
-                                {t('dashboard.noAllocationData')}
+                </div>
+
+                {/* 资产配置 */}
+                <div
+                    className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700 flex flex-col">
+                    <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">持仓分布</h3>
+
+                    {data?.allocation && data?.allocation.length > 0 ? (
+                        <>
+                            <div className="flex-1 min-h-[200px]">
+                                <ReactECharts
+                                    option={pieOption}
+                                    style={{height: '100%', width: '100%'}}
+                                    theme={isDarkMode ? 'dark' : 'light'}
+                                />
                             </div>
-                        )}
-                    </div>
-                    {pieChartData.length > 0 && (
-                        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {pieChartData.slice(0, 4).map((item, index) => (
-                                <div key={index}
-                                     className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded">
-                                    <div className="flex items-center gap-2">
-                                        <div
-                                            className="w-3 h-3 rounded"
-                                            style={{
-                                                backgroundColor: [
-                                                    '#3b82f6', '#10b981', '#f59e0b', '#ef4444'
-                                                ][index % 4]
-                                            }}
-                                        />
-                                        <span className="text-sm truncate" title={item.name}>
-                      {item.name}
-                    </span>
+                            <div className="mt-4 space-y-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+                                {data.allocation.map((item) => (
+                                    <div key={item.code}
+                                         className="flex justify-between items-center text-sm p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded">
+                                        <div className="flex flex-col">
+                                            <span
+                                                className="text-gray-700 dark:text-gray-300 truncate w-32 font-medium">{item.name}</span>
+                                            <span className="text-xs text-gray-400">{item.code}</span>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="font-medium text-gray-900 dark:text-white">
+                                                {item.weight}%
+                                            </div>
+                                            <div className={`text-xs ${getColor(item.profit_rate)}`}>
+                                                {formatPercent(item.profit_rate)}
+                                            </div>
+                                        </div>
                                     </div>
-                                    <span className="text-sm font-medium">
-                    {item.percentage}%
-                  </span>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
+                        </>
+                    ) : (
+                        // 空状态展示
+                        <div className="flex-1 flex flex-col items-center justify-center text-gray-400 min-h-[240px]">
+                            <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-full mb-3">
+                                <ChartPieIcon className="w-8 h-8 text-gray-300 dark:text-gray-500"/>
+                            </div>
+                            <p className="text-sm">当前无持仓数据</p>
+                            <p className="text-xs text-gray-400 mt-1">请添加交易记录或等待数据更新</p>
                         </div>
                     )}
                 </div>
-
-                {/* 收益趋势图 */}
-                <div className="card p-5">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                            {t('dashboard.profitTrend')}
-                        </h2>
-                        <ArrowTrendingUpIcon className="w-5 h-5 text-gray-400"/>
-                    </div>
-                    <div className="h-64 md:h-80">
-                        <ReactECharts
-                            ref={lineChartRef}
-                            option={getLineChartOption(lineChartData, isDarkMode)}
-                            style={{height: '100%', width: '100%'}}
-                            theme={isDarkMode ? 'dark' : 'light'}
-                        />
-                    </div>
-                </div>
             </div>
 
-            {/* 交易统计和波动性 */}
+            {/* 风险与预警 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* 交易统计 */}
-                <div className="card p-5">
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                        {t('dashboard.tradeStatistics')}
-                    </h2>
-
-                    <div className="grid grid-cols-2 gap-4 mb-6">
-                        <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                                {t('dashboard.totalTrades')}
-                            </p>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                                {trade_statistics?.total_trades || 0}
-                            </p>
+                {/* 风险指标 */}
+                <div
+                    className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700">
+                    <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
+                        风险分析 <span className="text-sm font-normal text-gray-500">({windowName})</span>
+                    </h3>
+                    {data?.performance ? (
+                        <div className="grid grid-cols-2 gap-4">
+                            <RiskMetric label="夏普比率" value={data.performance.sharpe_ratio?.toFixed(2)}
+                                        desc=">1 为佳"/>
+                            <RiskMetric label="最大回撤" value={formatPercent(data.performance.max_drawdown)}
+                                        color="text-green-600 dark:text-green-400" desc="越小越好"/>
+                            <RiskMetric label="年化波动率" value={formatPercent(data.performance.volatility)}
+                                        desc="风险程度"/>
+                            <RiskMetric label="胜率" value={formatPercent(data.performance.win_rate)}
+                                        desc="盈利天数占比"/>
                         </div>
-                        <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                                {t('dashboard.winRate')}
-                            </p>
-                            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                                {trade_statistics?.win_rate || 0}%
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <ClockIcon className="w-4 h-4 text-gray-400"/>
-                                <span className="text-gray-600 dark:text-gray-300">
-                  {t('dashboard.avgHoldingPeriod')}
-                </span>
-                            </div>
-                            <span className="font-medium">
-                {trade_statistics?.avg_holding_period || 0} {t('dashboard.days')}
-              </span>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-              <span className="text-gray-600 dark:text-gray-300">
-                {t('dashboard.avgProfit')}
-              </span>
-                            <span className="font-medium text-green-600 dark:text-green-400">
-                {formatCurrency(trade_statistics?.avg_profit || 0)}
-              </span>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-              <span className="text-gray-600 dark:text-gray-300">
-                {t('dashboard.avgLoss')}
-              </span>
-                            <span className="font-medium text-red-600 dark:text-red-400">
-                {formatCurrency(trade_statistics?.avg_loss || 0)}
-              </span>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-              <span className="text-gray-600 dark:text-gray-300">
-                {t('dashboard.profitLossRatio')}
-              </span>
-                            <span className="font-medium">
-                {trade_statistics?.profit_loss_ratio || 0}
-              </span>
-                        </div>
-                    </div>
+                    ) : (
+                        <div className="text-center py-8 text-gray-400 text-sm">暂无风险分析数据</div>
+                    )}
                 </div>
 
-                {/* 波动性分析 */}
-                <div className="card p-5">
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                        {t('dashboard.portfolioVolatility')}
-                    </h2>
-
-                    <div className="h-48 md:h-56 mb-6">
-                        <ReactECharts
-                            ref={gaugeChartRef}
-                            option={getGaugeOption(gaugeData.volatility, gaugeData.beta, isDarkMode)}
-                            style={{height: '100%', width: '100%'}}
-                            theme={isDarkMode ? 'dark' : 'light'}
-                        />
-                    </div>
-
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-              <span className="text-gray-600 dark:text-gray-300">
-                {t('dashboard.sharpeRatio')}
-              </span>
-                            <span className={`font-medium ${
-                                portfolio_volatility?.sharpe_ratio > 1 ? 'text-green-600 dark:text-green-400' :
-                                    portfolio_volatility?.sharpe_ratio > 0 ? 'text-yellow-600 dark:text-yellow-400' :
-                                        'text-red-600 dark:text-red-400'
-                            }`}>
-                {portfolio_volatility?.sharpe_ratio || 0}
-              </span>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-              <span className="text-gray-600 dark:text-gray-300">
-                {t('dashboard.maxDrawdown')}
-              </span>
-                            <span className="font-medium text-red-600 dark:text-red-400">
-                {portfolio_volatility?.max_drawdown || 0}%
-              </span>
-                        </div>
-
-                        <div className={`mt-4 p-3 rounded-lg ${
-                            portfolio_volatility?.beta > 1.2 ? 'bg-red-100 dark:bg-red-900/30' :
-                                portfolio_volatility?.beta > 0.8 ? 'bg-yellow-100 dark:bg-yellow-900/30' :
-                                    'bg-green-100 dark:bg-green-900/30'
-                        }`}>
-                            <p className={`text-sm ${
-                                portfolio_volatility?.beta > 1.2 ? 'text-red-700 dark:text-red-300' :
-                                    portfolio_volatility?.beta > 0.8 ? 'text-yellow-700 dark:text-yellow-300' :
-                                        'text-green-700 dark:text-green-300'
-                            }`}>
-                                {portfolio_volatility?.beta > 1.2 ? t('dashboard.highRiskPortfolio') :
-                                    portfolio_volatility?.beta > 0.8 ? t('dashboard.moderateRiskPortfolio') :
-                                        t('dashboard.lowRiskPortfolio')}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* 近期预警 */}
-            <div className="card p-5">
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                        {t('dashboard.recentAlerts')}
-                    </h2>
-                    <ExclamationTriangleIcon className="w-5 h-5 text-gray-400"/>
-                </div>
-
-                {(!recent_alerts || recent_alerts.length === 0) ? (
-                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                        {t('dashboard.noAlerts')}
-                    </div>
-                ) : (
+                {/* 预警列表 */}
+                <div
+                    className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700">
+                    <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">近期信号</h3>
                     <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead>
+                        <table className="w-full text-sm text-left">
+                            <thead className="text-xs text-gray-500 uppercase bg-gray-50 dark:bg-gray-700/50">
                             <tr>
-                                <th className="table-header">{t('dashboard.fund')}</th>
-                                <th className="table-header">{t('dashboard.type')}</th>
-                                <th className="table-header">{t('dashboard.currentNav')}</th>
-                                <th className="table-header">{t('dashboard.targetNav')}</th>
-                                <th className="table-header">{t('dashboard.triggerDate')}</th>
-                                <th className="table-header">{t('dashboard.status')}</th>
+                                <th className="px-3 py-2 rounded-l-lg">标的</th>
+                                <th className="px-3 py-2">类型</th>
+                                <th className="px-3 py-2">触发价</th>
+                                <th className="px-3 py-2 rounded-r-lg">日期</th>
                             </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                            {recent_alerts.slice(0, 5).map((alert) => (
-                                <tr key={alert.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                                    <td className="table-cell">
-                                        <div>
-                                            <div className="font-medium text-gray-900 dark:text-white">
-                                                {alert.name}
-                                            </div>
-                                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                                                {alert.code}
-                                            </div>
-                                        </div>
+                            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                            {data?.alerts && data.alerts.length > 0 ? data.alerts.map(alert => (
+                                <tr key={alert.id}
+                                    className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                                    <td className="px-3 py-3 font-medium text-gray-900 dark:text-white">{alert.name}</td>
+                                    <td className="px-3 py-3">
+                                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                                alert.type === 'BUY'
+                                                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                                                    : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                            }`}>
+                                                {alert.type_text}
+                                            </span>
                                     </td>
-                                    <td className="table-cell">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          alert.type === 1 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                              alert.type === 2 ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                                  'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}>
-                        {alert.type_text}
-                      </span>
-                                    </td>
-                                    <td className="table-cell font-medium">
-                                        {alert.current_nav}
-                                    </td>
-                                    <td className="table-cell">
-                                        {alert.target_nav}
-                                    </td>
-                                    <td className="table-cell">
-                                        {alert.trigger_date}
-                                    </td>
-                                    <td className="table-cell">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          alert.status === 1 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                              alert.status === 2 ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
-                                  'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                      }`}>
-                        {alert.status_text}
-                      </span>
-                                    </td>
+                                    <td className="px-3 py-3 text-gray-700 dark:text-gray-300">{alert.current_nav}</td>
+                                    <td className="px-3 py-3 text-gray-500 dark:text-gray-400">{alert.date}</td>
                                 </tr>
-                            ))}
+                            )) : (
+                                <tr>
+                                    <td colSpan="4" className="text-center py-8 text-gray-500">暂无预警消息</td>
+                                </tr>
+                            )}
                             </tbody>
                         </table>
-
-                        {recent_alerts.length > 5 && (
-                            <div className="mt-4 text-center">
-                                <button
-                                    className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
-                                    {t('dashboard.viewAllAlerts')} ({recent_alerts.length})
-                                    <ChevronRightIcon className="inline-block w-4 h-4 ml-1"/>
-                                </button>
-                            </div>
-                        )}
                     </div>
-                )}
-            </div>
-
-            {/* 持仓概览 */}
-            <div className="card p-5">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                    {t('dashboard.holdingsOverview')}
-                </h2>
-
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead>
-                        <tr>
-                            <th className="table-header">{t('dashboard.fund')}</th>
-                            <th className="table-header">{t('dashboard.shares')}</th>
-                            <th className="table-header">{t('dashboard.currentValue')}</th>
-                            <th className="table-header">{t('dashboard.profitLoss')}</th>
-                            <th className="table-header">{t('dashboard.weight')}</th>
-                        </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {holdings_summary?.holdings?.slice(0, 5).map((holding) => (
-                            <tr key={holding.code} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                                <td className="table-cell">
-                                    <div>
-                                        <div className="font-medium text-gray-900 dark:text-white">
-                                            {holding.name}
-                                        </div>
-                                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                                            {holding.code}
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="table-cell">
-                                    {holding.shares.toLocaleString()}
-                                </td>
-                                <td className="table-cell font-medium">
-                                    {formatCurrency(holding.current_value)}
-                                </td>
-                                <td className="table-cell">
-                                    <div className={`font-medium ${getColorForValue(holding.profit)}`}>
-                                        {formatCurrency(holding.profit)}
-                                    </div>
-                                    <div className={`text-xs ${getColorForValue(holding.profit_rate)}`}>
-                                        {formatPercent(holding.profit_rate)}
-                                    </div>
-                                </td>
-                                <td className="table-cell">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                            <div
-                                                className="bg-blue-600 h-2 rounded-full"
-                                                style={{width: `${holding.weight}%`}}
-                                            />
-                                        </div>
-                                        <span className="text-sm font-medium min-w-[40px]">
-                        {holding.weight}%
-                      </span>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                        </tbody>
-                    </table>
                 </div>
-
-                {holdings_summary?.holdings?.length > 5 && (
-                    <div className="mt-4 text-center">
-                        <button
-                            className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
-                            {t('dashboard.viewAllHoldings')} ({holdings_summary.holdings.length})
-                            <ChevronRightIcon className="inline-block w-4 h-4 ml-1"/>
-                        </button>
-                    </div>
-                )}
             </div>
+        </div>
+    );
+}
+
+// --- 子组件 ---
+
+function KpiCard({
+                     title,
+                     value,
+                     subValue,
+                     icon,
+                     valueColor = "text-gray-900 dark:text-white",
+                     subValueColor = "text-gray-500",
+                     tooltip,
+                     loading = false
+                 }) {
+    return (
+        <div
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700 relative group transition-all hover:shadow-md">
+            <div className="flex justify-between items-start">
+                <div>
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</p>
+                    <h3 className={`text-2xl font-bold mt-1 ${valueColor}`}>
+                        {loading ?
+                            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-20"></div> : value}
+                    </h3>
+                </div>
+                <div className="p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    {icon}
+                </div>
+            </div>
+            {subValue && (
+                <div className={`mt-2 text-xs font-medium ${subValueColor}`}>
+                    {loading ?
+                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-16"></div> : subValue}
+                </div>
+            )}
+            {tooltip && (
+                <div
+                    className="absolute hidden group-hover:block top-full left-0 mt-2 p-2 bg-gray-900 text-white text-xs rounded z-10 w-48 shadow-lg">
+                    {tooltip}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function RiskMetric({label, value, desc, color = "text-gray-900 dark:text-white"}) {
+    return (
+        <div className="p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-gray-100 dark:border-gray-700/50">
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">{label}</div>
+            <div className={`text-xl font-bold ${color}`}>{value || '-'}</div>
+            <div className="text-xs text-gray-400 mt-1">{desc}</div>
         </div>
     );
 }

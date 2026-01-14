@@ -1,38 +1,66 @@
-// src/hooks/api/useDashboard.js
-import { useCallback, useEffect, useState } from 'react';
+import {useCallback, useEffect, useState} from 'react';
 import useApi from '../useApi';
 
 export default function useDashboard(options = {}) {
     const {
         autoLoad = true,
-        days = 30
+        defaultDays = 30,
+        defaultWindow = 'R252' // 默认看近一年
     } = options;
 
-    const [data, setData] = useState(null);
-    const { loading, error, get } = useApi();
+    const [summaryData, setSummaryData] = useState(null);
+    const [overviewData, setOverviewData] = useState(null);
 
-    const fetchDashboardData = useCallback(async (currentDays = days) => {
+    const [loading, setLoading] = useState(false);
+    const [overviewLoading, setOverviewLoading] = useState(false);
+
+    const [error, setError] = useState(null);
+
+    const {get} = useApi();
+
+    const fetchSummaryData = useCallback(async (days = defaultDays, window = defaultWindow) => {
+        setLoading(true);
+        setError(null);
         try {
-            const result = await get(`/dashboard/summary?days=${currentDays}`);
-            setData(result?.data || null);
-            return result;
+            // 映射前端的时间范围到后端的 Window Key
+            // 假设前端传 '30d', '1y' 等，这里做一个简单的转换逻辑，或者直接由组件传 Key
+            const result = await get(`/dashboard/summary?days=${days}&window=${window}`);
+            setSummaryData(result);
         } catch (err) {
             console.error('Failed to fetch dashboard data:', err);
-            throw err;
+            setError(err);
+        } finally {
+            setLoading(false);
         }
-    }, [get, days]);
+    }, [get, defaultDays, defaultWindow]);
+
+    const fetchOverviewData  = useCallback(async () => {
+        setOverviewLoading(true);
+        try {
+            const result = await get('/dashboard/overview');
+            setOverviewData(result);
+        } catch (err) {
+            console.error('Failed to fetch overview data:', err);
+            setError(err);
+        } finally {
+            setOverviewLoading(false);
+        }
+    }, [get]);
 
     useEffect(() => {
         if (autoLoad) {
-            fetchDashboardData(days);
+            fetchSummaryData();
+            fetchOverviewData();
         }
-    }, [autoLoad, fetchDashboardData, days]);
+    }, [autoLoad, fetchSummaryData, fetchOverviewData]);
 
     return {
-        data,
+        data: summaryData,
+        overviewData,
         loading,
+        overviewLoading,
         error,
-        fetchDashboardData,
-        setData
+        fetchSummaryData,
+        fetchOverviewData
     };
 }
