@@ -92,9 +92,9 @@ class Holding(TimestampMixin, BaseModel):
     ho_short_name = db.Column(db.String(100))  # 简称
     ho_nickname = db.Column(db.String(100))  # 自定义别称
     ho_type = db.Column(db.String(50), nullable=False)  # 持仓类型枚举(目前只有场外基金) FUND STOCK
-    ho_status = db.Column(db.String(50), nullable=False)  # 持仓状态：0,未持仓;1,持仓中；2.已清仓
+    ho_status = db.Column(db.String(50), default=HoldingStatusEnum.NOT_HELD.value, nullable=False)  # 持仓状态：0,未持仓;1,持仓中；2.已清仓
     # exchange = db.Column(db.String(100))  # 交易所，如 NASDAQ, SZSE。
-    currency = db.Column(db.String(50))  # 计价货币枚举，如 USD, CNY。
+    currency = db.Column(db.String(50), default='CNY')  # 计价货币枚举，如 USD, CNY。
     establishment_date = db.Column(db.Date)  # 成立日期
     # company = db.Column(db.String(100))
     # industry = db.Column(db.String(100))  # 行业分类 (对股票和行业基金有用)

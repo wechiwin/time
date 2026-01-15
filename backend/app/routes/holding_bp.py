@@ -1,20 +1,19 @@
-from io import BytesIO
 import logging
+from io import BytesIO
 
-import akshare
 import pandas as pd
-import requests
 from flask import Blueprint, request, send_file
 from flask_babel import gettext
 from sqlalchemy import or_
 
-from app.constant.biz_enums import ErrorMessageEnum, HoldingTypeEnum, HoldingStatusEnum, FundTradeMarketEnum
+from app.constant.biz_enums import ErrorMessageEnum, HoldingStatusEnum
 from app.framework.auth import auth_required
 from app.framework.exceptions import BizException
 from app.framework.res import Res
 from app.framework.sys_constant import DEFAULT_PAGE_SIZE
 from app.models import db, Holding
 from app.schemas_marshall import HoldingSchema, marshal_pagination, FundDetailSchema
+from app.service.holding_service import HoldingService
 
 holding_bp = Blueprint('holding', __name__, url_prefix='/api/holding')
 logger = logging.getLogger(__name__)
@@ -217,13 +216,13 @@ def download_template():
     # 创建一个空的DataFrame，只有列名
     df = pd.DataFrame(columns=[
         gettext('COL_HO_CODE'),
-        gettext('COL_HO_NAME'),
-        # gettext('COL_HO_TYPE'),
-        gettext('COL_HO_ESTABLISH_DATE'),
-        gettext('COL_HO_SHORT_NAME'),
-        gettext('COL_HO_MANAGE_EXP_RATE'),
-        gettext('COL_HO_TRUSTEE_EXP_RATE'),
-        gettext('COL_HO_SALES_EXP_RATE'),
+        # gettext('COL_HO_NAME'),
+        # # gettext('COL_HO_TYPE'),
+        # gettext('COL_HO_ESTABLISH_DATE'),
+        # gettext('COL_HO_SHORT_NAME'),
+        # gettext('COL_HO_MANAGE_EXP_RATE'),
+        # gettext('COL_HO_TRUSTEE_EXP_RATE'),
+        # gettext('COL_HO_SALES_EXP_RATE'),
     ])
 
     output = BytesIO()
@@ -256,44 +255,14 @@ def import_holdings():
 
     try:
         df = pd.read_excel(file, dtype={gettext('COL_HO_CODE'): str})
-        required_columns = [
-            gettext('COL_HO_CODE'),
-            gettext('COL_HO_NAME'),
-            # gettext('COL_HO_TYPE'),
-            gettext('COL_HO_ESTABLISH_DATE'),
-        ]
-        if not all(col in df.columns for col in required_columns):
+        if gettext('COL_HO_CODE') not in df.columns:
             raise BizException(msg="Excel缺少必要列")
 
-        # 检查ho_code是否存在
-        # ho_codes = df[gettext('COL_HO_CODE')].unique()
-        # existing_holdings = Holding.query.filter(Holding.ho_code.in_(ho_codes)).all()
-        # existing_codes = {h.ho_code for h in existing_holdings}
-        # if existing_codes:
-        #     raise BizException(
-        #         msg=f"以下基金已存在: {', '.join(map(str, existing_codes))}"
-        #     )
+        ho_codes = df[gettext('COL_HO_CODE')].dropna().unique().tolist()
 
-        # 开始事务
-        # db.session.begin()
-        for _, row in df.iterrows():
-            holding = Holding(
-                ho_code=str(row[gettext('COL_HO_CODE')]),
-                ho_name=str(row[gettext('COL_HO_NAME')]),
-                ho_type=HoldingTypeEnum.FUND.value,
-                ho_establish_date=str(row[gettext('COL_HO_ESTABLISH_DATE')]),
-                ho_short_name=str(row[gettext('COL_HO_SHORT_NAME'),]),
-                ho_manage_exp_rate=str(row[gettext('COL_HO_MANAGE_EXP_RATE'),]),
-                ho_trustee_exp_rate=str(row[gettext('COL_HO_TRUSTEE_EXP_RATE'),]),
-                ho_sales_exp_rate=str(row[gettext('COL_HO_SALES_EXP_RATE'),]),
-                ho_status=HoldingStatusEnum.NOT_HELD.value,
-            )
-            db.session.add(holding)
-
-        db.session.commit()
-        return Res.success()
+        success_count = HoldingService.import_holdings(ho_codes)
+        return Res.success(success_count)
     except Exception as e:
-        db.session.rollback()
         logger.error(e, exc_info=True)
         raise BizException(msg="持仓导入失败")
 
@@ -302,76 +271,8 @@ def import_holdings():
 @auth_required
 def crawl_fund():
     ho_code = request.form.get('ho_code')  # 表单
-    # url = "https://fundmobapi.eastmoney.com/FundMNewApi/FundMNFInfo"
-    url_api = "https://fundmobapi.eastmoney.com/FundMNewApi/FundMNDetailInformation"
-    params = {
-        "FCODE": ho_code,
-        "deviceid": "pc",
-        "plat": "web",
-        "product": "EFund",
-        "version": "2.0.0"
-    }
-    headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Referer": f"http://fund.eastmoney.com/{ho_code}.html"
-    }
-    resp = requests.get(url_api, params=params, headers=headers)
-    # print("接口返回内容：", resp.json())
-    data = resp.json().get("Datas", {})
-    if not data:
-        raise BizException(msg="未爬取到相关信息")
-    logger.info(data)
-    result = {
-        "ho_code": data.get("FCODE"),
-        "ho_name": data.get("FULLNAME"),
-        "ho_short_name": data.get("SHORTNAME"),
-        "ho_type": data.get("FTYPE"),
-        "fund_manager": data.get("JJJL"),
-        "company_id": data.get("JJGSID"),
-        "company_name": data.get("JJGS"),
-        "establishment_date": data.get("ESTABDATE"),
-        "risk_level": data.get("RISKLEVEL"),
-        "index_code": data.get("INDEXCODE"),
-        "index_name": data.get("INDEXNAME"),
-        "manage_exp_rate": data.get("MGREXP").replace('%', ''),
-        "trustee_exp_rate": data.get("TRUSTEXP").replace('%', ''),
-        "sales_exp_rate": data.get("SALESEXP").replace('%', ''),
-        "feature": data.get("FEATURE"),
-        "fund_type": data.get("FTYPE"),
-    }
-
-    trade_market = determine_trade_market(result)
-    result['trade_market'] = trade_market.value
-    return Res.success(result)
-
-
-def determine_trade_market(fund_data):
-    """
-    根据基金信息判断交易市场
-    """
-    short_name = fund_data['ho_short_name']
-    full_name = fund_data['ho_name']
-    features = fund_data['feature'].split(',')
-    sales_exp = fund_data['sales_exp_rate']
-
-    # LOF基金（Listed Open-Ended Fund）场内外均可
-    if 'LOF' in short_name or 'LOF' in full_name or '上市开放式' in full_name:
-        return FundTradeMarketEnum.BOTH.value
-    # 名称中含有“联接” -> 通常是场外（投资于场内ETF的场外基金）
-    if '联接' in short_name or '联接' in full_name:
-        return FundTradeMarketEnum.OFF_EXCHANGE.value  # 仅场外
-    # 有销售服务费(SALESEXP)，通常是场外C类份额
-    if sales_exp and sales_exp != '--':
-        return FundTradeMarketEnum.OFF_EXCHANGE.value
-    # 名称中含有“ETF” -> 场内
-    if 'ETF' in short_name or 'ETF' in full_name:
-        return FundTradeMarketEnum.EXCHANGE.value  # 仅场内
-    # 特征码包含'010' (ETF) -> 场内
-    if '010' in features:
-        return FundTradeMarketEnum.EXCHANGE.value
-
-    # 默认（普通开放式基金）
-    return FundTradeMarketEnum.OFF_EXCHANGE.value
+    fund_data = HoldingService.crawl_fund_info(ho_code)
+    return Res.success(fund_data)
 
 
 # @holding_bp.route('/crawl_stock', methods=['POST'])
