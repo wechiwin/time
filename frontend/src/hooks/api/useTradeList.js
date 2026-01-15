@@ -15,16 +15,12 @@ export default function useTradeList(options = {}) {
     const {loading, error, get, post, put, del, download} = useApi();
     const urlPrefix = '/trade';
 
-    const search = useCallback(async (searchKeyword = '', currentPage = 1, currentPerPage = 10) => {
-        const params = new URLSearchParams({
-            keyword: encodeURIComponent(searchKeyword),
-            page: currentPage.toString(),
-            per_page: currentPerPage.toString()
-        }).toString();
-        const result = await get(`/trade?${params}`);
-        setData(result);  // 业务逻辑设置 data
+    const search = useCallback(async (keyword = '', page = 1, perPage = 10) => {
+        const result = await post(urlPrefix + '/tr_page', {keyword, page, perPage});
+        setData(result);
+        console.log("tr_page:", result)
         return result;
-    }, [get]);
+    }, [post]);
 
     // 自动根据参数变化加载数据
     useEffect(() => {
@@ -77,7 +73,7 @@ export default function useTradeList(options = {}) {
     }, [post]);
 
     const listByHoId = useCallback(async (ho_id = '') => {
-        const result = await post(`${urlPrefix}/list_by_ho_id`,{ho_id});
+        const result = await post(`${urlPrefix}/list_by_ho_id`, {ho_id});
         setData(result);  // 业务逻辑设置 data
         return result;
     }, [post]);

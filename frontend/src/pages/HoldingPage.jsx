@@ -17,7 +17,8 @@ export default function HoldingPage() {
         handlePageChange,
         handlePerPageChange
     } = usePaginationState();
-
+    const [inputValue, setInputValue] = useState("");
+    const [queryKeyword, setQueryKeyword] = useState("");
     const [keyword, setKeyword] = useState("");
     const {t} = useTranslation()
 
@@ -36,7 +37,7 @@ export default function HoldingPage() {
     } = useHoldingList({
         page,
         perPage,
-        keyword,
+        keyword: queryKeyword,
         autoLoad: true,
     });
 
@@ -88,14 +89,15 @@ export default function HoldingPage() {
     };
 
     // 搜索处理
-    const handleSearch = useCallback((keyword) => {
-        setKeyword(keyword);
-        handlePageChange(1);
-    }, [handlePageChange]);
+    const handleSearch = useCallback(() => {
+        console.log("执行搜索:", inputValue);
+        setQueryKeyword(inputValue); // 同步输入值到查询状态
+        handlePageChange(1); // 重置回第一页
+    }, [inputValue, handlePageChange]);
 
     const handleKeyDown = (e) => {
         if (e.key === 'Enter') {
-            handleSearch(keyword);
+            handleSearch();
         }
     };
 
@@ -140,14 +142,14 @@ export default function HoldingPage() {
             <div className="search-bar">
                 <input
                     type="text"
-                    value={keyword}
-                    onChange={(e) => setKeyword(e.target.value)}
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={t('msg_search_placeholder')}
                     className="search-input"
                 />
                 <button
-                    onClick={() => handleSearch(keyword)}
+                    onClick={handleSearch}
                     className="btn-primary"
                 >
                     {t('button_search')}

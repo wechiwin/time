@@ -27,16 +27,17 @@ task_queues = {}
 logger = logging.getLogger(__name__)
 
 
-@trade_bp.route('', methods=['GET'])
+@trade_bp.route('/tr_page', methods=['POST'])
 @auth_required
-def search_page():
-    ho_code = request.args.get('ho_code')
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
-    keyword = request.args.get('keyword')
+def tr_page():
+    data = request.get_json()
+    ho_code = data.get('ho_code')
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+    keyword = data.get('keyword')
     # 添加分页参数
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 10, type=int)
+    page = data.get('page') or 1
+    per_page = data.get('per_page') or 10
 
     query = Trade.query.options(joinedload(Trade.holding))
 
