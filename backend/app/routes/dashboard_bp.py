@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/api/dashboard')
 
 
-@dashboard_bp.route('/summary', methods=['GET'])
+@dashboard_bp.route('/summary', methods=['POST'])
 def get_dashboard_summary():
     """
     聚合 Dashboard 所需的所有数据
@@ -18,11 +18,12 @@ def get_dashboard_summary():
       - window: 绩效分析的窗口 key (默认 R252 即一年)
     """
     try:
-        days = request.args.get('days', 30, type=int)
-        window_key = request.args.get('window', 'R252', type=str)
+        data = request.get_json()
+        days = data.get('days')
+        window_key = data.get('window')
 
         # 2. 绩效指标 (TWRR, IRR, Sharpe)
-        performance = DashboardService.get_performance(window_key)
+        performance = DashboardService.get_performance(window_key, days)
 
         # 3. 趋势图数据
         trend = DashboardService.get_portfolio_trend(days)
@@ -54,4 +55,3 @@ def get_account_overview():
     except Exception as e:
         logger.exception("Error getting account overview")
         return Res.fail(f"Failed to load overview: {str(e)}")
-

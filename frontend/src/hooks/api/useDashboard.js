@@ -5,62 +5,61 @@ export default function useDashboard(options = {}) {
     const {
         autoLoad = true,
         defaultDays = 30,
-        defaultWindow = 'R252' // 默认看近一年
+        defaultWindow = 'R252'
     } = options;
 
     const [summaryData, setSummaryData] = useState(null);
     const [overviewData, setOverviewData] = useState(null);
 
-    const [loading, setLoading] = useState(false);
-    const [overviewLoading, setOverviewLoading] = useState(false);
-
+    // 合并初始加载状态
+    const [isInitialLoading, setIsInitialLoading] = useState(true);
+    // 合并错误状态
     const [error, setError] = useState(null);
+    // 用于刷新按钮的独立加载状态
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
-    const {get} = useApi();
+    const {get, post} = useApi();
+    const urlPrefix = '/dashboard';
 
-    const fetchSummaryData = useCallback(async (days = defaultDays, window = defaultWindow) => {
-        setLoading(true);
+    const fetchAllData = useCallback(async (days = defaultDays, window = defaultWindow, isRefresh = false) => {
+        // 如果是刷新，使用刷新状态；否则使用初始加载状态
+        if (isRefresh) {
+            setIsRefreshing(true);
+        } else {
+            setIsInitialLoading(true);
+        }
         setError(null);
+
         try {
-            // 映射前端的时间范围到后端的 Window Key
-            // 假设前端传 '30d', '1y' 等，这里做一个简单的转换逻辑，或者直接由组件传 Key
-            const result = await get(`/dashboard/summary?days=${days}&window=${window}`);
-            setSummaryData(result);
+            // 使用 Promise.all 并行请求，提高效率
+            const [summaryResult, overviewResult] = await Promise.all([
+                post(urlPrefix + '/summary', {days, window}),
+                get(urlPrefix + '/overview')
+            ]);
+            setSummaryData(summaryResult);
+            setOverviewData(overviewResult);
         } catch (err) {
             console.error('Failed to fetch dashboard data:', err);
             setError(err);
+            // 出错时，可以不清空现有数据，让用户看到旧数据并提示错误
         } finally {
-            setLoading(false);
+            setIsInitialLoading(false);
+            setIsRefreshing(false);
         }
-    }, [get, defaultDays, defaultWindow]);
-
-    const fetchOverviewData  = useCallback(async () => {
-        setOverviewLoading(true);
-        try {
-            const result = await get('/dashboard/overview');
-            setOverviewData(result);
-        } catch (err) {
-            console.error('Failed to fetch overview data:', err);
-            setError(err);
-        } finally {
-            setOverviewLoading(false);
-        }
-    }, [get]);
+    }, [post, get, defaultDays, defaultWindow]);
 
     useEffect(() => {
         if (autoLoad) {
-            fetchSummaryData();
-            fetchOverviewData();
+            fetchAllData();
         }
-    }, [autoLoad, fetchSummaryData, fetchOverviewData]);
+    }, [autoLoad, fetchAllData]);
 
     return {
-        data: summaryData,
+        summaryData,
         overviewData,
-        loading,
-        overviewLoading,
+        isInitialLoading,
+        isRefreshing,
         error,
-        fetchSummaryData,
-        fetchOverviewData
+        refetch: fetchAllData // 提供一个统一的刷新函数
     };
 }

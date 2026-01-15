@@ -205,9 +205,9 @@ class Trade(TimestampMixin, BaseModel):
     tr_date = db.Column(db.Date, index=True, nullable=False)  # 交易日期
     tr_nav_per_unit = db.Column(db.Numeric(18, 4))  # 单位净值
     tr_shares = db.Column(db.Numeric(18, 2))  # 交易份额
-    gross_amount = db.Column(db.Numeric(18, 2))  # 交易本金(不计交易费用损益)
+    tr_net_amount = db.Column(db.Numeric(18, 2))  # 交易净额 = 单位净值 * 交易份额
     tr_fee = db.Column(db.Numeric(18, 2))  # 交易费用
-    tr_net_amount = db.Column(db.Numeric(18, 2))  # 交易净额(计交易费用损益)
+    gross_amount = db.Column(db.Numeric(18, 2))  # 交易本金 = 交易净额 + 交易费用
     tr_cycle = db.Column(db.Integer, index=True)  # 轮次
     is_cleared = db.Column(db.Boolean, default=False)  # 是否清仓
     remark = db.Column(db.String(200))

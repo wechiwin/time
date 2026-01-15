@@ -17,7 +17,7 @@ import {getLineOption, getPieOption} from '../utils/chartOptions';
 
 // 窗口名称映射表
 const WINDOW_NAME_MAP = {
-    'ALL': '成立以来',
+    'ALL': '投资以来',
     'CUR': '本轮持仓',
     'R21': '近一月',
     'R63': '近三月',
@@ -31,27 +31,32 @@ export default function Dashboard() {
     const isDarkMode = useDarkMode();
     // 获取账户整体状况
     const {
-        data,
+        summaryData,
         overviewData,
-        loading,
-        overviewLoading,
+        isInitialLoading,
+        isRefreshing,
         error,
-        fetchSummaryData,
-        fetchOverviewData
+        refetch
     } = useDashboard({
         autoLoad: true,
         defaultDays: 365,
         defaultWindow: 'R252'
     });
 
+    // 性能数据简写，使用可选链和空值合并
+    const performance = summaryData?.performance ?? {};
+    const trend = summaryData?.trend ?? [];
+    const allocation = summaryData?.allocation ?? [];
+    const alerts = summaryData?.alerts ?? [];
+
     // Memoized chart options
     const lineOption = useMemo(() =>
-            getLineOption(data?.trend, isDarkMode),
-        [data?.trend, isDarkMode]
+            getLineOption(trend, isDarkMode),
+        [trend, isDarkMode]
     );
     const pieOption = useMemo(() =>
-            getPieOption(data?.allocation, isDarkMode),
-        [data?.allocation, isDarkMode]
+            getPieOption(allocation, isDarkMode),
+        [allocation, isDarkMode]
     );
 
     const handleRangeChange = (e) => {
@@ -67,48 +72,67 @@ export default function Dashboard() {
         };
 
         const {win, days} = rangeMap[val] || {win: 'R252', days: 365};
-        fetchSummaryData(days, win);
+        // 添加调试日志
+        console.log(`切换窗口: ${val}, win: ${win}, days: ${days}`);
+
+        refetch(days, win);
     };
-    // 性能数据简写
-    const performance = data?.performance;
 
     const handleRefresh = () => {
-        fetchSummaryData();
-        fetchOverviewData();
+        refetch(); // 使用统一的 refetch
     };
 
-    // 计算派生数据
-    const lastUpdateDate = useMemo(() => {
-        return (data?.trend && data.trend.length > 0)
-            ? data.trend[data.trend.length - 1].date
-            : (overviewData?.date || null);
-    }, [data, overviewData]);
+    // // 计算派生数据
+    // const lastUpdateDate = useMemo(() => {
+    //     return (trend && trend.length > 0)
+    //         ? trend[trend.length - 1].date
+    //         : (overviewData?.date || null);
+    // }, [data, overviewData]);
 
     // 窗口名称
     const windowName = useMemo(() => {
-        return WINDOW_NAME_MAP[data?.performance?.window] || data?.performance?.window || '近一年';
-    }, [performance?.window]);
+        const rangeMap = {
+            '1m': '近一月',
+            '3m': '近三月',
+            '6m': '近半年',
+            '1y': '近一年',
+            'all': '投资以来'
+        };
+        return rangeMap[timeRange] || '近一年';
+    }, [timeRange]);
 
-    if (loading && !data) {
+    // 1. 初始加载时，显示骨架屏
+    if (isInitialLoading) {
         return (
-            <div className="flex justify-center items-center min-h-[400px]">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="p-2 md:p-4 max-w-7xl mx-auto space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {[...Array(4)].map((_, i) => <KpiCardSkeleton key={i}/>)}
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <ChartSkeleton/>
+                    <ChartSkeleton/>
+                </div>
             </div>
         );
     }
 
+    // 2. 发生错误时，显示错误提示（但保留页面结构）
     if (error) {
         return (
-            <div className="text-center py-12 text-red-500">
-                <ExclamationTriangleIcon className="w-12 h-12 mx-auto mb-2"/>
-                <p>数据加载失败</p>
-                <button onClick={handleRefresh} className="mt-4 text-blue-500 underline">重试</button>
+            <div className="p-2 md:p-4 max-w-7xl mx-auto">
+                <div
+                    className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-center">
+                    <ExclamationTriangleIcon className="w-12 h-12 text-red-500 mx-auto mb-2"/>
+                    <p className="text-red-700 dark:text-red-300">数据加载失败: {error.message || '未知错误'}</p>
+                    <button onClick={handleRefresh} disabled={isRefreshing}
+                            className="mt-4 text-blue-500 underline disabled:opacity-50">
+                        {isRefreshing ? '重试中...' : '重试'}
+                    </button>
+                </div>
             </div>
         );
     }
-
-    if (!data) return null;
-
+    // 3. 正常渲染（即使数据为空）
     return (
         <div className="p-2 md:p-4 max-w-7xl mx-auto space-y-3">
             {/* 第一部分：账户整体概览 (来自 /overview 接口) */}
@@ -118,7 +142,6 @@ export default function Dashboard() {
                     value={formatCurrency(overviewData?.total_mv)}
                     subValue={overviewData?.holding_cost ? `持仓成本 ${formatCurrency(overviewData?.holding_cost)}` : null}
                     icon={<CurrencyDollarIcon className="w-5 h-5 text-blue-500"/>}
-                    loading={overviewLoading}
                 />
                 <KpiCard
                     title="累计盈亏"
@@ -127,7 +150,6 @@ export default function Dashboard() {
                     subValue={overviewData?.total_pnl_ratio ? `${formatPercent(overviewData?.total_pnl_ratio)}` : '0.00%'}
                     subValueColor={getColor(overviewData?.total_pnl_ratio)}
                     icon={<ScaleIcon className="w-5 h-5 text-purple-500"/>}
-                    loading={overviewLoading}
                 />
                 <KpiCard
                     title="累计 TWRR"
@@ -137,7 +159,6 @@ export default function Dashboard() {
                     subValueColor={getColor(overviewData?.total_pnl_ratio)}
                     icon={<PresentationChartLineIcon className="w-5 h-5 text-orange-500"/>}
                     tooltip="时间加权收益率：反映策略自成立以来的累计表现，剔除资金进出影响。"
-                    loading={overviewLoading}
                 />
                 <KpiCard
                     title="历史最大回撤"
@@ -145,7 +166,6 @@ export default function Dashboard() {
                     valueColor={getColor(overviewData?.max_drawdown)}
                     icon={<ClockIcon className="w-5 h-5 text-green-500"/>}
                     tooltip="内部收益率：反映实际资金的年化回报，包含加减仓时机的影响。"
-                    loading={overviewLoading}
                 />
             </div>
             {/* 分隔线与控制栏 */}
@@ -165,15 +185,15 @@ export default function Dashboard() {
                         <option value="3m">近3月</option>
                         <option value="6m">近半年</option>
                         <option value="1y">近1年</option>
-                        <option value="all">成立以来</option>
+                        <option value="all">投资以来</option>
                     </select>
-                    <button
-                        onClick={handleRefresh}
-                        className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm"
-                        title="刷新数据"
-                    >
-                        <ArrowPathIcon className={`w-4 h-4 text-gray-500 ${loading ? 'animate-spin' : ''}`}/>
-                    </button>
+                    {/* <button */}
+                    {/*     onClick={handleRefresh} */}
+                    {/*     className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm" */}
+                    {/*     title="刷新数据" */}
+                    {/* > */}
+                    {/*     <ArrowPathIcon className={`w-4 h-4 text-gray-500 ${isInitialLoading ? 'animate-spin' : ''}`}/> */}
+                    {/* </button> */}
                 </div>
             </div>
 
@@ -184,7 +204,7 @@ export default function Dashboard() {
                     value={formatCurrency(performance?.period_pnl)}
                     valueColor={getColor(performance?.period_pnl)}
                     subValue={formatPercent(performance?.period_pnl_ratio)}
-                    subValueColor={getColor(overviewData?.total_pnl_ratio)}
+                    subValueColor={getColor(performance?.period_pnl_ratio)}
                     icon={<ScaleIcon className="w-6 h-6 text-purple-500"/>}
                 />
                 <KpiCard
@@ -243,7 +263,7 @@ export default function Dashboard() {
                     className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700 flex flex-col">
                     <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">持仓分布</h3>
 
-                    {data?.allocation && data?.allocation.length > 0 ? (
+                    {allocation && allocation.length > 0 ? (
                         <>
                             <div className="flex-1 min-h-[200px]">
                                 <ReactECharts
@@ -253,7 +273,7 @@ export default function Dashboard() {
                                 />
                             </div>
                             <div className="mt-4 space-y-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
-                                {data.allocation.map((item) => (
+                                {allocation.map((item) => (
                                     <div key={item.code}
                                          className="flex justify-between items-center text-sm p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded">
                                         <div className="flex flex-col">
@@ -294,15 +314,15 @@ export default function Dashboard() {
                     <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
                         风险分析 <span className="text-sm font-normal text-gray-500">({windowName})</span>
                     </h3>
-                    {data?.performance ? (
+                    {performance ? (
                         <div className="grid grid-cols-2 gap-4">
-                            <RiskMetric label="夏普比率" value={data.performance.sharpe_ratio?.toFixed(2)}
+                            <RiskMetric label="夏普比率" value={performance.sharpe_ratio?.toFixed(2)}
                                         desc=">1 为佳"/>
-                            <RiskMetric label="最大回撤" value={formatPercent(data.performance.max_drawdown)}
-                                        color="text-green-600 dark:text-green-400" desc="越小越好"/>
-                            <RiskMetric label="年化波动率" value={formatPercent(data.performance.volatility)}
+                            <RiskMetric label="最大回撤" value={formatPercent(performance.max_drawdown)}
+                                        color={getColor(performance.max_drawdown)} desc="越小越好"/>
+                            <RiskMetric label="年化波动率" value={formatPercent(performance.volatility)}
                                         desc="风险程度"/>
-                            <RiskMetric label="胜率" value={formatPercent(data.performance.win_rate)}
+                            <RiskMetric label="胜率" value={formatPercent(performance.win_rate)}
                                         desc="盈利天数占比"/>
                         </div>
                     ) : (
@@ -325,7 +345,7 @@ export default function Dashboard() {
                             </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                            {data?.alerts && data.alerts.length > 0 ? data.alerts.map(alert => (
+                            {alerts && alerts.length > 0 ? alerts.map(alert => (
                                 <tr key={alert.id}
                                     className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                                     <td className="px-3 py-3 font-medium text-gray-900 dark:text-white">{alert.name}</td>
@@ -407,3 +427,25 @@ function RiskMetric({label, value, desc, color = "text-gray-900 dark:text-white"
         </div>
     );
 }
+
+const KpiCardSkeleton = () => (
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700">
+        <div className="flex justify-between items-start">
+            <div className="flex-1">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20 animate-pulse"></div>
+                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-24 mt-2 animate-pulse"></div>
+            </div>
+            <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg animate-pulse">
+                <div className="w-5 h-5"></div>
+            </div>
+        </div>
+        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16 mt-3 animate-pulse"></div>
+    </div>
+);
+
+const ChartSkeleton = () => (
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700">
+        <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-32 mb-4 animate-pulse"></div>
+        <div className="h-80 bg-gray-100 dark:bg-gray-700 rounded animate-pulse"></div>
+    </div>
+);

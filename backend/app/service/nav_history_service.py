@@ -43,7 +43,7 @@ class FundNavHistoryService:
         """
         爬取所有基金的市场数据
         """
-        yesterday = datetime.now() - timedelta(days=1)
+        yesterday = datetime.now().date() - timedelta(days=1)
 
         # 查询所有基金的信息
         all_holdings = Holding.query.all()

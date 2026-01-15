@@ -19,11 +19,13 @@ class DashboardService:
     """
 
     @classmethod
-    def get_performance(cls, window_key: str = 'R252') -> Dict:
+    def get_performance(cls, window_key: str = 'R252', days: int = 365) -> Dict:
         """
         获取组合绩效分析指标 (基于 InvestedAssetAnalyticsSnapshot)
         :param window_key: 窗口键值，如 'R21'(1月), 'R63'(3月), 'R252'(1年), 'ALL'
         """
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
         # 获取最新日期的分析快照
         latest_date_query = db.session.query(func.max(InvestedAssetAnalyticsSnapshot.snapshot_date))
         latest_date = latest_date_query.scalar()
@@ -31,23 +33,23 @@ class DashboardService:
         if not latest_date:
             return {}
 
-        analytics = InvestedAssetAnalyticsSnapshot.query.filter_by(
-            snapshot_date=latest_date,
-            window_key=window_key
-        ).first()
+        analytics = InvestedAssetAnalyticsSnapshot.query.filter(
+            InvestedAssetAnalyticsSnapshot.snapshot_date.between(start_date, end_date),
+            InvestedAssetAnalyticsSnapshot.window_key == window_key
+        ).order_by(InvestedAssetAnalyticsSnapshot.snapshot_date.desc()).first()
 
-        if not analytics:
-            # 如果请求的窗口不存在，尝试返回 ALL 或最近的一个
-            analytics = InvestedAssetAnalyticsSnapshot.query.filter_by(
-                snapshot_date=latest_date
-            ).first()
-            if not analytics:
-                return {}
+        # if not analytics:
+        #     # 如果请求的窗口不存在，尝试返回 ALL 或最近的一个
+        #     analytics = InvestedAssetAnalyticsSnapshot.query.filter_by(
+        #         snapshot_date=latest_date
+        #     ).first()
+        #     if not analytics:
+        #         return {}
 
         return {
             'window': analytics.window_key,
-            'twrr_cumulative': float(analytics.twrr_cumulative or 0) * 100,  # 时间加权
-            'irr_annualized': float(analytics.irr_annualized or 0) * 100,  # 资金加权(年化)
+            'twrr_cumulative': float(analytics.twrr_cumulative or 0) * 100,
+            'irr_annualized': float(analytics.irr_annualized or 0) * 100,
             'volatility': float(analytics.volatility or 0) * 100,
             'max_drawdown': float(analytics.max_drawdown or 0) * 100,
             'sharpe_ratio': float(analytics.sharpe_ratio or 0),
@@ -56,7 +58,7 @@ class DashboardService:
             'period_pnl_ratio': float(analytics.period_pnl_ratio or 0) * 100,
             'benchmark_cumulative_return': float(analytics.benchmark_cumulative_return or 0) * 100,
             'excess_return': float(analytics.excess_return or 0) * 100,
-            'beta': float(analytics.beta or 0) * 100,
+            'beta': float(analytics.beta or 0),
             'alpha': float(analytics.alpha or 0) * 100,
         }
 
@@ -205,4 +207,3 @@ class DashboardService:
             'max_drawdown': float(analytics_all.max_drawdown or 0) * 100 if analytics_all else 0,
             'update_date': latest_snapshot.snapshot_date.strftime('%Y-%m-%d')
         }
-

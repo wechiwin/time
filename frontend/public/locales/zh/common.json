@@ -13,7 +13,7 @@
   "th_tr_type": "交易类型",
   "th_tr_nav_per_unit": "单位净值",
   "th_tr_shares": "交易份额",
-  "th_gross_amount": "交易总额",
+  "th_gross_amount": "交易本金",
   "th_tr_fee": "交易费用",
   "th_tr_net_amount": "交易净额",
   "th_actions": "操作",

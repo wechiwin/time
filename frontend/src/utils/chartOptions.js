@@ -2,6 +2,7 @@
 
 // 空数据处理配置
 const getEmptyOption = (isDark, text = '该时间段暂无数据') => ({
+    backgroundColor: 'transparent',
     title: {
         text,
         left: 'center',
@@ -12,7 +13,9 @@ const getEmptyOption = (isDark, text = '该时间段暂无数据') => ({
 
 // 折线图配置
 export const getLineOption = (data, isDark) => {
-    if (!data || data.length === 0) return getEmptyOption(isDark);
+    if (!Array.isArray(data) || data.length === 0) {
+        return getEmptyOption(isDark, '该时间段暂无资产走势数据');
+    }
 
     return {
         backgroundColor: 'transparent',
@@ -93,7 +96,9 @@ export const getLineOption = (data, isDark) => {
 
 // 饼图配置
 export const getPieOption = (data, isDark) => {
-    if (!data || data.length === 0) return getEmptyOption(isDark, '当前无持仓数据');
+    if (!Array.isArray(data) || data.length === 0) {
+        return getEmptyOption(isDark, '当前无持仓数据');
+    }
 
     return {
         backgroundColor: 'transparent',
