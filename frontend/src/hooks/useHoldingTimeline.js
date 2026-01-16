@@ -1,5 +1,5 @@
 // src/hooks/useHoldingTimeline.js
-import { useMemo } from 'react';
+import {useMemo} from 'react';
 import dayjs from 'dayjs';
 
 /**
@@ -12,7 +12,7 @@ import dayjs from 'dayjs';
 export default function useHoldingTimeline(trades = [], snapshots = [], fundInfo = null) {
     return useMemo(() => {
         if (!trades || trades.length === 0) {
-            return { rounds: [], globalStats: null };
+            return {rounds: [], globalStats: null};
         }
 
         // 1. 建立快照索引 (日期 -> 快照)
@@ -58,20 +58,23 @@ export default function useHoldingTimeline(trades = [], snapshots = [], fundInfo
                 // 统计数据：优先取该波段最后一天的快照，如果没有快照，则聚合交易数据
                 const lastSnapshot = snapshotMap.get(lastTrade.tr_date);
 
-                // 计算该波段的累计盈亏 (简单累加 net_amount，卖出为正，买入为负，加上当前市值)
+                // 计算该波段的累计盈亏 (简单累加 cash_amount，卖出为正，买入为负，加上当前市值)
                 // 注意：这里仅做简单估算，准确数据应由后端计算好放在 snapshot 或 holding 中
+                let cash_buy = 0;
+                let cash_sell = 0;
                 let calculatedProfit = 0;
                 let currentShares = 0;
 
                 roundTrades.forEach(t => {
                     if (t.tr_type === 'BUY') {
                         currentShares += parseFloat(t.tr_shares);
-                        calculatedProfit -= parseFloat(t.tr_net_amount); // 花钱
+                        cash_buy += parseFloat(t.cash_amount); // 花钱
                     } else {
                         currentShares -= parseFloat(t.tr_shares);
-                        calculatedProfit += parseFloat(t.tr_net_amount); // 收钱
+                        cash_sell += parseFloat(t.cash_amount); // 收钱
                     }
                 });
+                calculatedProfit = cash_sell - cash_buy
 
                 // 如果没清仓，加上当前市值 (需要最新净值，这里简化处理，优先用快照数据)
                 if (!isCleared && lastSnapshot) {
@@ -87,7 +90,8 @@ export default function useHoldingTimeline(trades = [], snapshots = [], fundInfo
                     stats: {
                         // 如果有快照用快照，没有则用计算值
                         totalProfit: lastSnapshot ? lastSnapshot.hos_total_pnl : calculatedProfit,
-                        returnRate: lastSnapshot ? lastSnapshot.hos_total_pnl_ratio : 0,
+                        returnRate: lastSnapshot ? lastSnapshot.hos_total_pnl_ratio : calculatedProfit / cash_buy,
+                        // 如果有清仓，应该为 -
                         avgCost: lastSnapshot ? lastSnapshot.hos_cost_price : 0,
                         maxShares: Math.max(...roundTrades.map(t => parseFloat(t.tr_shares || 0))),
                         currentShares: isCleared ? 0 : currentShares
@@ -126,7 +130,7 @@ export default function useHoldingTimeline(trades = [], snapshots = [], fundInfo
             marketValue: getVal('ho_market_value', 'hos_market_value'),
         };
 
-        return { rounds, globalStats };
+        return {rounds, globalStats};
 
     }, [trades, snapshots, fundInfo]);
 }

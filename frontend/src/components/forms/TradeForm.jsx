@@ -6,21 +6,45 @@ import useTradeList from "../../hooks/api/useTradeList";
 import MyDate from "../common/MyDate";
 import MySelect from "../common/MySelect";
 import useCommon from "../../hooks/api/useCommon";
+import HoldingSearchSelect from "../search/HoldingSearchSelect";
+import {roundNumber} from "../../utils/formatters";
+import {ExclamationTriangleIcon} from "@heroicons/react/24/outline";
 
 const init = {
-    tr_id: '',
+    id: '',
+    ho_id: '',
     ho_code: '',
+    ho_short_name: '',
     tr_type: '',
     tr_date: '',
     tr_nav_per_unit: '',
     tr_shares: '',
-    gross_amount: '',
+    tr_amount: '',
     tr_fee: '',
-    tr_net_amount: '',
+    cash_amount: '',
+};
+// 气泡提示组件
+const WarningBubble = ({message}) => {
+    if (!message) return null;
+    return (
+        <div className="absolute z-20 left-0 -bottom-2 translate-y-full w-full">
+            <div
+                className="relative bg-orange-50 border border-orange-200 text-orange-700 text-xs rounded-md p-2 shadow-md">
+                {/* 小三角箭头 */}
+                <div
+                    className="absolute -top-1.5 left-4 w-3 h-3 bg-orange-50 border-t border-l border-orange-200 transform rotate-45"></div>
+                <div className="flex items-start gap-1.5">
+                    <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0 mt-0.5"/>
+                    <span>{message}</span>
+                </div>
+            </div>
+        </div>
+    );
 };
 
 export default function TradeForm({onSubmit, onClose, initialValues}) {
     const [form, setForm] = useState(init);
+    const [warnings, setWarnings] = useState({}); // 存储校验警告信息
     const {showSuccessToast, showErrorToast} = useToast();
     const {t} = useTranslation()
     const [uploading, setUploading] = useState(false);
@@ -55,7 +79,102 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
         };
     }, []);
 
-    // SSE
+    // --- 核心逻辑：实时校验 ---
+    useEffect(() => {
+        const newWarnings = {};
+        const nav = parseFloat(form.tr_nav_per_unit);
+        const shares = parseFloat(form.tr_shares);
+        const amount = parseFloat(form.tr_amount);
+        const fee = parseFloat(form.tr_fee);
+        const cash = parseFloat(form.cash_amount);
+        const type = form.tr_type;
+
+        // 1. 校验 tr_amount
+        if (!isNaN(nav) && !isNaN(shares) && !isNaN(amount)) {
+            const calcAmount = roundNumber(nav * shares, 2);
+            if (Math.abs(calcAmount - amount) > 0.05) {
+                newWarnings.tr_amount = `计算值 (${calcAmount}) 与输入值不符`;
+            }
+        }
+
+        // 2. 校验 cash_amount
+        if (!isNaN(amount) && !isNaN(fee) && !isNaN(cash) && type) {
+            let expectedCash = null;
+            const isBuy = ['BUY', 'SUBSCRIPTION', 'INVEST'].includes(type.toUpperCase());
+            const isSell = ['SELL', 'REDEMPTION', 'DIVEST'].includes(type.toUpperCase());
+
+            if (isBuy) {
+                expectedCash = roundNumber(amount + fee, 2);
+            } else if (isSell) {
+                expectedCash = roundNumber(amount - fee, 2);
+            }
+
+            if (expectedCash !== null && Math.abs(expectedCash - cash) > 0.05) {
+                newWarnings.cash_amount = `计算值 (${expectedCash}) 与输入值不符`;
+            }
+        }
+
+        setWarnings(newWarnings);
+    }, [form.tr_nav_per_unit, form.tr_shares, form.tr_amount, form.tr_fee, form.cash_amount, form.tr_type]);
+
+    // 提取公共计算函数
+    const calculateCash = (currentAmount, currentFee, currentType) => {
+        const amount = parseFloat(currentAmount);
+        const fee = parseFloat(currentFee);
+
+        if (!isNaN(amount) && !isNaN(fee) && currentType) {
+            const isBuy = ['BUY', 'SUBSCRIPTION', 'INVEST'].includes(currentType.toUpperCase());
+            const isSell = ['SELL', 'REDEMPTION', 'DIVEST'].includes(currentType.toUpperCase());
+
+            if (isBuy) {
+                return roundNumber(amount + fee, 2).toString();
+            } else if (isSell) {
+                return roundNumber(amount - fee, 2).toString();
+            }
+        }
+        return ''; // 无法计算时返回空，或者保持原值（这里选择返回空字符串让逻辑决定是否更新）
+    };
+    // 统一的 Change 处理，触发自动计算
+    const handleFieldChange = (field, value) => {
+        setForm(prev => {
+            const nextForm = {...prev, [field]: value};
+
+            // 如果修改的是影响 Cash 的字段，则重新计算 Cash
+            if (['tr_amount', 'tr_fee', 'tr_type'].includes(field)) {
+                const newCash = calculateCash(
+                    nextForm.tr_amount,
+                    nextForm.tr_fee,
+                    nextForm.tr_type
+                );
+                // 只有当计算出有效值时才更新，避免清空用户已输入的内容（除非逻辑要求）
+                // 这里策略是：只要参数变了，就强制更新 Cash，保证数据一致性
+                if (newCash !== '') {
+                    nextForm.cash_amount = newCash;
+                }
+            }
+            return nextForm;
+        });
+    };
+    // 处理手动选择基金
+    const handleFundSelectChange = (fund) => {
+        if (fund) {
+            setForm(prev => ({
+                ...prev,
+                ho_code: fund.ho_code,
+                ho_id: fund.id,
+                ho_short_name: fund.ho_short_name
+            }));
+        } else {
+            setForm(prev => ({
+                ...prev,
+                ho_code: '',
+                ho_id: '',
+                ho_short_name: ''
+            }));
+        }
+    };
+
+    // SSE 上传逻辑
     const handleUpload = async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -107,25 +226,25 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                     const o = data.data.parsed_json; // 注意后端结构是 data -> data -> parsed_json
 
                     setForm(prev => {
-                        const isEditMode = !!initialValues?.tr_id;
+                        const isEditMode = !!initialValues?.id;
                         return {
                             ...prev,
-                            // 使用 nullish coalescing  仅当 LLM 返回有效值时覆盖
-                            ho_code: isEditMode ? prev.ho_code : (o.ho_code ?? prev.ho_code ?? ''), // 在编辑模式下禁止被覆盖
-                            tr_net_amount: o.tr_net_amount ?? prev.tr_net_amount ?? '',
+                            id: o.id ?? prev.id ?? '',
+                            ho_code: isEditMode ? prev.ho_code : (o.ho_code ?? prev.ho_code ?? ''),
+                            ho_id: isEditMode ? prev.ho_id : (o.ho_id ?? prev.ho_id ?? ''),
+                            ho_short_name: isEditMode ? prev.ho_short_name : (o.ho_short_name ?? prev.ho_short_name ?? ''),
+                            tr_amount: o.tr_amount ?? prev.tr_amount ?? '',
                             tr_date: o.tr_date ?? prev.tr_date ?? '',
                             tr_fee: o.tr_fee ?? prev.tr_fee ?? '',
                             tr_nav_per_unit: o.tr_nav_per_unit ?? prev.tr_nav_per_unit ?? '',
                             tr_shares: o.tr_shares ?? prev.tr_shares ?? '',
-                            gross_amount: o.gross_amount ?? prev.gross_amount ?? '',
-                            tr_type: o.tr_type ?? prev.tr_type ?? 1,
+                            cash_amount: o.cash_amount ?? prev.cash_amount ?? '',
+                            tr_type: o.tr_type ?? prev.tr_type ?? '',
                         };
                     });
 
                     showSuccessToast();
-
-                    // 可选：显示 OCR 原文
-                    // console.log("OCR Text:", data.data.ocr_text);
+                    console.log("OCR Text:", data.data.ocr_text);
 
                 } else if (data.error) {
                     showErrorToast(data.error);
@@ -157,6 +276,15 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
 
     const submit = async (e) => {
         e.preventDefault();
+
+        // 提交时，如果存在警告，可以阻断也可以仅提示。
+        // 这里选择：如果存在警告，弹窗询问一次，或者直接允许提交但用户已看到气泡。
+        // 鉴于已经有了气泡提示，这里直接提交，或者做一个简单的确认
+        if (Object.keys(warnings).length > 0) {
+            // 可选：强制确认
+            // if (!window.confirm("当前数据存在计算差异，是否强制保存？")) return;
+        }
+
         try {
             await onSubmit(form);
             setForm(init);
@@ -170,18 +298,29 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
     useEffect(() => {
         if (initialValues) {
             setForm({
-                tr_id: initialValues.tr_id,
+                id: initialValues.id,
+                ho_id: initialValues.ho_id || '',
                 ho_code: initialValues.ho_code || '',
+                ho_short_name: initialValues.ho_short_name || '',
                 tr_type: initialValues.tr_type || '',
                 tr_date: initialValues.tr_date || '',
                 tr_nav_per_unit: initialValues.tr_nav_per_unit || '',
                 tr_shares: initialValues.tr_shares || '',
-                gross_amount: initialValues.gross_amount || '',
+                tr_amount: initialValues.tr_amount || '',
                 tr_fee: initialValues.tr_fee || '',
-                tr_net_amount: initialValues.tr_net_amount || ''
+                cash_amount: initialValues.cash_amount || '',
             });
         }
     }, [initialValues]);
+
+    // 计算是否为编辑模式
+    const isEditMode = !!initialValues?.id;
+
+    // 构造传给 HoldingSearchSelect 的 value 对象
+    // 确保包含 id，这样 HoldingSearchSelect 内部逻辑更完整
+    const holdingSelectValue = form.ho_short_name
+        ? {ho_code: form.ho_code, ho_short_name: form.ho_short_name, id: form.ho_id}
+        : form.ho_code;
 
     return (
         <form onSubmit={submit} className="space-y-4 p-4 page-bg rounded-lg">
@@ -190,13 +329,13 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col">
                         <label className="text-sm font-medium mb-1">{t('th_ho_code')}</label>
-                        <input
+                        {/* 改造点：使用 HoldingSearchSelect */}
+                        <HoldingSearchSelect
+                            value={holdingSelectValue}
+                            onChange={handleFundSelectChange}
                             placeholder={t('th_ho_code')}
-                            value={form.ho_code}
-                            onChange={(e) => setForm({...form, ho_code: e.target.value})}
-                            required
-                            className={`input-field ${initialValues?.tr_id ? 'read-only-input' : ''}`}
-                            readOnly={!!initialValues?.tr_id}
+                            disabled={isEditMode} // 编辑模式下禁用
+                            className="w-full" // 保持宽度一致
                         />
                     </div>
                     <div className="flex flex-col">
@@ -204,7 +343,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                         <MySelect
                             options={typeOptions}
                             value={form.tr_type}
-                            onChange={(val) => setForm({...form, currency: val})}
+                            onChange={(val) => handleFieldChange('tr_type', val)} // 使用 handleFieldChange
                             className="input-field"
                         />
                     </div>
@@ -246,17 +385,19 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                             className="input-field"
                         />
                     </div>
-                    <div className="flex flex-col">
-                        <label className="text-sm font-medium mb-1">{t('th_gross_amount')}</label>
+                    <div className="flex flex-col relative">
+                        <label className="text-sm font-medium mb-1">{t('th_tr_amount')}</label>
                         <input
                             type="number"
                             step="0.0001"
-                            placeholder={t('th_gross_amount')}
+                            placeholder={t('th_tr_amount')}
                             required
-                            value={form.gross_amount}
-                            onChange={(e) => setForm({...form, gross_amount: e.target.value})}
-                            className="input-field"
+                            value={form.tr_amount}
+                            onChange={(e) => handleFieldChange('tr_amount', e.target.value)} // 使用 handleFieldChange
+                            className={`input-field ${warnings.tr_amount ? 'border-orange-500 focus:ring-orange-500 focus:border-orange-500' : ''}`}
                         />
+                        {/* 气泡提示 */}
+                        <WarningBubble message={warnings.tr_amount} />
                     </div>
                 </div>
 
@@ -269,21 +410,25 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                             placeholder={t('th_tr_fee')}
                             required
                             value={form.tr_fee}
-                            onChange={(e) => setForm({...form, tr_fee: e.target.value})}
+                            onChange={(e) => handleFieldChange('tr_fee', e.target.value)} // 使用 handleFieldChange
                             className="input-field"
                         />
+
                     </div>
-                    <div className="flex flex-col">
-                        <label className="text-sm font-medium mb-1">{t('th_tr_net_amount')}</label>
+
+                    <div className="flex flex-col relative">
+                        <label className="text-sm font-medium mb-1">{t('th_cash_amount')}</label>
                         <input
                             type="number"
                             step="0.0001"
-                            placeholder={t('th_tr_net_amount')}
+                            placeholder={t('th_cash_amount')}
                             required
-                            value={form.tr_net_amount}
-                            onChange={(e) => setForm({...form, tr_net_amount: e.target.value})}
-                            className="input-field"
+                            value={form.cash_amount}
+                            onChange={(e) => setForm({...form, cash_amount: e.target.value})} // 手动修改不触发自动计算
+                            className={`input-field ${warnings.cash_amount ? 'border-orange-500 focus:ring-orange-500 focus:border-orange-500' : ''}`}
                         />
+                        {/* 气泡提示 */}
+                        <WarningBubble message={warnings.cash_amount} />
                     </div>
                 </div>
             </div>

@@ -68,11 +68,11 @@ def tr_page():
 @auth_required
 def create_transaction():
     data = request.get_json()
-    required_fields = ['ho_id', 'tr_type', 'tr_date', 'tr_nav_per_unit',
-                       'tr_shares', 'gross_amount', 'tr_fee', 'tr_net_amount']
+    required_fields = ['tr_type', 'tr_date', 'tr_nav_per_unit',
+                       'tr_shares', 'tr_amount', 'tr_fee', 'cash_amount',]
 
     if not all(field in data for field in required_fields):
-        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD)
+        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.value)
 
     new_transaction = TradeSchema().load(data)
     return Res.success() if TradeService.create_transaction(new_transaction) else Res.fail()
@@ -85,11 +85,15 @@ def get_transaction(tr_id):
     return Res.success(TradeSchema().dump(t))
 
 
-@trade_bp.route('/<int:tr_id>', methods=['PUT'])
+@trade_bp.route('/update', methods=['POST'])
 @auth_required
-def update_transaction(tr_id):
-    t = Trade.query.get_or_404(tr_id)
+def update_transaction():
     data = request.get_json()
+    tr_id = data.get('id')
+    if not tr_id:
+        raise BizException(ErrorMessageEnum.MISSING_FIELD.value)
+
+    t = Trade.query.get_or_404(tr_id)
     updated_data = TradeSchema().load(data, instance=t, partial=True)
 
     db.session.add(updated_data)
@@ -116,9 +120,9 @@ def export_trade():
         gettext('COL_TR_DATE'): t.tr_date,
         gettext('COL_TR_NAV_PER_UNIT'): t.tr_nav_per_unit,
         gettext('COL_TR_SHARES'): t.tr_shares,
-        gettext('COL_GROSS_AMOUNT'): t.gross_amount,
+        gettext('COL_TR_AMOUNT'): t.tr_amount,
         gettext('COL_TR_FEE'): t.tr_fee,
-        gettext('COL_TR_NET_AMOUNT'): t.tr_net_amount
+        gettext('COL_CASH_AMOUNT'): t.cash_amount,
     } for t in trade])
 
     output = BytesIO()
@@ -150,11 +154,12 @@ def download_template():
         gettext('COL_TR_NAV_PER_UNIT'),
         # '交易份数',
         gettext('COL_TR_SHARES'),
-        gettext('COL_GROSS_AMOUNT'),
+        # '交易金额',
+        gettext('COL_TR_AMOUNT'),
         # '交易费用',
         gettext('COL_TR_FEE'),
-        # '交易金额',
-        gettext('COL_TR_NET_AMOUNT'),
+        # '实际收付',
+        gettext('COL_CASH_AMOUNT'),
     ])
 
     # 添加示例数据（使用concat替代append）
@@ -164,9 +169,9 @@ def download_template():
         gettext('COL_TR_DATE'): '2023-01-01',
         gettext('COL_TR_NAV_PER_UNIT'): 1.0,
         gettext('COL_TR_SHARES'): 100,
-        gettext('COL_GROSS_AMOUNT'): 100,
+        gettext('COL_TR_AMOUNT'): 100,
         gettext('COL_TR_FEE'): 0.1,
-        gettext('COL_TR_NET_AMOUNT'): 100.1
+        gettext('COL_CASH_AMOUNT'): 100.1,
     }])
 
     df = pd.concat([df, example_data], ignore_index=True)
@@ -217,11 +222,12 @@ def import_trade():
         gettext('COL_TR_NAV_PER_UNIT'),
         # '交易份数',
         gettext('COL_TR_SHARES'),
-        gettext('COL_GROSS_AMOUNT'),
+        # '交易金额',
+        gettext('COL_TR_AMOUNT'),
         # '交易费用',
         gettext('COL_TR_FEE'),
-        # '交易金额',
-        gettext('COL_TR_NET_AMOUNT'),
+        # '实际收付',
+        gettext('COL_CASH_AMOUNT'),
     ]
     if not all(col in df.columns for col in required_columns):
         raise BizException(msg="Excel缺少必要列")
@@ -234,9 +240,9 @@ def import_trade():
     numeric_cols = [
         gettext('COL_TR_NAV_PER_UNIT'),
         gettext('COL_TR_SHARES'),
-        gettext('COL_GROSS_AMOUNT'),
+        gettext('COL_CASH_AMOUNT'),
         gettext('COL_TR_FEE'),
-        gettext('COL_TR_NET_AMOUNT')
+        gettext('COL_TR_AMOUNT')
     ]
     for col in numeric_cols:
         df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
@@ -249,9 +255,9 @@ def import_trade():
             tr_date=str(row[gettext('COL_TR_DATE')]),
             tr_nav_per_unit=float(row[gettext('COL_TR_NAV_PER_UNIT')]),
             tr_shares=float(row[gettext('COL_TR_SHARES')]),
-            gross_amount=float(row[gettext('COL_GROSS_AMOUNT')]),
+            tr_amount=float(row[gettext('COL_TR_AMOUNT')]),
             tr_fee=float(row[gettext('COL_TR_FEE')]),
-            tr_net_amount=float(row[gettext('COL_TR_NET_AMOUNT')]),
+            cash_amount=float(row[gettext('COL_CASH_AMOUNT')]),
         )
         transactions.append(transaction)
 

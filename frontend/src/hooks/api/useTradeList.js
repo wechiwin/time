@@ -7,7 +7,8 @@ export default function useTradeList(options = {}) {
         keyword = '',
         page = 1,
         perPage = 10,
-        autoLoad = true
+        autoLoad = true,
+        refreshKey = 0
     } = options;
 
     // 业务层管理数据状态
@@ -27,25 +28,22 @@ export default function useTradeList(options = {}) {
         if (autoLoad) {
             search(keyword, page, perPage);
         }
-    }, [keyword, page, perPage, autoLoad, search]);
+    }, [keyword, page, perPage, autoLoad, search, refreshKey]);
 
     const add = useCallback(async (body) => {
         const result = await post('/trade', body);
-        await search(keyword, page, perPage);
         return result;
     }, [post, search, keyword, page, perPage]);
 
     const remove = useCallback(async (id) => {
         const result = await del(`/trade/${id}`);
-        await search(keyword, page, perPage);
         return result;
     }, [del, search, keyword, page, perPage]);
 
     const update = useCallback(async ({tr_id, ...body}) => {
-        const result = await put(`/trade/${tr_id}`, body);
-        await search(keyword, page, perPage);
+        const result = await post(urlPrefix + "/update", body);
         return result;
-    }, [put, search, keyword, page, perPage]);
+    }, [post, search, keyword, page, perPage]);
 
     // 下载模板
     const downloadTemplate = useCallback(async () => {

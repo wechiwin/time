@@ -8,6 +8,7 @@ import {useToast} from "../components/context/ToastContext";
 import Pagination from "../components/common/Pagination";
 import {usePaginationState} from "../hooks/usePaginationState";
 import {useTranslation} from "react-i18next";
+import SearchBar from "../components/search/SearchBar";
 
 export default function TradePage() {
     // 分页
@@ -17,10 +18,9 @@ export default function TradePage() {
         handlePageChange,
         handlePerPageChange
     } = usePaginationState();
-    const [inputValue, setInputValue] = useState("");
     const [queryKeyword, setQueryKeyword] = useState("");
     const {t} = useTranslation()
-
+    const [searchRefreshKey, setSearchRefreshKey] = useState(0);
     const {
         data,
         add,
@@ -35,6 +35,7 @@ export default function TradePage() {
         perPage,
         keyword: queryKeyword,
         autoLoad: true,
+        refreshKey: searchRefreshKey,
     });
 
     const handleDelete = async (ho_id) => {
@@ -54,17 +55,12 @@ export default function TradePage() {
     const {showSuccessToast, showErrorToast} = useToast();
 
     // 搜索处理
-    const handleSearch = useCallback(() => {
-        console.log("执行搜索:", inputValue);
-        setQueryKeyword(inputValue); // 同步输入值到查询状态
+    const handleSearch = useCallback((val) => {
+        console.log("执行搜索:", val);
+        setQueryKeyword(val); // 同步输入值到查询状态
         handlePageChange(1); // 重置回第一页
-    }, [inputValue, handlePageChange]);
-
-    const handleKeyDown = (e) => {
-        if (e.key === 'Enter') {
-            handleSearch();
-        }
-    };
+        setSearchRefreshKey(prev => prev + 1); // 强制刷新
+    }, [handlePageChange]);
 
     const openAddModal = () => {
         setModalTitle(t('button_add'));
@@ -96,37 +92,26 @@ export default function TradePage() {
             showErrorToast(err.message);
         }
     };
-
+    const actionBar = (
+        <>
+            <button onClick={openAddModal} className="btn-primary">
+                {t('button_add')}
+            </button>
+            <button onClick={downloadTemplate} className="btn-secondary">
+                {t('button_download_template')}
+            </button>
+            <button onClick={handleImport} className="btn-secondary">
+                {t('button_import_data')}
+            </button>
+        </>
+    );
     return (
         <div className="space-y-6">
-            <div className="search-bar">
-                <input
-                    type="text"
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder={t('msg_search_placeholder')}
-                    className="search-input"
-                />
-                <button
-                    onClick={handleSearch}
-                    className="btn-primary"
-                >
-                    {t('button_search')}
-                </button>
-                {/* 右侧按钮组 */}
-                <div className="ml-auto flex items-center gap-2">
-                    <button onClick={openAddModal} className="btn-primary">
-                        {t('button_add')}
-                    </button>
-                    <button onClick={downloadTemplate} className="btn-secondary">
-                        {t('button_download_template')}
-                    </button>
-                    <button onClick={handleImport} className="btn-secondary">
-                        {t('button_import_data')}
-                    </button>
-                </div>
-            </div>
+            <SearchBar
+                placeholder={t('msg_search_placeholder')}
+                onSearch={handleSearch}
+                actions={actionBar}
+            />
 
             {/* 数据表格 */}
             <TradeTable data={data?.items || []} onDelete={handleDelete} onEdit={openEditModal}/>

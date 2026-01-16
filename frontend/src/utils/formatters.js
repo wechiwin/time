@@ -42,3 +42,13 @@ export const getColor = (val, options = {}) => {
     if (isNegative) return 'text-green-500 dark:text-green-400';
     return zeroColor;
 };
+// === 新增：专门用于数学计算的四舍五入函数 ===
+export const roundNumber = (num, precision = 2) => {
+    if (!num && num !== 0) return 0;
+    const val = Number(num);
+    if (isNaN(val)) return 0;
+
+    // 解决浮点数精度问题 (例如 1.005.toFixed(2) 可能是 1.00 的问题)
+    const m = Number((Math.abs(val) * Math.pow(10, precision)).toPrecision(15));
+    return (Math.round(m) / Math.pow(10, precision)) * Math.sign(val);
+};

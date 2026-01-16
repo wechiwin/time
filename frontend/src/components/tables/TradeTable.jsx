@@ -41,14 +41,14 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                 <div className="text-gray-600">{t('th_tr_shares')}</div>
                 <div className="text-right">{tr.tr_shares}</div>
 
-                <div className="text-gray-600">{t('th_gross_amount')}</div>
-                <div className="text-right">{tr.gross_amount}</div>
+                <div className="text-gray-600">{t('th_tr_amount')}</div>
+                <div className="text-right">{tr.tr_amount}</div>
 
                 <div className="text-gray-600">{t('th_tr_fee')}</div>
                 <div className="text-right">{tr.tr_fee}</div>
 
-                <div className="text-gray-600">{t('th_tr_net_amount')}</div>
-                <div className="text-right font-medium">{tr.tr_net_amount}</div>
+                <div className="text-gray-600">{t('th_cash_amount')}</div>
+                <div className="text-right font-medium">{tr.cash_amount}</div>
             </div>
 
             <div className="flex justify-end space-x-2 mt-3 pt-2 border-t border-gray-100">
@@ -60,7 +60,7 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                 </button>
                 <DeleteButton
                     onConfirm={() => onDelete(tr.tr_id)}
-                    description={`${t('msg_delete_confirmation')} ${tr.ho_code} - ${tr.tr_net_amount} ?`}
+                    description={`${t('msg_delete_confirmation')} ${tr.ho_code} - ${tr.tr_amount} ?`}
                     buttonSize="small"
                 />
             </div>
@@ -83,9 +83,9 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                         <th className="table-header">{t('th_nav_date')}</th>
                         <th className="table-header">{t('th_tr_nav_per_unit')}</th>
                         <th className="table-header">{t('th_tr_shares')}</th>
-                        <th className="table-header">{t('th_gross_amount')}</th>
+                        <th className="table-header">{t('th_cash_amount')}</th>
                         <th className="table-header">{t('th_tr_fee')}</th>
-                        <th className="table-header">{t('th_tr_net_amount')}</th>
+                        <th className="table-header">{t('th_tr_amount')}</th>
                         <th className="table-header text-right">{t('th_actions')}</th>
                     </tr>
                     </thead>
@@ -115,9 +115,9 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                             <td className="table-cell">{tr.tr_date}</td>
                             <td className="table-cell">{tr.tr_nav_per_unit}</td>
                             <td className="table-cell">{tr.tr_shares}</td>
-                            <td className="table-cell">{tr.gross_amount}</td>
+                            <td className="table-cell">{tr.tr_amount}</td>
                             <td className="table-cell">{tr.tr_fee}</td>
-                            <td className="table-cell">{tr.tr_net_amount}</td>
+                            <td className="table-cell">{tr.cash_amount}</td>
                             <td className="table-cell text-right">
                                 <div className="flex items-center space-x-2">
                                     <button
@@ -128,7 +128,7 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                                     </button>
                                     <DeleteButton
                                         onConfirm={() => onDelete(tr.tr_id)}
-                                        description={`${t('msg_delete_confirmation')} ${tr.ho_code} - ${tr.tr_net_amount} ?`}
+                                        description={`${t('msg_delete_confirmation')} ${tr.ho_code} - ${tr.tr_amount} ?`}
                                     />
                                 </div>
                             </td>

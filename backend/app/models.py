@@ -203,11 +203,11 @@ class Trade(TimestampMixin, BaseModel):
 
     tr_type = db.Column(db.String(50), nullable=False)  # 交易类型(买入/卖出/分红/拆分)
     tr_date = db.Column(db.Date, index=True, nullable=False)  # 交易日期
-    tr_nav_per_unit = db.Column(db.Numeric(18, 4))  # 单位净值
+    tr_nav_per_unit = db.Column(db.Numeric(18, 4))  # 市价
     tr_shares = db.Column(db.Numeric(18, 2))  # 交易份额
-    tr_net_amount = db.Column(db.Numeric(18, 2))  # 交易净额 = 单位净值 * 交易份额
+    tr_amount = db.Column(db.Numeric(18, 2))  # 交易金额 = 市价 * 交易份额
     tr_fee = db.Column(db.Numeric(18, 2))  # 交易费用
-    gross_amount = db.Column(db.Numeric(18, 2))  # 交易本金 = 交易净额 + 交易费用
+    cash_amount = db.Column(db.Numeric(18, 2))  # 实际收付 = 交易净额 +/- 交易费用
     tr_cycle = db.Column(db.Integer, index=True)  # 轮次
     is_cleared = db.Column(db.Boolean, default=False)  # 是否清仓
     remark = db.Column(db.String(200))

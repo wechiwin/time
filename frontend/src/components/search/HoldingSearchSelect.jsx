@@ -4,7 +4,13 @@ import SearchBox from './SearchBox';
 import {useDebouncedSearch} from '../../hooks/useDebouncedSearch';
 import useHoldingList from "../../hooks/api/useHoldingList";
 
-export default function HoldingSearchSelect({value, onChange, placeholder = '搜索基金'}) {
+export default function HoldingSearchSelect({
+                                                value,
+                                                onChange,
+                                                placeholder = '搜索基金',
+                                                disabled = false,
+                                                className = ''
+                                            }) {
     const [list, setList] = useState([]);
     const [open, setOpen] = useState(false);
     const {data, searchPage} = useHoldingList({autoLoad: false});
@@ -21,7 +27,11 @@ export default function HoldingSearchSelect({value, onChange, placeholder = '搜
             } else if (value.ho_code) {
                 // 如果是基金对象，设置选中状态
                 setSelectedFund(value);
-                setKeyword(value.ho_code);
+
+                const displayName = value.ho_short_name
+                    ? `${value.ho_code} - ${value.ho_short_name}`
+                    : value.ho_code;
+                setKeyword(displayName);
             }
         } else {
             setKeyword('');
@@ -69,30 +79,43 @@ export default function HoldingSearchSelect({value, onChange, placeholder = '搜
     // 处理选择基金
     const handleSelectFund = (fund) => {
         setSelectedFund(fund);
-        setKeyword(fund.ho_code);
+        setKeyword(`${fund.ho_code} - ${fund.ho_short_name}`);
         setOpen(false);
         // 通知父组件
         onChange(fund);
     };
 
+    // 新增：处理清空逻辑
+    const handleClear = () => {
+        setKeyword('');
+        setSelectedFund(null);
+        setList([]);
+        onChange(null); // 通知父组件已清空
+        // 清空后通常不需要自动打开下拉框，保持关闭即可，或者根据需求 setOpen(true)
+    };
+
     return (
-        <div className="relative" ref={wrapperRef}>
+        <div className={`relative ${className}`} ref={wrapperRef}>
             <SearchBox
                 value={keyword}
                 onChange={(val) => {
                     setKeyword(val);
-                    setOpen(true);
+                    if (!disabled) {
+                        setOpen(true);
+                    }
                     // 如果清空了输入，清除选中状态
                     if (!val && selectedFund) {
-                        setSelectedFund(null);
-                        onChange(null);
+                        handleClear();
                     }
 
                 }}
                 placeholder={placeholder}
-                onSearchNow={() => handleSearch(keyword)}
+                onSearchNow={() => !disabled && handleSearch(keyword)}
+                disabled={disabled}
+                onClear={handleClear} // 传入清空回调
+                title={keyword}
             />
-            {open && (
+            {open && !disabled && (
                 <div className="absolute z-10 mt-1 w-full card border rounded-md shadow-lg max-h-60 overflow-auto">
                     {list.length ? (
                         list.map((holding) => (

@@ -342,11 +342,11 @@ class HoldingSnapshotService:
             # 买入
             if trade.tr_type == TradeTypeEnum.BUY.value:
                 state.shares += trade.tr_shares
-                state.hos_holding_cost += trade.tr_net_amount
-                state.total_buy_amount += trade.tr_net_amount
+                state.hos_holding_cost += trade.cash_amount
+                state.total_buy_amount += trade.cash_amount
 
-                net_external_cash_flow -= trade.tr_net_amount
-                hos_daily_buy_amount += trade.tr_net_amount
+                net_external_cash_flow -= trade.cash_amount
+                hos_daily_buy_amount += trade.cash_amount
 
             # 卖出
             elif trade.tr_type == TradeTypeEnum.SELL.value:
@@ -369,13 +369,13 @@ class HoldingSnapshotService:
                 cost_of_sold_shares = (state.hos_holding_cost / state.shares) * trade.tr_shares
                 state.shares -= trade.tr_shares
                 state.hos_holding_cost -= cost_of_sold_shares
-                state.total_sell_amount += trade.tr_net_amount
-                hos_daily_sell_amount += trade.tr_net_amount
+                state.total_sell_amount += trade.cash_amount
+                hos_daily_sell_amount += trade.cash_amount
 
-                realized_pnl_from_this_sell = trade.tr_net_amount - cost_of_sold_shares
+                realized_pnl_from_this_sell = trade.cash_amount - cost_of_sold_shares
                 state.realized_pnl += realized_pnl_from_this_sell
 
-                net_external_cash_flow += trade.tr_net_amount
+                net_external_cash_flow += trade.cash_amount
 
         return state, net_external_cash_flow, hos_daily_buy_amount, hos_daily_sell_amount
 

@@ -63,14 +63,14 @@ class TradeService:
     def generate_json_from_text(cls, text: str):
         template = """{
     "ho_code": "",
-    "ho_name": "",
-    "tr_type": 1,
+    "ho_short_name": "",
+    "tr_type": "BUY",
     "tr_date": "YYYY-MM-DD",
     "tr_nav_per_unit": 1.0,
     "tr_shares": 100.0,
-    "gross_amount": 100.0,
+    "tr_amount": 100.0,
     "tr_fee": 0.1,
-    "tr_net_amount": 100.1
+    "cash_amount": 100.1
 }"""
 
         prompt = f"""
@@ -78,54 +78,63 @@ class TradeService:
 请严格遵循以下五步推理过程（内部思考，不要输出）：
 1. 根据字段含义找出所有关键字段的原始值，字段含义：
    - ho_code: string，持仓代码
-   - ho_name: string，持仓名称
-   - tr_type: int，交易类型(卖出为0，买入为1)
+   - ho_short_name: string，持仓名称
+   - tr_type: string，交易类型(买入为 BUY，卖出为 SELL)
    - tr_date: string，交易时间(YYYY-MM-DD格式)
    - tr_nav_per_unit: float，交易净值(单位净值)
    - tr_shares: float，交易份额
-   - gross_amount: float，交易净额，计算公式：tr_nav_per_unit * tr_shares
+   - tr_amount: float，交易金额，计算公式：tr_nav_per_unit * tr_shares
    - tr_fee: float，手续费
-   - tr_net_amount: float，交易总额，买入时tr_net_amount=gross_amount + tr_fee，卖出时tr_net_amount=gross_amount - tr_fee
+   - cash_amount: float，实际收付的现金，买入时等于 cash_amount + tr_fee，卖出时等于 cash_amount - tr_fee
 2. 根据 tr_type 判断是买入还是卖出
-3. 计算理论上的 gross_amount = tr_nav_per_unit × tr_shares
-4. 检查 tr_net_amount 和 gross_amount 的关系是否符合业务规则：
-   - 买入时：tr_net_amount 应该大于 gross_amount（因为含手续费）
-   - 卖出时：tr_net_amount 应该小于 gross_amount（因为扣手续费）
-5. 如果发现数值颠倒，请自动交换 tr_net_amount 和 gross_amount 的值
+3. 计算理论上的 tr_amount = tr_nav_per_unit × tr_shares
+4. 检查 tr_amount 和 cash_amount 的关系是否符合业务规则：
+   - 买入时：cash_amount = cash_amount + tr_fee，cash_amount 应该大于等于 tr_amount（因为含手续费）
+   - 卖出时：cash_amount = cash_amount - tr_fee，cash_amount 应该小于等于 tr_amount（因为扣手续费）
+5. 如果发现 tr_amount 和 cash_amount 数值颠倒或者根据识别出结果发现不满足4中的公式，请自动交换 或者重新计算 tr_amount 和 cash_amount 的值
 【输出要求】
 - 只输出最终 JSON，不含任何解释或代码块
 - 必须是合法 JSON
-- 字段必须包含：ho_code, ho_name, tr_type, tr_date, tr_nav_per_unit, tr_shares, gross_amount, tr_fee, tr_net_amount
+- 字段必须包含：ho_code, ho_short_name, tr_type, tr_date, tr_nav_per_unit, tr_shares, tr_amount, tr_fee, cash_amount
 - 无法识别的string设为空字符串，无法识别的int或者float设为0
 - 数值字段必须为 float/int，不能加引号
-【金额逻辑规则】
-- gross_amount 是扣除/获得手续费前的金额（= 单位净值 × 份额）
-- tr_net_amount 是实际支付（买入）或到账（卖出）的总金额
-- 买入：tr_net_amount = gross_amount + tr_fee → 所以 tr_net_amount > gross_amount
-- 卖出：tr_net_amount = gross_amount - tr_fee → 所以 tr_net_amount < gross_amount
-【示例格式】（注意 gross_amount 和 tr_net_amount 的大小关系）
+【示例格式】
 {template}
 OCR 文本：
 {text}
 现在开始，请只输出 JSON。
 """
 
-        result = cls.call_local_llm(prompt)
+        result = cls._call_local_llm(prompt)
 
         # 尝试提取 JSON
         try:
             data = json.loads(result)
-            if data.get('ho_name') and not data.get('ho_code'):
+            logger.info("LLM解析json结果：%s", str(data))
+            if data.get('ho_short_name') and not data.get('ho_code'):
                 # 根据名称获取代码
-                h = Holding.query.filter_by(ho_name=data.get('ho_name')).first()
+                h = Holding.query.filter_by(ho_short_name=data.get('ho_short_name')).first()
                 if h:
+                    data['ho_short_name'] = h.ho_short_name
                     data['ho_code'] = h.ho_code
                     data['ho_id'] = h.id
-            # logger.info("LLM解析json结果：%s", str(data))
+            logger.info("ai返回结果：%s", str(data))
             return data
         except Exception as e:
             logger.info(e)
             return {"error": "LLM 解析 JSON 失败", "raw": result}
+
+    @staticmethod
+    def _call_local_llm(prompt: str):
+        """
+        调用 Ollama 本地模型
+        """
+        resp = requests.post(
+            "http://localhost:11434/api/generate",
+            json={"model": "qwen2.5:3b", "prompt": prompt, "stream": False},
+            timeout=20
+        )
+        return resp.json()["response"]
 
     @classmethod
     def list_trade(cls, ho_code: int):
@@ -143,23 +152,11 @@ OCR 文本：
             'tr_date': t.tr_date,
             'tr_nav_per_unit': t.tr_nav_per_unit,
             'tr_shares': t.tr_shares,
-            'gross_amount': t.gross_amount,
+            'tr_amount': t.tr_amount,
             'tr_fee': t.tr_fee,
-            'tr_net_amount': t.tr_net_amount
+            'cash_amount': t.cash_amount,
         } for t in results]
         return data
-
-    @staticmethod
-    def call_local_llm(prompt: str):
-        """
-        调用 Ollama 本地模型
-        """
-        resp = requests.post(
-            "http://localhost:11434/api/generate",
-            json={"model": "qwen2.5:3b", "prompt": prompt, "stream": False},
-            timeout=20
-        )
-        return resp.json()["response"]
 
     @classmethod
     def create_transaction(cls, new_trade):
@@ -183,15 +180,15 @@ OCR 文本：
                         raise BizException("卖出份额大于买入份额")
                     elif current_sell_shares == 0:  # 清仓
                         new_trade.is_cleared = True
-                        holding.ho_status = HoldingStatusEnum.CLOSED
+                        holding.ho_status = HoldingStatusEnum.CLOSED.value
                     else:  # 部分卖出
-                        holding.ho_status = HoldingStatusEnum.HOLDING
+                        holding.ho_status = HoldingStatusEnum.HOLDING.value
                 else:  # 买入
-                    holding.ho_status = HoldingStatusEnum.HOLDING
+                    holding.ho_status = HoldingStatusEnum.HOLDING.value
             else:  # 超卖
                 if TradeTypeEnum.SELL == new_trade.tr_type:
                     raise BizException("卖出份额大于买入份额")
-                holding.ho_status = HoldingStatusEnum.HOLDING
+                holding.ho_status = HoldingStatusEnum.HOLDING.value
 
             new_trade.ho_code = holding.ho_code
             new_trade.tr_cycle = tr_cycle
@@ -319,7 +316,7 @@ OCR 文本：
             # 如果没有任何交易记录，则为第一轮
             return [], 1
 
-        if HoldingStatusEnum.HOLDING == holding.ho_status:
+        if HoldingStatusEnum.HOLDING.value == holding.ho_status:
             trades = Trade.query.filter_by(ho_id=holding.id, tr_cycle=latest_trade.tr_cycle).order_by(Trade.tr_date, Trade.id).all()
             return trades, latest_trade.tr_cycle
         else:
@@ -345,7 +342,7 @@ OCR 文本：
         for trade in sorted_trades:
             if trade.tr_type == 1:  # 买入交易
                 total_shares += trade.tr_shares
-                total_cost += trade.tr_net_amount  # 总成本包含交易费用
+                total_cost += trade.cash_amount  # 总成本包含交易费用
             elif trade.tr_type == 0:  # 卖出交易
                 # 使用移动平均法计算卖出成本 TODO 之后增加选项FIFO给用户
                 if total_shares > 0:
@@ -362,16 +359,16 @@ OCR 文本：
         计算累计收益
         累计收益 = 卖出总金额 + 当前持仓市值 - 买入总金额
         其中：
-          - 买入总金额 = 所有买入交易的 tr_net_amount（含费用）之和
-          - 卖出总金额 = 所有卖出交易的 tr_net_amount（含费用）之和
+          - 买入总金额 = 所有买入交易的 cash_amount（含费用）之和
+          - 卖出总金额 = 所有卖出交易的 cash_amount（含费用）之和
           - 当前持仓市值 = 所有未清仓持仓的份额 × 最新单位净值
         """
         # 1. 获取所有交易记录
         trades = Trade.query.all() or []
 
         # 2. 计算买入和卖出总额（含交易费用）
-        total_buy_amount = sum(trade.tr_net_amount for trade in trades if trade.tr_type == 1)
-        total_sell_amount = sum(trade.tr_net_amount for trade in trades if trade.tr_type == 0)
+        total_buy_amount = sum(trade.cash_amount for trade in trades if trade.tr_type == 1)
+        total_sell_amount = sum(trade.cash_amount for trade in trades if trade.tr_type == 0)
 
         # 3. 获取所有未清仓的持仓（is_cleared == 0）
         unclosed_holding_codes = set()

@@ -62,13 +62,13 @@ msgstr "NAV Per Unit"
 msgid "COL_TR_SHARES"
 msgstr "Trade Shares"
 
-msgid "COL_GROSS_AMOUNT"
+msgid "COL_CASH_AMOUNT"
 msgstr "Gross Amount"
 
 msgid "COL_TR_FEE"
 msgstr "Trade Fee"
 
-msgid "COL_TR_NET_AMOUNT"
+msgid "COL_TR_AMOUNT"
 msgstr "Net Amount"
 
 msgid "TEMPLATE_TR_IMPORT"
