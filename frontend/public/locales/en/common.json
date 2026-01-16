@@ -97,12 +97,14 @@
 
   "prev_page": "Prev",
   "next_page": "Next",
-  "per_page": "Per Page",
-  "jump_page": "Jump",
   "pagination_left": "Page",
   "pagination_right": "",
-  "total_name": "",
+  "jump_page": "Go",
+  "per_page": "Per page",
+  "total_name": "Total",
   "total_item": "items",
+  "page_number": "Page",
+  "pagination_aria_label": "Pagination navigation",
 
   "menu_alert": "Position Monitoring",
   "alert_rule_management": "Alert Management",

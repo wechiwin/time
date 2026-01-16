@@ -105,6 +105,8 @@
   "pagination_right": "页",
   "total_name": "共",
   "total_item": "条",
+  "page_number": "页码",
+  "pagination_aria_label": "分页导航",
 
   "menu_alert": "持仓监控",
   "alert_rule_management": "提醒管理",
