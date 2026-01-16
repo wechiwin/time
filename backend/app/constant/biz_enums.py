@@ -46,9 +46,9 @@ class AlertEmailStatusEnum(Enum):
 
 
 class TradeTypeEnum(Enum):
-    SELL = 'SELL'
     BUY = 'BUY'
-    DIVIDEND = 'DIVIDEND'
+    SELL = 'SELL'
+    # DIVIDEND = 'DIVIDEND'
 
     # SPLIT = (3, gettext('TR_SPLIT'))
     # TRANSFER_IN = (4, gettext('TR_TRANSFER_IN'))
@@ -60,8 +60,8 @@ class TradeTypeEnum(Enum):
             return lazy_gettext('TR_SELL')
         elif self == TradeTypeEnum.BUY:
             return lazy_gettext('TR_BUY')
-        elif self == TradeTypeEnum.DIVIDEND:
-            return lazy_gettext('TR_DIVIDEND')
+        # elif self == TradeTypeEnum.DIVIDEND:
+        #     return lazy_gettext('TR_DIVIDEND')
         return self.name
 
 
@@ -127,6 +127,7 @@ class ErrorMessageEnum(Enum):
     """
     MISSING_FIELD = "缺少必要字段"
     NO_SUCH_DATA = "数据不存在"
+    OVERSOLD = "卖出份额不应大于买入份额"
 
 
 class TaskStatusEnum(Enum):
@@ -138,24 +139,41 @@ class TaskStatusEnum(Enum):
     CANCELLED = 'CANCELLED'  # 手动取消
 
 
-class AnalyticsWindowEnum(str, Enum):
+class AnalyticsWindowEnum(Enum):
     # expanding
-    ALL = "ALL"  # 自建仓以来
-    CUR = "CUR"  # 本轮持仓（since last clear）
-
+    ALL = "ALL"
+    """
+    自建仓以来
+    """
+    CUR = "CUR"
+    """
+    本轮持仓（since last clear）
+    """
     # rolling
-    ONE_MONTH = "R21"
-    THREE_MONTH = "R63"
-    SIX_MONTH = "R126"
-    ONE_YEAR = "R252"
+    R21 = "R21"
+    """
+    一个月
+    """
+    R63 = "R63"
+    """
+    三个月
+    """
+    R126 = "R126"
+    """
+    半年
+    """
+    R252 = "R252"
+    """
+    一年
+    """
 
     @classmethod
     def rolling_windows(cls):
         return {
-            cls.ONE_MONTH,
-            cls.THREE_MONTH,
-            cls.SIX_MONTH,
-            cls.ONE_YEAR,
+            cls.R21,
+            cls.R63,
+            cls.R126,
+            cls.R252,
         }
 
     @classmethod

@@ -8,7 +8,8 @@ export default function useNavHistoryList(options = {}) {
         keyword = '',
         page = 1,
         perPage = DEFAULT_PAGE_SIZE,
-        autoLoad = true
+        autoLoad = true,
+        refreshKey = 0
     } = options;
 
     // 业务层管理数据状态
@@ -17,14 +18,33 @@ export default function useNavHistoryList(options = {}) {
     const urlPrefix = '/nav_history';
 
     // 修改search方法，接收查询字符串
-    const search = useCallback(async (ho_id = '', page = 1, per_page = 10) => {
-        const result = await post(`${urlPrefix}/page_history`, {ho_id, page, per_page});
+    const search = useCallback(async (params = {}) => {
+        // 兼容旧的调用方式 (keyword, page, perPage) 或者新的对象传参
+        let payload = {};
+        if (typeof params === 'string') {
+            payload = { keyword: params, page, perPage };
+        } else {
+            payload = {
+                keyword,
+                page,
+                perPage,
+                ...params // 包含 start_date, end_date
+            };
+        }
+
+        const result = await post(`${urlPrefix}/page_history`, {
+            keyword: payload.keyword,
+            page: payload.page,
+            per_page: payload.perPage,
+            start_date: payload.start_date, // 新增
+            end_date: payload.end_date      // 新增
+        });
         setData(result);
         return result;
-    }, [post]);
+    }, [post, keyword, page, perPage]); // 注意依赖项
 
     const list_history = useCallback(async (ho_id = '', start_date = '', end_date = '') => {
-        const payload = { ho_id };
+        const payload = {ho_id};
         if (start_date) payload.start_date = start_date;
         if (end_date) payload.end_date = end_date;
 
@@ -37,7 +57,7 @@ export default function useNavHistoryList(options = {}) {
         if (autoLoad) {
             search(keyword, page, perPage);
         }
-    }, [keyword, page, perPage, autoLoad, search]);
+    }, [keyword, page, perPage, autoLoad, search, refreshKey]);
 
     const add = useCallback(async (body) => {
         const result = await post('/nav_history', body);

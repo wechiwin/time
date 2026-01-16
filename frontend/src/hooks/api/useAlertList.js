@@ -13,18 +13,25 @@ export default function useAlertList(options = {}) {
     const [data, setData] = useState(null);
     const {loading, error, get, post, put, del} = useApi();
 
-    const searchPage = useCallback(async (searchKeyword = '', currentPage = 1, currentPerPage = 10, currentMode = mode) => {
-        const params = new URLSearchParams({
-            keyword: searchKeyword,
-            page: currentPage.toString(),
-            per_page: currentPerPage.toString()
-        }).toString();
+    const searchPage = useCallback(async (params = {}) => {
+        const currentMode = params.mode ?? mode;
+        let payload = {keyword, page, perPage, ...params};
 
-        const endpoint = currentMode === 'rule' ? '/alert/rule/search_page' : '/alert/history/search_page';
-        const result = await get(`${endpoint}?${params}`);
+        // 根据模式追加不同参数
+        if (currentMode === 'rule') {
+            if (params.ar_is_active !== undefined && params.ar_is_active !== '') {
+                payload.append('ar_is_active', params.ar_is_active);
+            }
+            if (params.ar_type) payload.append('ar_type', params.ar_type);
+        } else {
+            if (params.ah_status) payload.append('ah_status', params.ah_status);
+        }
+
+        const endpoint = currentMode === 'rule' ? '/alert/rule/page_rule' : '/alert/history/page_rule_his';
+        const result = await post(endpoint, payload);
         setData(result);
         return result;
-    }, [get, mode]);
+    }, [post, mode, keyword, page, perPage]);
 
     useEffect(() => {
         if (autoLoad) {

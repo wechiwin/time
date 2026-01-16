@@ -59,8 +59,8 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                     {t('button_edit')}
                 </button>
                 <DeleteButton
-                    onConfirm={() => onDelete(tr.tr_id)}
-                    description={`${t('msg_delete_confirmation')} ${tr.ho_code} - ${tr.tr_amount} ?`}
+                    onConfirm={() => onDelete(tr.id)}
+                    description={`${t('msg_delete_confirmation')} ${tr.ho_short_name} - ${tr.tr_date} ?`}
                     buttonSize="small"
                 />
             </div>
@@ -127,8 +127,8 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                                         {t('button_edit')}
                                     </button>
                                     <DeleteButton
-                                        onConfirm={() => onDelete(tr.tr_id)}
-                                        description={`${t('msg_delete_confirmation')} ${tr.ho_code} - ${tr.tr_amount} ?`}
+                                        onConfirm={() => onDelete(tr.id)}
+                                        description={`${t('msg_delete_confirmation')} ${tr.ho_short_name} - ${tr.tr_date} ?`}
                                     />
                                 </div>
                             </td>

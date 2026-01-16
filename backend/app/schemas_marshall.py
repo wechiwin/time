@@ -83,7 +83,6 @@ class TradeSchema(BaseSchema, EnumViewMixin):
         'tr_type': TradeTypeEnum,
     }
 
-    ho_code = fields.String(attribute='holding.ho_code', dump_only=True)
     ho_short_name = fields.String(attribute='holding.ho_short_name', dump_only=True)
 
     class Meta(BaseSchema.Meta):

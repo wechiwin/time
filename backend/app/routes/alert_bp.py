@@ -57,15 +57,16 @@ def delete_rule(ar_id):
     return Res.success()
 
 
-@alert_bp.route('/rule/search_page', methods=['GET'])
+@alert_bp.route('/rule/page_rule', methods=['POST'])
 @auth_required
-def search_rule_page():
-    ho_code = request.args.get('ho_code')
-    ar_type = request.args.get('ar_type')
-    ar_is_active = request.args.get('ar_is_active')
-    keyword = request.args.get('keyword')
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', DEFAULT_PAGE_SIZE, type=int)
+def page_rule():
+    data = request.get_json()
+    ho_code = data.get('ho_code')
+    ar_type = data.get('ar_type')
+    ar_is_active = data.get('ar_is_active')
+    keyword = data.get('keyword')
+    page = data.get('page') or 1
+    per_page = data.get('per_page') or DEFAULT_PAGE_SIZE
 
     # query = AlertRule.query
     query = db.session.query(AlertRule, Holding.ho_short_name).outerjoin(
@@ -122,14 +123,15 @@ def get_history(ah_id):
     return Res.success(AlertHistorySchema().dump(history))
 
 
-@alert_bp.route('/history/search_page', methods=['GET'])
+@alert_bp.route('/history/page_rule_his', methods=['POST'])
 @auth_required
-def search_history_page():
-    ar_id = request.args.get('ar_id')
-    ah_status = request.args.get('ah_status')
-    keyword = request.args.get('keyword')
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', DEFAULT_PAGE_SIZE, type=int)
+def page_rule_his():
+    data = request.get_json()
+    ar_id = data.get('ar_id')
+    ah_status = data.get('ah_status')
+    keyword = data.get('keyword')
+    page = data.get('page') or 1
+    per_page = data.get('per_page') or DEFAULT_PAGE_SIZE
 
     # query = AlertHistory.query
     query = db.session.query(AlertHistory, Holding.ho_short_name).outerjoin(

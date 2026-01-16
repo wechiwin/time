@@ -7,7 +7,9 @@ export default function useHoldingList(options = {}) {
         keyword = '',
         page = 1,
         perPage = 10,
-        autoLoad = true
+        autoLoad = true,
+        refreshKey = 0
+
     } = options;
 
     // 业务层管理数据状态
@@ -39,23 +41,29 @@ export default function useHoldingList(options = {}) {
     }, [get]);
 
     // 搜索函数 - 业务层设置数据
-    const searchPage = useCallback(async (searchKeyword = '', currentPage = 1, currentPerPage = 10) => {
-        const params = new URLSearchParams({
-            keyword: searchKeyword,
-            page: currentPage.toString(),
-            per_page: currentPerPage.toString()
-        }).toString();
-        const result = await get(`/holding/search_page?${params}`);
-        setData(result);  // 业务逻辑设置 data
+    const searchPage = useCallback(async (params = {}) => {
+        let payload = {keyword, page, perPage, ...params};
+        const result = await post(urlPrefix + '/page_holding', {
+            keyword: payload.keyword,
+            page: payload.page,
+            perPage: payload.perPage,
+            start_date: payload.start_date,
+            end_date: payload.end_date,
+            ho_status: payload.ho_status,
+            ho_type: payload.ho_type,
+        });
+        setData(result);
         return result;
-    }, [get]);
+
+    }, [post, keyword, page, perPage]);
+
 
     // 自动根据参数变化加载数据
     useEffect(() => {
         if (autoLoad) {
             searchPage(keyword, page, perPage);
         }
-    }, [keyword, page, perPage, autoLoad, searchPage]);
+    }, [keyword, page, perPage, autoLoad, searchPage, refreshKey]);
 
     // 添加基金
     const add = useCallback(async (body) => {
@@ -119,7 +127,7 @@ export default function useHoldingList(options = {}) {
             const res = await post('/holding/crawl_fund', formData, {
                 headers: {'Content-Type': 'multipart/form-data'},
             });
-            return res; // { ho_code, ho_name, ho_type, establish_date, ... }
+            return res;
         },
         [post]
     );

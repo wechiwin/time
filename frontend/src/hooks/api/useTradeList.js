@@ -16,12 +16,21 @@ export default function useTradeList(options = {}) {
     const {loading, error, get, post, put, del, download} = useApi();
     const urlPrefix = '/trade';
 
-    const search = useCallback(async (keyword = '', page = 1, perPage = 10) => {
-        const result = await post(urlPrefix + '/tr_page', {keyword, page, perPage});
+    const search = useCallback(async (params = {}) => {
+        let payload = {keyword, page, perPage, ...params};
+
+        const result = await post(urlPrefix + '/tr_page', {
+            keyword: payload.keyword,
+            page: payload.page,
+            perPage: payload.perPage,
+            start_date: payload.start_date,
+            end_date: payload.end_date,
+            tr_type: payload.tr_type
+        });
         setData(result);
-        console.log("tr_page:", result)
         return result;
-    }, [post]);
+    }, [post, keyword, page, perPage]);
+
 
     // 自动根据参数变化加载数据
     useEffect(() => {
@@ -36,9 +45,9 @@ export default function useTradeList(options = {}) {
     }, [post, search, keyword, page, perPage]);
 
     const remove = useCallback(async (id) => {
-        const result = await del(`/trade/${id}`);
+        const result = await post(urlPrefix + '/del_tr', {id});
         return result;
-    }, [del, search, keyword, page, perPage]);
+    }, [post]);
 
     const update = useCallback(async ({tr_id, ...body}) => {
         const result = await post(urlPrefix + "/update", body);

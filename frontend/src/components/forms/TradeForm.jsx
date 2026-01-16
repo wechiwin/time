@@ -8,7 +8,7 @@ import MySelect from "../common/MySelect";
 import useCommon from "../../hooks/api/useCommon";
 import HoldingSearchSelect from "../search/HoldingSearchSelect";
 import {roundNumber} from "../../utils/formatters";
-import {ExclamationTriangleIcon} from "@heroicons/react/24/outline";
+import {ExclamationTriangleIcon, CheckCircleIcon} from "@heroicons/react/24/outline";
 
 const init = {
     id: '',
@@ -23,20 +23,38 @@ const init = {
     tr_fee: '',
     cash_amount: '',
 };
+
 // 气泡提示组件
-const WarningBubble = ({message}) => {
-    if (!message) return null;
+const WarningBubble = ({warning, onApply}) => {
+    if (!warning) return null;
+
+    // 解构 warning 对象，兼容旧逻辑（如果只是字符串）
+    const message = typeof warning === 'string' ? warning : warning.message;
+    const suggestedValue = typeof warning === 'object' ? warning.suggestedValue : null;
+
     return (
-        <div className="absolute z-20 left-0 -bottom-2 translate-y-full w-full">
+        <div className="absolute z-20 left-0 -bottom-1 translate-y-full w-full">
             <div
-                className="relative bg-orange-50 border border-orange-200 text-orange-700 text-xs rounded-md p-2 shadow-md">
+                className="relative bg-orange-50 border border-orange-200 text-orange-800 text-xs rounded-md p-2 shadow-lg flex flex-col gap-1">
                 {/* 小三角箭头 */}
                 <div
                     className="absolute -top-1.5 left-4 w-3 h-3 bg-orange-50 border-t border-l border-orange-200 transform rotate-45"></div>
                 <div className="flex items-start gap-1.5">
-                    <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0 mt-0.5"/>
-                    <span>{message}</span>
+                    <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0 mt-0.5 text-orange-600"/>
+                    <span className="leading-tight">{message}</span>
                 </div>
+
+                {/* 应用按钮：只有存在建议值时才显示 */}
+                {suggestedValue !== null && suggestedValue !== undefined && (
+                    <button
+                        type="button"
+                        onClick={() => onApply(suggestedValue)}
+                        className="mt-1 flex items-center justify-center gap-1 w-full bg-orange-100 hover:bg-orange-200 text-orange-700 py-1 px-2 rounded transition-colors text-xs font-medium border border-orange-200"
+                    >
+                        <CheckCircleIcon className="w-3.5 h-3.5"/>
+                        应用 {suggestedValue}
+                    </button>
+                )}
             </div>
         </div>
     );
@@ -93,7 +111,10 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
         if (!isNaN(nav) && !isNaN(shares) && !isNaN(amount)) {
             const calcAmount = roundNumber(nav * shares, 2);
             if (Math.abs(calcAmount - amount) > 0.05) {
-                newWarnings.tr_amount = `计算值 (${calcAmount}) 与输入值不符`;
+                newWarnings.tr_amount = {
+                    message: `计算值 (${calcAmount}) 与输入值不符`,
+                    suggestedValue: calcAmount
+                };
             }
         }
 
@@ -110,7 +131,10 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
             }
 
             if (expectedCash !== null && Math.abs(expectedCash - cash) > 0.05) {
-                newWarnings.cash_amount = `计算值 (${expectedCash}) 与输入值不符`;
+                newWarnings.cash_amount = {
+                    message: `计算值 (${expectedCash}) 与输入值不符`,
+                    suggestedValue: expectedCash
+                };
             }
         }
 
@@ -155,7 +179,13 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
             return nextForm;
         });
     };
-    // 处理手动选择基金
+
+    // --- 改进点 2: 处理“应用”按钮点击 ---
+    const handleApplyFix = (field, value) => {
+        // 调用 handleFieldChange 以确保触发联动逻辑（例如修正 Amount 后自动修正 Cash）
+        handleFieldChange(field, value.toString());
+    };
+
     const handleFundSelectChange = (fund) => {
         if (fund) {
             setForm(prev => ({
@@ -323,126 +353,137 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
         : form.ho_code;
 
     return (
-        <form onSubmit={submit} className="space-y-4 p-4 page-bg rounded-lg">
-            {/* 移动端使用单列布局，桌面端使用多列 */}
-            <div className="grid grid-cols-1 gap-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex flex-col">
-                        <label className="text-sm font-medium mb-1">{t('th_ho_code')}</label>
-                        {/* 改造点：使用 HoldingSearchSelect */}
-                        <HoldingSearchSelect
-                            value={holdingSelectValue}
-                            onChange={handleFundSelectChange}
-                            placeholder={t('th_ho_code')}
-                            disabled={isEditMode} // 编辑模式下禁用
-                            className="w-full" // 保持宽度一致
-                        />
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="text-sm font-medium mb-1">{t('th_tr_type')}</label>
-                        <MySelect
-                            options={typeOptions}
-                            value={form.tr_type}
-                            onChange={(val) => handleFieldChange('tr_type', val)} // 使用 handleFieldChange
-                            className="input-field"
-                        />
-                    </div>
+        <form onSubmit={submit} className="p-3 sm:p-4 page-bg rounded-lg">
+            {/*
+               --- 改进点 1: 紧凑布局 ---
+               手机端使用 grid-cols-2，gap-3
+               通过 col-span-2 控制全宽字段
+            */}
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+
+                {/* 基金代码 - 全宽 */}
+                <div className="col-span-2 flex flex-col">
+                    <label className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_ho_code')}</label>
+                    <HoldingSearchSelect
+                        value={holdingSelectValue}
+                        onChange={handleFundSelectChange}
+                        placeholder={t('th_ho_code')}
+                        disabled={isEditMode}
+                        className="w-full text-sm"
+                    />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex flex-col">
-                        <label className="text-sm font-medium mb-1">{t('th_nav_date')}</label>
-                        <MyDate
-                            value={form.tr_date}
-                            onChange={(dateStr) => setForm({...form, tr_date: dateStr})}
-                            className="input-field"
-                        />
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="text-sm font-medium mb-1">{t('th_tr_nav_per_unit')}</label>
-                        <input
-                            type="number"
-                            step="0.0001"
-                            placeholder={t('th_tr_nav_per_unit')}
-                            required
-                            value={form.tr_nav_per_unit}
-                            onChange={(e) => setForm({...form, tr_nav_per_unit: e.target.value})}
-                            className="input-field"
-                        />
-                    </div>
+                {/* 交易类型 - 半宽 */}
+                <div className="col-span-1 flex flex-col">
+                    <label className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_tr_type')}</label>
+                    <MySelect
+                        options={typeOptions}
+                        value={form.tr_type}
+                        onChange={(val) => handleFieldChange('tr_type', val)}
+                        className="input-field text-sm py-1.5" // 稍微减小内边距
+                    />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex flex-col">
-                        <label className="text-sm font-medium mb-1">{t('th_tr_shares')}</label>
-                        <input
-                            type="number"
-                            step="0.0001"
-                            placeholder={t('th_tr_shares')}
-                            required
-                            value={form.tr_shares}
-                            onChange={(e) => setForm({...form, tr_shares: e.target.value})}
-                            className="input-field"
-                        />
-                    </div>
-                    <div className="flex flex-col relative">
-                        <label className="text-sm font-medium mb-1">{t('th_tr_amount')}</label>
-                        <input
-                            type="number"
-                            step="0.0001"
-                            placeholder={t('th_tr_amount')}
-                            required
-                            value={form.tr_amount}
-                            onChange={(e) => handleFieldChange('tr_amount', e.target.value)} // 使用 handleFieldChange
-                            className={`input-field ${warnings.tr_amount ? 'border-orange-500 focus:ring-orange-500 focus:border-orange-500' : ''}`}
-                        />
-                        {/* 气泡提示 */}
-                        <WarningBubble message={warnings.tr_amount} />
-                    </div>
+                {/* 交易日期 - 半宽 */}
+                <div className="col-span-1 flex flex-col">
+                    <label className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_nav_date')}</label>
+                    <MyDate
+                        value={form.tr_date}
+                        onChange={(dateStr) => setForm({...form, tr_date: dateStr})}
+                        className="input-field text-sm py-1.5"
+                    />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex flex-col">
-                        <label className="text-sm font-medium mb-1">{t('th_tr_fee')}</label>
-                        <input
-                            type="number"
-                            step="0.0001"
-                            placeholder={t('th_tr_fee')}
-                            required
-                            value={form.tr_fee}
-                            onChange={(e) => handleFieldChange('tr_fee', e.target.value)} // 使用 handleFieldChange
-                            className="input-field"
-                        />
+                {/* 净值 - 半宽 */}
+                <div className="col-span-1 flex flex-col">
+                    <label
+                        className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_tr_nav_per_unit')}</label>
+                    <input
+                        type="number"
+                        step="0.0001"
+                        placeholder="0.0000"
+                        required
+                        value={form.tr_nav_per_unit}
+                        onChange={(e) => setForm({...form, tr_nav_per_unit: e.target.value})}
+                        className="input-field text-sm py-1.5"
+                    />
+                </div>
 
-                    </div>
+                {/* 份额 - 半宽 */}
+                <div className="col-span-1 flex flex-col">
+                    <label className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_tr_shares')}</label>
+                    <input
+                        type="number"
+                        step="0.0001"
+                        placeholder="0.00"
+                        required
+                        value={form.tr_shares}
+                        onChange={(e) => setForm({...form, tr_shares: e.target.value})}
+                        className="input-field text-sm py-1.5"
+                    />
+                </div>
 
-                    <div className="flex flex-col relative">
-                        <label className="text-sm font-medium mb-1">{t('th_cash_amount')}</label>
-                        <input
-                            type="number"
-                            step="0.0001"
-                            placeholder={t('th_cash_amount')}
-                            required
-                            value={form.cash_amount}
-                            onChange={(e) => setForm({...form, cash_amount: e.target.value})} // 手动修改不触发自动计算
-                            className={`input-field ${warnings.cash_amount ? 'border-orange-500 focus:ring-orange-500 focus:border-orange-500' : ''}`}
-                        />
-                        {/* 气泡提示 */}
-                        <WarningBubble message={warnings.cash_amount} />
-                    </div>
+                {/* 交易金额 - 半宽 (带校验) */}
+                <div className="col-span-1 flex flex-col relative">
+                    <label className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_tr_amount')}</label>
+                    <input
+                        type="number"
+                        step="0.0001"
+                        placeholder="0.00"
+                        required
+                        value={form.tr_amount}
+                        onChange={(e) => handleFieldChange('tr_amount', e.target.value)}
+                        className={`input-field text-sm py-1.5 ${warnings.tr_amount ? 'border-orange-500 focus:ring-orange-500 focus:border-orange-500' : ''}`}
+                    />
+                    <WarningBubble
+                        warning={warnings.tr_amount}
+                        onApply={(val) => handleApplyFix('tr_amount', val)}
+                    />
+                </div>
+
+                {/* 费用 - 半宽 */}
+                <div className="col-span-1 flex flex-col">
+                    <label className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_tr_fee')}</label>
+                    <input
+                        type="number"
+                        step="0.0001"
+                        placeholder="0.00"
+                        required
+                        value={form.tr_fee}
+                        onChange={(e) => handleFieldChange('tr_fee', e.target.value)}
+                        className="input-field text-sm py-1.5"
+                    />
+                </div>
+
+                {/* 结算金额 - 全宽 (带校验) */}
+                <div className="col-span-2 flex flex-col relative">
+                    <label className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_cash_amount')}</label>
+                    <input
+                        type="number"
+                        step="0.0001"
+                        placeholder="0.00"
+                        required
+                        value={form.cash_amount}
+                        onChange={(e) => setForm({...form, cash_amount: e.target.value})}
+                        className={`input-field text-sm py-1.5 font-semibold bg-gray-50 ${warnings.cash_amount ? 'border-orange-500 focus:ring-orange-500 focus:border-orange-500' : ''}`}
+                    />
+                    <WarningBubble
+                        warning={warnings.cash_amount}
+                        onApply={(val) => handleApplyFix('cash_amount', val)}
+                    />
                 </div>
             </div>
             <div className="flex flex-col sm:flex-row sm:justify-end space-y-2 sm:space-y-0 sm:space-x-2 pt-2">
                 {/* 状态提示 */}
                 {uploading && (
-                    <div className="sm:hidden text-sm text-blue-600 animate-pulse">
+                    <div className="sm:hidden text-xs text-blue-600 animate-pulse text-center mb-2">
                         {processingStatus}
                     </div>
                 )}
 
-                <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
-                    {/* 上传按钮 */}
-                    <div>
+                <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:gap-2">
+                    {/* 上传按钮 - 手机端占一半宽度 */}
+                    <div className="col-span-2 sm:w-auto">
                         <input
                             id="trade-upload"
                             type="file"
@@ -453,7 +494,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                         />
                         <label
                             htmlFor="trade-upload"
-                            className={`btn-secondary inline-flex items-center justify-center gap-2 w-full sm:w-auto ${uploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                            className={`btn-secondary flex items-center justify-center gap-2 w-full sm:w-auto text-sm py-2 ${uploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                         >
                             {t('button_upload_image')}
                         </label>
@@ -461,7 +502,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
 
                     <button
                         type="button"
-                        className="btn-secondary w-full sm:w-auto"
+                        className="btn-secondary w-full sm:w-auto text-sm py-2"
                         onClick={onClose}
                         disabled={uploading}
                     >
@@ -469,7 +510,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                     </button>
                     <button
                         type="submit"
-                        className="btn-primary w-full sm:w-auto"
+                        className="btn-primary w-full sm:w-auto text-sm py-2"
                         disabled={uploading}
                     >
                         {t('button_confirm')}
@@ -478,7 +519,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
 
                 {/* 桌面端状态提示 */}
                 {uploading && (
-                    <div className="hidden sm:block text-sm text-blue-600 animate-pulse ml-2">
+                    <div className="hidden sm:block text-sm text-blue-600 animate-pulse ml-2 self-center">
                         {processingStatus}
                     </div>
                 )}

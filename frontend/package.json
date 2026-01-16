@@ -24,7 +24,8 @@
     "react-datepicker": "^8.10.0",
     "react-dom": "^18.2.0",
     "react-i18next": "^13.5.0",
-    "react-router-dom": "^6.30.1"
+    "react-router-dom": "^6.30.1",
+    "react-tailwindcss-datepicker": "^1.6.6"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.0.0",

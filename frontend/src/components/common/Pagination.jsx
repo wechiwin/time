@@ -14,6 +14,9 @@ const MAX_PAGE_BUTTONS = 5;
  * @param {Function} onPerPageChange - 每页数量改变回调
  */
 export default function Pagination({ pagination, onPageChange, onPerPageChange }) {
+    // 如果分页数据无效或只有一页，不渲染组件
+    if (!pagination || pagination.pages <= 1) return null;
+
     const { page = 1, per_page = 10, total = 0, pages = 1 } = pagination || {};
     const [inputPage, setInputPage] = useState(page);
     const { t } = useTranslation();
@@ -23,9 +26,6 @@ export default function Pagination({ pagination, onPageChange, onPerPageChange }
     useEffect(() => {
         setInputPage(page);
     }, [page]);
-
-    // 如果分页数据无效或只有一页，不渲染组件
-    if (!pagination || pages <= 1) return null;
 
     // 防止在最后一页时，由于total减少导致page超出范围
     const currentPage = Math.min(page, pages);

@@ -74,7 +74,9 @@ export default function useHoldingTimeline(trades = [], snapshots = [], fundInfo
                         cash_sell += parseFloat(t.cash_amount); // 收钱
                     }
                 });
-                calculatedProfit = cash_sell - cash_buy
+                if (cash_sell !== 0) {
+                    calculatedProfit = cash_sell - cash_buy;
+                }
 
                 // 如果没清仓，加上当前市值 (需要最新净值，这里简化处理，优先用快照数据)
                 if (!isCleared && lastSnapshot) {
@@ -100,9 +102,7 @@ export default function useHoldingTimeline(trades = [], snapshots = [], fundInfo
                 };
             });
 
-        // 4. 生成全局统计 (修复点 1: 优先使用 holding 表数据)
-        // fundInfo 来自 holding 表，代表"当前状态"
-        // latestSnapshot 来自 holding_snapshot 表，代表"昨日/历史状态"
+        // 4. 生成全局统计
         const latestSnapshot = snapshots.length > 0 ? snapshots[snapshots.length - 1] : {};
 
         // 辅助函数：优先取 fundInfo，不存在则取 snapshot

@@ -38,6 +38,7 @@ def tr_page():
     # 添加分页参数
     page = data.get('page') or 1
     per_page = data.get('per_page') or 10
+    tr_type = data.get('tr_type')
 
     query = Trade.query.options(joinedload(Trade.holding))
 
@@ -47,6 +48,8 @@ def tr_page():
         query = query.filter(Trade.tr_date >= start_date)
     if end_date:
         query = query.filter(Trade.tr_date <= end_date)
+    if tr_type:
+        query = query.filter(Trade.tr_type == tr_type)
     if keyword:
         query = query.join(Holding, Trade.ho_id == Holding.id).filter(
             or_(
@@ -69,7 +72,7 @@ def tr_page():
 def create_transaction():
     data = request.get_json()
     required_fields = ['tr_type', 'tr_date', 'tr_nav_per_unit',
-                       'tr_shares', 'tr_amount', 'tr_fee', 'cash_amount',]
+                       'tr_shares', 'tr_amount', 'tr_fee', 'cash_amount', ]
 
     if not all(field in data for field in required_fields):
         raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.value)
@@ -93,7 +96,10 @@ def update_transaction():
     if not tr_id:
         raise BizException(ErrorMessageEnum.MISSING_FIELD.value)
 
-    t = Trade.query.get_or_404(tr_id)
+    t = Trade.query.get(tr_id)
+    if not t:
+        raise BizException(ErrorMessageEnum.NO_SUCH_DATA.value)
+
     updated_data = TradeSchema().load(data, instance=t, partial=True)
 
     db.session.add(updated_data)
@@ -101,10 +107,17 @@ def update_transaction():
     return Res.success()
 
 
-@trade_bp.route('/<int:tr_id>', methods=['DELETE'])
+@trade_bp.route('/del_tr', methods=['POST'])
 @auth_required
-def delete_transaction(tr_id):
-    t = Trade.query.get_or_404(tr_id)
+def del_tr():
+    data = request.get_json()
+    tr_id = data.get('id')
+    if not tr_id:
+        raise BizException(ErrorMessageEnum.MISSING_FIELD.value)
+    t = Trade.query.get(tr_id)
+    if not t:
+        raise BizException(ErrorMessageEnum.NO_SUCH_DATA.value)
+
     db.session.delete(t)
     db.session.commit()
     return Res.success()

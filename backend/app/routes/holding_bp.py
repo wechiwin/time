@@ -44,32 +44,38 @@ def search_list():
     return Res.success(HoldingSchema(many=True).dump(holdings))
 
 
-@holding_bp.route('search_page', methods=['GET'])
+@holding_bp.route('page_holding', methods=['POST'])
 @auth_required
-def search_page():
-    """
-    基金模糊搜索API
-    参数:
-    keyword: 搜索关键词(基金代码或名称)
-    page: 页码(默认1)
-    per_page: 每页数量(默认10)
-    """
-    ho_code = request.args.get('ho_code')
-    ho_name = request.args.get('ho_name')
-    ho_type = request.args.get('ho_type')
-    keyword = request.args.get('keyword')
+def page_holding():
+    data = request.get_json()
+    ho_code = data.get('ho_code')
+    ho_name = data.get('ho_name')
+    keyword = data.get('keyword')
+    page = data.get('page') or 1
+    per_page = data.get('per_page') or DEFAULT_PAGE_SIZE
 
-    # 添加分页参数
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', DEFAULT_PAGE_SIZE, type=int)
+    # 可能是字符串，也可能是列表
+    ho_type = data.get('ho_type')
+    ho_status = data.get('ho_status')
 
     query = Holding.query
     if ho_code:
         query = query.filter_by(ho_code=ho_code)
     if ho_name:
         query = query.filter_by(ho_name=ho_name)
+
+    # 多选支持逻辑 (IN 查询)
     if ho_type:
-        query = query.filter_by(ho_type=ho_type)
+        if isinstance(ho_type, list) and len(ho_type) > 0:
+            query = query.filter(Holding.ho_type.in_(ho_type))
+        elif isinstance(ho_type, str) and ho_type.strip():
+            query = query.filter_by(ho_type=ho_type)
+    if ho_status:
+        if isinstance(ho_status, list) and len(ho_status) > 0:
+            query = query.filter(Holding.ho_status.in_(ho_status))
+        elif isinstance(ho_status, str) and ho_status.strip():
+            query = query.filter_by(ho_status=ho_status)
+
     if keyword:
         query = query.filter(
             or_(

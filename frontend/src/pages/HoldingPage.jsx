@@ -1,86 +1,77 @@
-// src/pages/HoldingPage.jsx
+import React, {useCallback, useState} from 'react';
+import {useTranslation} from "react-i18next";
 import HoldingForm from '../components/forms/HoldingForm';
 import HoldingTable from '../components/tables/HoldingTable';
 import useHoldingList from '../hooks/api/useHoldingList';
-import {useCallback, useState} from 'react';
 import FormModal from "../components/common/FormModal";
 import {useToast} from "../components/context/ToastContext";
 import Pagination from "../components/common/Pagination";
 import {usePaginationState} from "../hooks/usePaginationState";
-import {useTranslation} from "react-i18next";
+import SearchBar from "../components/search/SearchBar";
 
 export default function HoldingPage() {
-    // 分页
-    const {
-        page,
-        perPage,
-        handlePageChange,
-        handlePerPageChange
-    } = usePaginationState();
-    const [inputValue, setInputValue] = useState("");
-    const [queryKeyword, setQueryKeyword] = useState("");
-    const [keyword, setKeyword] = useState("");
-    const {t} = useTranslation()
+    const {t} = useTranslation();
+    const {showSuccessToast, showErrorToast} = useToast();
+    const {page, perPage, handlePageChange, handlePerPageChange} = usePaginationState();
 
-    // 使用参数驱动的数据获取
-    const {
-        data,
-        loading,
-        error,
-        add,
-        remove,
-        search,
-        update,
-        importData,
-        downloadTemplate,
-        crawlFundInfo
-    } = useHoldingList({
-        page,
-        perPage,
-        keyword: queryKeyword,
-        autoLoad: true,
+    const [queryKeyword, setQueryKeyword] = useState("");
+    const [refreshKey, setRefreshKey] = useState(0);
+    const [filters, setFilters] = useState({ho_status: "", ho_type: ""});
+
+    const {data, add, remove, update, importData, downloadTemplate, crawlFundInfo} = useHoldingList({
+        page, perPage, keyword: queryKeyword, autoLoad: true, refreshKey, ...filters
     });
 
-    // 模态框控制
-    const [showModal, setShowModal] = useState(false);
-    const [modalTitle, setModalTitle] = useState(t('button_add'));
-    const [modalSubmit, setModalSubmit] = useState(() => add);
-    const [initialValues, setInitialValues] = useState({});
-    const {showSuccessToast, showErrorToast} = useToast();
+    const handleSearch = useCallback((val) => {
+        setQueryKeyword(val);
+        handlePageChange(1);
+    }, [handlePageChange]);
 
-    const openAddModal = () => {
-        setModalTitle(t('button_add'));
-        setModalSubmit(() => add);
-        setInitialValues({});
-        setShowModal(true);
+    const handleFilterChange = (e) => {
+        setFilters(prev => ({...prev, [e.target.name]: e.target.value}));
+        handlePageChange(1);
     };
 
-    const openEditModal = (fund) => {
-        setModalTitle(t('button_edit'));
-        setModalSubmit(() => update);
-        setInitialValues(fund);
-        setShowModal(true);
-    };
-
-    const handleDelete = async (ho_id) => {
+    const handleDelete = async (id) => {
+        if (!window.confirm(t('msg_confirm_delete'))) return;
         try {
-            await remove(ho_id);
+            await remove(id);
             showSuccessToast();
+            setRefreshKey(p => p + 1);
         } catch (err) {
             showErrorToast(err.message);
         }
     };
 
-    // 导入数据
+    const [modalConfig, setModalConfig] = useState({show: false, title: "", submitAction: null, initialValues: {}});
+    const openModal = (type, values = {}) => {
+        setModalConfig({
+            show: true, title: type === 'add' ? t('button_add') : t('button_edit'),
+            submitAction: type === 'add' ? add : update, initialValues: values
+        });
+    };
+
+    const handleCrawl = useCallback(async (code, setFormPatch) => {
+        try {
+            const info = await crawlFundInfo(code);
+            setFormPatch(info);
+            showSuccessToast('基金信息爬取成功');
+        } catch (e) {
+            showErrorToast(e.message);
+        }
+    }, [crawlFundInfo, showSuccessToast, showErrorToast]);
+
     const handleImport = async () => {
         try {
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = '.xlsx, .xls';
             input.onchange = async (e) => {
-                const file = e.target.files[0];
-                await importData(file);
-                showSuccessToast();
+                if (e.target.files?.[0]) {
+                    await importData(e.target.files[0]);
+                    showSuccessToast();
+                    setRefreshKey(p => p + 1);
+                }
             };
             input.click();
         } catch (err) {
@@ -88,108 +79,57 @@ export default function HoldingPage() {
         }
     };
 
-    // 搜索处理
-    const handleSearch = useCallback(() => {
-        console.log("执行搜索:", inputValue);
-        setQueryKeyword(inputValue); // 同步输入值到查询状态
-        handlePageChange(1); // 重置回第一页
-    }, [inputValue, handlePageChange]);
-
-    const handleKeyDown = (e) => {
-        if (e.key === 'Enter') {
-            handleSearch();
-        }
-    };
-
-    /* 供表单使用的爬取回调 */
-    const handleCrawl = useCallback(
-        async (code, setFormPatch) => {
-            try {
-                const info = await crawlFundInfo(code);
-                // 更新表单，包含所有可能爬取到的字段
-                setFormPatch({
-                    ho_name: info.ho_name || '',
-                    ho_short_name: info.ho_short_name || '',
-                    ho_type: info.ho_type || '',
-                    establishment_date: info.establishment_date || '',
-                    exchange: info.exchange || '',
-                    currency: info.currency || '',
-                    fund_type: info.fund_type || '',
-                    risk_level: info.risk_level || '',
-                    trade_type: info.trade_type || '',
-                    manage_exp_rate: info.manage_exp_rate || '',
-                    trustee_exp_rate: info.trustee_exp_rate || '',
-                    sales_exp_rate: info.sales_exp_rate || '',
-                    company_id: info.company_id || '',
-                    company_name: info.company_name || '',
-                    fund_manager: info.fund_manager || '',
-                    dividend_method: info.dividend_method || '',
-                    index_code: info.index_code || '',
-                    index_name: info.index_name || '',
-                    feature: info.feature || '',
-                });
-                showSuccessToast('基金信息爬取成功');
-            } catch (e) {
-                showErrorToast(e.message);
-            }
-        },
-        [crawlFundInfo, showSuccessToast, showErrorToast]
-    );
-
     return (
         <div className="space-y-6">
-            {/* 搜索 + 按钮行 */}
-            <div className="search-bar">
-                <input
-                    type="text"
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder={t('msg_search_placeholder')}
-                    className="search-input"
-                />
-                <button
-                    onClick={handleSearch}
-                    className="btn-primary"
-                >
-                    {t('button_search')}
-                </button>
+            {/* 自由布局：左右对齐 */}
+            <div
+                className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
 
-                {/* 右侧按钮组 */}
-                <div className="ml-auto flex items-center gap-2">
-                    <button onClick={openAddModal} className="btn-primary">
-                        {t('button_add')}
-                    </button>
-                    <button onClick={downloadTemplate} className="btn-secondary">
-                        {t('button_download_template')}
-                    </button>
-                    <button onClick={handleImport} className="btn-secondary">
-                        {t('button_import_data')}
-                    </button>
+                    {/* 左侧：搜索 + 筛选 */}
+                    <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+                        <div className="w-full md:w-auto min-w-[240px]">
+                            <SearchBar key={refreshKey} placeholder={t('msg_search_placeholder')}
+                                       onSearch={handleSearch}/>
+                        </div>
+                        <select name="ho_status" value={filters.ho_status} onChange={handleFilterChange}
+                                className="input-field w-full md:w-40">
+                            <option value="">{t('all_status') || "所有状态"}</option>
+                            <option value="HOLDING">{t('HO_STATUS_HOLDING')}</option>
+                            <option value="CLOSED">{t('HO_STATUS_CLEARED')}</option>
+                            <option value="NOT_HELD">{t('HO_STATUS_NOT_HOLDING')}</option>
+                        </select>
+                        <select name="ho_type" value={filters.ho_type} onChange={handleFilterChange}
+                                className="input-field w-full md:w-40">
+                            <option value="">{t('all_types') || "所有类型"}</option>
+                            <option value="FUND">{t('HOLDING_TYPE_FUND')}</option>
+                        </select>
+                    </div>
+
+                    {/* 右侧：按钮组 */}
+                    <div className="flex flex-wrap gap-2 self-end xl:self-auto">
+                        <button onClick={() => openModal('add')} className="btn-primary">{t('button_add')}</button>
+                        <button onClick={downloadTemplate}
+                                className="btn-secondary">{t('button_download_template')}</button>
+                        <button onClick={handleImport} className="btn-secondary">{t('button_import_data')}</button>
+                    </div>
                 </div>
             </div>
-            <HoldingTable data={data?.items || []} onDelete={handleDelete} onEdit={openEditModal}/>
-            {/* 分页 */}
+
+            <HoldingTable data={data?.items || []} onDelete={handleDelete} onEdit={(item) => openModal('edit', item)}/>
+
             {data?.pagination && (
                 <Pagination
-                    pagination={{
-                        page,
-                        per_page: perPage,
-                        total: data.pagination.total,
-                        pages: data.pagination.pages,
-                    }}
-                    onPageChange={handlePageChange}
-                    onPerPageChange={handlePerPageChange}
+                    pagination={{page, per_page: perPage, total: data.pagination.total, pages: data.pagination.pages}}
+                    onPageChange={handlePageChange} onPerPageChange={handlePerPageChange}
                 />
             )}
-            {/* 模态框 */}
+
             <FormModal
-                title={modalTitle}
-                show={showModal}
-                onClose={() => setShowModal(false)}
-                onSubmit={modalSubmit}
-                FormComponent={HoldingForm}
-                initialValues={initialValues}
+                title={modalConfig.title} show={modalConfig.show}
+                onClose={() => setModalConfig(p => ({...p, show: false}))}
+                onSubmit={modalConfig.submitAction} FormComponent={HoldingForm}
+                initialValues={modalConfig.initialValues}
                 modalProps={{onCrawl: handleCrawl}}
             />
         </div>

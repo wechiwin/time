@@ -40,8 +40,8 @@ def get_enum():
     enum_list = []
     for member in enum_class:
         enum_list.append({
-            'code': member.value,  # 枚举值（数字）
-            'view': member.view  # 显示文本（已翻译）
+            'value': member.value,  # 枚举值（数字）
+            'label': member.view  # 显示文本（已翻译）
         })
 
     return Res.success(enum_list)

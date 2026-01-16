@@ -2,6 +2,7 @@ import logging
 import threading
 
 from flask import Blueprint, request, current_app
+from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
 from app.constant.biz_enums import ErrorMessageEnum
@@ -21,13 +22,27 @@ logger = logging.getLogger(__name__)
 def page_history():
     data = request.get_json()
     ho_id = data.get('ho_id')
+    keyword = data.get('keyword')
     page = data.get('page')
     per_page = data.get('per_page')
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
 
     query = FundNavHistory.query.options(joinedload(FundNavHistory.holding))
+
     if ho_id:
         query = query.filter_by(ho_id=ho_id)
-
+    if start_date:
+        query = query.filter(FundNavHistory.nav_date >= start_date)
+    if end_date:
+        query = query.filter(FundNavHistory.nav_date <= end_date)
+    if keyword:
+        query = query.join(Holding, FundNavHistory.ho_id == Holding.id).filter(
+            or_(
+                Holding.ho_code.ilike(f'%{keyword}%'),
+                Holding.ho_short_name.ilike(f'%{keyword}%')
+            )
+        )
     # 分页查询
     pagination = query.order_by(FundNavHistory.nav_date.desc()).paginate(
         page=page, per_page=per_page, error_out=False
