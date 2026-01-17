@@ -256,20 +256,20 @@ export default function NavHistoryChart({navHistory, snapshots, trades, fundInfo
     }, [legendData, legendSelected, xAxisData, series, isDarkMode]);
 
     // 在 return 语句前添加调试输出
-    console.log('Chart Data Debug:', {
-        navHistoryLength: navHistory?.length,
-        filteredNavHistoryLength: filteredData.filteredNavHistory?.length,
-        snapshotsLength: snapshots?.length,
-        tradesLength: trades?.length,
-        xAxisDataLength: xAxisData?.length,
-        seriesCount: series?.length,
-        xAxisDataSample: xAxisData?.slice(0, 5),
-        seriesSample: series?.map(s => ({
-            name: s.name,
-            dataLength: s.data?.length,
-            dataSample: s.data?.slice(0, 3)
-        }))
-    });
+    // console.log('Chart Data Debug:', {
+    //     navHistoryLength: navHistory?.length,
+    //     filteredNavHistoryLength: filteredData.filteredNavHistory?.length,
+    //     snapshotsLength: snapshots?.length,
+    //     tradesLength: trades?.length,
+    //     xAxisDataLength: xAxisData?.length,
+    //     seriesCount: series?.length,
+    //     xAxisDataSample: xAxisData?.slice(0, 5),
+    //     seriesSample: series?.map(s => ({
+    //         name: s.name,
+    //         dataLength: s.data?.length,
+    //         dataSample: s.data?.slice(0, 3)
+    //     }))
+    // });
 
 
     return (

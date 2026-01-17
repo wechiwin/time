@@ -8,7 +8,10 @@ export default function useHoldingList(options = {}) {
         page = 1,
         perPage = 10,
         autoLoad = true,
-        refreshKey = 0
+        refreshKey = 0,
+        ho_status = [],
+        ho_type = [],
+        nav_date = null
 
     } = options;
 
@@ -42,28 +45,28 @@ export default function useHoldingList(options = {}) {
 
     // 搜索函数 - 业务层设置数据
     const searchPage = useCallback(async (params = {}) => {
-        let payload = {keyword, page, perPage, ...params};
-        const result = await post(urlPrefix + '/page_holding', {
-            keyword: payload.keyword,
-            page: payload.page,
-            perPage: payload.perPage,
-            start_date: payload.start_date,
-            end_date: payload.end_date,
-            ho_status: payload.ho_status,
-            ho_type: payload.ho_type,
-        });
+        const payload = {
+            keyword: params.keyword || keyword,
+            page: params.page || page,
+            perPage: params.perPage || perPage,
+            start_date: params.start_date || (nav_date?.[0] || null),
+            end_date: params.end_date || (nav_date?.[1] || null),
+            ho_status: params.ho_status || ho_status,
+            ho_type: params.ho_type || ho_type,
+        };
+
+        const result = await post(urlPrefix + '/page_holding', payload);
         setData(result);
         return result;
-
-    }, [post, keyword, page, perPage]);
+    }, [post, keyword, page, perPage, ho_status, ho_type, nav_date]);
 
 
     // 自动根据参数变化加载数据
     useEffect(() => {
         if (autoLoad) {
-            searchPage(keyword, page, perPage);
+            searchPage();
         }
-    }, [keyword, page, perPage, autoLoad, searchPage, refreshKey]);
+    }, [keyword, page, perPage, autoLoad, refreshKey, ho_status, ho_type, nav_date, searchPage]);
 
     // 添加基金
     const add = useCallback(async (body) => {

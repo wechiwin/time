@@ -56,6 +56,7 @@
   "button_back": "Back",
   "button_upload_image": "AI image recognition",
   "button_crawl_all": "Crawl All",
+  "button_reset": "Reset",
 
   "project_title": "Holding Management System",
 
@@ -152,5 +153,16 @@
   "user_settings": "User Settings",
   "th_username": "Username",
   "th_default_language": "Default Language",
-  "th_email_address": "Email Address"
+  "th_email_address": "Email Address",
+
+  "today": "Today",
+  "past": "Past",
+  "days": "days",
+  "current_month": "Current Month",
+  "past_month": "Last Month",
+  "msg_select_date_range": "Select Date Range",
+  "label_fund_name_or_code": "Fund Name or Code",
+
+  "select_all": "All"
+
 }

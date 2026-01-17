@@ -1,4 +1,4 @@
-import React, {useCallback, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {useTranslation} from "react-i18next";
 import HoldingForm from '../components/forms/HoldingForm';
 import HoldingTable from '../components/tables/HoldingTable';
@@ -7,7 +7,9 @@ import FormModal from "../components/common/FormModal";
 import {useToast} from "../components/context/ToastContext";
 import Pagination from "../components/common/Pagination";
 import {usePaginationState} from "../hooks/usePaginationState";
-import SearchBar from "../components/search/SearchBar";
+import useCommon from "../hooks/api/useCommon";
+import {ArrowDownTrayIcon, DocumentArrowDownIcon, PlusIcon} from "@heroicons/react/16/solid";
+import SearchArea from "../components/search/SearchArea";
 
 export default function HoldingPage() {
     const {t} = useTranslation();
@@ -16,21 +18,103 @@ export default function HoldingPage() {
 
     const [queryKeyword, setQueryKeyword] = useState("");
     const [refreshKey, setRefreshKey] = useState(0);
-    const [filters, setFilters] = useState({ho_status: "", ho_type: ""});
+    const [searchParams, setSearchParams] = useState({ho_status: [], ho_type: []});
 
     const {data, add, remove, update, importData, downloadTemplate, crawlFundInfo} = useHoldingList({
-        page, perPage, keyword: queryKeyword, autoLoad: true, refreshKey, ...filters
+        page,
+        perPage,
+        keyword: queryKeyword,
+        autoLoad: true,
+        refreshKey,
+        ho_status: searchParams.ho_status,
+        ho_type: searchParams.ho_type,
+        nav_date: searchParams.nav_date
     });
 
+    const {fetchMultipleEnumValues} = useCommon();
+
+    const [hoTypeOptions, setHoTypeOptions] = useState([]);
+    const [hoStatusOptions, setHoStatusOptions] = useState([]);
+
+    useEffect(() => {
+        const loadEnumValues = async () => {
+            try {
+                const [hoTypeOptions,
+                    hoStatusOptions,
+                ] = await fetchMultipleEnumValues([
+                    'HoldingTypeEnum',
+                    'HoldingStatusEnum',
+                ]);
+                setHoTypeOptions(hoTypeOptions);
+                setHoStatusOptions(hoStatusOptions);
+            } catch (err) {
+                console.error('Failed to load enum values:', err);
+                showErrorToast('加载类型选项失败');
+            }
+        };
+        loadEnumValues();
+    }, [fetchMultipleEnumValues, showErrorToast]);
+
+    // 搜索配置
+    const searchFields = [
+        {
+            name: 'keyword',
+            type: 'text',
+            label: t('label_fund_name_or_code'),
+            placeholder: t('msg_search_placeholder'),
+            className: 'md:col-span-3',
+        },
+        // {
+        //     name: 'nav_date',
+        //     type: 'daterange',
+        //     label: t('th_nav_date'),
+        //     className: 'md:col-span-3',
+        // },
+        {
+            name: 'ho_type',
+            type: 'multiselect',
+            label: t('th_ho_type'),
+            options: hoTypeOptions,
+            placeholder: t('select_all'),
+            className: 'md:col-span-3',
+        },
+        {
+            name: 'ho_status',
+            type: 'multiselect',
+            label: t('info_hold_status'),
+            options: hoStatusOptions,
+            placeholder: t('select_all'),
+            className: 'md:col-span-3',
+        },
+    ];
+
     const handleSearch = useCallback((val) => {
-        setQueryKeyword(val);
+        console.log('=== HoldingPage handleSearch called ===');
+        console.log('Received values:', val);
+        console.log('ho_type received:', val.ho_type, 'Type:', typeof val.ho_type);
+        console.log('ho_status received:', val.ho_status, 'Type:', typeof val.ho_status);
+
+        setQueryKeyword(val.keyword || '');
+        // 确保正确处理数组值
+        const newHoType = Array.isArray(val.ho_type) ? val.ho_type : [];
+        const newHoStatus = Array.isArray(val.ho_status) ? val.ho_status : [];
+
+        setSearchParams(prev => ({
+            ...prev,
+            ho_type: newHoType,
+            ho_status: newHoStatus,
+            nav_date: val.nav_date || null
+        }));
+
         handlePageChange(1);
     }, [handlePageChange]);
 
-    const handleFilterChange = (e) => {
-        setFilters(prev => ({...prev, [e.target.name]: e.target.value}));
+    // 处理重置
+    const handleReset = useCallback(() => {
+        setSearchParams({ho_status: [], ho_type: []});
+        setQueryKeyword('');
         handlePageChange(1);
-    };
+    }, [handlePageChange]);
 
     const handleDelete = async (id) => {
         if (!window.confirm(t('msg_confirm_delete'))) return;
@@ -81,40 +165,34 @@ export default function HoldingPage() {
 
     return (
         <div className="space-y-6">
-            {/* 自由布局：左右对齐 */}
-            <div
-                className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-                <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
-
-                    {/* 左侧：搜索 + 筛选 */}
-                    <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
-                        <div className="w-full md:w-auto min-w-[240px]">
-                            <SearchBar key={refreshKey} placeholder={t('msg_search_placeholder')}
-                                       onSearch={handleSearch}/>
-                        </div>
-                        <select name="ho_status" value={filters.ho_status} onChange={handleFilterChange}
-                                className="input-field w-full md:w-40">
-                            <option value="">{t('all_status') || "所有状态"}</option>
-                            <option value="HOLDING">{t('HO_STATUS_HOLDING')}</option>
-                            <option value="CLOSED">{t('HO_STATUS_CLEARED')}</option>
-                            <option value="NOT_HELD">{t('HO_STATUS_NOT_HOLDING')}</option>
-                        </select>
-                        <select name="ho_type" value={filters.ho_type} onChange={handleFilterChange}
-                                className="input-field w-full md:w-40">
-                            <option value="">{t('all_types') || "所有类型"}</option>
-                            <option value="FUND">{t('HOLDING_TYPE_FUND')}</option>
-                        </select>
-                    </div>
-
-                    {/* 右侧：按钮组 */}
-                    <div className="flex flex-wrap gap-2 self-end xl:self-auto">
-                        <button onClick={() => openModal('add')} className="btn-primary">{t('button_add')}</button>
-                        <button onClick={downloadTemplate}
-                                className="btn-secondary">{t('button_download_template')}</button>
-                        <button onClick={handleImport} className="btn-secondary">{t('button_import_data')}</button>
-                    </div>
-                </div>
-            </div>
+            {/* 搜索区域 */}
+            <SearchArea
+                fields={searchFields}
+                initialValues={{
+                    keyword: queryKeyword,
+                    ho_type: Array.isArray(searchParams.ho_type) ? searchParams.ho_type : [],
+                    ho_status: Array.isArray(searchParams.ho_status) ? searchParams.ho_status : [],
+                    nav_date: searchParams.nav_date || null
+                }}
+                onSearch={handleSearch}
+                onReset={handleReset}
+                actionButtons={
+                    <>
+                        <button onClick={() => openModal('add')} className="btn-primary inline-flex items-center gap-2">
+                            <PlusIcon className="h-4 w-4"/>
+                            {t('button_add')}
+                        </button>
+                        <button onClick={downloadTemplate} className="btn-secondary inline-flex items-center gap-2">
+                            <DocumentArrowDownIcon className="h-4 w-4"/>
+                            {t('button_download_template')}
+                        </button>
+                        <button onClick={handleImport} className="btn-secondary inline-flex items-center gap-2">
+                            <ArrowDownTrayIcon className="h-4 w-4"/>
+                            {t('button_import_data')}
+                        </button>
+                    </>
+                }
+            />
 
             <HoldingTable data={data?.items || []} onDelete={handleDelete} onEdit={(item) => openModal('edit', item)}/>
 
@@ -126,9 +204,12 @@ export default function HoldingPage() {
             )}
 
             <FormModal
-                title={modalConfig.title} show={modalConfig.show}
+                title={modalConfig.title}
+                show={modalConfig.show}
                 onClose={() => setModalConfig(p => ({...p, show: false}))}
-                onSubmit={modalConfig.submitAction} FormComponent={HoldingForm}
+                onSubmit={modalConfig.submitAction || (() => {
+                })} // 双重保险
+                FormComponent={HoldingForm}
                 initialValues={modalConfig.initialValues}
                 modalProps={{onCrawl: handleCrawl}}
             />

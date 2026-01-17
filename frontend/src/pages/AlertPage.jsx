@@ -33,7 +33,13 @@ export default function AlertPage() {
         try { await deleteRule(id); showSuccessToast(); setRefreshKey(p => p + 1); } catch (err) { showErrorToast(err.message); }
     };
 
-    const [modalConfig, setModalConfig] = useState({ show: false, title: "", submitAction: null, initialValues: {} });
+    const [modalConfig, setModalConfig] = useState({
+        show: false,
+        title: "",
+        submitAction: () => {}, // 初始化为空函数而不是 null
+        initialValues: {}
+    });
+
     const openModal = (type, values = {}) => {
         setModalConfig({
             show: true, title: type === 'add' ? t('button_add') : t('button_edit'),

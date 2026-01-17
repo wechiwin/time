@@ -58,6 +58,7 @@
   "button_back": "返回",
   "button_upload_image": "AI识别图片",
   "button_crawl_all": "爬取所有",
+  "button_reset": "重置",
 
   "project_title": "投资持仓管理系统",
 
@@ -155,5 +156,15 @@
   "user_settings": "个人设置",
   "th_username": "用户名",
   "th_default_language": "默认语言",
-  "th_email_address": "邮箱地址"
+  "th_email_address": "邮箱地址",
+
+  "today": "今天",
+  "past": "过去",
+  "days": "天",
+  "current_month": "本月",
+  "past_month": "上个月",
+  "msg_select_date_range": "选择日期范围",
+  "label_fund_name_or_code": "持仓名称或代码",
+
+  "select_all": "全选"
 }
