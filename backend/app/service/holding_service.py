@@ -15,7 +15,7 @@ from app.constant.biz_enums import (
 )
 from app.framework.exceptions import BizException
 from app.models import db, Holding, FundDetail
-from app.tools.date_tool import str_to_date
+from app.utils.date_util import str_to_date
 
 logger = logging.getLogger(__name__)
 

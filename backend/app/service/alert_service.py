@@ -10,7 +10,7 @@ from app.framework.exceptions import BizException
 from app.models import db, AlertRule, AlertHistory, Holding, UserSetting, FundNavHistory
 from app.service.mail_service import send_email
 from app.service.nav_history_service import FundNavHistoryService
-from app.tools.date_tool import get_yesterday_date_str
+from app.utils.date_util import get_yesterday_date_str
 
 logger = logging.getLogger(__name__)
 

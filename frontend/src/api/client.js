@@ -20,11 +20,6 @@ apiClient.interceptors.request.use(config => {
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
-    // 注入CSRF Token
-    const csrfToken = SecureTokenStorage.getCsrfToken();
-    if (csrfToken) {
-        config.headers['X-CSRF-Token'] = csrfToken;
-    }
     // 将当前的 i18next 语言设置到 Header 中
     config.headers['Accept-Language'] = i18n.language;
     return config;
@@ -39,13 +34,10 @@ apiClient.interceptors.request.use(config => {
  */
 const refreshAuthLogic = async (failedRequest) => {
     try {
-        const oldCsrfToken = SecureTokenStorage.getCsrfToken();
-        // console.log("refreshAuthLogic - oldCsrfToken", oldCsrfToken)
-        // 调用刷新接口
         const response = await apiClient.post('/user_setting/refresh', {}, {
             withCredentials: true,
             headers: {
-                'X-CSRF-Token': oldCsrfToken || '',
+                'X-Requested-With': 'XMLHttpRequest',
                 'Accept-Language': i18n.language
             },
             _skipAuth: true
@@ -54,32 +46,19 @@ const refreshAuthLogic = async (failedRequest) => {
         console.log("refreshAuthLogic - response", response)
         // 存储新token
         const newAccessToken = response.data.data.access_token;
-        // console.log("refreshAuthLogic - newAccessToken", newAccessToken)
         SecureTokenStorage.setAccessToken(newAccessToken);
-
-        const newCsrfToken = response.headers['x-csrf-token'] || response.headers['X-CSRF-Token'] || response.headers['X-Csrf-Token'];
-        // console.log("refreshAuthLogic - newCsrfToken", newCsrfToken)
-        if (newCsrfToken) {
-            SecureTokenStorage.setCsrfToken(newCsrfToken);
-        }
 
         // 更新失败请求的 headers
         failedRequest.response.config.headers.Authorization = `Bearer ${newAccessToken}`;
-        if (newCsrfToken) {
-            failedRequest.response.config.headers['X-CSRF-Token'] = newCsrfToken;
-        }
 
         return Promise.resolve();
     } catch (refreshError) {
-        console.log(refreshError)
-        // 刷新失败，清除token并跳转登录
+        console.error("Token refresh failed:", refreshError);
         SecureTokenStorage.clearTokens();
-        console.log("refreshAuthLogic - clearTokens")
-        // 跳转到登录页
-        // if (typeof window !== 'undefined') {
-        //     window.location.href = '/login';
-        // }
-        return Promise.reject(new Error('会话已过期，请重新登录'));
+        // 抛出一个带有特定标记的错误，避免被响应拦截器误判为网络错误
+        const error = new Error('会话已过期，请重新登录');
+        error.isSessionExpired = true;
+        return Promise.reject(error);
     }
 };
 // 设置 token 刷新拦截器
@@ -101,51 +80,41 @@ createAuthRefreshInterceptor(apiClient, refreshAuthLogic, {
 // 统一响应处理
 apiClient.interceptors.response.use(
     (response) => {
-        // console.log("interceptors.response - response", response)
         // 如果是下载文件(blob)，直接返回整个 response 对象，不进行 code 校验
         if (response.config?.responseType === 'blob') {
             return response;
         }
-        if (response.config?._skipAuth && response.config.url !== '/api/user_setting/refresh') {
-            // console.log("refresh 接口的response 跳过 interceptors response")
-            return response;
-        }
-        // 自动保存CSRF Token（如果后端返回）
-        const headers = response.headers || {};
-        const newCsrfToken = headers['x-csrf-token'] || headers['X-CSRF-Token'] || headers['X-Csrf-Token'];
-        // console.log('interceptors.response - newCsrfToken', newCsrfToken);
-        if (newCsrfToken) {
-            SecureTokenStorage.setCsrfToken(newCsrfToken)
-        }
-        // const resData = response.data.data;
-        // return resData;
         return response;
     },
     // 错误处理
     async (error) => {
-        const {response, config} = error;
+        // 1. 优先处理我们手动抛出的“会话过期”错误
+        if (error.isSessionExpired) {
+            // 这里可以选择是否跳转，或者让上层组件处理
+            // if (typeof window !== 'undefined') window.location.href = '/login';
+            return Promise.reject(error);
+        }
+
+        const {response} = error;
+
+        // 2. 处理真正的网络错误（没有 response 对象）
         if (!response) {
-            // 网络错误
+            // 过滤掉因为刷新逻辑抛出的非 Axios 错误
+            if (error.message && (error.message.includes('会话'))) {
+                return Promise.reject(error);
+            }
             toastInstance.showErrorToast('网络连接失败，请检查网络');
             return Promise.reject(new Error('网络连接失败，请检查网络'));
         }
         const {status, data} = response;
-        // // 401处理 - Token刷新逻辑
-        // if (status === 401 && !config._retry && config.url !== '/api/user_setting/refresh') {
-        //     console.log("检测到401错误，尝试刷新Token...");
-        //     return handleTokenRefresh(config);
-        // }
-        // 刷新接口本身报 401，说明 Refresh Token 也过期了
-        if (status === 401 && config.url === '/api/user_setting/refresh') {
-            console.log("刷新接口报错401，Refresh Token 过期");
+
+        // 3. 处理刷新接口本身的 401/400 错误
+        if ((status === 401 || status === 400) && error.config.url.includes('/user_setting/refresh')) {
             SecureTokenStorage.clearTokens();
-            console.log("clearTokens in error")
-            // if (typeof window !== 'undefined') {
-            //     window.location.href = '/login';
-            // }
             return Promise.reject(new Error('会话已过期，请重新登录'));
         }
-        // 500错误
+
+        // 4. 其他错误
         if (status >= 500) {
             const msg = data?.msg || data?.message || '服务器内部错误';
             const traceId = data?.data?.trace_id;

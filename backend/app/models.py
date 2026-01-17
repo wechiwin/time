@@ -1,14 +1,16 @@
 import re
+import uuid
 from datetime import datetime, date, time
 from decimal import Decimal
-from email.policy import default
+from enum import Enum
 
 from flask import current_app as app
 from passlib.exc import InvalidHashError
 from passlib.hash import pbkdf2_sha256
-from sqlalchemy import inspect
+from sqlalchemy import inspect, Column, BIGINT, String, ForeignKey, Text, DECIMAL, Boolean, Integer, DateTime
+from sqlalchemy.orm import relationship
 
-from app.constant.biz_enums import HoldingTypeEnum, HoldingStatusEnum, AlertEmailStatusEnum, AlertRuleActionEnum, TradeTypeEnum, FundTradeMarketEnum, TaskStatusEnum
+from app.constant.biz_enums import HoldingStatusEnum, AlertEmailStatusEnum, AlertRuleActionEnum, TaskStatusEnum
 from app.database import db
 
 
@@ -87,6 +89,7 @@ class Holding(TimestampMixin, BaseModel):
     __tablename__ = 'holding'
 
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False)
     ho_code = db.Column(db.String(50), nullable=False)  # 交易代码，如 AAPL, 000001
     ho_name = db.Column(db.String(100), nullable=False)  # 名称
     ho_short_name = db.Column(db.String(100))  # 简称
@@ -112,6 +115,7 @@ class FundDetail(TimestampMixin, BaseModel):
     __tablename__ = 'fund_detail'
 
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False)
     ho_id = db.Column(db.Integer, db.ForeignKey('holding.id'), nullable=False, unique=True)
     fund_type = db.Column(db.String(50))  # 基金类型(股票型/债券型/混合型)
     risk_level = db.Column(db.Integer)  # 风险等级(1-5)
@@ -138,6 +142,7 @@ class FundNavHistory(TimestampMixin, BaseModel):
     __tablename__ = 'fund_nav_history'
 
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False)
     ho_id = db.Column(db.Integer, db.ForeignKey('holding.id'), index=True)
     ho_code = db.Column(db.String(50))
     nav_date = db.Column(db.Date)
@@ -198,6 +203,7 @@ class Trade(TimestampMixin, BaseModel):
     __tablename__ = 'trade'
 
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False)
     ho_id = db.Column(db.Integer, db.ForeignKey('holding.id'), index=True)
     ho_code = db.Column(db.String(50))
 
@@ -225,10 +231,11 @@ class AlertRule(TimestampMixin, BaseModel):
     """
     __tablename__ = 'alert_rule'
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False)
     ho_id = db.Column(db.Integer, index=True)
     ho_code = db.Column(db.String(50))
     ar_name = db.Column(db.String(200))  # 名称
-    action = db.Column(db.Enum(AlertRuleActionEnum), nullable=False)  # 提醒类型：1.买入/2.加仓/0.卖出
+    action = db.Column(db.Enum(AlertRuleActionEnum), nullable=False)  # 提醒类型
     target_navpu = db.Column(db.Numeric(18, 4))  # 目标单位净值
     tracked_date = db.Column(db.Date)  # 已追踪日期
     ar_is_active = db.Column(db.Integer)  # 是否激活:1.是;0.否
@@ -240,6 +247,7 @@ class AlertHistory(TimestampMixin, BaseModel):
     """
     __tablename__ = 'alert_history'
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False)
     ar_id = db.Column(db.Integer, index=True)
     ho_id = db.Column(db.Integer, index=True)
     ho_code = db.Column(db.String(50))
@@ -253,55 +261,6 @@ class AlertHistory(TimestampMixin, BaseModel):
     remark = db.Column(db.String(2000))  # 备注
 
 
-class UserSetting(TimestampMixin, BaseModel):
-    """
-    用户设置表
-    """
-    __tablename__ = 'user_setting'
-
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(128), unique=True, nullable=False)
-    pwd_hash = db.Column(db.String(128))
-    default_lang = db.Column(db.String(20))
-    email_address = db.Column(db.String(50))
-
-    @staticmethod
-    def hash_password(raw_password):
-        return pbkdf2_sha256.hash(raw_password)
-
-    @staticmethod
-    def verify_password(raw_password, hashed):
-        try:
-            # 检查哈希值是否有效
-            if not hashed or not isinstance(hashed, str):
-                app.logger.warning("Empty or invalid hash provided")
-                return False
-
-            # 检查哈希格式是否正确
-            if not hashed.startswith('$pbkdf2-sha256$'):
-                app.logger.warning(f"Unexpected hash format: {hashed}")
-                return False
-
-            return pbkdf2_sha256.verify(raw_password, hashed)
-
-        except InvalidHashError:
-            app.logger.error(f"Invalid hash format for password verification")
-            return False
-
-        except Exception as e:
-            app.logger.error(f"Unexpected error in password verification: {str(e)}")
-            return False
-
-
-class TokenBlacklist(TimestampMixin, BaseModel):
-    __tablename__ = 'token_blacklist'
-
-    id = db.Column(db.Integer, primary_key=True)
-    jti = db.Column(db.String(36), nullable=False, unique=True, index=True)
-    token_type = db.Column(db.String(10), nullable=False)  # 'access' or 'refresh'
-    expires_at = db.Column(db.DateTime, nullable=False)  # 过期时间
-
-
 class HoldingSnapshot(TimestampMixin, BaseModel):
     """
     单只持仓每日快照表
@@ -310,7 +269,7 @@ class HoldingSnapshot(TimestampMixin, BaseModel):
     __tablename__ = 'holding_snapshot'
 
     id = db.Column(db.Integer, primary_key=True)
-
+    user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False)
     ho_id = db.Column(db.Integer)
     snapshot_date = db.Column(db.Date, nullable=False, index=True)
 
@@ -429,12 +388,9 @@ class HoldingAnalyticsSnapshot(TimestampMixin, BaseModel):
     核心逻辑：所有 Performance 指标基于【收益率 (Return)】而非【市值 (Market Value)】
     """
     __tablename__ = 'holding_analytics_snapshot'
-    __table_args__ = (
-        # 联合唯一索引，确保同一个持仓、同一天、同一个窗口只有一条记录
-        db.UniqueConstraint('ho_id', 'snapshot_date', 'window_key', name='uq_ho_date_window'),
-        db.Index('idx_ho_window_date', 'ho_id', 'window_key', 'snapshot_date'),
-    )
+
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False)
     ho_id = db.Column(db.Integer, nullable=False)
     snapshot_date = db.Column(db.Date, nullable=False)
     window_key = db.Column(db.String(32), nullable=False)  # ALL, CUR, R20, R252...
@@ -550,6 +506,11 @@ class HoldingAnalyticsSnapshot(TimestampMixin, BaseModel):
     或者近似：该持仓平均权重 * 该持仓收益率
     注意：计算此字段需要读取 InvestedAssetSnapshot 的数据。
     """
+    __table_args__ = (
+        # 联合唯一索引，确保同一个持仓、同一天、同一个窗口只有一条记录
+        db.UniqueConstraint('ho_id', 'snapshot_date', 'window_key', name='uq_ho_date_window'),
+        db.Index('idx_ho_window_date', 'ho_id', 'window_key', 'snapshot_date'),
+    )
 
 
 class InvestedAssetSnapshot(TimestampMixin, BaseModel):
@@ -560,6 +521,7 @@ class InvestedAssetSnapshot(TimestampMixin, BaseModel):
     __tablename__ = 'invested_asset_snapshot'
 
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False)
     snapshot_date = db.Column(db.Date, nullable=False, index=True)  # 快照日期，YYYY-MM-DD 格式。
     # -------- Point-in-Time (时点状态) --------
     ias_market_value = db.Column(db.Numeric(20, 4), nullable=False)
@@ -638,7 +600,7 @@ class InvestedAssetAnalyticsSnapshot(TimestampMixin, BaseModel):
     __tablename__ = 'invested_asset_analytics_snapshot'
 
     id = db.Column(db.Integer, primary_key=True)
-
+    user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False)
     snapshot_date = db.Column(db.Date, nullable=False)
     window_key = db.Column(db.String(32), nullable=False)
 
@@ -712,6 +674,7 @@ class BenchmarkHistory(TimestampMixin, BaseModel):
 class AsyncTaskLog(TimestampMixin, BaseModel):
     __tablename__ = 'async_task_log'
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False)
     task_name = db.Column(db.String(150), nullable=False, index=True)  # 任务类型
     # params 现在存储用于反射调用的所有信息
     # {
@@ -737,3 +700,148 @@ class AsyncTaskLog(TimestampMixin, BaseModel):
         db.Index('idx_task_name_business_key', 'task_name', 'business_key'),
         db.Index('idx_task_name_created_at', 'task_name', 'created_at'),
     )
+
+
+class UserSetting(TimestampMixin, BaseModel):
+    """
+    用户设置表
+    """
+    __tablename__ = 'user_setting'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    uuid = db.Column(db.String(36), unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
+    username = db.Column(db.String(128), unique=True, nullable=False, index=True)
+    pwd_hash = db.Column(db.String(128))
+    default_lang = db.Column(db.String(20))
+    email_address = db.Column(db.String(50))
+    avatar_url = db.Column(db.String(500), nullable=True)
+    last_login_at = db.Column(db.DateTime, nullable=True)
+    is_locked = db.Column(db.Boolean, default=False, nullable=False)
+
+    holdings = db.relationship('Holding', backref='user', lazy='dynamic')
+    trades = db.relationship('Trade', backref='user', lazy='dynamic')
+    fund_details = db.relationship('FundDetail', backref='user', lazy='dynamic')
+    fund_nav_histories = db.relationship('FundNavHistory', backref='user', lazy='dynamic')
+    alert_rules = db.relationship('AlertRule', backref='user', lazy='dynamic')
+    alert_histories = db.relationship('AlertHistory', backref='user', lazy='dynamic')
+    holding_snapshots = db.relationship('HoldingSnapshot', backref='user', lazy='dynamic')
+    holding_analytics_snapshots = db.relationship('HoldingAnalyticsSnapshot', backref='user', lazy='dynamic')
+    invested_asset_snapshots = db.relationship('InvestedAssetSnapshot', backref='user', lazy='dynamic')
+    invested_asset_analytics_snapshots = db.relationship('InvestedAssetAnalyticsSnapshot', backref='极user', lazy='dynamic')
+    async_task_logs = db.relationship('AsyncTaskLog', backref='user', lazy='dynamic')
+    token_blacklists = db.relationship('TokenBlacklist', backref='user', lazy='dynamic')
+
+    @staticmethod
+    def hash_password(raw_password):
+        return pbkdf2_sha256.hash(raw_password)
+
+    @staticmethod
+    def verify_password(raw_password, hashed):
+        try:
+            # 检查哈希值是否有效
+            if not hashed or not isinstance(hashed, str):
+                app.logger.warning("Empty or invalid hash provided")
+                return False
+
+            # 检查哈希格式是否正确
+            if not hashed.startswith('$pbkdf2-sha256$'):
+                app.logger.warning(f"Unexpected hash format: {hashed}")
+                return False
+
+            return pbkdf2_sha256.verify(raw_password, hashed)
+
+        except InvalidHashError:
+            app.logger.error(f"Invalid hash format for password verification")
+            return False
+
+        except Exception as e:
+            app.logger.error(f"Unexpected error in password verification: {str(e)}")
+            return False
+
+
+class TokenBlacklist(TimestampMixin, BaseModel):
+    __tablename__ = 'token_blacklist'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False)
+    jti = db.Column(db.String(36), nullable=False, unique=True, index=True)
+    token_type = db.Column(db.String(10), nullable=False)  # 'access' or 'refresh'
+    expires_at = db.Column(db.DateTime, nullable=False)  # 过期时间
+
+
+class DeviceType(Enum):
+    WEB = 'web'
+    MOBILE = 'mobile'
+    DESKTOP = 'desktop'
+    TABLET = 'tablet'
+    UNKNOWN = 'unknown'
+
+
+class LoginStatus(Enum):
+    SUCCESS = 'success'
+    FAILED = 'failed'
+    BLOCKED = 'blocked'
+
+
+class LoginHistory(BaseModel):
+    __tablename__ = 'login_history'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False, index=True)
+    session_id = db.Column(db.String(128), nullable=True)
+
+    # 登录信息
+    login_ip = db.Column(db.String(45), nullable=False, index=True)  # IPv6最长45字符
+    user_agent = db.Column(db.Text, nullable=True)
+    device_type = db.Column(db.Enum(DeviceType), default=DeviceType.UNKNOWN, nullable=False)
+    device_id = db.Column(db.String(255), nullable=True)
+
+    # 地理位置
+    country_code = db.Column(db.String(2), nullable=True)
+    region_name = db.Column(db.String(100), nullable=True)
+    city_name = db.Column(db.String(100), nullable=True)
+    latitude = db.Column(db.DECIMAL(10, 8), nullable=True)
+    longitude = db.Column(db.DECIMAL(11, 8), nullable=True)
+
+    # 登录状态
+    login_status = db.Column(db.Enum(LoginStatus), default=LoginStatus.SUCCESS, nullable=False)
+    failure_reason = db.Column(db.String(255), nullable=True)
+
+    # 安全信息
+    is_suspicious = db.Column(db.Boolean, default=False, nullable=False)
+    risk_score = db.Column(db.Integer, default=0, nullable=False)  # 0-100
+
+    # 时间戳
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    expires_at = db.Column(db.DateTime, nullable=True)
+
+    # 关系
+    user = db.relationship('UserSetting', backref='login_history')
+
+    @property
+    def location_info(self):
+        """获取地理位置信息"""
+        if self.city_name and self.region_name and self.country_code:
+            return f"{self.city_name}, {self.region_name}, {self.country_code}"
+        return None
+
+    def calculate_risk_score(self):
+        """计算风险评分（简化版）"""
+        score = 0
+
+        # IP风险检查
+        if self.login_ip.startswith('192.168.') or self.login_ip.startswith('10.'):
+            score += 10  # 内网IP
+
+        # 用户代理检查
+        if not self.user_agent or 'bot' in self.user_agent.lower():
+            score += 20
+
+        # 时间异常（例如凌晨登录）
+        if 0 <= self.created_at.hour <= 5:
+            score += 15
+
+        self.risk_score = min(score, 100)
+        self.is_suspicious = score > 50
+
+        return score

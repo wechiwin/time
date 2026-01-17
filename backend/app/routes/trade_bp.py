@@ -9,7 +9,7 @@ import pandas as pd
 from flask import Blueprint, request, Response, stream_with_context, current_app
 from flask import send_file
 from flask_babel import gettext
-from sqlalchemy import desc, or_, func
+from sqlalchemy import desc, or_
 from sqlalchemy.orm import joinedload
 
 from app.constant.biz_enums import ErrorMessageEnum
@@ -19,7 +19,6 @@ from app.framework.res import Res
 from app.models import db, Trade, Holding
 from app.schemas_marshall import TradeSchema, marshal_pagination
 from app.service.trade_service import TradeService
-from app.tools.date_tool import date_to_str
 
 trade_bp = Blueprint('trade', __name__, url_prefix='/api/trade')
 

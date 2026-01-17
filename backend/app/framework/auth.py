@@ -1,42 +1,63 @@
 from functools import wraps
-from flask import request, jsonify, current_app
-from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
+from flask import request, current_app, g
+from flask_jwt_extended import verify_jwt_in_request, get_current_user
 from flask_jwt_extended.exceptions import JWTExtendedException
-
 from app.framework.exceptions import BizException
 
-def token_required(optional=False):
-    """
-    自定义 token 验证装饰器
-    :param optional: 是否为可选验证（验证失败不报错）
-    """
+
+def token_required(optional=False, refresh=False):
     def decorator(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
-            # 检查是否启用 token 验证
+            # 1. 全局开关检查（方便测试环境关闭认证）
             if not current_app.config.get('JWT_AUTH_REQUIRED', True):
-                # 不验证 token，直接执行函数
                 return fn(*args, **kwargs)
 
             try:
-                # 验证 JWT token
-                verify_jwt_in_request()
-                # 获取当前用户身份（可选，用于日志等）
-                current_user = get_jwt_identity()
-                current_app.logger.debug(f"Authenticated user: {current_user}")
+                # 2. 验证 Token (验证签名、过期、黑名单)
+                verify_jwt_in_request(optional=optional, refresh=refresh)
+
+                # 3. 获取用户 (触发 jwt_config.py 中的 user_lookup_loader)
+                user = get_current_user()
+
+                # 4. 强校验逻辑
+                if not optional and not user:
+                    # 可能是 Token 有效但数据库里用户被删了
+                    raise BizException("用户不存在或状态异常", code=401)
+
+                # 5. 业务锁定检查 (这是自定义装饰器的核心价值)
+                if user and user.is_locked:
+                    raise BizException("账号已被锁定，无法操作", code=403)
+
+                # 6. 挂载到全局 g 对象
+                g.user = user
 
                 return fn(*args, **kwargs)
+
+            except BizException:
+                # 已经是业务异常，直接抛出，交给全局异常处理器
+                raise
             except JWTExtendedException as e:
+                # 这里可以区分一下，如果是刷新接口报错，提示语可以不同
+                msg = "刷新令牌无效或已过期，请重新登录" if refresh else "身份认证失效"
+                # 捕获 JWT 库的特定异常，转化为统一格式
+                # 可以根据 e 的类型细分：ExpiredSignatureError 等
+                current_app.logger.info(f"JWT Auth failed: {e}")
+
                 if optional:
-                    # 可选验证模式下，验证失败继续执行
-                    current_app.logger.debug(f"Optional auth failed: {e}")
+                    g.user = None
                     return fn(*args, **kwargs)
-                else:
-                    raise BizException("Token验证失败", code=401)
+
+                raise BizException(msg, code=401)
+            except Exception as e:
+                current_app.logger.error(f"Auth system error: {e}", exc_info=True)
+                raise BizException("认证服务暂时不可用", code=401)
 
         return wrapper
+
     return decorator
 
-# 创建便捷的装饰器别名
+
+# 导出实例，方便调用
 auth_required = token_required(optional=False)
-optional_auth = token_required(optional=True)
+auth_refresh_required = token_required(optional=False, refresh=True)

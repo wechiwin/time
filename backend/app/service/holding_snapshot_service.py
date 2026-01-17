@@ -14,7 +14,7 @@ from app.constant.biz_enums import TradeTypeEnum, FundDividendMethodEnum
 from app.framework.async_task_manager import create_task
 from app.framework.exceptions import AsyncTaskException
 from app.models import db, HoldingSnapshot, Holding, FundNavHistory, Trade
-from app.tools.date_tool import date_to_str
+from app.utils.date_util import date_to_str
 
 logger = logging.getLogger(__name__)
 

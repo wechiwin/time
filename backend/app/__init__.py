@@ -19,6 +19,7 @@ from app.framework.log_config import setup_logging, get_early_logger
 from app.routes.user_bp import user_bp
 from .config import Config
 from .framework.cache_manager import CacheManager
+from .framework.jwt_config import configure_jwt
 from .scheduler import init_scheduler
 from .routes import register_routes
 
@@ -89,7 +90,7 @@ def create_app():
             "methods": app.config.get('CORS_METHODS', ["GET", "POST", "PUT", "DELETE", "OPTIONS"]),
             "supports_credentials": app.config['CORS_SUPPORTS_CREDENTIALS'],
             "expose_headers": app.config['CORS_EXPOSE_HEADERS'],
-            "allow_headers": app.config.get('CORS_ALLOW_HEADERS', ["Content-Type", "Authorization", "X-CSRF-Token"]),
+            "allow_headers": app.config.get('CORS_ALLOW_HEADERS', ["Content-Type", "Authorization"]),
             "max_age": 3600  # 预检请求缓存1小时
         }
     })
@@ -102,6 +103,8 @@ def create_app():
     babel.init_app(app, locale_selector=get_locale)
 
     jwt = JWTManager(app)
+    configure_jwt(jwt)
+
     mail.init_app(app)
     limiter.init_app(app)
 

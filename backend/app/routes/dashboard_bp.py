@@ -2,6 +2,7 @@ import logging
 
 from flask import Blueprint, request
 
+from app.framework.auth import auth_required
 from app.framework.res import Res
 from app.service.dashboard_service import DashboardService
 
@@ -10,6 +11,7 @@ dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/api/dashboard')
 
 
 @dashboard_bp.route('/summary', methods=['POST'])
+@auth_required
 def get_dashboard_summary():
     """
     聚合 Dashboard 所需的所有数据
@@ -47,6 +49,7 @@ def get_dashboard_summary():
 
 
 @dashboard_bp.route('/overview', methods=['GET'])
+@auth_required
 def get_account_overview():
     """获取账户整体状况"""
     try:

@@ -9,7 +9,7 @@ from sqlalchemy.orm import joinedload
 
 from app.framework.exceptions import BizException
 from app.models import db, FundNavHistory, Holding
-from app.tools.date_tool import str_to_date
+from app.utils.date_util import str_to_date
 
 logger = logging.getLogger(__name__)
 

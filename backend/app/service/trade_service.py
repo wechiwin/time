@@ -15,7 +15,7 @@ import logging
 from typing import List, Dict, Tuple, Optional
 from collections import defaultdict
 
-from app.tools.date_tool import str_to_date
+from app.utils.date_util import str_to_date
 
 ocr = PaddleOCR(use_angle_cls=True, lang='ch')
 # TODO 改为在线？

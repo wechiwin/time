@@ -154,6 +154,16 @@ class AsyncTaskLogSchema(BaseSchema):
         model = AsyncTaskLog
 
 
+class TokenBlacklistSchema(BaseSchema):
+    class Meta(BaseSchema.Meta):
+        model = TokenBlacklist
+
+
+class LoginHistorySchema(BaseSchema):
+    class Meta(BaseSchema.Meta):
+        model = LoginHistory
+
+
 def marshal_pagination(pagination, schema_cls):
     """
     把 SQLAlchemy 的 paginate() 结果转成统一结构，

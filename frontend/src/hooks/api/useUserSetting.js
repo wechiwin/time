@@ -15,7 +15,7 @@ export default function useUserSetting() {
             password
         }, {});
         if (result?.access_token) {
-            // 存储Token（CSRF从header获取）
+            // 存储Token
             SecureTokenStorage.setAccessToken(result.access_token)
             return result;
         }
@@ -36,7 +36,6 @@ export default function useUserSetting() {
             await post(urlPrefix + '/logout', {}, {
                 withCredentials: true,
                 headers: {
-                    'X-CSRF-Token': SecureTokenStorage.getCsrfToken() || '',
                 }
             });
         } catch (err) {

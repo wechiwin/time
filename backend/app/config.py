@@ -38,7 +38,14 @@ class Config:
     JWT_TOKEN_LOCATION = ["headers", "cookies"]
     JWT_ACCESS_COOKIE_NAME = "access_token"
     JWT_REFRESH_COOKIE_NAME = "refresh_token"
-    JWT_COOKIE_CSRF_PROTECT = True
+
+    # -------------------------------------------------------
+    # 前端使用 Authorization Header 发送 Access Token，
+    # Header 方式天然免疫 CSRF，不需要开启此选项。
+    # 开启会导致后端忽略 Header 而去校验 Cookie 的 CSRF，从而导致 401。
+    # -------------------------------------------------------
+    JWT_COOKIE_CSRF_PROTECT = False
+
     JWT_COOKIE_SAMESITE = "Lax"
     JWT_COOKIE_DOMAIN = None
     JWT_REFRESH_COOKIE_PATH = '/api'
@@ -51,8 +58,6 @@ class Config:
         'http://127.0.0.1:5173'
     ]
     CORS_EXPOSE_HEADERS = [
-        'X-CSRF-Token',
-        'x-csrf-token',
         'X-Request-ID',
         'Content-Type',
         'Authorization',
@@ -60,7 +65,7 @@ class Config:
     ]
     CORS_SUPPORTS_CREDENTIALS = True
     CORS_ALLOW_HEADERS = ['Content-Type', 'Authorization', 'X-CSRF-Token', 'Accept-Language', 'X-Request-ID',
-                          'Set-Cookie']
+                          'Set-Cookie', 'X-Requested-With']
     CORS_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
 
     SCHEDULER_TIMEZONE = "Asia/Shanghai"
@@ -84,7 +89,7 @@ class Config:
 class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_ECHO = True  # 开发时显示SQL日志
-    JWT_AUTH_REQUIRED = False
+    JWT_AUTH_REQUIRED = True
     JWT_COOKIE_SECURE = False
     MAIL_DEBUG = True  # 开启调试
     SCHEDULER_ENABLED = True

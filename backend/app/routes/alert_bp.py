@@ -1,4 +1,4 @@
-from flask import Blueprint, request
+from flask import Blueprint, request, g
 from sqlalchemy import or_, desc
 
 from app.constant.biz_enums import ErrorMessageEnum
@@ -9,7 +9,7 @@ from app.framework.sys_constant import DEFAULT_PAGE_SIZE
 from app.models import db, AlertRule, AlertHistory, Holding
 from app.schemas_marshall import AlertRuleSchema, AlertHistorySchema
 from app.service.alert_service import AlertService
-from app.tools.date_tool import get_yesterday_date_str
+from app.utils.date_util import get_yesterday_date_str
 
 alert_bp = Blueprint('alert', __name__, url_prefix='/api/alert')
 
@@ -24,6 +24,7 @@ def create_rule():
         raise BizException(msg=ErrorMessageEnum.MISSING_FIELD)
 
     new_rule = AlertRuleSchema().load(data)
+    new_rule.user_id = g.user.id
     new_rule.tracked_date = get_yesterday_date_str()
     db.session.add(new_rule)
     db.session.commit()
