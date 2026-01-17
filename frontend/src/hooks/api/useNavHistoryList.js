@@ -17,31 +17,17 @@ export default function useNavHistoryList(options = {}) {
     const {loading, error, get, post, put, del} = useApi();
     const urlPrefix = '/nav_history';
 
-    // 修改search方法，接收查询字符串
     const search = useCallback(async (params = {}) => {
-        // 兼容旧的调用方式 (keyword, page, perPage) 或者新的对象传参
-        let payload = {};
-        if (typeof params === 'string') {
-            payload = { keyword: params, page, perPage };
-        } else {
-            payload = {
-                keyword,
-                page,
-                perPage,
-                ...params // 包含 start_date, end_date
-            };
-        }
-
         const result = await post(`${urlPrefix}/page_history`, {
-            keyword: payload.keyword,
-            page: payload.page,
-            per_page: payload.perPage,
-            start_date: payload.start_date, // 新增
-            end_date: payload.end_date      // 新增
+            keyword: params.keyword || keyword,
+            page: params.page || page,
+            per_page: params.perPage || perPage,
+            start_date: params.start_date || null,
+            end_date: params.end_date || null
         });
         setData(result);
         return result;
-    }, [post, keyword, page, perPage]); // 注意依赖项
+    }, [post, keyword, page, perPage]);
 
     const list_history = useCallback(async (ho_id = '', start_date = '', end_date = '') => {
         const payload = {ho_id};
@@ -55,9 +41,15 @@ export default function useNavHistoryList(options = {}) {
     // 自动根据参数变化加载数据
     useEffect(() => {
         if (autoLoad) {
-            search(keyword, page, perPage);
+            search({
+                keyword,
+                page,
+                perPage,
+                start_date: options.start_date,
+                end_date: options.end_date
+            });
         }
-    }, [keyword, page, perPage, autoLoad, search, refreshKey]);
+    }, [keyword, page, perPage, options.start_date, options.end_date, autoLoad, search, refreshKey]);
 
     const add = useCallback(async (body) => {
         const result = await post('/nav_history', body);

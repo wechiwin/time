@@ -15,6 +15,7 @@ import ReactMultiSelect from "../common/ReactMultiSelect";
  * @param {Function} props.onReset - 重置回调
  * @param {React.ReactNode} props.actionButtons - 右侧操作按钮
  * @param {Boolean} props.collapsible - 是否支持折叠
+ * @param {Boolean} props.showWrapper - 是否显示默认的卡片式包裹容器
  */
 export default function SearchArea({
                                        fields = [],
@@ -23,6 +24,7 @@ export default function SearchArea({
                                        onReset,
                                        actionButtons,
                                        collapsible = false,
+                                       showWrapper = true,
                                    }) {
     const {t} = useTranslation();
     const [collapsed, setCollapsed] = useState(false);
@@ -72,34 +74,6 @@ export default function SearchArea({
         onReset?.();
     }, [fields, onReset]);
 
-    // 按行分组字段
-    const groupedFields = useMemo(() => {
-        const groups = [];
-        let currentRow = [];
-        let currentColumns = 0;
-
-        fields.forEach((field, index) => {
-            // 如果字段指定了新行，或当前行已满（假设每行最多4列）
-            const maxColumnsPerRow = 4;
-            if (field.newRow || currentColumns >= maxColumnsPerRow) {
-                if (currentRow.length > 0) {
-                    groups.push(currentRow);
-                }
-                currentRow = [field];
-                currentColumns = 1;
-            } else {
-                currentRow.push(field);
-                currentColumns++;
-            }
-        });
-
-        if (currentRow.length > 0) {
-            groups.push(currentRow);
-        }
-
-        return groups;
-    }, [fields]);
-
     // 渲染单个字段
     const renderField = (field) => {
         const commonProps = {
@@ -114,21 +88,18 @@ export default function SearchArea({
                 return (
                     <div className="flex flex-col gap-1" key={field.name}>
                         <label className="search-area-label">{label}</label>
-                        <select
-                            {...commonProps}
+                        <ReactMultiSelect
                             value={values[field.name] || ''}
-                            onChange={(e) => handleChange(field.name, e.target.value)}
-                            className="input-field h-[42px]"
-                        >
-                            <option value="">{field.emptyLabel || t('all') || '全部'}</option>
-                            {field.options?.map(opt => (
-                                <option key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                </option>
-                            ))}
-                        </select>
+                            onChange={(val) => handleChange(field.name, val)}
+                            options={field.options || []}
+                            placeholder={field.placeholder || t('select_all')}
+                            className="w-full"
+                            isSearchable={field.isSearchable ?? false}
+                            isSingleSelect={true} // 单选模式
+                        />
                     </div>
                 );
+
 
             case 'multiselect':
                 return (
@@ -187,20 +158,14 @@ export default function SearchArea({
         }
     };
 
-    return (
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+    const SearchContent = (
+        <>
             {/* 头部：标题和折叠按钮 */}
             {collapsible && (
                 <div className="flex justify-between items-center mb-3">
-                    <button
-                        onClick={() => setCollapsed(!collapsed)}
-                        className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                    >
-                        <FunnelIcon className={`h-4 w-4 transition-transform ${collapsed ? 'rotate-180' : ''}`}/>
-                    </button>
+                    {/* ... */}
                 </div>
             )}
-
             {!collapsed && (
                 <>
                     {/* 搜索字段区域 */}
@@ -211,7 +176,6 @@ export default function SearchArea({
                             </div>
                         ))}
                     </div>
-
                     {/* 操作按钮区域 */}
                     <div
                         className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
@@ -231,7 +195,6 @@ export default function SearchArea({
                                 {t('button_reset')}
                             </button>
                         </div>
-
                         {/* 右侧：自定义操作按钮 */}
                         <div className="flex flex-wrap gap-2">
                             {actionButtons}
@@ -239,6 +202,15 @@ export default function SearchArea({
                     </div>
                 </>
             )}
+        </>
+    );
+    // 根据 showWrapper 条件渲染
+    if (!showWrapper) {
+        return SearchContent;
+    }
+    return (
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+            {SearchContent}
         </div>
     );
 }

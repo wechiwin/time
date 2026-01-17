@@ -73,7 +73,7 @@ export default function Dashboard() {
 
         const {win, days} = rangeMap[val] || {win: 'R252', days: 365};
         // 添加调试日志
-        console.log(`切换窗口: ${val}, win: ${win}, days: ${days}`);
+        // console.log(`切换窗口: ${val}, win: ${win}, days: ${days}`);
 
         refetch(days, win);
     };

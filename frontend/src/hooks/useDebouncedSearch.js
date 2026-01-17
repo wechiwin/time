@@ -12,11 +12,11 @@ export function useDebouncedSearch(onSearch, delay = 300) {
 
     useEffect(() => {
         // 只有当 keyword 变化时才启动防抖
-        if (keyword === '') {
-            // 立即触发空搜索（通常用于清空结果）
-            onSearch('');
-            return;
-        }
+        // if (keyword === '') {
+        //     // 立即触发空搜索（通常用于清空结果）
+        //     onSearch('');
+        //     return;
+        // }
 
         const handler = setTimeout(() => {
             onSearch(keyword);

@@ -1,4 +1,5 @@
-import React, {useCallback, useState} from "react";
+// src/pages/TradePage.jsx
+import React, {useCallback, useEffect, useState} from "react";
 import {useTranslation} from "react-i18next";
 import TradeForm from '../components/forms/TradeForm';
 import TradeTable from '../components/tables/TradeTable';
@@ -7,8 +8,9 @@ import FormModal from "../components/common/FormModal";
 import {useToast} from "../components/context/ToastContext";
 import Pagination from "../components/common/Pagination";
 import {usePaginationState} from "../hooks/usePaginationState";
-import SearchBar from "../components/search/SearchBar";
-import DateRangePicker from "../components/common/DateRangePicker";
+import SearchArea from "../components/search/SearchArea";
+import {ArrowDownTrayIcon, DocumentArrowDownIcon, PlusIcon} from "@heroicons/react/16/solid";
+import useCommon from "../hooks/api/useCommon";
 
 export default function TradePage() {
     const {t} = useTranslation();
@@ -17,40 +19,82 @@ export default function TradePage() {
 
     const [queryKeyword, setQueryKeyword] = useState("");
     const [refreshKey, setRefreshKey] = useState(0);
-
-    const initialFilters = {
+    const [searchParams, setSearchParams] = useState({
         tr_type: "",
         dateRange: {startDate: null, endDate: null}
-    };
-    const [filters, setFilters] = useState(initialFilters);
-
-    const {
-        data, add, remove, update, importData, downloadTemplate,
-    } = useTradeList({
-        page, perPage, keyword: queryKeyword, autoLoad: true, refreshKey,
-        tr_type: filters.tr_type,
-        start_date: filters.dateRange.startDate,
-        end_date: filters.dateRange.endDate
     });
 
+    const {
+        data, add, remove, update, importData, downloadTemplate, search
+    } = useTradeList({
+        page,
+        perPage,
+        keyword: queryKeyword,
+        autoLoad: true,
+        refreshKey,
+        tr_type: searchParams.tr_type,
+        start_date: searchParams.dateRange.startDate,
+        end_date: searchParams.dateRange.endDate
+    });
+
+    const {fetchEnumValues} = useCommon();
+    const [typeOptions, setTypeOptions] = useState([]);
+
+    useEffect(() => {
+        const loadEnumValues = async () => {
+            try {
+                const options = await fetchEnumValues('TradeTypeEnum');
+                setTypeOptions(options);
+            } catch (err) {
+                console.error('Failed to load enum values:', err);
+                showErrorToast('加载类型选项失败');
+            }
+        };
+        loadEnumValues();
+    }, [fetchEnumValues, showErrorToast]);
+
+    // 搜索配置
+    const searchFields = [
+        {
+            name: 'keyword',
+            type: 'text',
+            label: t('label_fund_name_or_code'),
+            placeholder: t('msg_search_placeholder'),
+            className: 'md:col-span-3',
+        },
+        {
+            name: 'tr_type',
+            type: 'select',
+            label: t('th_tr_type'),
+            options: typeOptions,
+            className: 'md:col-span-3',
+        },
+        {
+            name: 'dateRange',
+            type: 'daterange',
+            label: t('th_tr_date'),
+            className: 'md:col-span-3',
+        },
+    ];
+
     const handleSearch = useCallback((val) => {
-        setQueryKeyword(val);
+        setQueryKeyword(val.keyword || '');
+        setSearchParams(prev => ({
+            ...prev,
+            tr_type: val.tr_type || "",
+            dateRange: val.dateRange || {startDate: null, endDate: null}
+        }));
         handlePageChange(1);
     }, [handlePageChange]);
-    const handleFilterChange = (e) => {
-        setFilters(prev => ({...prev, [e.target.name]: e.target.value}));
-        handlePageChange(1);
-    };
-    const handleDateChange = (val) => {
-        setFilters(prev => ({...prev, dateRange: val}));
-        handlePageChange(1);
-    };
-    const handleReset = () => {
+
+    const handleReset = useCallback(() => {
         setQueryKeyword("");
-        setFilters(initialFilters);
+        setSearchParams({
+            tr_type: "",
+            dateRange: {startDate: null, endDate: null}
+        });
         handlePageChange(1);
-        setRefreshKey(p => p + 1);
-    };
+    }, [handlePageChange]);
 
     const handleDelete = async (id) => {
         if (!window.confirm(t('msg_confirm_delete'))) return;
@@ -94,42 +138,33 @@ export default function TradePage() {
 
     return (
         <div className="space-y-6">
-            {/* 自定义布局容器 */}
-            <div
-                className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-                <div className="flex flex-col gap-4">
-                    {/* 第一行：搜索 + 筛选 + 重置 */}
-                    <div className="flex flex-wrap items-center gap-3">
-                        <div className="w-full md:w-auto min-w-[240px]">
-                            <SearchBar key={refreshKey} placeholder={t('msg_search_placeholder')}
-                                       onSearch={handleSearch}/>
-                        </div>
-                        <select name="tr_type" value={filters.tr_type} onChange={handleFilterChange}
-                                className="input-field w-full md:w-40">
-                            <option value="">{t('all_types') || "所有类型"}</option>
-                            <option value="BUY">{t('TR_BUY')}</option>
-                            <option value="SELL">{t('TR_SELL')}</option>
-                            <option value="DIVIDEND">{t('TR_DIVIDEND')}</option>
-                        </select>
-                        <DateRangePicker value={filters.dateRange} onChange={handleDateChange}/>
-                        <button onClick={handleReset}
-                                className="text-sm text-gray-500 hover:text-blue-600 underline px-2">
-                            {t('button_reset') || "重置"}
+            {/* 搜索区域 */}
+            <SearchArea
+                fields={searchFields}
+                initialValues={{
+                    keyword: queryKeyword,
+                    tr_type: searchParams.tr_type,
+                    dateRange: searchParams.dateRange
+                }}
+                onSearch={handleSearch}
+                onReset={handleReset}
+                actionButtons={
+                    <>
+                        <button onClick={() => openModal('add')} className="btn-primary inline-flex items-center gap-2">
+                            <PlusIcon className="h-4 w-4"/>
+                            {t('button_add')}
                         </button>
-                    </div>
-
-                    {/* 分割线 */}
-                    <div className="border-t border-gray-100 dark:border-gray-700"></div>
-
-                    {/* 第二行：操作按钮 (右对齐) */}
-                    <div className="flex flex-wrap justify-end gap-2">
-                        <button onClick={() => openModal('add')} className="btn-primary">{t('button_add')}</button>
-                        <button onClick={downloadTemplate}
-                                className="btn-secondary">{t('button_download_template')}</button>
-                        <button onClick={handleImport} className="btn-secondary">{t('button_import_data')}</button>
-                    </div>
-                </div>
-            </div>
+                        <button onClick={downloadTemplate} className="btn-secondary inline-flex items-center gap-2">
+                            <DocumentArrowDownIcon className="h-4 w-4"/>
+                            {t('button_download_template')}
+                        </button>
+                        <button onClick={handleImport} className="btn-secondary inline-flex items-center gap-2">
+                            <ArrowDownTrayIcon className="h-4 w-4"/>
+                            {t('button_import_data')}
+                        </button>
+                    </>
+                }
+            />
 
             <TradeTable data={data?.items || []} onDelete={handleDelete} onEdit={(item) => openModal('edit', item)}/>
 
@@ -141,9 +176,12 @@ export default function TradePage() {
             )}
 
             <FormModal
-                title={modalConfig.title} show={modalConfig.show}
+                title={modalConfig.title}
+                show={modalConfig.show}
                 onClose={() => setModalConfig(p => ({...p, show: false}))}
-                onSubmit={modalConfig.submitAction} FormComponent={TradeForm} initialValues={modalConfig.initialValues}
+                onSubmit={modalConfig.submitAction}
+                FormComponent={TradeForm}
+                initialValues={modalConfig.initialValues}
             />
         </div>
     );

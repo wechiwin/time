@@ -12,7 +12,6 @@ export default function useHoldingList(options = {}) {
         ho_status = [],
         ho_type = [],
         nav_date = null
-
     } = options;
 
     // 业务层管理数据状态
@@ -46,20 +45,27 @@ export default function useHoldingList(options = {}) {
     // 搜索函数 - 业务层设置数据
     const searchPage = useCallback(async (params = {}) => {
         const payload = {
-            keyword: params.keyword || keyword,
-            page: params.page || page,
-            perPage: params.perPage || perPage,
-            start_date: params.start_date || (nav_date?.[0] || null),
-            end_date: params.end_date || (nav_date?.[1] || null),
-            ho_status: params.ho_status || ho_status,
-            ho_type: params.ho_type || ho_type,
+            keyword: params.keyword ?? keyword,
+            page: params.page ?? page,
+            perPage: params.perPage ?? perPage,
+            start_date: params.start_date ?? (nav_date?.[0] ?? null),
+            end_date: params.end_date ?? (nav_date?.[1] ?? null),
+            ho_status: params.ho_status ?? ho_status,
+            ho_type: params.ho_type ?? ho_type,
         };
 
         const result = await post(urlPrefix + '/page_holding', payload);
         setData(result);
         return result;
-    }, [post, keyword, page, perPage, ho_status, ho_type, nav_date]);
-
+    }, [
+        post,
+        keyword,
+        page,
+        perPage,
+        JSON.stringify(nav_date),     // 引用类型需序列化比较
+        JSON.stringify(ho_status),
+        JSON.stringify(ho_type)
+    ]);
 
     // 自动根据参数变化加载数据
     useEffect(() => {

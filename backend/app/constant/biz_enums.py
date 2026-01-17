@@ -66,8 +66,8 @@ class TradeTypeEnum(Enum):
 
 
 class AlertRuleActionEnum(Enum):
-    SELL = 'SELL'
     BUY = 'BUY'
+    SELL = 'SELL'
 
     @property
     def view(self):

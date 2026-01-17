@@ -20,22 +20,20 @@ export default function HoldingSearchSelect({
 
     // 每次外部传入的 value 变化时，同步到 keyword（用于回显）
     useEffect(() => {
-        if (value) {
-            if (typeof value === 'string') {
-                // 如果是字符串，设置为搜索关键词
-                setKeyword(value);
-            } else if (value.ho_code) {
-                // 如果是基金对象，设置选中状态
-                setSelectedFund(value);
-
-                const displayName = value.ho_short_name
-                    ? `${value.ho_code} - ${value.ho_short_name}`
-                    : value.ho_code;
-                setKeyword(displayName);
-            }
-        } else {
+        if (!value) {
             setKeyword('');
             setSelectedFund(null);
+            return;
+        }
+
+        if (typeof value === 'string' && value.trim()) {
+            setKeyword(value);
+        } else if (value.ho_code) {
+            setSelectedFund(value);
+            const displayName = value.ho_short_name
+                ? `${value.ho_code} - ${value.ho_short_name}`
+                : value.ho_code;
+            setKeyword(displayName);
         }
     }, [value]);
 

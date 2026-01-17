@@ -8,7 +8,10 @@ export default function useTradeList(options = {}) {
         page = 1,
         perPage = 10,
         autoLoad = true,
-        refreshKey = 0
+        refreshKey = 0,
+        tr_type = '',
+        start_date = null,
+        end_date = null
     } = options;
 
     // 业务层管理数据状态
@@ -17,7 +20,7 @@ export default function useTradeList(options = {}) {
     const urlPrefix = '/trade';
 
     const search = useCallback(async (params = {}) => {
-        let payload = {keyword, page, perPage, ...params};
+        let payload = {keyword, page, perPage, tr_type, start_date, end_date, ...params};
 
         const result = await post(urlPrefix + '/tr_page', {
             keyword: payload.keyword,
@@ -29,15 +32,14 @@ export default function useTradeList(options = {}) {
         });
         setData(result);
         return result;
-    }, [post, keyword, page, perPage]);
-
+    }, [post, keyword, page, perPage, tr_type, start_date, end_date]);
 
     // 自动根据参数变化加载数据
     useEffect(() => {
         if (autoLoad) {
-            search(keyword, page, perPage);
+            search();
         }
-    }, [keyword, page, perPage, autoLoad, search, refreshKey]);
+    }, [keyword, page, perPage, tr_type, start_date, end_date, autoLoad, search, refreshKey]);
 
     const add = useCallback(async (body) => {
         const result = await post('/trade', body);

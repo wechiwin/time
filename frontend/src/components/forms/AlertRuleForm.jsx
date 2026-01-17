@@ -2,6 +2,8 @@ import {useEffect, useState} from 'react';
 import {useToast} from '../context/ToastContext';
 import {useTranslation} from "react-i18next";
 import HoldingSearchSelect from "../search/HoldingSearchSelect";
+import useCommon from "../../hooks/api/useCommon";
+import MySelect from "../common/MySelect";
 
 export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
     const [form, setForm] = useState({
@@ -16,6 +18,27 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
     const {showSuccessToast, showErrorToast} = useToast();
     const {t} = useTranslation()
     const isEditMode = !!initialValues?.ar_id;
+
+    const {fetchMultipleEnumValues} = useCommon();
+    const [actionOptions, setActionOptions] = useState([]);
+
+    useEffect(() => {
+        const loadEnumValues = async () => {
+            try {
+                const [
+                    actionOptions,
+                ] = await fetchMultipleEnumValues([
+                    'AlertRuleActionEnum',
+                ]);
+                setActionOptions(actionOptions);
+            } catch (err) {
+                console.error('Failed to load enum values:', err);
+                showErrorToast('加载类型选项失败');
+            }
+        };
+        loadEnumValues();
+    }, [fetchMultipleEnumValues, showErrorToast]);
+
 
     // 自动生成监控名称的effect
     useEffect(() => {
@@ -122,15 +145,12 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
                 </div>
                 <div className="flex flex-col">
                     <label className="text-sm font-medium mb-1">{t('alert_type')}</label>
-                    <select
-                        value={form.ar_type}
-                        onChange={(e) => setForm({...form, ar_type: parseInt(e.target.value)})}
+                    <MySelect
+                        options={actionOptions}
+                        value={form.action}
+                        onChange={(val) => setForm({...form, action: val})}
                         className="input-field"
-                    >
-                        <option value="1">{t('alert_type_buy')}</option>
-                        <option value="2">{t('alert_type_add')}</option>
-                        <option value="0">{t('alert_type_sell')}</option>
-                    </select>
+                    />
                 </div>
                 <div className="flex flex-col">
                     <label className="text-sm font-medium mb-1">{t('alert_target_navpu')}</label>

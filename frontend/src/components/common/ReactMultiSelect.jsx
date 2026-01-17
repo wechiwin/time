@@ -12,6 +12,7 @@ import {XMarkIcon} from '@heroicons/react/20/solid';
  * @param {String} className - 自定义类名
  * @param {Boolean} isClearable - 是否显示清空按钮（内部已实现）
  * @param {Boolean} isSearchable - 是否可搜索
+ * @param {Boolean} isSingleSelect - 是否为单选模式，默认为 false（多选）
  */
 const ReactMultiSelect = ({
                               value = [],
@@ -21,6 +22,7 @@ const ReactMultiSelect = ({
                               className = "",
                               isClearable = true,
                               isSearchable = true,
+                              isSingleSelect = false, // 新增属性：是否单选
                           }) => {
     // 转换选项格式给 react-select
     const selectOptions = useMemo(() =>
@@ -33,18 +35,33 @@ const ReactMultiSelect = ({
 
     // 转换当前值格式给 react-select
     const selectedValues = useMemo(() => {
-        if (!Array.isArray(value)) return [];
-
-        return selectOptions.filter(opt =>
-            value.includes(opt.value)
-        );
-    }, [value, selectOptions]);
+        if (isSingleSelect) {
+            // 单选模式：value 应该是字符串或单个值
+            if (value === null || value === undefined || value === '') {
+                return null;
+            }
+            return selectOptions.find(opt => opt.value === value) || null;
+        } else {
+            // 多选模式：value 应该是数组
+            if (!Array.isArray(value)) return [];
+            return selectOptions.filter(opt =>
+                value.includes(opt.value)
+            );
+        }
+    }, [value, selectOptions, isSingleSelect]);
 
     // 处理变化
     const handleChange = (selected) => {
         if (onChange) {
-            const newValues = selected ? selected.map(item => item.value) : [];
-            onChange(newValues);
+            if (isSingleSelect) {
+                // 单选模式：返回选中项的值（字符串）或 null
+                const newValue = selected ? selected.value : null;
+                onChange(newValue);
+            } else {
+                // 多选模式：返回选中项值的数组
+                const newValues = selected ? selected.map(item => item.value) : [];
+                onChange(newValues);
+            }
         }
     };
 
@@ -66,7 +83,7 @@ const ReactMultiSelect = ({
     return (
         <div className={`relative ${className}`}>
             <Select
-                isMulti
+                isMulti={!isSingleSelect} // 根据 isSingleSelect 决定是否多选
                 value={selectedValues}
                 onChange={handleChange}
                 options={selectOptions}
