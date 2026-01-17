@@ -1,10 +1,10 @@
-import {Navigate, Route, Routes} from 'react-router-dom';
+import {Navigate, Route, Routes, useNavigate} from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import Dashboard from './pages/Dashboard';
 import HoldingPage from './pages/HoldingPage';
 import TradePage from './pages/TradePage';
 import NavHistoryPage from './pages/NavHistoryPage';
-import {ToastProvider} from './components/context/ToastContext';
+import {ToastProvider, useToast} from './components/context/ToastContext';
 import NavHistoryDetailPage from "./pages/detail/NavHistoryDetailPage";
 import TradeHistoryDetailPage from "./pages/detail/TradeHistoryDetailPage";
 import AlertPage from "./pages/AlertPage";
@@ -12,12 +12,43 @@ import LoginPage from "./pages/LoginPage";
 import PrivateRoute from "./components/common/PrivateRoute";
 import RegisterPage from "./pages/RegisterPage";
 import {DarkModeProvider} from "./components/context/DarkModeContext";
-import HoldingSnapshotPage from "./pages/HoldingSnapshotPage";
+import SecureTokenStorage from "./utils/tokenStorage";
+import {useEffect} from "react";
+import { AUTH_EXPIRED_EVENT } from './hooks/useApi';
+
+// === 新增：全局认证监听组件 ===
+// 必须放在 Router 和 ToastProvider 内部才能使用 hooks
+function AuthWatcher() {
+    const navigate = useNavigate();
+    const {showErrorToast} = useToast();
+
+    useEffect(() => {
+        const handleExpired = () => {
+            console.log("AuthWatcher: 检测到会话过期");
+
+            // 1. 清理 Token
+            SecureTokenStorage.clearTokens();
+
+            // 2. 统一提示 (只提示一次)
+            showErrorToast('登录已过期，请重新登录');
+
+            // 3. 跳转登录页
+            // navigate('/login', {replace: true});
+        };
+
+        window.addEventListener(AUTH_EXPIRED_EVENT, handleExpired);
+        return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleExpired);
+    }, [navigate, showErrorToast]);
+
+    return null; // 这个组件不渲染任何 UI
+}
 
 export default function App() {
     return (
         <DarkModeProvider>
             <ToastProvider>
+                <AuthWatcher/>
+
                 <Routes>
                     {/* 登录路由 (公开) */}
                     <Route path="/login" element={<LoginPage/>}/>

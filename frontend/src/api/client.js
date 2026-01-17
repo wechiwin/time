@@ -110,8 +110,9 @@ apiClient.interceptors.response.use(
 
         // 3. 处理刷新接口本身的 401/400 错误
         if ((status === 401 || status === 400) && error.config.url.includes('/user_setting/refresh')) {
-            SecureTokenStorage.clearTokens();
-            return Promise.reject(new Error('会话已过期，请重新登录'));
+            const sessionErr = new Error('会话已过期');
+            sessionErr.isSessionExpired = true;
+            return Promise.reject(sessionErr);
         }
 
         // 4. 其他错误
