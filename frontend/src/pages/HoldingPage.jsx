@@ -120,7 +120,15 @@ export default function HoldingPage() {
         try {
             await remove(id);
             showSuccessToast();
-            setRefreshKey(p => p + 1);
+
+            // 检查当前页数据情况，决定是否需要调整分页
+            if (data?.items?.length === 1 && page > 1) {
+                // 如果删除的是当前页的最后一条数据且不在第一页，则跳转到前一页
+                handlePageChange(page - 1);
+            } else {
+                // 否则保持当前页并刷新数据
+                setRefreshKey(p => p + 1);
+            }
         } catch (err) {
             showErrorToast(err.message);
         }
