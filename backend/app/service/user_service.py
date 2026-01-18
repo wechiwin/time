@@ -1,4 +1,5 @@
 # app/services/auth_service.py
+import logging
 import uuid
 from datetime import datetime
 
@@ -7,6 +8,8 @@ from flask_jwt_extended import create_access_token, create_refresh_token
 from app.framework.exceptions import BizException
 from app.models import UserSetting, DeviceType, db, LoginHistory, LoginStatus
 from app.utils.user_util import generate_device_fingerprint, calculate_risk_score
+
+logger = logging.getLogger(__name__)
 
 
 class UserService:
@@ -29,7 +32,7 @@ class UserService:
         # 即使密码正确，锁定状态下也不允许获取 Token
         if user.is_locked:
             # 记录尝试登录被阻断的日志
-            cls._record_login_history(
+            cls.record_login_history(
                 user_id=user.id,
                 login_ip=ip,
                 user_agent=user_agent,
@@ -57,7 +60,7 @@ class UserService:
         )
 
         # 6. 记录成功登录历史
-        cls._record_login_history(
+        cls.record_login_history(
             user_id=user.id,
             login_ip=ip,
             user_agent=user_agent,
@@ -67,7 +70,11 @@ class UserService:
 
         # 7. 更新最后登录时间 (可选)
         user.last_login_at = datetime.now()
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logger.error(e, exc_info=True)
 
         # 8. 返回结果
         return {
@@ -85,7 +92,7 @@ class UserService:
 
     # 用于记录登录历史的辅助函数
     @staticmethod
-    def _record_login_history(user_id: int, login_ip: str, user_agent: str, device_type: str, session_id: str = None, failure_reason: str = None) -> LoginHistory:
+    def record_login_history(user_id: int, login_ip: str, user_agent: str, device_type: str, session_id: str = None, failure_reason: str = None) -> LoginHistory:
         """记录登录历史"""
         login_history = LoginHistory(
             user_id=user_id,
@@ -101,6 +108,11 @@ class UserService:
         # 计算风险评分（可选：根据IP、User-Agent、时间等）
         login_history.risk_score = calculate_risk_score(login_ip, user_agent)
         login_history.is_suspicious = login_history.risk_score > 50
-        db.session.add(login_history)
-        db.session.commit()
+        try:
+            db.session.add(login_history)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logger.error(e, exc_info=True)
+
         return login_history

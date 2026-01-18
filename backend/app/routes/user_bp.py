@@ -47,9 +47,22 @@ def register():
         username=username,
         pwd_hash=pwd_hash,
     )
+    try:
+        db.session.add(new_user)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(e, exc_info=True)
 
-    db.session.add(new_user)
-    db.session.commit()
+    # 记录注册登录历史（可选）
+    UserService.record_login_history(
+        user_id=new_user.id,
+        login_ip=get_remote_address(),
+        user_agent=request.headers.get('User-Agent', ''),
+        device_type=DeviceType.UNKNOWN.value,
+        session_id=str(uuid.uuid4()),
+        failure_reason=None
+    )
 
     # 注册成功后自动返回token
     access_token = create_access_token(identity=new_user.username)
@@ -64,16 +77,6 @@ def register():
     })
 
     set_refresh_cookies(response, refresh_token)
-
-    # 记录注册登录历史（可选）
-    _record_login_history(
-        user_id=new_user.id,
-        login_ip=get_remote_address(),
-        user_agent=request.headers.get('User-Agent', ''),
-        device_type=DeviceType.UNKNOWN.value,
-        session_id=str(uuid.uuid4()),
-        failure_reason=None
-    )
 
     return response
 
@@ -199,7 +202,7 @@ def get_user():
         raise BizException("用户不存在")
 
     result = {
-        "id": user.id,
+        "uuid": user.uuid,
         "username": user.username,
         "default_lang": user.default_lang,
         "email_address": user.email_address,

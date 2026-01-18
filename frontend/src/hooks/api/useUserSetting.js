@@ -1,11 +1,12 @@
-import {useCallback, useState} from 'react';
+import {useCallback, useContext, useState} from 'react';
 import useApi from "../useApi";
 import SecureTokenStorage from "../../utils/tokenStorage";
+import {AuthContext} from "../../components/context/AuthContext";
 
 export default function useUserSetting() {
-    const {loading, error, get, post, put, del} = useApi();
+    const {loading, error, get, post, put} = useApi();
     const [currentUser, setCurrentUser] = useState(null);
-
+    const {checkAuthStatus} = useContext(AuthContext);
     const urlPrefix = '/user_setting';
 
     // 登录接口
@@ -17,10 +18,11 @@ export default function useUserSetting() {
         if (result?.access_token) {
             // 存储Token
             SecureTokenStorage.setAccessToken(result.access_token)
+            await checkAuthStatus();
             return result;
         }
         return null;
-    }, [post]);
+    }, [post, checkAuthStatus]);
 
     // 获取用户信息
     const fetchUserProfile = useCallback(async () => {
@@ -35,8 +37,7 @@ export default function useUserSetting() {
             // 必须POST到正确路径，withCredentials自动携带cookie
             await post(urlPrefix + '/logout', {}, {
                 withCredentials: true,
-                headers: {
-                }
+                headers: {}
             });
         } catch (err) {
             console.warn("Logout API failed:", err);
@@ -57,10 +58,11 @@ export default function useUserSetting() {
         if (result?.access_token) {
             // 注册成功后自动登录，存储token
             SecureTokenStorage.setAccessToken(result.access_token)
+            await checkAuthStatus();
             return result;
         }
         return null;
-    }, [post]);
+    }, [post, checkAuthStatus]);
 
     // 更新用户设置
     const updateUser = useCallback(async (userData) => {

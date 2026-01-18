@@ -95,7 +95,7 @@ apiClient.interceptors.response.use(
             return Promise.reject(error);
         }
 
-        const {response} = error;
+        const { response, config: originalRequest } = error;
 
         // 2. 处理真正的网络错误（没有 response 对象）
         if (!response) {
@@ -108,11 +108,10 @@ apiClient.interceptors.response.use(
         }
         const {status, data} = response;
 
-        // 3. 处理刷新接口本身的 401/400 错误
-        if ((status === 401 || status === 400) && error.config.url.includes('/user_setting/refresh')) {
-            const sessionErr = new Error('会话已过期');
-            sessionErr.isSessionExpired = true;
-            return Promise.reject(sessionErr);
+        // 3. 如果是 401 错误，并且不是刷新接口本身失败，则直接将原始错误抛出
+        //    这样 `axios-auth-refresh` 的拦截器就能捕获到它并执行刷新逻辑
+        if (status === 401 && !originalRequest._skipAuth && !originalRequest.url.includes('/user_setting/refresh')) {
+            return Promise.reject(error);
         }
 
         // 4. 其他错误
