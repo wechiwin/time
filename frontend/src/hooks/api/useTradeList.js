@@ -16,7 +16,7 @@ export default function useTradeList(options = {}) {
 
     // 业务层管理数据状态
     const [data, setData] = useState(null);
-    const {loading, error, get, post, put, del, download} = useApi();
+    const {loading, error, get, post, download} = useApi();
     const urlPrefix = '/trade';
 
     const search = useCallback(async (params = {}) => {
@@ -25,7 +25,7 @@ export default function useTradeList(options = {}) {
         const result = await post(urlPrefix + '/tr_page', {
             keyword: payload.keyword,
             page: payload.page,
-            perPage: payload.perPage,
+            per_page: payload.perPage,
             start_date: payload.start_date,
             end_date: payload.end_date,
             tr_type: payload.tr_type
@@ -42,9 +42,9 @@ export default function useTradeList(options = {}) {
     }, [keyword, page, perPage, tr_type, start_date, end_date, autoLoad, search, refreshKey]);
 
     const add = useCallback(async (body) => {
-        const result = await post('/trade', body);
+        const result = await post(urlPrefix + '/add_tr', body);
         return result;
-    }, [post, search, keyword, page, perPage]);
+    }, [post]);
 
     const remove = useCallback(async (id) => {
         const result = await post(urlPrefix + '/del_tr', {id});
@@ -54,11 +54,11 @@ export default function useTradeList(options = {}) {
     const update = useCallback(async ({tr_id, ...body}) => {
         const result = await post(urlPrefix + "/update_tr", body);
         return result;
-    }, [post, search, keyword, page, perPage]);
+    }, [post]);
 
     // 下载模板
     const downloadTemplate = useCallback(async () => {
-        const url = '/trade/template';
+        const url = urlPrefix + '/template';
         const filename = 'TradeImportTemplate.xlsx';
 
         try {
@@ -74,7 +74,7 @@ export default function useTradeList(options = {}) {
         const formData = new FormData();
         formData.append('file', file);
 
-        return post('/trade/import', formData, {
+        return post(urlPrefix + '/import', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },
@@ -82,7 +82,7 @@ export default function useTradeList(options = {}) {
     }, [post]);
 
     const listByHoId = useCallback(async (ho_id = '') => {
-        const result = await post(`${urlPrefix}/list_by_ho_id`, {ho_id});
+        const result = await post(urlPrefix + '/list_by_ho_id', {ho_id});
         setData(result);  // 业务逻辑设置 data
         return result;
     }, [post]);
@@ -104,7 +104,7 @@ export default function useTradeList(options = {}) {
 
         // 注意：这里去掉了手动设置 'Content-Type': 'multipart/form-data'
         // 让浏览器自动生成 boundary
-        return post('/trade/upload_sse', formData, {});
+        return post(urlPrefix + '/upload_sse', formData, {});
     }, [post]);
 
     return {

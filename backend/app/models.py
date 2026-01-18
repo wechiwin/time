@@ -176,6 +176,7 @@ class FundNavHistory(TimestampMixin, BaseModel):
 
     __table_args__ = (
         db.UniqueConstraint('ho_id', 'nav_date', name='navh_ho_id_date_uk'),
+        db.Index('idx_ho_id_nav_date', 'ho_id', 'nav_date'),
     )
 
     holding = db.relationship(
@@ -748,7 +749,6 @@ class UserSetting(TimestampMixin, BaseModel):
     holdings = db.relationship('Holding', backref='user', lazy='dynamic')
     trades = db.relationship('Trade', backref='user', lazy='dynamic')
     fund_details = db.relationship('FundDetail', backref='user', lazy='dynamic')
-    fund_nav_histories = db.relationship('FundNavHistory', backref='user', lazy='dynamic')
     alert_rules = db.relationship('AlertRule', backref='user', lazy='dynamic')
     alert_histories = db.relationship('AlertHistory', backref='user', lazy='dynamic')
     holding_snapshots = db.relationship('HoldingSnapshot', backref='user', lazy='dynamic')

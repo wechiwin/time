@@ -29,7 +29,12 @@ def page_history():
     start_date = data.get('start_date')
     end_date = data.get('end_date')
 
-    query = FundNavHistory.query.options(joinedload(FundNavHistory.holding))
+    user_id = g.user.id
+    query = FundNavHistory.query.join(
+        Holding, FundNavHistory.ho_id == Holding.id
+    ).filter(
+        Holding.user_id == user_id
+    )
 
     if ho_id:
         query = query.filter_by(ho_id=ho_id)

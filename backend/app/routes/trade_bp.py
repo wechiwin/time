@@ -68,9 +68,9 @@ def tr_page():
     return Res.success(result)
 
 
-@trade_bp.route('', methods=['POST'])
+@trade_bp.route('/add_tr', methods=['POST'])
 @auth_required
-def create_transaction():
+def add_tr():
     data = request.get_json()
     required_fields = ['tr_type', 'tr_date', 'tr_nav_per_unit',
                        'tr_shares', 'tr_amount', 'tr_fee', 'cash_amount', ]

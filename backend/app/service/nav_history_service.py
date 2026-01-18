@@ -5,7 +5,7 @@ from decimal import Decimal
 
 import requests
 from sqlalchemy import func, desc
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
 
 from app.framework.exceptions import BizException
 from app.models import db, FundNavHistory, Holding
@@ -21,7 +21,7 @@ class FundNavHistoryService:
             return ''
 
         # 基础查询：左连接 Holding 表
-        query = FundNavHistory.query.options(joinedload(FundNavHistory.holding))
+        query = FundNavHistory.query.options(selectinload(FundNavHistory.holding))
 
         filters = []
 
