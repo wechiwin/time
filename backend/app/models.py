@@ -754,9 +754,10 @@ class UserSetting(TimestampMixin, BaseModel):
     holding_snapshots = db.relationship('HoldingSnapshot', backref='user', lazy='dynamic')
     holding_analytics_snapshots = db.relationship('HoldingAnalyticsSnapshot', backref='user', lazy='dynamic')
     invested_asset_snapshots = db.relationship('InvestedAssetSnapshot', backref='user', lazy='dynamic')
-    invested_asset_analytics_snapshots = db.relationship('InvestedAssetAnalyticsSnapshot', backref='极user', lazy='dynamic')
+    invested_asset_analytics_snapshots = db.relationship('InvestedAssetAnalyticsSnapshot', backref='user', lazy='dynamic')
     async_task_logs = db.relationship('AsyncTaskLog', backref='user', lazy='dynamic')
     token_blacklists = db.relationship('TokenBlacklist', backref='user', lazy='dynamic')
+    login_history = db.relationship('LoginHistory', backref='user', lazy='dynamic') # 确保这里有 backref
 
     @staticmethod
     def hash_password(raw_password):
@@ -800,7 +801,7 @@ class LoginHistory(TimestampMixin, BaseModel):
     __tablename__ = 'login_history'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=True, index=True)
     session_id = db.Column(db.String(128), nullable=True)
 
     # 登录信息
@@ -823,9 +824,6 @@ class LoginHistory(TimestampMixin, BaseModel):
     # 安全信息
     is_suspicious = db.Column(db.Boolean, default=False, nullable=False)
     risk_score = db.Column(db.Integer, default=0, nullable=False)  # 0-100
-
-    # 关系
-    user = db.relationship('UserSetting', backref='login_history')
 
     @property
     def location_info(self):

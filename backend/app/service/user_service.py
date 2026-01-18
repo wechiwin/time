@@ -8,8 +8,11 @@ from flask_jwt_extended import create_access_token, create_refresh_token
 from app.framework.exceptions import BizException
 from app.models import UserSetting, DeviceType, db, LoginHistory, LoginStatus
 from app.utils.user_util import generate_device_fingerprint, calculate_risk_score
+from app.schemas_marshall import UserSettingSchema # 导入 UserSettingSchema
 
 logger = logging.getLogger(__name__)
+
+user_setting_schema = UserSettingSchema() # 实例化 Schema
 
 
 class UserService:
@@ -25,11 +28,17 @@ class UserService:
         # 2. 校验密码
         if not user or not UserSetting.verify_password(password, user.pwd_hash):
             # 记录失败日志（可选，防止暴力破解分析）
-            # _record_login_history(..., failure_reason="Invalid credentials")
+            # 注意：这里不记录 user_id，因为可能是无效用户名，避免信息泄露
+            cls.record_login_history(
+                user_id=user.id if user else None, # 如果用户不存在，user_id 为 None
+                login_ip=ip,
+                user_agent=user_agent,
+                device_type=DeviceType.UNKNOWN.value,
+                failure_reason="Invalid credentials"
+            )
             raise BizException("用户名或密码错误", code=401)
 
         # 3. 【关键】检查账号是否被锁定
-        # 即使密码正确，锁定状态下也不允许获取 Token
         if user.is_locked:
             # 记录尝试登录被阻断的日志
             cls.record_login_history(
@@ -51,24 +60,24 @@ class UserService:
 
         # 5. 生成 Token
         access_token = create_access_token(
-            identity=user.username,
+            identity=user.uuid,
             additional_claims=additional_claims
         )
         refresh_token = create_refresh_token(
-            identity=user.username,
+            identity=user.uuid,
             additional_claims=additional_claims
         )
 
         # 6. 记录成功登录历史
         cls.record_login_history(
-            user_id=user.id,
+            user_id=user.id, # 内部使用 id
             login_ip=ip,
             user_agent=user_agent,
             device_type=DeviceType.UNKNOWN.value,
             session_id=session_id
         )
 
-        # 7. 更新最后登录时间 (可选)
+        # 7. 更新最后登录时间
         user.last_login_at = datetime.now()
         try:
             db.session.commit()
@@ -81,19 +90,16 @@ class UserService:
             "refresh_token": refresh_token,
             "data": {
                 "access_token": access_token,
-                "user": {
-                    "uuid": user.uuid,
-                    "username": user.username,
-                    "default_lang": user.default_lang,
-                    "email_address": user.email_address,
-                }
+                # 修改：使用 UserSettingSchema 序列化用户对象，排除 id
+                "user": user_setting_schema.dump(user)
             }
         }
 
     # 用于记录登录历史的辅助函数
     @staticmethod
-    def record_login_history(user_id: int, login_ip: str, user_agent: str, device_type: str, session_id: str = None, failure_reason: str = None) -> LoginHistory:
+    def record_login_history(user_id: int | None, login_ip: str, user_agent: str, device_type: str, session_id: str = None, failure_reason: str = None) -> LoginHistory:
         """记录登录历史"""
+        # 如果 user_id 为 None (例如用户名不存在)，则不设置外键
         login_history = LoginHistory(
             user_id=user_id,
             login_ip=login_ip,
@@ -116,3 +122,4 @@ class UserService:
             logger.error(e, exc_info=True)
 
         return login_history
+

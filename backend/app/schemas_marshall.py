@@ -189,6 +189,13 @@ class TokenBlacklistSchema(BaseSchema):
         model = TokenBlacklist
 
 
+class UserSettingSchema(BaseSchema):
+    class Meta(BaseSchema.Meta):
+        model = UserSetting
+        # 排除 id 和 pwd_hash 字段
+        exclude = ('id', 'pwd_hash')
+
+
 class LoginHistorySchema(BaseSchema):
     class Meta(BaseSchema.Meta):
         model = LoginHistory

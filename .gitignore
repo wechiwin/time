@@ -8,3 +8,4 @@ logs
 .env.*.local
 .env.local
 *.db
+.python-version
