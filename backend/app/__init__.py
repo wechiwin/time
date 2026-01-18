@@ -106,7 +106,8 @@ def create_app():
     configure_jwt(jwt)
 
     mail.init_app(app)
-    limiter.init_app(app)
+    if not app.debug:
+        limiter.init_app(app)
 
     # 禁用 ASCII 转义
     app.json = NoAsciiJSONProvider(app)

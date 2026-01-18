@@ -30,16 +30,20 @@ export default function AlertPage() {
     const {fetchMultipleEnumValues} = useCommon();
     // const [hoTypeOptions, setHoTypeOptions] = useState([]);
     const [typeOptions, setTypeOptions] = useState([]);
+    const [emailStatusOptions, setEmailStatusOptions] = useState([]);
 
     useEffect(() => {
         const loadEnumValues = async () => {
             try {
                 const [
                     typeOptions,
+                    emailStatusOptions,
                 ] = await fetchMultipleEnumValues([
                     'TradeTypeEnum',
+                    'AlertEmailStatusEnum',
                 ]);
                 setTypeOptions(typeOptions);
+                setEmailStatusOptions(emailStatusOptions);
             } catch (err) {
                 console.error('Failed to load enum values:', err);
                 showErrorToast('加载类型选项失败');
@@ -60,11 +64,13 @@ export default function AlertPage() {
     const handleSearch = useCallback((values) => {
         setSearchParams(values);
         handlePageChange(1);
+        setRefreshKey(p => p + 1);
     }, [handlePageChange]);
 
     const handleReset = useCallback(() => {
         setSearchParams({});
         handlePageChange(1);
+        setRefreshKey(p => p + 1);
     }, [handlePageChange]);
 
     // 使用 useMemo 根据 mode 动态生成搜索字段配置
@@ -105,13 +111,8 @@ export default function AlertPage() {
             {
                 name: 'ah_status',
                 type: 'select',
-                label: t('label_status'),
-                placeholder: t('all_status'),
-                options: [
-                    {value: 'PENDING', label: t('AR_EM_PENDING')},
-                    {value: 'SENT', label: t('AR_EM_SENT')},
-                    {value: 'FAILED', label: t('AR_EM_FAILED')},
-                ],
+                label: t('alert_status'),
+                options: emailStatusOptions,
                 className: 'md:col-span-4',
             },
         ];
@@ -131,7 +132,6 @@ export default function AlertPage() {
     }, [mode, t]);
 
     const handleDelete = async (id) => {
-        if (!window.confirm(t('msg_confirm_delete'))) return;
         try {
             await deleteRule(id);
             showSuccessToast();

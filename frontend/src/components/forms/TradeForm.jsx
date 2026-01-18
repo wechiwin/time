@@ -9,6 +9,7 @@ import useCommon from "../../hooks/api/useCommon";
 import HoldingSearchSelect from "../search/HoldingSearchSelect";
 import {roundNumber} from "../../utils/formatters";
 import {ExclamationTriangleIcon, CheckCircleIcon} from "@heroicons/react/24/outline";
+import {EventSourcePolyfill} from 'event-source-polyfill';
 
 const init = {
     id: '',
@@ -158,20 +159,28 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
         }
         return ''; // 无法计算时返回空，或者保持原值（这里选择返回空字符串让逻辑决定是否更新）
     };
+
     // 统一的 Change 处理，触发自动计算
     const handleFieldChange = (field, value) => {
         setForm(prev => {
             const nextForm = {...prev, [field]: value};
-
-            // 如果修改的是影响 Cash 的字段，则重新计算 Cash
-            if (['tr_amount', 'tr_fee', 'tr_type'].includes(field)) {
+            // 联动计算逻辑:
+            // 1. 如果修改的是影响 Amount 的字段，重新计算 Amount
+            if (['tr_nav_per_unit', 'tr_shares'].includes(field)) {
+                const nav = parseFloat(nextForm.tr_nav_per_unit);
+                const shares = parseFloat(nextForm.tr_shares);
+                if (!isNaN(nav) && !isNaN(shares)) {
+                    nextForm.tr_amount = roundNumber(nav * shares, 2).toString();
+                }
+            }
+            // 2. 如果修改的是影响 Cash 的字段，重新计算 Cash
+            // 注意：Amount 的计算会影响 Cash，所以这个判断要放在后面
+            if (['tr_nav_per_unit', 'tr_shares', 'tr_amount', 'tr_fee', 'tr_type'].includes(field)) {
                 const newCash = calculateCash(
                     nextForm.tr_amount,
                     nextForm.tr_fee,
                     nextForm.tr_type
                 );
-                // 只有当计算出有效值时才更新，避免清空用户已输入的内容（除非逻辑要求）
-                // 这里策略是：只要参数变了，就强制更新 Cash，保证数据一致性
                 if (newCash !== '') {
                     nextForm.cash_amount = newCash;
                 }
@@ -180,7 +189,6 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
         });
     };
 
-    // --- 改进点 2: 处理“应用”按钮点击 ---
     const handleApplyFix = (field, value) => {
         // 调用 handleFieldChange 以确保触发联动逻辑（例如修正 Amount 后自动修正 Cash）
         handleFieldChange(field, value.toString());
@@ -243,8 +251,16 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
             eventSourceRef.current.close();
         }
 
+        const token = localStorage.getItem('access_token');
+
         // 建立新连接
-        const eventSource = new EventSource(`/api/trade/stream/${taskId}`);
+        const eventSource = new EventSourcePolyfill(`/api/trade/stream/${taskId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            heartbeatTimeout: 120000,
+        });
+
         eventSourceRef.current = eventSource;
 
         eventSource.onmessage = (event) => {
@@ -348,9 +364,9 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
 
     // 构造传给 HoldingSearchSelect 的 value 对象
     // 确保包含 id，这样 HoldingSearchSelect 内部逻辑更完整
-    const holdingSelectValue = form.ho_short_name
-        ? {ho_code: form.ho_code, ho_short_name: form.ho_short_name, id: form.ho_id}
-        : form.ho_code;
+    const holdingSelectValue = form.ho_id
+        ? {id: form.ho_id, ho_code: form.ho_code, ho_short_name: form.ho_short_name}
+        : null;
 
     return (
         <form onSubmit={submit} className="p-3 sm:p-4 page-bg rounded-lg">

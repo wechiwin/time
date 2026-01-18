@@ -116,7 +116,7 @@
   "alert_type_buy": "买入",
   "alert_type_sell": "卖出",
   "alert_type_add": "加仓",
-  "alert_target_navpu": "目标单位净值",
+  "alert_target_price": "目标单位净值",
   "alert_status": "状态",
   "alert_trigger_time": "触发时间",
   "alert_status_pending": "待发送",

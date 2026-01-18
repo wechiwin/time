@@ -23,6 +23,7 @@ OLLAMA = r"C:\Users\Administrator\AppData\Local\Programs\Ollama\ollama.exe"
 logger = logging.getLogger(__name__)
 ZERO = Decimal(0)
 
+
 class TradeService:
     def __init__(self):
         pass
@@ -160,50 +161,64 @@ OCR 文本：
 
     @classmethod
     def create_transaction(cls, new_trade):
-        """
-        需要考虑用户可能是乱序插入的
-        """
-        return cls.import_trade([new_trade])
-        # try:
-        #     ho_id = new_trade.ho_id
-        #     # 更新持仓状态
-        #     holding = Holding.query.filter_by(id=ho_id).first()
-        #     if not holding:
-        #         raise BizException("持仓不存在")
-        #
-        #     trades, tr_cycle = cls.list_uncleared(holding)
-        #     # TODO 这里应该按照trades列表的tr_date排序之后，遍历集合，如果有清仓的
-        #     if trades:
-        #         if TradeTypeEnum.SELL.value == new_trade.tr_type:  # 卖出
-        #             # 分别计算目前持有的买入和卖出份额
-        #             buy_shares = sum(t.tr_shares for t in trades if t.tr_type == TradeTypeEnum.BUY.value)
-        #             sell_shares = sum(t.tr_shares for t in trades if t.tr_type == TradeTypeEnum.SELL.value)
-        #
-        #             current_sell_shares = buy_shares - sell_shares - new_trade.tr_shares
-        #             if current_sell_shares < 0:
-        #                 raise BizException(ErrorMessageEnum.OVERSOLD.value)
-        #             elif current_sell_shares == 0:  # 清仓
-        #                 new_trade.is_cleared = True
-        #                 holding.ho_status = HoldingStatusEnum.CLOSED.value
-        #             else:  # 部分卖出
-        #                 holding.ho_status = HoldingStatusEnum.HOLDING.value
-        #         else:  # 买入
-        #             holding.ho_status = HoldingStatusEnum.HOLDING.value
-        #     else:  # 超卖
-        #         if TradeTypeEnum.SELL.value == new_trade.tr_type:
-        #             raise BizException(ErrorMessageEnum.OVERSOLD.value)
-        #         holding.ho_status = HoldingStatusEnum.HOLDING.value
-        #
-        #     new_trade.ho_code = holding.ho_code
-        #     new_trade.tr_cycle = tr_cycle
-        #     db.session.add(new_trade)
-        #     db.session.add(holding)
-        #     db.session.commit()
-        #     return True
-        # except Exception as e:
-        #     db.session.rollback()
-        #     logger.error(e, exc_info=True)
-        #     return False
+        try:
+            # 1. 关联 Holding
+            # 如果前端传了 ho_id，直接用；如果只传了 ho_code，查一下
+            if not new_trade.ho_id and new_trade.ho_code:
+                h = Holding.query.filter_by(ho_code=new_trade.ho_code).first()
+                if h:
+                    new_trade.ho_id = h.id
+
+            if not new_trade.ho_id:
+                raise BizException(ErrorMessageEnum.MISSING_FIELD.value)
+
+            # 2. 先保存新记录 (此时 tr_cycle 可能不准，没关系，马上重算)
+            # 默认给个 1 或者 0 都可以
+            new_trade.tr_cycle = 1
+            db.session.add(new_trade)
+            # 需要 flush 获取 new_trade.id，保证重算时的排序稳定性
+            db.session.flush()
+
+            # 3. 调用重算逻辑
+            cls.recalculate_holding_trades(new_trade.ho_id)
+
+            # 4. 提交事务
+            db.session.commit()
+            return True
+        except Exception as e:
+            db.session.rollback()
+            logger.error(e, exc_info=True)
+            if isinstance(e, BizException):
+                raise e
+            return False
+
+    @classmethod
+    def update_trade_record(cls, tr_id, update_data: dict):
+        try:
+            trade = Trade.query.get(tr_id)
+            if not trade:
+                raise BizException(ErrorMessageEnum.NO_SUCH_DATA.value)
+
+            # 记录旧的 ho_id，防止用户修改了关联的持仓（虽然一般不允许改 ho_id）
+            old_ho_id = trade.ho_id
+
+            # 使用 marshmallow load 后的数据更新对象
+            # 假设 update_data 已经是处理好的字典或对象
+            for key, value in update_data.items():
+                if hasattr(trade, key):
+                    setattr(trade, key, value)
+
+            db.session.flush()
+
+            # 重算
+            cls.recalculate_holding_trades(trade.ho_id)
+
+            db.session.commit()
+            return True
+        except Exception as e:
+            db.session.rollback()
+            logger.error(e, exc_info=True)
+            raise e
 
     @classmethod
     def import_trade(cls, import_trades: List[Trade]):
@@ -414,3 +429,74 @@ OCR 文本：
         cumulative_profit = total_sell_amount + current_market_value - total_buy_amount
 
         return cumulative_profit
+
+    @classmethod
+    def recalculate_holding_trades(cls, ho_id: int):
+        """
+        核心方法：重新计算指定持仓的所有交易记录的轮次(tr_cycle)和清仓状态(is_cleared)。
+        适用于：新增、修改、删除交易记录后，修正后续数据。
+        注意：此方法需要在事务中调用，或者调用后由上层commit。
+        """
+        # 1. 获取持仓信息
+        holding = Holding.query.get(ho_id)
+        if not holding:
+            raise BizException("持仓不存在")
+
+        # 2. 获取该持仓下所有交易记录，严格按时间正序排列
+        # secondary sort by id ensures deterministic order for same-day trades
+        trades = Trade.query.filter_by(ho_id=ho_id).order_by(Trade.tr_date.asc(), Trade.id.asc()).all()
+
+        if not trades:
+            # 如果没有交易记录，重置持仓状态为 CLOSED (或者根据业务逻辑删除持仓)
+            holding.ho_status = HoldingStatusEnum.CLOSED.value
+            return
+
+        # 3. 初始化状态变量
+        current_shares = Decimal('0')
+        current_cycle = 1
+
+        # 用于浮点数比较的极小值
+        EPSILON = Decimal('0.0001')
+
+        # 4. 遍历重放
+        for trade in trades:
+            # 强制转换类型以防万一
+            trade_shares = Decimal(str(trade.tr_shares))
+
+            # 重置当前记录的状态
+            trade.tr_cycle = current_cycle
+            trade.is_cleared = False
+
+            if trade.tr_type == TradeTypeEnum.BUY.value:
+                current_shares += trade_shares
+
+            elif trade.tr_type == TradeTypeEnum.SELL.value:
+                current_shares -= trade_shares
+
+                # 校验：不允许卖空 (Over Sold)
+                # 如果计算过程中份额小于0 (考虑到精度误差，使用 < -EPSILON)
+                if current_shares < -EPSILON:
+                    raise BizException(
+                        f"操作导致库存不足：在 {trade.tr_date} 卖出后，"
+                        f"持仓份额变为 {current_shares}，不符合业务规则。"
+                    )
+
+                # 判断是否清仓
+                # 如果剩余份额非常接近0，视为清仓
+                if abs(current_shares) < EPSILON:
+                    current_shares = Decimal('0')  # 修正为绝对0
+                    trade.is_cleared = True
+                    # 只有在清仓发生的这一笔交易完成后，下一笔交易才进入下一个周期
+                    current_cycle += 1
+
+            # 更新数据库对象（SQLAlchemy 会自动追踪变更）
+            db.session.add(trade)
+
+        # 5. 更新 Holding 表的总状态
+        if current_shares > EPSILON:
+            holding.ho_status = HoldingStatusEnum.HOLDING.value
+        else:
+            holding.ho_status = HoldingStatusEnum.CLOSED.value
+
+        db.session.add(holding)
+        # 注意：这里不执行 commit，交由调用方统一 commit，以便发生异常时回滚

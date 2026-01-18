@@ -70,7 +70,7 @@ class AlertService:
             end_date=yesterday
         )
         # nav_map = {nav.nav_date: nav.nav_per_unit for nav in nav_data}
-        ar_target_navpu = rule.target_navpu
+        target_price = rule.target_price
         for nav_item in nav_data:
             if nav_item['nav_date'] <= ar_tracked_date:
                 continue
@@ -78,11 +78,11 @@ class AlertService:
             ar_type = rule.action
             nav_per_unit = nav_item['nav_per_unit']
             # 分情况判断
-            if AlertRuleActionEnum.BUY.code == ar_type or AlertRuleActionEnum.ADD_POSITION.code == ar_type:
-                if nav_per_unit <= ar_target_navpu:
+            if AlertRuleActionEnum.BUY.value == ar_type:
+                if nav_per_unit <= target_price:
                     cls._add_history(rule, nav_item)
-            elif AlertRuleActionEnum.SELL.code == ar_type:
-                if nav_per_unit >= ar_target_navpu:
+            elif AlertRuleActionEnum.SELL.value == ar_type:
+                if nav_per_unit >= target_price:
                     cls._add_history(rule, nav_item)
             # 更新rule追踪日期
             rule.tracked_date = nav_item['nav_date']
@@ -100,7 +100,7 @@ class AlertService:
                 ah_ar_type=rule.action,
                 ah_nav_per_unit=nav_item['nav_per_unit'],
                 ah_trigger_nav_date=nav_item['nav_date'],
-                ah_target_navpu=rule.target_navpu,
+                ah_target_price=rule.target_price,
                 ah_ar_name=rule.ar_name,
             )
             db.session.add(history)

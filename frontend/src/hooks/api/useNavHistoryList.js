@@ -18,7 +18,7 @@ export default function useNavHistoryList(options = {}) {
     const urlPrefix = '/nav_history';
 
     const search = useCallback(async (params = {}) => {
-        const result = await post(`${urlPrefix}/page_history`, {
+        const result = await post(urlPrefix + '/page_history', {
             keyword: params.keyword || keyword,
             page: params.page || page,
             per_page: params.perPage || perPage,
@@ -34,7 +34,7 @@ export default function useNavHistoryList(options = {}) {
         if (start_date) payload.start_date = start_date;
         if (end_date) payload.end_date = end_date;
 
-        const result = await post(`${urlPrefix}/list_history`, payload);
+        const result = await post(urlPrefix_ + '/list_history', payload);
         return result;
     }, [post]);
 
@@ -58,41 +58,30 @@ export default function useNavHistoryList(options = {}) {
     }, [post, search, keyword, page, perPage]);
 
     const remove = useCallback(async (id) => {
-        const result = await del(`/nav_history/${id}`);
+        const result = await del(urlPrefix + '/del_nav', {id});
         await search(keyword, page, perPage);
         return result;
     }, [del, search, keyword, page, perPage]);
 
-    const update = useCallback(async ({id, ...body}) => {
-        const result = await put(`/nav_history/${id}`, body);
+    const update = useCallback(async (body) => {
+        const result = await put(urlPrefix + '/update_nav', body);
         await search(keyword, page, perPage);
         return result;
     }, [put, search, keyword, page, perPage]);
 
     const crawl = useCallback(async (body) => {
-        const result = await post('/nav_history/crawl', body);
+        const result = await post(urlPrefix + '/crawl', body);
         await search(keyword, page, perPage);
         return result;
     }, [post, search, keyword, page, perPage]);
 
     const crawl_all = useCallback(async () => {
-        const result = await get('/nav_history/crawl_all');
+        const result = await get(urlPrefix + '/crawl_all');
         return result;
     }, [get]);
 
-    const getLatestNav = useCallback(async (searchKeyword = '') => {
-        const params = new URLSearchParams({
-            ho_code: searchKeyword,
-            page: 1,
-            per_page: 1
-        }).toString();
-        const result = await get(`/nav_history?${params}`);
-        // console.log(result)
-        const latestNav = result.items[0]
-        setData(latestNav);
-        // console.log(latestNav)
-        return latestNav;
-    }, [get]);
-
-    return {data, loading, error, add, remove, update, search, crawl, crawl_all, list_history, getLatestNav};
+    return {
+        data, loading, error, add, remove, update, search,
+        crawl, crawl_all, list_history
+    };
 }

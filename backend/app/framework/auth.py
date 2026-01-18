@@ -13,6 +13,7 @@ def token_required(optional=False, refresh=False):
             if not current_app.config.get('JWT_AUTH_REQUIRED', True):
                 return fn(*args, **kwargs)
 
+            # --- 认证逻辑开始 ---
             try:
                 # 2. 验证 Token (验证签名、过期、黑名单)
                 verify_jwt_in_request(optional=optional, refresh=refresh)
@@ -32,13 +33,10 @@ def token_required(optional=False, refresh=False):
                 # 6. 挂载到全局 g 对象
                 g.user = user
 
-                return fn(*args, **kwargs)
-
             except BizException:
-                # 已经是业务异常，直接抛出，交给全局异常处理器
+                # 业务异常直接抛出
                 raise
             except JWTExtendedException as e:
-                # 这里可以区分一下，如果是刷新接口报错，提示语可以不同
                 msg = "刷新令牌无效或已过期，请重新登录" if refresh else "身份认证失效"
                 # 捕获 JWT 库的特定异常，转化为统一格式
                 # 可以根据 e 的类型细分：ExpiredSignatureError 等
@@ -46,12 +44,17 @@ def token_required(optional=False, refresh=False):
 
                 if optional:
                     g.user = None
-                    return fn(*args, **kwargs)
-
-                raise BizException(msg, code=401)
+                    # 如果是可选认证失败，不抛错，继续执行业务逻辑（但在 try 块外执行）
+                else:
+                    raise BizException(msg, code=401)
             except Exception as e:
                 current_app.logger.error(f"Auth system error: {e}", exc_info=True)
                 raise BizException("认证服务暂时不可用", code=401)
+            # --- 认证逻辑结束 ---
+
+            # 7. 执行业务视图函数 (移出 try 块)
+            # 这样业务逻辑中的 TypeError, ValueError 等不会被误认为是认证错误
+            return fn(*args, **kwargs)
 
         return wrapper
 

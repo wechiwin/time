@@ -1,5 +1,6 @@
 from flask import Blueprint, request, g
 from sqlalchemy import or_, desc
+from sqlalchemy.orm import joinedload
 
 from app.constant.biz_enums import ErrorMessageEnum
 from app.framework.auth import auth_required
@@ -7,9 +8,10 @@ from app.framework.exceptions import BizException
 from app.framework.res import Res
 from app.framework.sys_constant import DEFAULT_PAGE_SIZE
 from app.models import db, AlertRule, AlertHistory, Holding
-from app.schemas_marshall import AlertRuleSchema, AlertHistorySchema
+from app.schemas_marshall import AlertRuleSchema, AlertHistorySchema, marshal_pagination
 from app.service.alert_service import AlertService
-from app.utils.date_util import get_yesterday_date_str
+from app.utils.date_util import get_yesterday_date_str, get_yesterday_date
+from app.utils.user_util import get_or_raise
 
 alert_bp = Blueprint('alert', __name__, url_prefix='/api/alert')
 
@@ -19,40 +21,46 @@ alert_bp = Blueprint('alert', __name__, url_prefix='/api/alert')
 @auth_required
 def create_rule():
     data = request.get_json()
-    if not data.get('ho_code') or not data.get('ar_type') or not data.get('ar_is_active') or not data.get(
-            'ar_target_navpu'):
-        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD)
+    if not data.get('ho_code') or not data.get('action') or not data.get('ar_is_active') or not data.get(
+            'target_price'):
+        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.value)
 
     new_rule = AlertRuleSchema().load(data)
     new_rule.user_id = g.user.id
-    new_rule.tracked_date = get_yesterday_date_str()
+    new_rule.tracked_date = get_yesterday_date()
     db.session.add(new_rule)
     db.session.commit()
     return Res.success()
 
 
-@alert_bp.route('/rule/<int:ar_id>', methods=['GET'])
+@alert_bp.route('/rule/get_rule', methods=['POST'])
 @auth_required
-def get_rule(ar_id):
-    rule = AlertRule.query.get_or_404(ar_id)
+def get_rule():
+    data = request.get_json()
+    id = data.get('id')
+    rule = get_or_raise(AlertRule, id)
     return Res.success(AlertRuleSchema().dump(rule))
 
 
-@alert_bp.route('/rule/<int:ar_id>', methods=['PUT'])
+@alert_bp.route('/rule/update_rule', methods=['POST'])
 @auth_required
-def update_rule(ar_id):
-    rule = AlertRule.query.get_or_404(ar_id)
+def update_rule():
     data = request.get_json()
+    id = data.get('id')
+    rule = get_or_raise(AlertRule, id)
+
     updated_data = AlertRuleSchema().load(data, instance=rule, partial=True)
     db.session.add(updated_data)
     db.session.commit()
     return Res.success()
 
 
-@alert_bp.route('/rule/<int:ar_id>', methods=['DELETE'])
+@alert_bp.route('/rule/del_rule', methods=['POST'])
 @auth_required
-def delete_rule(ar_id):
-    rule = AlertRule.query.get_or_404(ar_id)
+def del_rule():
+    data = request.get_json()
+    id = data.get('id')
+    rule = get_or_raise(AlertRule, id)
     db.session.delete(rule)
     db.session.commit()
     return Res.success()
@@ -70,9 +78,9 @@ def page_rule():
     per_page = data.get('per_page') or DEFAULT_PAGE_SIZE
 
     # query = AlertRule.query
-    query = db.session.query(AlertRule, Holding.ho_short_name).outerjoin(
-        Holding, AlertRule.ho_code == Holding.ho_code
-    )
+    query = AlertRule.query.options(joinedload(AlertRule.holding))
+    query = query.filter_by(user_id=g.user.id)
+
     if ho_code:
         query = query.filter_by(ho_code=ho_code)
     if ar_type:
@@ -90,38 +98,21 @@ def page_rule():
 
     pagination = query.order_by(desc(AlertRule.updated_at)).paginate(
         page=page, per_page=per_page, error_out=False)
-    rules = pagination.items or []
-    items = [{
-        'ar_id': r.id,
-        'ho_code': r.ho_code,
-        'ho_short_name': ho_short_name,
-        'ar_is_active': r.ar_is_active,
-        'ar_target_navpu': r.target_navpu,
-        'ar_tracked_date': r.tracked_date,
-        'ar_type': r.action,
-        'ar_name': r.ar_name,
-        'created_at': r.created_at,
-        'updated_at': r.updated_at
-    } for r, ho_short_name in rules]
-    # 返回分页信息
-    data = {
-        'items': items,
-        'pagination': {
-            'page': page,
-            'per_page': per_page,
-            'total': pagination.total,
-            'pages': pagination.pages
-        }
-    }
-    return Res.success(data)
+
+    result = marshal_pagination(pagination, AlertRuleSchema)
+
+    return Res.success(result)
 
 
 # AlertHistory 接口
-@alert_bp.route('/history/<int:ah_id>', methods=['GET'])
+@alert_bp.route('/history/get_rule_hist', methods=['POST'])
 @auth_required
-def get_history(ah_id):
-    history = AlertHistory.query.get_or_404(ah_id)
-    return Res.success(AlertHistorySchema().dump(history))
+def get_rule_hist():
+    data = request.get_json()
+    id = data.get('id')
+    rule_hist = get_or_raise(AlertRule, id)
+
+    return Res.success(AlertHistorySchema().dump(rule_hist))
 
 
 @alert_bp.route('/history/page_rule_his', methods=['POST'])
@@ -135,9 +126,9 @@ def page_rule_his():
     per_page = data.get('per_page') or DEFAULT_PAGE_SIZE
 
     # query = AlertHistory.query
-    query = db.session.query(AlertHistory, Holding.ho_short_name).outerjoin(
-        Holding, AlertHistory.ho_code == Holding.ho_code
-    )
+    query = AlertHistory.query.options(joinedload(AlertHistory.holding))
+    query = query.filter_by(user_id=g.user.id)
+
     if ar_id:
         query = query.filter_by(ar_id=ar_id)
     if ah_status:
@@ -151,31 +142,10 @@ def page_rule_his():
 
     pagination = query.order_by(desc(AlertHistory.updated_at)).paginate(
         page=page, per_page=per_page, error_out=False)
-    rule_histories = pagination.items or []
-    items = [{
-        'ah_id': r.id,
-        'ar_id': r.id,
-        'ho_code': r.ho_code,
-        'ho_short_name': ho_short_name,
-        'ah_nav_date': r.ah_nav_date,
-        'ah_status': r.send_status,
-        'ah_ar_type': r.action,
-        'ah_target_navpu': r.target_navpu,
-        'ah_nav_per_unit': r.trigger_navpu,
-        'created_at': r.created_at,
-        'updated_at': r.updated_at
-    } for r, ho_short_name in rule_histories]
-    # 返回分页信息
-    data = {
-        'items': items,
-        'pagination': {
-            'page': page,
-            'per_page': per_page,
-            'total': pagination.total,
-            'pages': pagination.pages
-        }
-    }
-    return Res.success(data)
+
+    result = marshal_pagination(pagination, AlertRuleSchema)
+
+    return Res.success(result)
 
 
 @alert_bp.route('/history/alert_job', methods=['GET'])

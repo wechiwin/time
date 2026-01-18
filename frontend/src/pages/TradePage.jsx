@@ -85,6 +85,7 @@ export default function TradePage() {
             dateRange: val.dateRange || {startDate: null, endDate: null}
         }));
         handlePageChange(1);
+        setRefreshKey(p => p + 1);
     }, [handlePageChange]);
 
     const handleReset = useCallback(() => {
@@ -94,10 +95,10 @@ export default function TradePage() {
             dateRange: {startDate: null, endDate: null}
         });
         handlePageChange(1);
+        setRefreshKey(p => p + 1);
     }, [handlePageChange]);
 
     const handleDelete = async (id) => {
-        if (!window.confirm(t('msg_confirm_delete'))) return;
         try {
             await remove(id);
             showSuccessToast();

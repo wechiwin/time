@@ -114,7 +114,7 @@
   "alert_type_buy": "Acquista",
   "alert_type_sell": "Vendi",
   "alert_type_add": "Aumenta Posizione",
-  "alert_target_navpu": "NAV Target Per Unit",
+  "alert_target_price": "NAV Target Per Unit",
   "alert_status": "Stato",
   "alert_trigger_time": "Ora di Trigger",
   "alert_status_pending": "In Attesa",

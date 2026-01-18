@@ -150,8 +150,8 @@ class DashboardService:
                 'name': alert.ar_name,
                 'type': action_type,  # 例如: 'BUY'
                 'type_text': action_text,  # 例如: '买入' (根据语言环境变化)
-                'current_nav': float(alert.trigger_navpu or 0),
-                'target_nav': float(alert.target_navpu or 0),
+                'current_nav': float(alert.trigger_price or 0),
+                'target_nav': float(alert.target_price or 0),
                 'date': alert.trigger_nav_date.strftime('%Y-%m-%d') if alert.trigger_nav_date else '',
                 'status': status_code,  # 例如: 'SENT'
                 'status_text': status_text  # 例如: '已发送'

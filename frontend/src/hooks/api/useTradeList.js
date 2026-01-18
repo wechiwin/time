@@ -52,7 +52,7 @@ export default function useTradeList(options = {}) {
     }, [post]);
 
     const update = useCallback(async ({tr_id, ...body}) => {
-        const result = await post(urlPrefix + "/update", body);
+        const result = await post(urlPrefix + "/update_tr", body);
         return result;
     }, [post, search, keyword, page, perPage]);
 

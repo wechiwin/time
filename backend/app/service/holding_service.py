@@ -180,7 +180,7 @@ class HoldingService:
         使用 SQLAlchemy 的 relationship 自动处理外键关联
         """
         if not data.get('ho_code'):
-            raise BizException(msg=ErrorMessageEnum.MISSING_FIELD)
+            raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.value)
 
         # 检查是否已存在
         if Holding.query.filter_by(ho_code=data['ho_code']).first():

@@ -1,20 +1,30 @@
 import {useTranslation} from 'react-i18next';
+import useCommon from "../../hooks/api/useCommon";
+import {useEffect, useState} from "react";
+import {useToast} from "../context/ToastContext";
 
 export default function AlertHistoryTable({data = []}) {
     const {t} = useTranslation();
+    const {fetchMultipleEnumValues} = useCommon();
+    const [emailStatusOptions, setEmailStatusOptions] = useState([]);
+    const {showSuccessToast, showErrorToast} = useToast();
 
-    const getStatusText = (status) => {
-        switch (status) {
-            case 0:
-                return t('alert_status_pending');
-            case 1:
-                return t('alert_status_sent');
-            case 2:
-                return t('alert_status_failed');
-            default:
-                return status;
-        }
-    };
+    useEffect(() => {
+        const loadEnumValues = async () => {
+            try {
+                const [
+                    emailStatusOptions,
+                ] = await fetchMultipleEnumValues([
+                    'AlertEmailStatusEnum',
+                ]);
+                setEmailStatusOptions(emailStatusOptions);
+            } catch (err) {
+                console.error('Failed to load enum values:', err);
+                showErrorToast('加载类型选项失败');
+            }
+        };
+        loadEnumValues();
+    }, [fetchMultipleEnumValues, showErrorToast]);
 
     return (
         <div className="overflow-x-auto">
@@ -29,7 +39,7 @@ export default function AlertHistoryTable({data = []}) {
                 {data.map((history, index) => (
                     <tr key={history.ah_id || index} className="hover:page-bg">
                         <td className="table-cell">{history.ah_triggered_time}</td>
-                        <td className="table-cell">{getStatusText(history.ah_status)}</td>
+                        <td className="table-cell">{history.ah_status$view}</td>
                     </tr>
                 ))}
                 </tbody>

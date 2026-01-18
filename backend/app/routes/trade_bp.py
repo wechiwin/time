@@ -6,7 +6,7 @@ from io import BytesIO
 from queue import Queue
 
 import pandas as pd
-from flask import Blueprint, request, Response, stream_with_context, current_app
+from flask import Blueprint, request, Response, stream_with_context, current_app, g
 from flask import send_file
 from flask_babel import gettext
 from sqlalchemy import desc, or_
@@ -19,6 +19,7 @@ from app.framework.res import Res
 from app.models import db, Trade, Holding
 from app.schemas_marshall import TradeSchema, marshal_pagination
 from app.service.trade_service import TradeService
+from app.utils.user_util import get_or_raise
 
 trade_bp = Blueprint('trade', __name__, url_prefix='/api/trade')
 
@@ -40,6 +41,7 @@ def tr_page():
     tr_type = data.get('tr_type')
 
     query = Trade.query.options(joinedload(Trade.holding))
+    query = query.filter_by(user_id=g.user.id)
 
     if ho_code:
         query = query.filter_by(ho_code=ho_code)
@@ -77,31 +79,31 @@ def create_transaction():
         raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.value)
 
     new_transaction = TradeSchema().load(data)
+    new_transaction.user_id = g.user.id
     return Res.success() if TradeService.create_transaction(new_transaction) else Res.fail()
 
 
-@trade_bp.route('/<int:tr_id>', methods=['GET'])
+@trade_bp.route('/get_tr', methods=['POST'])
 @auth_required
-def get_transaction(tr_id):
-    t = Trade.query.get_or_404(tr_id)
+def get_transaction():
+    data = request.get_json()
+    id = data.get('id')
+    t = get_or_raise(Trade, id)
     return Res.success(TradeSchema().dump(t))
 
 
-@trade_bp.route('/update', methods=['POST'])
+@trade_bp.route('/update_tr', methods=['POST'])
 @auth_required
-def update_transaction():
+def update_tr():
     data = request.get_json()
-    tr_id = data.get('id')
-    if not tr_id:
-        raise BizException(ErrorMessageEnum.MISSING_FIELD.value)
+    id = data.get('id')
+    t = get_or_raise(Trade, id)
 
-    t = Trade.query.get(tr_id)
-    if not t:
-        raise BizException(ErrorMessageEnum.NO_SUCH_DATA.value)
+    updated_trade = TradeSchema().load(data, instance=t, partial=True)
 
-    updated_data = TradeSchema().load(data, instance=t, partial=True)
-
-    db.session.add(updated_data)
+    db.session.add(updated_trade)
+    db.session.flush()
+    TradeService.recalculate_holding_trades(updated_trade.ho_id)
     db.session.commit()
     return Res.success()
 
@@ -110,14 +112,14 @@ def update_transaction():
 @auth_required
 def del_tr():
     data = request.get_json()
-    tr_id = data.get('id')
-    if not tr_id:
-        raise BizException(ErrorMessageEnum.MISSING_FIELD.value)
-    t = Trade.query.get(tr_id)
-    if not t:
-        raise BizException(ErrorMessageEnum.NO_SUCH_DATA.value)
+    id = data.get('id')
+    t = get_or_raise(Trade, id)
+    ho_id = t.ho_id
 
     db.session.delete(t)
+    db.session.flush()
+    TradeService.recalculate_holding_trades(ho_id)
+
     db.session.commit()
     return Res.success()
 

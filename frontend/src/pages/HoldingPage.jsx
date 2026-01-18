@@ -117,7 +117,6 @@ export default function HoldingPage() {
     }, [handlePageChange]);
 
     const handleDelete = async (id) => {
-        if (!window.confirm(t('msg_confirm_delete'))) return;
         try {
             await remove(id);
             showSuccessToast();

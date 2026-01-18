@@ -2,15 +2,13 @@ import re
 import uuid
 from datetime import datetime, date, time
 from decimal import Decimal
-from enum import Enum
 
-from flask import current_app as app
+from flask import current_app as app, g
 from passlib.exc import InvalidHashError
 from passlib.hash import pbkdf2_sha256
-from sqlalchemy import inspect, Column, BIGINT, String, ForeignKey, Text, DECIMAL, Boolean, Integer, DateTime
-from sqlalchemy.orm import relationship
+from sqlalchemy import inspect
 
-from app.constant.biz_enums import HoldingStatusEnum, AlertEmailStatusEnum, AlertRuleActionEnum, TaskStatusEnum
+from app.constant.biz_enums import *
 from app.database import db
 
 
@@ -71,6 +69,30 @@ class BaseModel(db.Model):
         fields_str = ", ".join(all_parts)
         return f"<{cls.__name__}({fields_str})>"
 
+    @classmethod
+    def get_by_id_and_user(cls, resource_id, user_id=None):
+        """
+        在增删改查前，进行用户数据通用校验
+        """
+        if not resource_id:
+            return None
+
+        # 检查当前模型是否有 user_id 字段
+        mapper = inspect(cls)
+        if 'user_id' in mapper.columns:
+            # 获取 user_id
+            if user_id is None:
+                try:
+                    user_id = g.user.id
+                except AttributeError:
+                    app.logger.warning("fail to fetch user_id")
+                    return None
+
+            return cls.query.filter_by(id=resource_id, user_id=user_id).first()
+        else:
+            # 没有的话，只查resource_id
+            return cls.query.filter_by(id=resource_id).first()
+
 
 class TimestampMixin:
     """
@@ -102,8 +124,10 @@ class Holding(TimestampMixin, BaseModel):
     # company = db.Column(db.String(100))
     # industry = db.Column(db.String(100))  # 行业分类 (对股票和行业基金有用)
     # Relationships
-    fund_detail = db.relationship('FundDetail', back_populates='holding', uselist=False,
-                                  cascade="all, delete-orphan")
+    fund_detail = db.relationship('FundDetail', back_populates='holding', uselist=False, cascade="all, delete-orphan")
+    alert_rules = db.relationship('AlertRule', back_populates='holding', cascade="all, delete-orphan")
+    alert_histories = db.relationship('AlertHistory', back_populates='holding', cascade="all, delete-orphan")
+
     # stock_detail = db.relationship('StockDetail', back_populates='holding', uselist=False,
     #                                cascade="all, delete-orphan")
 
@@ -142,7 +166,6 @@ class FundNavHistory(TimestampMixin, BaseModel):
     __tablename__ = 'fund_nav_history'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False)
     ho_id = db.Column(db.Integer, db.ForeignKey('holding.id'), index=True)
     ho_code = db.Column(db.String(50))
     nav_date = db.Column(db.Date)
@@ -232,13 +255,15 @@ class AlertRule(TimestampMixin, BaseModel):
     __tablename__ = 'alert_rule'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False)
-    ho_id = db.Column(db.Integer, index=True)
+    ho_id = db.Column(db.Integer, db.ForeignKey('holding.id'), index=True, nullable=False)
     ho_code = db.Column(db.String(50))
     ar_name = db.Column(db.String(200))  # 名称
     action = db.Column(db.Enum(AlertRuleActionEnum), nullable=False)  # 提醒类型
-    target_navpu = db.Column(db.Numeric(18, 4))  # 目标单位净值
+    target_price = db.Column(db.Numeric(18, 4))  # 目标单位净值
     tracked_date = db.Column(db.Date)  # 已追踪日期
     ar_is_active = db.Column(db.Integer)  # 是否激活:1.是;0.否
+
+    holding = db.relationship('Holding', back_populates='alert_rules')
 
 
 class AlertHistory(TimestampMixin, BaseModel):
@@ -249,16 +274,18 @@ class AlertHistory(TimestampMixin, BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False)
     ar_id = db.Column(db.Integer, index=True)
-    ho_id = db.Column(db.Integer, index=True)
+    ho_id = db.Column(db.Integer, db.ForeignKey('holding.id'), index=True, nullable=False)
     ho_code = db.Column(db.String(50))
     ar_name = db.Column(db.String(100))  # 提醒名称
     action = db.Column(db.Enum(AlertRuleActionEnum), nullable=False)  # 提醒类型：1.买入/2.加仓/0.卖出
-    trigger_navpu = db.Column(db.Float)  # 触发单位净值
+    trigger_price = db.Column(db.Float)  # 触发单位净值
     trigger_nav_date = db.Column(db.Date)  # 触发净值日
-    target_navpu = db.Column(db.Float)  # 目标单位净值
+    target_price = db.Column(db.Float)  # 目标单位净值
     send_status = db.Column(db.Enum(AlertEmailStatusEnum), nullable=False)  # 发送状态:0:'pending', 1:'sent', 2:'failed'
     sent_time = db.Column(db.DateTime)  # 发送时间
     remark = db.Column(db.String(2000))  # 备注
+
+    holding = db.relationship('Holding', back_populates='alert_histories')
 
 
 class HoldingSnapshot(TimestampMixin, BaseModel):
@@ -769,21 +796,7 @@ class TokenBlacklist(TimestampMixin, BaseModel):
     expires_at = db.Column(db.DateTime, nullable=False)  # 过期时间
 
 
-class DeviceType(Enum):
-    WEB = 'web'
-    MOBILE = 'mobile'
-    DESKTOP = 'desktop'
-    TABLET = 'tablet'
-    UNKNOWN = 'unknown'
-
-
-class LoginStatus(Enum):
-    SUCCESS = 'success'
-    FAILED = 'failed'
-    BLOCKED = 'blocked'
-
-
-class LoginHistory(BaseModel):
+class LoginHistory(TimestampMixin, BaseModel):
     __tablename__ = 'login_history'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -810,10 +823,6 @@ class LoginHistory(BaseModel):
     # 安全信息
     is_suspicious = db.Column(db.Boolean, default=False, nullable=False)
     risk_score = db.Column(db.Integer, default=0, nullable=False)  # 0-100
-
-    # 时间戳
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
-    expires_at = db.Column(db.DateTime, nullable=True)
 
     # 关系
     user = db.relationship('UserSetting', backref='login_history')

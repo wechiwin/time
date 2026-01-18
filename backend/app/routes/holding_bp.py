@@ -2,7 +2,7 @@ import logging
 from io import BytesIO
 
 import pandas as pd
-from flask import Blueprint, request, send_file
+from flask import Blueprint, request, send_file, g
 from flask_babel import gettext
 from sqlalchemy import or_
 
@@ -14,14 +14,15 @@ from app.framework.sys_constant import DEFAULT_PAGE_SIZE
 from app.models import db, Holding
 from app.schemas_marshall import HoldingSchema, marshal_pagination, FundDetailSchema
 from app.service.holding_service import HoldingService
+from app.utils.user_util import get_or_raise
 
 holding_bp = Blueprint('holding', __name__, url_prefix='/api/holding')
 logger = logging.getLogger(__name__)
 
 
-@holding_bp.route('/search_list', methods=['GET'])
+@holding_bp.route('/list_ho', methods=['POST'])
 @auth_required
-def search_list():
+def list_ho():
     """
     参数:
         keyword: 搜索关键词(基金代码或名称)
@@ -31,10 +32,11 @@ def search_list():
     from urllib.parse import unquote
     keyword = unquote(keyword)
 
-    # query = Holding.query
+    query = Holding.query
+    query = query.filter_by(user_id=g.user.id)
 
     # 执行模糊查询
-    holdings = Holding.query.filter(
+    holdings = query.filter(
         or_(
             Holding.ho_code.ilike(f'%{keyword}%'),
             Holding.ho_name.ilike(f'%{keyword}%')
@@ -59,6 +61,8 @@ def page_holding():
     ho_status = data.get('ho_status')
 
     query = Holding.query
+    query = query.filter_by(user_id=g.user.id)
+
     if ho_code:
         query = query.filter_by(ho_code=ho_code)
     if ho_name:
@@ -92,23 +96,28 @@ def page_holding():
     return Res.success(marshal_pagination(pagination, HoldingSchema))
 
 
-@holding_bp.route('', methods=['POST'])
+@holding_bp.route('add_ho', methods=['POST'])
 @auth_required
-def create_holding():
+def add_ho():
     data = request.get_json()
     if not data.get('ho_name') or not data.get('ho_code'):
-        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD)
+        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.value)
 
     # 检查基金代码是否已存在
     if Holding.query.filter_by(ho_code=data['ho_code']).first():
         raise BizException(msg="基金代码已存在")
 
     try:
+        fund_detail_data = data.pop('fund_detail', None)
+        new_fund_detail = FundDetailSchema().load(fund_detail_data, session=db.session)
+        new_fund_detail.user_id = g.user.id
+
         new_holding = HoldingSchema().load(data)  # 注意：这里不传 instance，因为是新建
         new_holding.ho_status = HoldingStatusEnum.NOT_HELD.value
-        # fund_detail = FundDetailSchema().load(data)
+        new_holding.user_id = g.user.id
+
+        new_holding.fund_detail = new_fund_detail
         db.session.add(new_holding)
-        # db.session.add(fund_detail)
         db.session.commit()
     except Exception as e:
         db.session.rollback()
@@ -117,36 +126,26 @@ def create_holding():
     return Res.success()
 
 
-@holding_bp.route('/get_by_id', methods=['POST'])
+@holding_bp.route('/get_ho', methods=['POST'])
 @auth_required
-def get_by_id():
+def get_ho():
     data = request.get_json()
     id = data.get('id')
-
-    if not id:
-        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD)
-
-    h = Holding.query.get_or_404(id)
-
-    if not h:
-        raise BizException(msg=ErrorMessageEnum.NO_SUCH_DATA)
+    h = get_or_raise(Holding, id)
 
     return Res.success(HoldingSchema().dump(h))
 
 
-@holding_bp.route('/edit', methods=['POST'])
+@holding_bp.route('/update_ho', methods=['POST'])
 @auth_required
 def update_holding():
     data = request.get_json()
     id = data.get('id')
-
-    h = db.session.get(Holding, id)
-    if not h:
-        raise BizException(msg=ErrorMessageEnum.NO_SUCH_DATA)
+    h = get_or_raise(Holding, id)
 
     # 将嵌套数据从请求中分离出来
     fund_detail_data = data.pop('fund_detail', None)
-    logger.info(fund_detail_data)
+    # logger.info(fund_detail_data)
 
     # 3. 更新主对象 (Holding)
     # 此时的 data 中已经不包含 fund_detail
@@ -177,10 +176,13 @@ def update_holding():
     return Res.success()
 
 
-@holding_bp.route('/<ho_id>', methods=['DELETE'])
+@holding_bp.route('/del_ho', methods=['POST'])
 @auth_required
-def delete_holding(ho_id):
-    h = Holding.query.get_or_404(ho_id)
+def del_ho():
+    data = request.get_json()
+    id = data.get('id')
+    h = get_or_raise(Holding, id)
+
     db.session.delete(h)
     db.session.commit()
     return Res.success()
@@ -280,7 +282,6 @@ def crawl_fund():
     fund_data = HoldingService.crawl_fund_info(ho_code)
     return Res.success(fund_data)
 
-
 # @holding_bp.route('/crawl_stock', methods=['POST'])
 # @auth_required
 # def crawl_stock():
@@ -295,14 +296,3 @@ def crawl_fund():
 #     )
 #     EASTMONEY_STOCK_URL = "https://push2.eastmoney.com/api/qt/stock/get"
 #     return Res.success()
-
-
-@holding_bp.route('/get_by_code', methods=['GET'])
-@auth_required
-def get_by_code():
-    ho_code = request.args.get('ho_code')
-    if not ho_code or not ho_code.strip():
-        return Res.success()
-
-    h = Holding.query.filter_by(ho_code=ho_code).first()
-    return Res.success(HoldingSchema().dump(h))

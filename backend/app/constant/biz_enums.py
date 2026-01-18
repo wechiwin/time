@@ -48,6 +48,7 @@ class AlertEmailStatusEnum(Enum):
 class TradeTypeEnum(Enum):
     BUY = 'BUY'
     SELL = 'SELL'
+
     # DIVIDEND = 'DIVIDEND'
 
     # SPLIT = (3, gettext('TR_SPLIT'))
@@ -128,6 +129,7 @@ class ErrorMessageEnum(Enum):
     MISSING_FIELD = "缺少必要字段"
     NO_SUCH_DATA = "数据不存在"
     OVERSOLD = "卖出份额不应大于买入份额"
+    NO_AUTH = "暂无操作权限"
 
 
 class TaskStatusEnum(Enum):
@@ -182,3 +184,17 @@ class AnalyticsWindowEnum(Enum):
             cls.ALL,
             cls.CUR,
         }
+
+
+class DeviceType(Enum):
+    WEB = 'web'
+    MOBILE = 'mobile'
+    DESKTOP = 'desktop'
+    TABLET = 'tablet'
+    UNKNOWN = 'unknown'
+
+
+class LoginStatus(Enum):
+    SUCCESS = 'success'
+    FAILED = 'failed'
+    BLOCKED = 'blocked'
