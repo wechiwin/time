@@ -1,3 +1,5 @@
+from flask import jsonify
+
 from app.database import db
 from app.framework.exceptions import BizException
 from app.models import TokenBlacklist, UserSetting
@@ -27,8 +29,16 @@ def configure_jwt(jwt):
     # 3. 自定义错误响应
     @jwt.revoked_token_loader
     def revoked_token_callback(jwt_header, jwt_payload):
-        raise BizException("Token has been revoked", code=401)
+        return jsonify({
+            "code": 401,
+            "msg": "Token has been revoked. Please log in again.",
+            "data": None
+        }), 401
 
     @jwt.expired_token_loader
     def expired_token_callback(jwt_header, jwt_payload):
-        raise BizException("Token has been revoked", code=401)
+        return jsonify({
+            "code": 401,
+            "msg": "Token has expired. Please log in again.",
+            "data": None
+        }), 401

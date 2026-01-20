@@ -13,35 +13,28 @@ import PrivateRoute from "./components/common/PrivateRoute";
 import RegisterPage from "./pages/RegisterPage";
 import {DarkModeProvider} from "./components/context/DarkModeContext";
 import SecureTokenStorage from "./utils/tokenStorage";
-import {useEffect} from "react";
-import {AUTH_EXPIRED_EVENT} from './hooks/useApi';
+import {useEffect, useState} from "react";
 import {AuthProvider} from "./components/context/AuthContext";
+import {AUTH_EXPIRED_EVENT} from "./api/client";
 
 // === 新增：全局认证监听组件 ===
 // 必须放在 Router 和 ToastProvider 内部才能使用 hooks
 function AuthWatcher() {
     const navigate = useNavigate();
     const {showErrorToast} = useToast();
-
+    const [hasRedirected, setHasRedirected] = useState(false); // 👈 新增
     useEffect(() => {
         const handleExpired = () => {
-            console.log("AuthWatcher: 检测到会话过期");
-
-            // 1. 清理 Token
+            if (hasRedirected) return; // 👈 防重
+            setHasRedirected(true);
             SecureTokenStorage.clearTokens();
-
-            // 2. 统一提示 (只提示一次)
             showErrorToast('登录已过期，请重新登录');
-
-            // 3. 跳转登录页
             navigate('/login', {replace: true});
         };
-
         window.addEventListener(AUTH_EXPIRED_EVENT, handleExpired);
         return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleExpired);
-    }, [navigate, showErrorToast]);
-
-    return null; // 这个组件不渲染任何 UI
+    }, [navigate, showErrorToast, hasRedirected]);
+    return null;
 }
 
 export default function App() {

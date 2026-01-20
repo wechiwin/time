@@ -2,7 +2,6 @@ import axios from 'axios';
 import i18n from '../i18n/i18n';
 import SecureTokenStorage from "../utils/tokenStorage";
 import {toastInstance} from "../utils/toastInstance";
-import createAuthRefreshInterceptor from "axios-auth-refresh";
 
 const apiClient = axios.create({
     baseURL: '/api',
@@ -27,102 +26,103 @@ apiClient.interceptors.request.use(config => {
     return Promise.reject(error);
 });
 
+let isRefreshing = false;
+let failedQueue = [];
 
-/**
- * 核心逻辑：处理 Token 刷新和重试
- * 提取出来供 HTTP 401
- */
-const refreshAuthLogic = async (failedRequest) => {
-    try {
-        const response = await apiClient.post('/user_setting/refresh', {}, {
-            withCredentials: true,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept-Language': i18n.language
-            },
-            _skipAuth: true
-        });
-
-        console.log("refreshAuthLogic - response", response)
-        // 存储新token
-        const newAccessToken = response.data.data.access_token;
-        SecureTokenStorage.setAccessToken(newAccessToken);
-
-        // 更新失败请求的 headers
-        failedRequest.response.config.headers.Authorization = `Bearer ${newAccessToken}`;
-
-        return Promise.resolve();
-    } catch (refreshError) {
-        console.error("Token refresh failed:", refreshError);
-        SecureTokenStorage.clearTokens();
-        // 抛出一个带有特定标记的错误，避免被响应拦截器误判为网络错误
-        const error = new Error('会话已过期，请重新登录');
-        error.isSessionExpired = true;
-        return Promise.reject(error);
-    }
-};
-// 设置 token 刷新拦截器
-createAuthRefreshInterceptor(apiClient, refreshAuthLogic, {
-    statusCodes: [401],  // 只在 401 时触发刷新
-    pauseInstanceWhileRefreshing: true,  // 刷新时暂停其他请求
-    retryInstance: apiClient,  // 使用同一个实例重试
-    shouldRefresh: (error) => {
-        // 排除刷新接口本身的 401 错误
-        const config = error.config;
-        const status = error.response?.status;
-        return status === 401 &&
-            !config._skipAuth &&
-            config.url !== '/api/user_setting/refresh';
-    }
-});
-
-
-// 统一响应处理
-apiClient.interceptors.response.use(
-    (response) => {
-        // 如果是下载文件(blob)，直接返回整个 response 对象，不进行 code 校验
-        if (response.config?.responseType === 'blob') {
-            return response;
+const processQueue = (error, token = null) => {
+    failedQueue.forEach(prom => {
+        if (error) {
+            prom.reject(error);
+        } else {
+            prom.resolve(token);
         }
+    });
+    failedQueue = [];
+};
+
+export const AUTH_EXPIRED_EVENT = 'auth:session-expired';
+export const AUTH_TOKEN_REFRESHED = 'auth:token-refreshed';
+
+// 在响应拦截器中处理 401
+apiClient.interceptors.response.use(
+    response => {
+        // 如果是下载文件(blob)，直接返回整个 response 对象，不进行 code 校验
+        if (response.config?.responseType === 'blob') return response;
         return response;
     },
-    // 错误处理
-    async (error) => {
-        // 1. 优先处理我们手动抛出的“会话过期”错误
-        if (error.isSessionExpired) {
-            // 这里可以选择是否跳转，或者让上层组件处理
-            // if (typeof window !== 'undefined') window.location.href = '/login';
+    async error => {
+        const originalRequest = error.config;
+
+        // 如果是刷新请求本身失败，直接抛出
+        if (originalRequest.url.includes('/user_setting/refresh')) {
             return Promise.reject(error);
         }
 
-        const { response, config: originalRequest } = error;
-
-        // 2. 处理真正的网络错误（没有 response 对象）
-        if (!response) {
-            // 过滤掉因为刷新逻辑抛出的非 Axios 错误
-            if (error.message && (error.message.includes('会话'))) {
-                return Promise.reject(error);
-            }
+        // 如果是网络错误，直接提示
+        if (!error.response) {
             toastInstance.showErrorToast('网络连接失败，请检查网络');
-            return Promise.reject(new Error('网络连接失败，请检查网络'));
-        }
-        const {status, data} = response;
-
-        // 3. 如果是 401 错误，并且不是刷新接口本身失败，则直接将原始错误抛出
-        //    这样 `axios-auth-refresh` 的拦截器就能捕获到它并执行刷新逻辑
-        if (status === 401 && !originalRequest._skipAuth && !originalRequest.url.includes('/user_setting/refresh')) {
-            return Promise.reject(error);
+            return Promise.reject(new Error('网络错误'));
         }
 
-        // 4. 其他错误
+        const {status} = error.response;
+
+        // 处理 401：尝试刷新 Token
+        if (status === 401 && !originalRequest._retry) {
+            if (isRefreshing) {
+                // 正在刷新，加入队列等待
+                return new Promise((resolve, reject) => {
+                    failedQueue.push({resolve, reject});
+                }).then(token => {
+                    originalRequest.headers.Authorization = `Bearer ${token}`;
+                    return apiClient(originalRequest);
+                }).catch(err => {
+                    return Promise.reject(err);
+                });
+            }
+
+            originalRequest._retry = true; // 防止无限循环
+            isRefreshing = true;
+
+            try {
+                const response = await apiClient.post('/user_setting/refresh', {}, {
+                    withCredentials: true,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept-Language': i18n.language
+                    },
+                    _skipAuth: true
+                });
+
+                const newAccessToken = response.data.data.access_token;
+                SecureTokenStorage.setAccessToken(newAccessToken);
+
+                // 通知 AuthContext 更新状态
+                window.dispatchEvent(new CustomEvent(AUTH_TOKEN_REFRESHED, {
+                    detail: {token: newAccessToken}
+                }));
+
+                processQueue(null, newAccessToken);
+                originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+                return apiClient(originalRequest);
+            } catch (refreshError) {
+                console.error("Token refresh failed:", refreshError);
+                SecureTokenStorage.clearTokens();
+                processQueue(refreshError, null);
+
+                // 统一触发登出事件
+                window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
+                return Promise.reject(new Error('会话已过期，请重新登录'));
+            } finally {
+                isRefreshing = false;
+            }
+        }
+
+        // 其他错误按原逻辑处理
         if (status >= 500) {
-            const msg = data?.msg || data?.message || '服务器内部错误';
-            const traceId = data?.data?.trace_id;
-            const errorMsg = traceId ? `${msg} (TraceID: ${traceId})` : msg;
-            return Promise.reject(new Error(errorMsg));
+            const msg = error.response.data?.msg || '服务器内部错误';
+            return Promise.reject(new Error(msg));
         }
-        // 其他错误
-        const msg = data?.msg || data?.message || `请求失败 (HTTP ${status})`;
+        const msg = error.response.data?.msg || `请求失败 (${status})`;
         return Promise.reject(new Error(msg));
     }
 );

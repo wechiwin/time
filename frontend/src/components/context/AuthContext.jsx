@@ -2,6 +2,8 @@
 import React, {createContext, useCallback, useEffect, useState} from 'react';
 import SecureTokenStorage from "../../utils/tokenStorage";
 import useApi from "../../hooks/useApi";
+import {AUTH_TOKEN_REFRESHED} from "../../api/client";
+import useTokenManager from "../../hooks/api/useTokenManager";
 
 export const AuthContext = createContext();
 
@@ -15,7 +17,7 @@ export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [isLoading, setIsLoading] = useState(true); // 初始为 true，表示正在检查认证状态
     const { get } = useApi();
-
+    useTokenManager();
     /**
      * 检查认证状态 (通常在应用加载时调用)
      * @description 验证本地存储的 Token 是否有效，如果有效，则获取用户信息。
@@ -72,6 +74,26 @@ export function AuthProvider({ children }) {
     useEffect(() => {
         checkAuthStatus();
     }, [checkAuthStatus]);
+
+    // AuthProvider.jsx - 新增 useEffect 监听 token 刷新
+    useEffect(() => {
+        const handleTokenRefreshed = (event) => {
+            const { token } = event.detail;
+            // 重新获取用户信息（可选，如果 token payload 不包含足够信息）
+            get('/user_setting/user', {}).then(userData => {
+                setUser(userData);
+                setIsAuthenticated(true);
+            }).catch(err => {
+                console.warn("Token refreshed but user fetch failed:", err);
+                clearAuthState();
+                window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
+            });
+        };
+
+        window.addEventListener(AUTH_TOKEN_REFRESHED, handleTokenRefreshed);
+        return () => window.removeEventListener(AUTH_TOKEN_REFRESHED, handleTokenRefreshed);
+    }, [get, clearAuthState]);
+
 
     const value = {
         isAuthenticated,

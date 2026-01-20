@@ -1,7 +1,7 @@
 from functools import wraps
 from flask import request, current_app, g
-from flask_jwt_extended import verify_jwt_in_request, get_current_user
-from flask_jwt_extended.exceptions import JWTExtendedException
+from flask_jwt_extended import verify_jwt_in_request, get_current_user, get_jwt_identity
+from flask_jwt_extended.exceptions import JWTExtendedException, NoAuthorizationError
 from app.framework.exceptions import BizException
 
 
@@ -17,6 +17,10 @@ def token_required(optional=False, refresh=False):
             try:
                 # 2. 验证 Token (验证签名、过期、黑名单)
                 verify_jwt_in_request(optional=optional, refresh=refresh)
+
+                if optional and not get_jwt_identity():
+                    g.user = None
+                    return fn(*args, **kwargs)
 
                 # 3. 获取用户 (触发 jwt_config.py 中的 user_lookup_loader)
                 user = get_current_user()
@@ -36,7 +40,7 @@ def token_required(optional=False, refresh=False):
             except BizException:
                 # 业务异常直接抛出
                 raise
-            except JWTExtendedException as e:
+            except (JWTExtendedException, NoAuthorizationError) as e:
                 msg = "刷新令牌无效或已过期，请重新登录" if refresh else "身份认证失效"
                 # 捕获 JWT 库的特定异常，转化为统一格式
                 # 可以根据 e 的类型细分：ExpiredSignatureError 等
@@ -47,9 +51,6 @@ def token_required(optional=False, refresh=False):
                     # 如果是可选认证失败，不抛错，继续执行业务逻辑（但在 try 块外执行）
                 else:
                     raise BizException(msg, code=401)
-            except Exception as e:
-                current_app.logger.error(f"Auth system error: {e}", exc_info=True)
-                raise BizException("认证服务暂时不可用", code=401)
             # --- 认证逻辑结束 ---
 
             # 7. 执行业务视图函数 (移出 try 块)
