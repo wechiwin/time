@@ -154,7 +154,6 @@ class HoldingService:
             'ho_code': api_data.get('ho_code'),
             'ho_name': api_data.get('ho_name'),
             'ho_short_name': api_data.get('ho_short_name'),
-            'ho_type': api_data.get('ho_type'),
             'establishment_date': api_data.get('establishment_date'),  # 保持字符串，create时转date
             'fund_detail': {
                 'fund_type': api_data.get('fund_type'),

@@ -148,6 +148,7 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
 
     const handleCrawl = () => {
         if (!form.ho_code) return showErrorToast('请先输入基金代码');
+        console.log(form)
         // 把当前表单 setForm 传进去，方便回调里直接 setState
         onCrawl(form.ho_code, (patch) =>
             setForm((prev) => ({...prev, ...patch}))

@@ -1,14 +1,6 @@
 // MySelect.jsx
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect} from 'react';
 import PropTypes from 'prop-types';
-
-const usePrevious = (value) => {
-    const ref = useRef();
-    useEffect(() => {
-        ref.current = value;
-    });
-    return ref.current;
-};
 
 const MySelect = ({
                       options = [],
@@ -21,35 +13,21 @@ const MySelect = ({
                       disabled = false,
                       ...rest
                   }) => {
-    const prevOptions = usePrevious(options);
-    const [initialized, setInitialized] = useState(false);
-
-    // 优化后的 useEffect，只在 options 从空变为非空时执行一次
     useEffect(() => {
-        if (!autoSelectFirst || !onChange || initialized || options.length === 0) return;
-
-        // 只在 options 首次加载完成且当前值为空时自动选择第一项
-        if (options.length > 0 && (!value || value === '')) {
-            // 使用 setTimeout 避免在渲染过程中调用 setState
-            const timer = setTimeout(() => {
-                onChange(options[0].value);
-                setInitialized(true);
-            }, 0);
-
-            return () => clearTimeout(timer);
+        if (
+            autoSelectFirst &&
+            onChange &&
+            options.length > 0 &&
+            (value == null || value === '')
+        ) {
+            onChange(options[0].value);
         }
+    }, [options, value, onChange, autoSelectFirst]);
 
-        setInitialized(true);
-    }, [options, value, onChange, autoSelectFirst, initialized]);
-
-    // 处理用户手动选择
     const handleChange = (e) => {
-        if (onChange) {
-            onChange(e.target.value);
-        }
+        onChange?.(e.target.value);
     };
 
-    // 如果没有选项，显示加载中或暂无数据状态
     if (options.length === 0) {
         return (
             <select
@@ -64,7 +42,7 @@ const MySelect = ({
 
     return (
         <select
-            value={value || ''}
+            value={value ?? ''}
             onChange={handleChange}
             required={required}
             disabled={disabled}
