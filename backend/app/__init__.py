@@ -16,12 +16,11 @@ from app.database import db
 from app.framework.error_handler import register_error_handler
 from app.framework.interceptor import register_request_response_logger
 from app.framework.log_config import setup_logging, get_early_logger
-from app.routes.user_bp import user_bp
 from .config import Config
 from .framework.cache_manager import CacheManager
 from .framework.jwt_config import configure_jwt
-from .scheduler import init_scheduler
 from .routes import register_routes
+from .scheduler import init_scheduler
 
 scheduler = APScheduler()
 babel = Babel()

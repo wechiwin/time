@@ -5,43 +5,81 @@ import useApi from "../../hooks/useApi";
 
 export const AuthContext = createContext();
 
-export function AuthProvider({children}) {
+/**
+ * AuthProvider 组件
+ * @description 为整个应用提供认证状态 (isAuthenticated)、用户信息 (user) 和加载状态 (isLoading)。
+ * 它还提供了更新这些状态的方法，供应用的其他部分（如 useUserSetting hook）使用。
+ */
+export function AuthProvider({ children }) {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [user, setUser] = useState(null);
     const [isLoading, setIsLoading] = useState(true); // 初始为 true，表示正在检查认证状态
     const { get } = useApi();
 
-    // 检查认证状态的函数
+    /**
+     * 检查认证状态 (通常在应用加载时调用)
+     * @description 验证本地存储的 Token 是否有效，如果有效，则获取用户信息。
+     */
     const checkAuthStatus = useCallback(async () => {
+        setIsLoading(true);
         const token = SecureTokenStorage.getAccessToken();
         if (!token) {
             setIsAuthenticated(false);
+            setUser(null);
             setIsLoading(false);
             return;
         }
 
         try {
-            // 尝试用现有 token 获取用户信息
-            await get('/user_setting/user', {});
-            // 如果请求成功（没有抛出错误），说明 Token 有效
+            const userData = await get('/user_setting/user', {});
             setIsAuthenticated(true);
+            setUser(userData);
         } catch (error) {
-            // 如果获取失败，说明 token 无效，清除它
-            console.log("Initial auth check failed, token is invalid.");
+            // 如果获取失败，说明 token 无效或已过期
+            console.warn("Auth check failed, token might be invalid:", error.message);
             SecureTokenStorage.clearTokens();
             setIsAuthenticated(false);
+            setUser(null);
         } finally {
             setIsLoading(false);
         }
     }, [get]);
 
+    /**
+     * 设置认证状态 (用于登录/注册成功后)
+     * @description 这是一个高效的更新函数，避免了登录后再发请求验证的冗余步骤。
+     * @param {object} userData - 从登录/注册 API 返回的用户对象。
+     * @param {string} token - 从登录/注册 API 返回的 access_token。
+     */
+    const setAuthState = useCallback((userData, token) => {
+        SecureTokenStorage.setAccessToken(token);
+        setUser(userData);
+        setIsAuthenticated(true);
+        setIsLoading(false); // 确保加载状态结束
+    }, []);
+
+    /**
+     * 清除认证状态 (用于登出)
+     * @description 统一处理登出时的状态清理和本地存储清理。
+     */
+    const clearAuthState = useCallback(() => {
+        SecureTokenStorage.clearTokens();
+        setUser(null);
+        setIsAuthenticated(false);
+    }, []);
+
+    // 应用首次加载时，执行一次认证状态检查
     useEffect(() => {
         checkAuthStatus();
     }, [checkAuthStatus]);
 
     const value = {
         isAuthenticated,
+        user,
         isLoading,
-        checkAuthStatus, // 暴露出去，以便登录后可以手动调用
+        checkAuthStatus,
+        setAuthState,
+        clearAuthState,
     };
 
     return (

@@ -205,28 +205,18 @@ def refresh():
 @user_bp.route('/user', methods=['GET'])
 @auth_required
 def get_user():
-    # 修改：get_jwt_identity() 现在返回 uuid
-    current_user_uuid = get_jwt_identity()
-    # 修改：使用 uuid 查找用户
-    user = UserSetting.query.filter_by(uuid=current_user_uuid).first()
-
-    if not user:
+    if not g.user:
         raise BizException("用户不存在")
 
-    # 修改：使用 UserSettingSchema 序列化用户对象，排除 id
-    result = user_setting_schema.dump(user)
+    result = user_setting_schema.dump(g.user)
     return Res.success(result)
 
 
-@user_bp.route('/user', methods=['PUT'])
+@user_bp.route('/update_user', methods=['POST'])
 @auth_required
 def update_user():
     """更新用户基本信息"""
-    # 修改：get_jwt_identity() 现在返回 uuid
-    current_user_uuid = get_jwt_identity()
-    # 修改：使用 uuid 查找用户
-    user = UserSetting.query.filter_by(uuid=current_user_uuid).first()
-
+    user = g.user
     if not user:
         raise BizException("用户不存在")
 
@@ -247,10 +237,7 @@ def update_user():
 @user_bp.route('/pwd', methods=['POST'])
 @auth_required
 def edit_password():
-    # 修改：get_jwt_identity() 现在返回 uuid
-    current_user_uuid = get_jwt_identity()
-    # 修改：使用 uuid 查找用户
-    user = UserSetting.query.filter_by(uuid=current_user_uuid).first()
+    user = g.user
     if not user:
         raise BizException("用户不存在")
 

@@ -1,7 +1,7 @@
-from app.framework.exceptions import BizException
-from flask import jsonify
-from app.models import TokenBlacklist, UserSetting
 from app.database import db
+from app.framework.exceptions import BizException
+from app.models import TokenBlacklist, UserSetting
+
 
 def configure_jwt(jwt):
     """
@@ -22,7 +22,7 @@ def configure_jwt(jwt):
     @jwt.user_lookup_loader
     def user_lookup_callback(_jwt_header, jwt_data):
         identity = jwt_data["sub"]
-        return UserSetting.query.filter_by(username=identity).one_or_none()
+        return UserSetting.query.filter_by(uuid=identity).one_or_none()
 
     # 3. 自定义错误响应
     @jwt.revoked_token_loader
