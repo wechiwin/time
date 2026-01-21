@@ -31,6 +31,7 @@
   "th_feature": "Feature Tags",
   "th_currency": "Currency",
   "th_fund_type": "Fund Type",
+  "th_dividend_type": "Dividend Type",
 
   "start_date": "Start Date",
   "end_date": "End Date",
@@ -74,6 +75,7 @@
   "msg_mydate_select_date": "Choose Date",
   "msg_ai_analyzing": "AI Analyzing...",
   "msg_uploading": "Uploading...",
+  "msg_no_records": "No records available",
 
   "info_hold_status": "Holding Status",
   "info_status_holding": "Holding",

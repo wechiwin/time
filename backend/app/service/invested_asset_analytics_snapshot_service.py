@@ -242,7 +242,8 @@ class InvestedAssetAnalyticsSnapshotService:
             InvestedAssetSnapshot.ias_daily_pnl_ratio,
             InvestedAssetSnapshot.ias_daily_pnl,
             InvestedAssetSnapshot.ias_net_external_cash_flow,
-            InvestedAssetSnapshot.ias_market_value
+            InvestedAssetSnapshot.ias_market_value,
+            InvestedAssetSnapshot.ias_daily_cash_dividend
         ).filter(
             InvestedAssetSnapshot.snapshot_date <= up_to_date
         ).order_by(InvestedAssetSnapshot.snapshot_date)
@@ -251,10 +252,10 @@ class InvestedAssetAnalyticsSnapshotService:
         if not rows:
             return pd.DataFrame()
 
-        df = pd.DataFrame(rows, columns=['date', 'ret', 'pnl', 'net_inflow', 'mv'])
+        df = pd.DataFrame(rows, columns=['date', 'ret', 'pnl', 'net_inflow', 'mv', 'dividend'])
 
         # 类型转换
-        cols = ['ret', 'pnl', 'net_inflow', 'mv']
+        cols = ['ret', 'pnl', 'net_inflow', 'mv', 'dividend']
         for c in cols:
             df[c] = df[c].apply(lambda x: float(x) if x is not None else 0.0)
 
@@ -425,11 +426,14 @@ class InvestedAssetAnalyticsSnapshotService:
         """
         计算 XIRR (内部收益率)
         逻辑：
-        1. 现金流 = 每日净投入 (net_inflow)。
+        1. 构造现金流 = 每日净投入(买卖) + 每日现金分红
         2. 最后一天的现金流 = 最后一天的市值 (视为全部赎回，正数流入)。
         """
+        df_copy = df.copy()
+        df_copy['flow'] = df_copy['net_inflow'] + df_copy['dividend']
+
         # 1. 获取 非零现金流 的日期
-        flows_df = df[df['net_inflow'] != 0].copy()
+        flows_df = df_copy[df_copy['flow'] != 0]
 
         dates = []
         amounts = []

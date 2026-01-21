@@ -84,6 +84,15 @@ msgstr "买入"
 msgid "TR_SELL"
 msgstr "卖出"
 
+msgid "TR_DIVIDEND"
+msgstr "分红"
+
+msgid "CASH"
+msgstr "现金分红"
+
+msgid "REINVEST"
+msgstr "分红再投资"
+
 msgid "TR_LOG"
 msgstr "交易记录"
 

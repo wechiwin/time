@@ -33,6 +33,7 @@
   "th_feature": "特性标签",
   "th_currency": "计价货币",
   "th_fund_type": "基金类型",
+  "th_dividend_type": "分红类型",
 
   "start_date": "开始日期",
   "end_date": "结束日期",
@@ -76,6 +77,7 @@
   "msg_mydate_select_date": "选择日期",
   "msg_ai_analyzing": "AI分析中...",
   "msg_uploading": "上传中...",
+  "msg_no_records": "暂无记录",
 
   "info_hold_status": "持仓状态",
   "info_status_holding": "持仓中",

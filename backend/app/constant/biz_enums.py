@@ -3,7 +3,7 @@ from enum import Enum
 from flask_babel import lazy_gettext
 
 
-class HoldingTypeEnum(Enum):
+class HoldingTypeEnum(str, Enum):
     FUND = 'FUND'
 
     @property
@@ -13,7 +13,7 @@ class HoldingTypeEnum(Enum):
         return self.name
 
 
-class HoldingStatusEnum(Enum):
+class HoldingStatusEnum(str, Enum):
     NOT_HELD = 'NOT_HELD'
     HOLDING = 'HOLDING'
     CLOSED = 'CLOSED'
@@ -29,7 +29,7 @@ class HoldingStatusEnum(Enum):
         return self.name
 
 
-class AlertEmailStatusEnum(Enum):
+class AlertEmailStatusEnum(str, Enum):
     PENDING = 'PENDING'
     SENT = 'SENT'
     FAILED = 'FAILED'
@@ -45,11 +45,23 @@ class AlertEmailStatusEnum(Enum):
         return self.name
 
 
-class TradeTypeEnum(Enum):
+class DividendTypeEnum(str, Enum):
+    CASH = 'CASH'
+    REINVEST = 'REINVEST'
+
+    @property
+    def view(self):
+        if self == DividendTypeEnum.CASH:
+            return lazy_gettext('CASH')
+        elif self == DividendTypeEnum.REINVEST:
+            return lazy_gettext('REINVEST')
+        return self.name
+
+
+class TradeTypeEnum(str, Enum):
     BUY = 'BUY'
     SELL = 'SELL'
-
-    # DIVIDEND = 'DIVIDEND'
+    DIVIDEND = 'DIVIDEND'
 
     # SPLIT = (3, gettext('TR_SPLIT'))
     # TRANSFER_IN = (4, gettext('TR_TRANSFER_IN'))
@@ -61,12 +73,12 @@ class TradeTypeEnum(Enum):
             return lazy_gettext('TR_SELL')
         elif self == TradeTypeEnum.BUY:
             return lazy_gettext('TR_BUY')
-        # elif self == TradeTypeEnum.DIVIDEND:
-        #     return lazy_gettext('TR_DIVIDEND')
+        elif self == TradeTypeEnum.DIVIDEND:
+            return lazy_gettext('TR_DIVIDEND')
         return self.name
 
 
-class AlertRuleActionEnum(Enum):
+class AlertRuleActionEnum(str, Enum):
     BUY = 'BUY'
     SELL = 'SELL'
 
@@ -79,7 +91,7 @@ class AlertRuleActionEnum(Enum):
         return self.name
 
 
-class CurrencyEnum(Enum):
+class CurrencyEnum(str, Enum):
     CNY = 'CNY'
 
     @property
@@ -87,7 +99,7 @@ class CurrencyEnum(Enum):
         return self.name
 
 
-class FundTradeMarketEnum(Enum):
+class FundTradeMarketEnum(str, Enum):
     """
     交易市场枚举：场内交易/场外交易
     """
@@ -106,7 +118,7 @@ class FundTradeMarketEnum(Enum):
         return self.name
 
 
-class FundDividendMethodEnum(Enum):
+class FundDividendMethodEnum(str, Enum):
     """
     基金分红方式枚举："现金分红", "分红再投资"
     """
@@ -122,7 +134,7 @@ class FundDividendMethodEnum(Enum):
         return self.name
 
 
-class ErrorMessageEnum(Enum):
+class ErrorMessageEnum(str, Enum):
     """
     错误提示语常量类（中文默认，支持未来扩展多语言）
     """
@@ -132,7 +144,7 @@ class ErrorMessageEnum(Enum):
     NO_AUTH = "暂无操作权限"
 
 
-class TaskStatusEnum(Enum):
+class TaskStatusEnum(str, Enum):
     PENDING = 'PENDING'  # 已创建，等待执行
     RUNNING = 'RUNNING'  # 正在执行
     SUCCESS = 'SUCCESS'  # 执行成功
@@ -141,7 +153,7 @@ class TaskStatusEnum(Enum):
     CANCELLED = 'CANCELLED'  # 手动取消
 
 
-class AnalyticsWindowEnum(Enum):
+class AnalyticsWindowEnum(str, Enum):
     # expanding
     ALL = "ALL"
     """

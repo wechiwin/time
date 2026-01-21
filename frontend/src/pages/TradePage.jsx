@@ -37,13 +37,13 @@ export default function TradePage() {
         end_date: searchParams.dateRange.endDate
     });
 
-    const {fetchEnumValues} = useCommon();
+    const {fetchEnum} = useCommon();
     const [typeOptions, setTypeOptions] = useState([]);
 
     useEffect(() => {
         const loadEnumValues = async () => {
             try {
-                const options = await fetchEnumValues('TradeTypeEnum');
+                const options = await fetchEnum('TradeTypeEnum');
                 setTypeOptions(options);
             } catch (err) {
                 console.error('Failed to load enum values:', err);
@@ -51,7 +51,7 @@ export default function TradePage() {
             }
         };
         loadEnumValues();
-    }, [fetchEnumValues, showErrorToast]);
+    }, [fetchEnum, showErrorToast]);
 
     // 搜索配置
     const searchFields = [
@@ -122,7 +122,18 @@ export default function TradePage() {
         setModalConfig({
             show: true,
             title: type === 'add' ? t('button_add') : t('button_edit'),
-            submitAction: type === 'add' ? add : update,
+            submitAction: async (data) => {
+                try {
+                    const action = type === 'add' ? add : update;
+                    await action(data);
+                    showSuccessToast();
+                    setRefreshKey(p => p + 1); // 触发数据刷新
+                    return true; // 返回成功状态
+                } catch (err) {
+                    showErrorToast(err.message);
+                    return false;
+                }
+            },
             initialValues: values
         });
     };

@@ -83,6 +83,15 @@ msgstr "Buy"
 msgid "TR_SELL"
 msgstr "Sell"
 
+msgid "TR_DIVIDEND"
+msgstr "Dividend"
+
+msgid "CASH"
+msgstr "Cash Dividend"
+
+msgid "REINVEST"
+msgstr "Dividend Reinvestment"
+
 msgid "TR_LOG"
 msgstr "Trade Log"
 

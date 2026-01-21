@@ -23,6 +23,7 @@ class BaseModel(db.Model):
         r".*key.*",
         r".*hash.*",
         r".*credential.*",
+        r".*email.*",
     }
 
     def __repr__(self):
@@ -85,7 +86,7 @@ class BaseModel(db.Model):
                 try:
                     user_id = g.user.id
                 except AttributeError:
-                    app.logger.warning("fail to fetch user_id")
+                    app.logger.warning("fail to fetch user_id from g context")
                     return None
 
             return cls.query.filter_by(id=resource_id, user_id=user_id).first()
@@ -116,20 +117,24 @@ class Holding(TimestampMixin, BaseModel):
     ho_name = db.Column(db.String(100), nullable=False)  # 名称
     ho_short_name = db.Column(db.String(100))  # 简称
     ho_nickname = db.Column(db.String(100))  # 自定义别称
-    ho_type = db.Column(db.String(50), nullable=False)  # 持仓类型枚举(目前只有场外基金) FUND STOCK
+    ho_type = db.Column(db.Enum(HoldingTypeEnum), nullable=False)  # 持仓类型枚举(目前只有场外基金) FUND STOCK
     ho_status = db.Column(db.String(50), default=HoldingStatusEnum.NOT_HELD.value, nullable=False)  # 持仓状态：0,未持仓;1,持仓中；2.已清仓
     # exchange = db.Column(db.String(100))  # 交易所，如 NASDAQ, SZSE。
     currency = db.Column(db.String(50), default='CNY')  # 计价货币枚举，如 USD, CNY。
     establishment_date = db.Column(db.Date)  # 成立日期
     # company = db.Column(db.String(100))
     # industry = db.Column(db.String(100))  # 行业分类 (对股票和行业基金有用)
-    # Relationships
-    fund_detail = db.relationship('FundDetail', back_populates='holding', uselist=False, cascade="all, delete-orphan")
-    alert_rules = db.relationship('AlertRule', back_populates='holding', cascade="all, delete-orphan")
-    alert_histories = db.relationship('AlertHistory', back_populates='holding', cascade="all, delete-orphan")
 
-    # stock_detail = db.relationship('StockDetail', back_populates='holding', uselist=False,
-    #                                cascade="all, delete-orphan")
+    # Relationships
+    fund_detail = db.relationship('FundDetail', back_populates='holding', uselist=False)
+    alert_rules = db.relationship('AlertRule', back_populates='holding')
+    alert_histories = db.relationship('AlertHistory', back_populates='holding')
+    holding_snapshots = db.relationship('HoldingSnapshot', back_populates='holding')
+    holding_analytics_snapshots = db.relationship('HoldingAnalyticsSnapshot', back_populates='holding')
+    fund_nav_history_list = db.relationship('FundNavHistory', back_populates='holding')
+    trades = db.relationship('Trade', back_populates='holding')
+
+    # stock_detail = db.relationship('StockDetail', back_populates='holding', uselist=False)
 
 
 class FundDetail(TimestampMixin, BaseModel):
@@ -179,11 +184,7 @@ class FundNavHistory(TimestampMixin, BaseModel):
         db.Index('idx_ho_id_nav_date', 'ho_id', 'nav_date'),
     )
 
-    holding = db.relationship(
-        'Holding',
-        backref=db.backref('fund_nav_history_list', lazy='dynamic'),
-        foreign_keys=[ho_id]
-    )
+    holding = db.relationship('Holding', back_populates='fund_nav_history_list')
 
 
 # class StockDetail(TimestampMixin, BaseModel):
@@ -231,7 +232,7 @@ class Trade(TimestampMixin, BaseModel):
     ho_id = db.Column(db.Integer, db.ForeignKey('holding.id'), index=True)
     ho_code = db.Column(db.String(50))
 
-    tr_type = db.Column(db.String(50), nullable=False)  # 交易类型(买入/卖出/分红/拆分)
+    tr_type = db.Column(db.Enum(TradeTypeEnum), nullable=False)  # 交易类型(买入/卖出/分红/拆分)
     tr_date = db.Column(db.Date, index=True, nullable=False)  # 交易日期
     tr_nav_per_unit = db.Column(db.Numeric(18, 4))  # 市价
     tr_shares = db.Column(db.Numeric(18, 2))  # 交易份额
@@ -240,13 +241,14 @@ class Trade(TimestampMixin, BaseModel):
     cash_amount = db.Column(db.Numeric(18, 2))  # 实际收付 = 交易净额 +/- 交易费用
     tr_cycle = db.Column(db.Integer, index=True)  # 轮次
     is_cleared = db.Column(db.Boolean, default=False)  # 是否清仓
+    dividend_type = db.Column(db.Enum(DividendTypeEnum))  # 分红类型
     remark = db.Column(db.String(200))
 
-    holding = db.relationship(
-        'Holding',
-        backref=db.backref('trades', lazy='dynamic'),
-        foreign_keys=[ho_id]
+    __table_args__ = (
+        db.Index('idx_trade_user_holding', 'user_id', 'ho_id'),
     )
+
+    holding = db.relationship('Holding', back_populates='trades')
 
 
 class AlertRule(TimestampMixin, BaseModel):
@@ -279,9 +281,9 @@ class AlertHistory(TimestampMixin, BaseModel):
     ho_code = db.Column(db.String(50))
     ar_name = db.Column(db.String(100))  # 提醒名称
     action = db.Column(db.Enum(AlertRuleActionEnum), nullable=False)  # 提醒类型：1.买入/2.加仓/0.卖出
-    trigger_price = db.Column(db.Float)  # 触发单位净值
+    trigger_price = db.Column(db.Numeric(18, 4))  # 触发单位净值
     trigger_nav_date = db.Column(db.Date)  # 触发净值日
-    target_price = db.Column(db.Float)  # 目标单位净值
+    target_price = db.Column(db.Numeric(18, 4))  # 目标单位净值
     send_status = db.Column(db.Enum(AlertEmailStatusEnum), nullable=False)  # 发送状态:0:'pending', 1:'sent', 2:'failed'
     sent_time = db.Column(db.DateTime)  # 发送时间
     remark = db.Column(db.String(2000))  # 备注
@@ -298,7 +300,7 @@ class HoldingSnapshot(TimestampMixin, BaseModel):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False)
-    ho_id = db.Column(db.Integer)
+    ho_id = db.Column(db.Integer, db.ForeignKey('holding.id'), nullable=False)
     snapshot_date = db.Column(db.Date, nullable=False, index=True)
 
     # -------- Position --------
@@ -382,8 +384,11 @@ class HoldingSnapshot(TimestampMixin, BaseModel):
     """
 
     __table_args__ = (
-        db.Index('holding_snapshot_ho_id_snapshot_date_index', 'ho_id', 'snapshot_date'),
+        db.Index('idx_hs_user_date', 'user_id', 'ho_id', 'snapshot_date'),
+        # 确保同一用户、同一持仓、同一天只有一条快照
+        db.UniqueConstraint('user_id', 'ho_id', 'snapshot_date', name='uq_holding_snapshot_ho_date'),
     )
+    holding = db.relationship('Holding', back_populates='holding_snapshots')
 
 
 class AnalyticsWindow(BaseModel):
@@ -419,7 +424,7 @@ class HoldingAnalyticsSnapshot(TimestampMixin, BaseModel):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False)
-    ho_id = db.Column(db.Integer, nullable=False)
+    ho_id = db.Column(db.Integer, db.ForeignKey('holding.id'), nullable=False)
     snapshot_date = db.Column(db.Date, nullable=False)
     window_key = db.Column(db.String(32), nullable=False)  # ALL, CUR, R20, R252...
 
@@ -450,10 +455,22 @@ class HoldingAnalyticsSnapshot(TimestampMixin, BaseModel):
     """
     窗口期内的累计盈亏金额 (Absolute PnL)
     """
+
+    has_cash_dividend = db.Column(db.Numeric(18, 4))
+    """
+    窗口期内收到的【现金分红】总额。
+    这部分是实际的外部现金流入。
+    """
+    has_reinvest_dividend = db.Column(db.Numeric(18, 4))
+    """
+    窗口期内发生的【分红再投资】总额。
+    这部分是内部复投，不产生外部现金流，但会增加持仓份额。
+    """
     has_total_dividend = db.Column(db.Numeric(18, 4))
     """
-    窗口期内收到的分红总额
+    窗口期内收到的分红总额（现金分红和分红再投资）
     """
+
     # --------- 2. Risk / Volatility (风险指标) ---------
     has_return_volatility = db.Column(db.Numeric(18, 6))
     """
@@ -535,10 +552,11 @@ class HoldingAnalyticsSnapshot(TimestampMixin, BaseModel):
     注意：计算此字段需要读取 InvestedAssetSnapshot 的数据。
     """
     __table_args__ = (
-        # 联合唯一索引，确保同一个持仓、同一天、同一个窗口只有一条记录
         db.UniqueConstraint('ho_id', 'snapshot_date', 'window_key', name='uq_ho_date_window'),
-        db.Index('idx_ho_window_date', 'ho_id', 'window_key', 'snapshot_date'),
+        db.Index('idx_has_user_window_date', 'user_id', 'window_key', 'snapshot_date'),
     )
+
+    holding = db.relationship('Holding', back_populates='holding_analytics_snapshots')
 
 
 class InvestedAssetSnapshot(TimestampMixin, BaseModel):
@@ -581,6 +599,10 @@ class InvestedAssetSnapshot(TimestampMixin, BaseModel):
     """
     当日收益率 (Simple Return) = 当日盈亏金额 / 昨日市值 (Modified Dietz 简化版)
     """
+    ias_daily_reinvest_dividend = db.Column(db.Numeric(20, 4))
+    """
+    当日分红再投资
+    """
     # -------- Cumulative (历史累计) --------
     ias_total_buy_amount = db.Column(db.Numeric(20, 4))
     """
@@ -598,6 +620,10 @@ class InvestedAssetSnapshot(TimestampMixin, BaseModel):
     """
     历史累计收到的现金分红
     """
+    ias_total_reinvest_dividend = db.Column(db.Numeric(20, 4))
+    """
+    历史累计分红再投资总额
+    """
     ias_total_dividend = db.Column(db.Numeric(20, 4), nullable=False)
     """
     历史累计分红总额，包含现金分红和分红再投资
@@ -612,10 +638,8 @@ class InvestedAssetSnapshot(TimestampMixin, BaseModel):
     """
 
     __table_args__ = (
-        db.UniqueConstraint(
-            'snapshot_date',
-            name='uq_invested_asset_snapshot_date'
-        ),
+        db.UniqueConstraint('user_id', 'snapshot_date', name='uq_invested_asset_snapshot_user_date'),
+        db.Index('idx_ias_user_date', 'user_id', 'snapshot_date'),
     )
 
 
@@ -677,8 +701,8 @@ class InvestedAssetAnalyticsSnapshot(TimestampMixin, BaseModel):
     alpha = db.Column(db.Numeric(18, 6))
 
     __table_args__ = (
-        db.UniqueConstraint('snapshot_date', 'window_key', name='uq_invested_asset_analytics'),
-        db.Index('idx_iaas_date_window', 'snapshot_date', 'window_key'),
+        db.UniqueConstraint('user_id', 'snapshot_date', 'window_key', name='uq_invested_asset_analytics_user_date_window'),
+        db.Index('idx_iaas_user_window_date', 'user_id', 'window_key', 'snapshot_date'),
     )
 
 
@@ -757,7 +781,7 @@ class UserSetting(TimestampMixin, BaseModel):
     invested_asset_analytics_snapshots = db.relationship('InvestedAssetAnalyticsSnapshot', backref='user', lazy='dynamic')
     async_task_logs = db.relationship('AsyncTaskLog', backref='user', lazy='dynamic')
     token_blacklists = db.relationship('TokenBlacklist', backref='user', lazy='dynamic')
-    login_history = db.relationship('LoginHistory', backref='user', lazy='dynamic') # 确保这里有 backref
+    login_history = db.relationship('LoginHistory', backref='user', lazy='dynamic')
 
     @staticmethod
     def hash_password(raw_password):

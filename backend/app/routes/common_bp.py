@@ -31,6 +31,7 @@ def get_enum():
         'FundTradeMarketEnum': FundTradeMarketEnum,
         'CurrencyEnum': CurrencyEnum,
         'FundDividendMethodEnum': FundDividendMethodEnum,
+        'DividendTypeEnum': DividendTypeEnum,
         # 添加其他枚举类...
     }
 

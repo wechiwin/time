@@ -3,20 +3,19 @@ import logging
 import time
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date, timedelta, datetime
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import List, Tuple
 
-from click import clear
-
 from app.calendars.trade_calendar import TradeCalendar
-from app.constant.biz_enums import TradeTypeEnum, FundDividendMethodEnum
+from app.constant.biz_enums import TradeTypeEnum, DividendTypeEnum
 from app.framework.async_task_manager import create_task
 from app.framework.exceptions import AsyncTaskException
 from app.models import db, HoldingSnapshot, Holding, FundNavHistory, Trade
 from app.utils.date_util import date_to_str
 
 logger = logging.getLogger(__name__)
+trade_calendar = TradeCalendar()
 
 ZERO = Decimal('0')
 
@@ -27,9 +26,14 @@ class PositionState:
     hos_holding_cost: Decimal = ZERO
     total_buy_amount: Decimal = ZERO  # 累计买入金额 (本金投入)
     total_sell_amount: Decimal = ZERO  # 累计卖出金额 (含收益)
-    total_dividend: Decimal = ZERO  # 累计分红金额，包含现金分红和分红再投资
-    total_cash_dividend: Decimal = ZERO  # 累计现金分红金额
+    total_cash_dividend: Decimal = ZERO  # 累计现金分红
+    total_reinvest_amount: Decimal = ZERO
     realized_pnl: Decimal = ZERO  # 累计已实现盈亏
+
+    @property
+    def total_dividend(self) -> Decimal:
+        """累计分红总额"""
+        return self.total_cash_dividend + self.total_reinvest_amount
 
 
 class HoldingSnapshotService:
@@ -136,25 +140,26 @@ class HoldingSnapshotService:
                 # 获取当日净值，如果不存在（如节假日），则跳过当天
                 nav_today = nav_map.get(date_to_str(current_date))
                 if not nav_today:
-                    current_date += timedelta(days=1)
+                    current_date = trade_calendar.next_trade_day(current_date)
+                    # current_date += timedelta(days=1)
                     continue
 
                 trades_in_current_date = trades_by_date.get(date_to_str(current_date), [])
 
-                hos_cash_dividend, hos_daily_reinvest_dividend = cls._apply_dividend(state, holding, nav_today)
+                # hos_cash_dividend, hos_daily_reinvest_dividend = cls._apply_dividend(state, holding, nav_today)
 
-                state, net_external_cash_flow, hos_daily_buy_amount, hos_daily_sell_amount = cls._apply_trades(
+                state, net_external_cash_flow, hos_daily_buy_amount, hos_daily_sell_amount, hos_daily_cash_dividend, hos_daily_reinvest_dividend = cls._apply_trades(
                     state, trades_in_current_date)
 
                 snapshot = cls._create_snapshot_from_state(
-                    state, holding, nav_today, net_external_cash_flow, hos_cash_dividend, hos_daily_reinvest_dividend,
+                    state, holding, nav_today, net_external_cash_flow, hos_daily_cash_dividend, hos_daily_reinvest_dividend,
                     prev_snapshot, hos_daily_buy_amount, hos_daily_sell_amount
                 )
 
                 snapshot.tr_cycle = tr_cycle
                 snapshots.append(snapshot)
                 prev_snapshot = snapshot if state.shares > ZERO else None
-                current_date += timedelta(days=1)
+                current_date = trade_calendar.next_trade_day(current_date)
 
         return snapshots
 
@@ -172,7 +177,6 @@ class HoldingSnapshotService:
 
         # 检查昨天是否是交易日 以昨天为标的
         current_date = date.today() - timedelta(days=1)
-        trade_calendar = TradeCalendar()
         if not trade_calendar.is_trade_day(current_date):
             logger.info("No target holdings found. Task finished.")
             return result
@@ -277,14 +281,21 @@ class HoldingSnapshotService:
                     total_sell_amount=prev_snapshot.hos_total_sell_cash,
                 )
                 # 处理当日分红
-                cash_dividend, hos_daily_reinvest_dividend = cls._apply_dividend(state, holding, nav)
+                # cash_dividend, hos_daily_reinvest_dividend = cls._apply_dividend(state, holding, nav)
                 # 3.4 应用昨天的交易
-                state, net_cash_flow, hos_daily_buy_amount, hos_daily_sell_amount = cls._apply_trades(state, trades)
+                state, net_external_cash_flow, hos_daily_buy_amount, hos_daily_sell_amount, hos_daily_cash_dividend, hos_daily_reinvest_dividend = cls._apply_trades(state, trades)
 
                 # 3.5 生成快照
-                snapshot = cls._create_snapshot_from_state(state, holding, nav, net_cash_flow,
-                                                           cash_dividend, hos_daily_reinvest_dividend,
-                                                           prev_snapshot)
+                snapshot = cls._create_snapshot_from_state(state=state,
+                                                           holding=holding,
+                                                           nav_today=nav,
+                                                           net_external_cash_flow=net_external_cash_flow,
+                                                           hos_daily_cash_dividend=hos_daily_cash_dividend,
+                                                           hos_daily_reinvest_dividend=hos_daily_reinvest_dividend,
+                                                           prev_snapshot=prev_snapshot,
+                                                           hos_daily_buy_amount=hos_daily_buy_amount,
+                                                           hos_daily_sell_amount=hos_daily_sell_amount
+                                                           )
 
                 snapshot.tr_cycle = trades[-1].tr_cycle if trades else prev_snapshot.tr_cycle
                 snapshots_to_add.append(snapshot)
@@ -321,22 +332,18 @@ class HoldingSnapshotService:
             return result
 
     @staticmethod
-    def _apply_trades(state: PositionState, trades: List[Trade]) -> Tuple[PositionState, Decimal, Decimal, Decimal]:
+    def _apply_trades(state: PositionState,
+                      trades: List[Trade]
+                      ) -> Tuple[PositionState, Decimal, Decimal, Decimal, Decimal, Decimal]:
         """
-        处理当日的所有交易
-        Applies trades to current position state and calculates net investment.
-
-        Business Rules:
-        - Buy trades increase shares and holding cost
-        - Sell trades reduce shares proportionally and realize P&L
-        - Negative shares are not allowed (throws BizException)
-
-        Returns:
-            Tuple of (updated_state, net_investment_today)
+        处理当日的所有交易，包括分红。
+        返回: (state, net_external_cash_flow, daily_buy, daily_sell, daily_cash_div, daily_reinvest_shares)
         """
         net_external_cash_flow = ZERO
         hos_daily_buy_amount = ZERO
         hos_daily_sell_amount = ZERO
+        hos_daily_reinvest_dividend = ZERO
+        hos_daily_cash_dividend = ZERO
 
         for trade in trades:
             # 买入
@@ -377,43 +384,58 @@ class HoldingSnapshotService:
 
                 net_external_cash_flow += trade.cash_amount
 
-        return state, net_external_cash_flow, hos_daily_buy_amount, hos_daily_sell_amount
+            elif trade.tr_type == TradeTypeEnum.DIVIDEND:
+                if trade.dividend_type == DividendTypeEnum.CASH:
+                    # 现金分红：是外部现金流入，增加累计现金分红
+                    state.total_cash_dividend += trade.tr_amount
+                    # 注意：现金分红是收益，但不计入买卖的外部现金流，它在 PnL 公式中单独体现
+                    hos_daily_cash_dividend += trade.tr_amount
 
-    @staticmethod
-    def _apply_dividend(state: PositionState, holding: Holding, nav: FundNavHistory) -> Tuple[Decimal, Decimal]:
-        """
-        处理分红
-        返回：分红产生的现金流,分红再投资的金额
-        """
-        if not nav.dividend_price or state.shares <= ZERO:
-            return ZERO, ZERO
+                elif trade.dividend_type == DividendTypeEnum.REINVEST:
+                    # 分红再投资：增加份额，增加累计再投资额
+                    state.shares += trade.tr_shares
+                    state.total_reinvest_amount += trade.tr_amount
+                    # 分红再投资不影响持仓成本(cost basis)，但会拉低平均成本。
+                    # 它也不是外部现金流，因为钱没有真正流出或流入投资组合。
+                    hos_daily_reinvest_dividend += trade.tr_amount
 
-        dividend_amount = nav.dividend_price * state.shares
-        # 无论红利再投还是现金分红，都算作"收益"，累加到 total_dividend
-        state.total_dividend += dividend_amount
-        hos_daily_reinvest_dividend = ZERO
+        return state, net_external_cash_flow, hos_daily_buy_amount, hos_daily_sell_amount, hos_daily_cash_dividend, hos_daily_reinvest_dividend
 
-        if holding.fund_detail.dividend_method == FundDividendMethodEnum.REINVEST.value:
-            # 红利再投：份额增加，成本增加（视为新增投入），无现金流出
-            # 注意：这里成本增加是为了平衡 PnL。
-            # 逻辑：再投 = 收到现金 + 立即买入。
-            reinvest_shares = dividend_amount / nav.nav_per_unit
-            state.shares += reinvest_shares
-            state.hos_holding_cost += dividend_amount
-            state.total_buy_amount += dividend_amount  # 视为追加投入
-
-            hos_daily_reinvest_dividend += dividend_amount
-            return ZERO, hos_daily_reinvest_dividend
-        else:
-            state.total_cash_dividend += dividend_amount
-            return dividend_amount, ZERO
+    # @staticmethod
+    # def _apply_dividend(state: PositionState, holding: Holding, nav: FundNavHistory) -> Tuple[Decimal, Decimal]:
+    #     """
+    #     处理分红
+    #     返回：分红产生的现金流,分红再投资的金额
+    #     """
+    #     if not nav.dividend_price or state.shares <= ZERO:
+    #         return ZERO, ZERO
+    #
+    #     dividend_amount = nav.dividend_price * state.shares
+    #     # 无论红利再投还是现金分红，都算作"收益"，累加到 total_dividend
+    #     state.total_dividend += dividend_amount
+    #     hos_daily_reinvest_dividend = ZERO
+    #
+    #     if holding.fund_detail.dividend_method == FundDividendMethodEnum.REINVEST.value:
+    #         # 红利再投：份额增加，成本增加（视为新增投入），无现金流出
+    #         # 注意：这里成本增加是为了平衡 PnL。
+    #         # 逻辑：再投 = 收到现金 + 立即买入。
+    #         reinvest_shares = dividend_amount / nav.nav_per_unit
+    #         state.shares += reinvest_shares
+    #         state.hos_holding_cost += dividend_amount
+    #         state.total_buy_amount += dividend_amount  # 视为追加投入
+    #
+    #         hos_daily_reinvest_dividend += dividend_amount
+    #         return ZERO, hos_daily_reinvest_dividend
+    #     else:
+    #         state.total_cash_dividend += dividend_amount
+    #         return dividend_amount, ZERO
 
     @staticmethod
     def _create_snapshot_from_state(state: PositionState,
                                     holding: Holding,
                                     nav_today: FundNavHistory,
                                     net_external_cash_flow: Decimal,
-                                    cash_dividend: Decimal,
+                                    hos_daily_cash_dividend: Decimal,
                                     hos_daily_reinvest_dividend: Decimal,
                                     prev_snapshot: HoldingSnapshot | None,
                                     hos_daily_buy_amount: Decimal,
@@ -433,7 +455,7 @@ class HoldingSnapshotService:
         snapshot.hos_total_sell_amount = state.total_sell_amount
         snapshot.hos_daily_sell_amount = hos_daily_sell_amount
 
-        snapshot.hos_daily_cash_dividend = cash_dividend
+        snapshot.hos_daily_cash_dividend = hos_daily_cash_dividend
         snapshot.hos_daily_reinvest_dividend = hos_daily_reinvest_dividend
         snapshot.hos_total_cash_dividend = state.total_cash_dividend
         snapshot.hos_total_dividend = state.total_dividend
@@ -453,7 +475,7 @@ class HoldingSnapshotService:
             if prev_snapshot and prev_snapshot.hos_market_value > ZERO:  # 非t0购入
                 snapshot.hos_daily_pnl = (
                         snapshot.hos_market_value - prev_snapshot.hos_market_value
-                        + net_external_cash_flow + cash_dividend
+                        + net_external_cash_flow + hos_daily_cash_dividend
                 )
                 snapshot.hos_daily_pnl_ratio = snapshot.hos_daily_pnl / prev_snapshot.hos_market_value
                 snapshot.hos_total_pnl_ratio = snapshot.hos_total_pnl / state.total_buy_amount
@@ -487,7 +509,7 @@ class HoldingSnapshotService:
 
             snapshot.hos_daily_pnl = (
                     snapshot.hos_market_value - prev_snapshot.hos_market_value
-                    + net_external_cash_flow + cash_dividend
+                    + net_external_cash_flow + hos_daily_cash_dividend
             )
             snapshot.hos_daily_pnl_ratio = snapshot.hos_daily_pnl / prev_snapshot.hos_market_value
             # 清仓当天 hos_unrealized_pnl 为0

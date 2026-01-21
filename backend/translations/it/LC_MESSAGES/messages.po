@@ -83,6 +83,16 @@ msgstr "Acquisto"
 msgid "TR_SELL"
 msgstr "Vendita"
 
+
+msgid "TR_DIVIDEND"
+msgstr "Dividendo"
+
+msgid "CASH"
+msgstr "Dividendo"
+
+msgid "REINVEST"
+msgstr "Reinvestimento del Dividendo"
+
 msgid "TR_LOG"
 msgstr "Registri delle transazioni"
 

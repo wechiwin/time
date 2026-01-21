@@ -176,6 +176,7 @@ class InvestedAssetSnapshotService:
         prev_mv = prev_snapshot.ias_market_value if prev_snapshot else ZERO
         prev_total_pnl = prev_snapshot.ias_total_pnl if prev_snapshot else ZERO
         prev_total_div = prev_snapshot.ias_total_dividend if prev_snapshot else ZERO
+        prev_total_reinvest_div = prev_snapshot.ias_total_reinvest_dividend if prev_snapshot else ZERO
         prev_total_cash_div = prev_snapshot.ias_total_cash_dividend if prev_snapshot else ZERO
         prev_total_buy = prev_snapshot.ias_total_buy_amount if prev_snapshot else ZERO
         prev_total_sell = prev_snapshot.ias_total_sell_amount if prev_snapshot else ZERO
@@ -202,8 +203,9 @@ class InvestedAssetSnapshotService:
         # -------- B. Daily Flow (当日流量) --------
         snapshot.ias_net_external_cash_flow = daily_net_flow
         snapshot.ias_daily_cash_dividend = daily_cash_div
+        snapshot.ias_daily_reinvest_dividend = daily_reinvest_div
 
-        # 当日盈亏 = 期末市值 - 期初市值 - 净投入 + 现金分红
+        # 当日盈亏 = 当日市值 - 昨日市值 + 当日外部现金流(买负卖正) + 当日现金分红
         snapshot.ias_daily_pnl = (
                 snapshot.ias_market_value
                 - prev_mv
@@ -226,6 +228,7 @@ class InvestedAssetSnapshotService:
         snapshot.ias_total_pnl = prev_total_pnl + snapshot.ias_daily_pnl
         # 2. 累计现金分红
         snapshot.ias_total_cash_dividend = prev_total_cash_div + daily_cash_div
+        snapshot.ias_total_reinvest_dividend = prev_total_reinvest_div + daily_reinvest_div
         # 累计总分红，包含现金分红和分红再投资
         snapshot.ias_total_dividend = prev_total_div + daily_cash_div + daily_reinvest_div
 

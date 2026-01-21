@@ -232,31 +232,31 @@ class HoldingAnalyticsSnapshotService:
                 # 计算指标
                 metrics = cls._calculate_metrics(df_window, window.annualization_factor)
                 # 构建对象
-                snapshot = HoldingAnalyticsSnapshot(
-                    ho_id=ho_id,
-                    snapshot_date=current_date_obj,
-                    window_key=window.window_key,
-                    # Return Metrics
-                    twrr_cumulative=metrics['twrr_cum'],
-                    twrr_annualized=metrics['twrr_ann'],
-                    irr_cumulative=metrics['irr_cum'],
-                    irr_annualized=metrics['irr_ann'],
+                snapshot = HoldingAnalyticsSnapshot()
+                snapshot.ho_id = ho_id
+                snapshot.snapshot_date = current_date_obj
+                snapshot.window_key = window.window_key
+                snapshot.twrr_cumulative = metrics['twrr_cum']
+                snapshot.twrr_annualized = metrics['twrr_ann']
+                snapshot.irr_cumulative = metrics['irr_cum']
+                snapshot.irr_annualized = metrics['irr_ann']
+                snapshot.has_cumulative_pnl = metrics['cum_pnl']
+                snapshot.has_cash_dividend = metrics['total_cash_div']
+                snapshot.has_reinvest_dividend = metrics['total_reinvest_div']
+                snapshot.has_total_dividend = snapshot.has_cash_dividend + snapshot.has_reinvest_dividend
+                snapshot.has_return_volatility = metrics['volatility']
+                snapshot.has_sharpe_ratio = metrics['sharpe']
+                snapshot.has_max_drawdown = metrics['mdd']
+                snapshot.has_max_drawdown_start_date = metrics['mdd_start']
+                snapshot.has_max_drawdown_end_date = metrics['mdd_end']
+                snapshot.has_max_drawdown_recovery_date = metrics['mdd_recovery_date']
+                snapshot.has_max_drawdown_days = metrics['mdd_days']
+                snapshot.has_max_runup = metrics['max_runup']
+                snapshot.has_win_rate = metrics['win_rate']
+                snapshot.has_calmar_ratio = metrics['calmar']
+                snapshot.has_sortino_ratio = metrics['sortino']
+                snapshot.has_downside_risk = metrics['downside_risk']
 
-                    has_cumulative_pnl=metrics['cum_pnl'],
-                    has_total_dividend=metrics['total_div'],
-                    has_return_volatility=metrics['volatility'],
-                    has_sharpe_ratio=metrics['sharpe'],
-                    has_max_drawdown=metrics['mdd'],
-                    has_max_drawdown_start_date=metrics['mdd_start'],
-                    has_max_drawdown_end_date=metrics['mdd_end'],
-                    has_max_drawdown_recovery_date=metrics['mdd_recovery_date'],
-                    has_max_drawdown_days=metrics['mdd_days'],
-                    has_max_runup=metrics['max_runup'],
-                    has_win_rate=metrics['win_rate'],
-                    has_calmar_ratio=metrics['calmar'],
-                    has_sortino_ratio=metrics['sortino'],
-                    has_downside_risk=metrics['downside_risk'],
-                )
                 results.append(snapshot)
         return results
 
@@ -271,6 +271,7 @@ class HoldingAnalyticsSnapshotService:
             HoldingSnapshot.hos_daily_pnl,
             HoldingSnapshot.holding_shares,
             HoldingSnapshot.hos_daily_cash_dividend,
+            HoldingSnapshot.hos_daily_reinvest_dividend,
             HoldingSnapshot.tr_cycle,
             HoldingSnapshot.hos_net_external_cash_flow,
             HoldingSnapshot.hos_market_value,
@@ -285,15 +286,15 @@ class HoldingAnalyticsSnapshotService:
 
         # 使用列表推导式和 zip 更高效地构建字典列表
         column_names = [
-            'date', 'daily_pnl_ratio', 'daily_pnl', 'shares', 'daily_cash_dividend',
+            'date', 'daily_pnl_ratio', 'daily_pnl', 'shares', 'daily_cash_dividend', 'daily_reinvest_dividend',
             'cycle', 'net_external_cash_flow', 'mv'
         ]
         data_dicts = [dict(zip(column_names, row)) for row in raw_data]
         df = pd.DataFrame(data_dicts)
 
         # 类型转换: Decimal -> Float
-        cols_to_float = ['daily_pnl_ratio', 'daily_pnl', 'shares', 'daily_cash_dividend', 'net_external_cash_flow',
-                         'mv']
+        cols_to_float = ['daily_pnl_ratio', 'daily_pnl', 'shares', 'daily_cash_dividend', 'daily_reinvest_dividend',
+                         'net_external_cash_flow', 'mv']
         for col in cols_to_float:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0.0)
 
@@ -337,7 +338,8 @@ class HoldingAnalyticsSnapshotService:
         # 提取 Series
         daily_pnl_ratio_list = df['daily_pnl_ratio']  # 日收益率 (0.01 代表 1%)
         pnls = df['daily_pnl']  # 日盈亏金额
-        dividends = df['daily_cash_dividend']
+        daily_cash_dividend = df['daily_cash_dividend']
+        daily_reinvest_dividend = df['daily_reinvest_dividend']
 
         n = len(daily_pnl_ratio_list)
         if n == 0:
@@ -348,7 +350,8 @@ class HoldingAnalyticsSnapshotService:
 
         # 3. 累计盈亏 & 分红
         cum_pnl = pnls.sum()
-        total_div = dividends.sum()
+        total_cash_div = daily_cash_dividend.sum()
+        total_reinvest_div = daily_reinvest_dividend.sum()
 
         # 2. twrr_cum 年化收益率 (Annualized Return)
         # 公式: (1 + cum_ret) ^ (252/n) - 1
@@ -463,7 +466,8 @@ class HoldingAnalyticsSnapshotService:
             'irr_ann': Decimal(f"{irr_ann:.6f}") if irr_ann is not None else None,
             'irr_cum': Decimal(f"{irr_cum:.6f}") if irr_cum is not None else None,
             'cum_pnl': Decimal(f"{cum_pnl:.4f}"),
-            'total_div': Decimal(f"{total_div:.4f}"),
+            'total_cash_div': Decimal(f"{total_cash_div:.4f}"),
+            'total_reinvest_div': Decimal(f"{total_reinvest_div:.4f}"),
             'volatility': Decimal(f"{volatility:.6f}"),
             'sharpe': Decimal(f"{sharpe:.4f}"),
             'sortino': Decimal(f"{sortino:.4f}"),

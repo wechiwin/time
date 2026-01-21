@@ -31,6 +31,7 @@
   "th_feature": "Etichette Caratteristiche",
   "th_currency": "Valuta",
   "th_fund_type": "Tipo del Fondo",
+  "th_dividend_type": "Tipo del Dividendo",
 
   "start_date": "Data di inizio",
   "end_date": "Data di fine",
@@ -64,6 +65,7 @@
   "menu_holding": "Partecipazioni",
   "menu_trade": "Transazioni",
   "menu_nav_history": "Valore Netto",
+  "msg_no_records": "Nessun record disponibile",
 
   "msg_search_placeholder": "Inserisci nome o codice",
   "msg_delete_confirmation": "Confermi l'eliminazione?",

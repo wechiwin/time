@@ -10,7 +10,7 @@ from app.framework.sys_constant import DEFAULT_PAGE_SIZE
 from app.models import db, AlertRule, AlertHistory, Holding
 from app.schemas_marshall import AlertRuleSchema, AlertHistorySchema, marshal_pagination
 from app.service.alert_service import AlertService
-from app.utils.date_util import get_yesterday_date_str, get_yesterday_date
+from app.utils.date_util import get_yesterday_date
 from app.utils.user_util import get_or_raise
 
 alert_bp = Blueprint('alert', __name__, url_prefix='/api/alert')

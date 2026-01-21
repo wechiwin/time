@@ -1,20 +1,18 @@
 import json
+import logging
 import os
 import tempfile
-from datetime import datetime
-from decimal import Decimal, ROUND_HALF_UP
+from collections import defaultdict
+from decimal import Decimal
+from typing import List, Tuple
 
 import requests
-from sqlalchemy import desc, or_
+from paddleocr import PaddleOCR
+from sqlalchemy import desc
 
-from app.constant.biz_enums import HoldingStatusEnum, TradeTypeEnum, ErrorMessageEnum
+from app.constant.biz_enums import HoldingStatusEnum, TradeTypeEnum, ErrorMessageEnum, DividendTypeEnum
 from app.framework.exceptions import BizException
 from app.models import db, Holding, Trade, FundNavHistory
-from paddleocr import PaddleOCR
-import logging
-from typing import List, Dict, Tuple, Optional
-from collections import defaultdict
-
 from app.utils.date_util import str_to_date
 
 ocr = PaddleOCR(use_angle_cls=True, lang='ch')
@@ -488,6 +486,12 @@ OCR 文本：
                     trade.is_cleared = True
                     # 只有在清仓发生的这一笔交易完成后，下一笔交易才进入下一个周期
                     current_cycle += 1
+
+            elif trade.tr_type == TradeTypeEnum.DIVIDEND:
+                # 如果是分红再投资，它会增加持仓份额
+                if trade.dividend_type == DividendTypeEnum.REINVEST and trade.tr_shares and trade.tr_shares > 0:
+                    current_shares += Decimal(str(trade.tr_shares))
+                # 现金分红不影响持仓份额，所以无需处理
 
             # 更新数据库对象（SQLAlchemy 会自动追踪变更）
             db.session.add(trade)
