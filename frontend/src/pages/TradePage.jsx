@@ -128,10 +128,10 @@ export default function TradePage() {
                     await action(data);
                     showSuccessToast();
                     setRefreshKey(p => p + 1); // 触发数据刷新
-                    return true; // 返回成功状态
+                    return { success: true }; // 返回成功状态
                 } catch (err) {
                     showErrorToast(err.message);
-                    return false;
+                    return { success: false, error: err }; // 返回失败状态及错误
                 }
             },
             initialValues: values

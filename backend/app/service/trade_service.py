@@ -1,33 +1,145 @@
+import base64
 import json
 import logging
 import os
 import tempfile
 from collections import defaultdict
 from decimal import Decimal
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Any
 
 import requests
+from flask import current_app
+from openai import OpenAI
 from paddleocr import PaddleOCR
-from sqlalchemy import desc
+from sqlalchemy import desc, or_
 
 from app.constant.biz_enums import HoldingStatusEnum, TradeTypeEnum, ErrorMessageEnum, DividendTypeEnum
 from app.framework.exceptions import BizException
 from app.models import db, Holding, Trade, FundNavHistory
+from app.utils.common_util import is_blank, is_not_blank
 from app.utils.date_util import str_to_date
 
 ocr = PaddleOCR(use_angle_cls=True, lang='ch')
-# TODO 改为在线？
 OLLAMA = r"C:\Users\Administrator\AppData\Local\Programs\Ollama\ollama.exe"
 logger = logging.getLogger(__name__)
 ZERO = Decimal(0)
+
+# 初始化 OpenAI 客户端
+# 建议将 API_KEY 和 BASE_URL 放入环境变量或 Flask Config 中
+# 这里支持所有兼容 OpenAI 协议的模型（如 DeepSeek, Moonshot, 阿里通义千问等）
+client = OpenAI(
+    api_key=current_app.config.get('API_KEY'),
+    base_url=current_app.config.get('BASE_URL')
+)
+# 指定模型名称，建议使用支持视觉的模型，如 gpt-4o, qwen-vl-max 等
+# 如果使用不支持视觉的模型（如 deepseek-v3），则仍需保留 OCR 步骤
+MODEL_NAME = current_app.config.get('MODEL_NAME')
 
 
 class TradeService:
     def __init__(self):
         pass
 
+    # ===========================在线api 开始==================================
     @classmethod
-    def process_trade_image(cls, file_bytes):
+    def process_trade_image_online(cls, file_bytes: bytes) -> Dict[str, Any]:
+        """
+        处理交易截图：直接发送图片给大模型进行解析 (Vision API)
+        不再依赖本地 PaddleOCR
+        """
+        try:
+            # 1. 将图片字节流转换为 Base64 编码
+            base64_image = base64.b64encode(file_bytes).decode('utf-8')
+
+            # 2. 构造 Prompt 和 消息体
+            system_prompt = """
+你是一个专业的基金交易单据解析专家。你的任务是从图片中提取结构化数据。
+请严格遵循以下逻辑进行提取和校验：
+1. 识别关键字段：持仓代码(ho_code), 名称(ho_short_name), 交易类型(tr_type), 日期(tr_date), 净值(tr_nav_per_unit), 份额(tr_shares), 金额(tr_amount), 手续费(tr_fee)。
+2. 逻辑校验：
+   - 交易金额(tr_amount) 理论上应等于 净值 * 份额。
+   - 实际收付现金(cash_amount) 计算规则：
+     * 买入(BUY): cash_amount = tr_amount + tr_fee
+     * 卖出(SELL): cash_amount = tr_amount - tr_fee
+3. 如果图片中的金额与计算不符，以图片中明确显示的“发生金额”或“实收/付金额”为准，反推其他字段。
+
+【输出要求】
+- 只输出纯 JSON 字符串，不要包含 Markdown 标记（如 ```json ... ```）。
+- 必须包含字段：ho_code, ho_short_name, tr_type (BUY/SELL), tr_date (YYYY-MM-DD), tr_nav_per_unit, tr_shares, tr_amount, tr_fee, cash_amount。
+- 数值类型保持为数字，不要用字符串。
+- 无法识别的字段设为 null 或 0。
+"""
+
+            # 3. 调用大模型 API
+            response = client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": system_prompt
+                    },
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": "请解析这张基金交易确认单："},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{base64_image}"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                temperature=0.1,  # 低温度以保证数据提取的确定性
+                # response_format={"type": "json_object"} # 如果模型支持 JSON 模式建议开启
+            )
+
+            content = response.choices[0].message.content
+            logger.info(response)
+            # 4. 解析返回的 JSON
+            parsed_json = cls._clean_and_parse_json(content)
+
+            # 5. 业务数据补全 (关联数据库中的持仓代码)
+            if is_not_blank(parsed_json.get('ho_short_name')) or is_not_blank(parsed_json.get('ho_code')):
+                h = Holding.query.filter(
+                    or_(Holding.ho_short_name.like(f"%{parsed_json['ho_short_name']}%"),
+                        Holding.ho_code.like(f"%{parsed_json['ho_code']}%"))
+                ).first()
+                if h:
+                    parsed_json['ho_short_name'] = h.ho_short_name
+                    parsed_json['ho_code'] = h.ho_code
+                    parsed_json['ho_id'] = h.id
+
+            logger.info(f"LLM Vision 解析结果: {parsed_json}")
+
+            return {
+                "ocr_text": "[由大模型直接通过视觉识别]",  # 兼容前端字段
+                "parsed_json": parsed_json
+            }
+
+        except Exception as e:
+            logger.error("图片解析失败", exc_info=True)
+            return {"error": f"解析失败: {str(e)}", "parsed_json": {}}
+
+    @staticmethod
+    def _clean_and_parse_json(text: str) -> Dict:
+        """
+        清洗 LLM 返回的文本并解析为 JSON
+        """
+        try:
+            # 去除可能存在的 Markdown 代码块标记
+            cleaned_text = text.replace("```json", "").replace("```", "").strip()
+            return json.loads(cleaned_text)
+        except json.JSONDecodeError:
+            logger.error(f"JSON 解析失败，原始文本: {text}")
+            return {}
+
+    # ===========================在线api 结束==================================
+
+    # ===========================本地离线 开始==================================
+    @classmethod
+    def process_trade_image_local(cls, file_bytes):
         """
         用于 HTTP 和 WebSocket 的通用逻辑
         参数：字节流
@@ -50,7 +162,7 @@ class TradeService:
             text = ""
 
         # ===== 2) LLM 解析 =====
-        parsed_json = cls.generate_json_from_text(text)
+        parsed_json = cls.generate_json_from_text_local(text)
         # logger.info("ocr识别文字：" + text)
         # logger.info("LLM解析json结果：%s", str(parsed_json))
         return {
@@ -59,7 +171,7 @@ class TradeService:
         }
 
     @classmethod
-    def generate_json_from_text(cls, text: str):
+    def generate_json_from_text_local(cls, text: str):
         template = """{
     "ho_code": "",
     "ho_short_name": "",
@@ -134,6 +246,8 @@ OCR 文本：
             timeout=20
         )
         return resp.json()["response"]
+
+    # ===========================本地离线 结束==================================
 
     @classmethod
     def list_trade(cls, ho_code: int):

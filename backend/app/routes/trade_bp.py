@@ -321,7 +321,7 @@ def upload():
 
     file_bytes = file.read()
     # print(file_bytes)
-    result = TradeService.process_trade_image(file_bytes)
+    result = TradeService.process_trade_image_online(file_bytes)
 
     resp = {
         "ocr_text": result["ocr_text"],
@@ -340,7 +340,8 @@ def background_worker(task_id, file_bytes, app):
             logger.info(f"Task {task_id}: 开始调用 LLM...")
 
             # 调用耗时的 LLM 逻辑
-            result = TradeService.process_trade_image(file_bytes)
+            # result = TradeService.process_trade_image_local(file_bytes)
+            result = TradeService.process_trade_image_online(file_bytes)
 
             # 将结果放入队列
             if task_id in task_queues:

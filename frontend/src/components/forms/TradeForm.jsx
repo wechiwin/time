@@ -23,7 +23,7 @@ const init = {
     tr_amount: '',
     tr_fee: '',
     cash_amount: '',
-    dividend_type: '', // 新增：分红类型
+    dividend_type: null,
 };
 
 // 气泡提示组件
@@ -158,7 +158,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
             if (field === 'tr_type') {
                 // 如果新类型不是分红，清空分红类型
                 if (value !== 'DIVIDEND') {
-                    nextForm.dividend_type = '';
+                    nextForm.dividend_type = null;
                 }
                 // 每次类型切换都清空数值，避免旧数据污染
                 nextForm.tr_nav_per_unit = '';
@@ -336,16 +336,15 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
 
     const submit = async (e) => {
         e.preventDefault();
+        // 禁用按钮防止重复提交
+        setUploading(true);
 
         try {
-            const success = await onSubmit(form);
-            if (success) {
-                setForm(init);
-                onClose();
-                showSuccessToast();
-            }
+            await onSubmit(form);
         } catch (err) {
-            showErrorToast(err.message);
+            console.error('Form submission error:', err);
+        } finally {
+            setUploading(false);
         }
     };
 
@@ -429,7 +428,8 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                 {/* 分红类型 - 条件显示 */}
                 {isDividend && (
                     <div className="col-span-2">
-                        <label className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_dividend_type', 'Dividend Type')}</label>
+                        <label
+                            className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_dividend_type', 'Dividend Type')}</label>
                         <MySelect options={dividendTypeOptions} value={form.dividend_type}
                                   onChange={(val) => handleFieldChange('dividend_type', val)}
                                   className="input-field text-sm py-1.5"/>
