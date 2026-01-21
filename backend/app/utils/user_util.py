@@ -5,20 +5,22 @@ from flask_limiter.util import get_remote_address
 
 from app.constant.biz_enums import ErrorMessageEnum
 from app.framework.exceptions import BizException
+from app.utils.device_parser import DeviceParser
 
 
 def generate_device_fingerprint() -> str:
-    """基于请求信息生成设备指纹"""
+    """增强版设备指纹生成器"""
     user_agent = request.headers.get('User-Agent', '')
-    accept_lang = request.headers.get('Accept-Language', '')
     ip = get_remote_address()
 
-    # 创建哈希
-    fingerprint = hashlib.sha256(
-        f"{user_agent}|{ip}|{accept_lang}".encode()
-    ).hexdigest()
+    # === 关键增强：包含设备类型 ===
+    device_type = DeviceParser.parse(user_agent).value
 
-    return fingerprint
+    # 组合关键特征（防碰撞设计）
+    fingerprint_data = f"{ip}|{user_agent}|{device_type}|{request.headers.get('Accept-Language', '')}"
+
+    # 使用SHA3-256（抗碰撞更强）
+    return hashlib.sha3_256(fingerprint_data.encode()).hexdigest()
 
 
 def calculate_risk_score(login_ip: str, user_agent: str) -> int:

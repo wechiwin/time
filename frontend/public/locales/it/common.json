@@ -76,6 +76,7 @@
   "msg_mydate_select_date": "Seleziona data",
   "msg_ai_analyzing": "Analisi AI...",
   "msg_uploading": "Caricamento...",
+  "msg_verifying_identity": "Verifica dell'identità in corso...",
 
   "info_hold_status": "Stato della Posizione",
   "info_status_holding": "In Posizione",

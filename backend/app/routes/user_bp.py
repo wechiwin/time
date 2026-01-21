@@ -13,17 +13,18 @@ from flask_limiter.util import get_remote_address
 from app.framework.auth import auth_required, auth_refresh_required
 from app.framework.exceptions import BizException
 from app.framework.res import Res
-from app.models import TokenBlacklist, DeviceType, UserSetting, db
+from app.models import TokenBlacklist, UserSetting, db, UserSession
+from app.schemas_marshall import UserSettingSchema
 from app.service.user_service import UserService
+from app.utils.device_parser import DeviceParser
 from app.utils.user_util import generate_device_fingerprint
-from app.schemas_marshall import UserSettingSchema # 导入 UserSettingSchema
 
 logger = logging.getLogger(__name__)
 
 user_bp = Blueprint('user_setting', __name__, url_prefix='/api/user_setting')
 limiter = Limiter(key_func=get_remote_address)
 
-user_setting_schema = UserSettingSchema() # 实例化 Schema
+user_setting_schema = UserSettingSchema()
 
 
 @user_bp.route('/register', methods=['POST'])
@@ -59,10 +60,10 @@ def register():
 
     # 记录注册登录历史
     UserService.record_login_history(
-        user_id=new_user.id, # 内部使用 id
+        user_id=new_user.id,  # 内部使用 id
         login_ip=get_remote_address(),
         user_agent=request.headers.get('User-Agent', ''),
-        device_type=DeviceType.UNKNOWN.value,
+        device_type=DeviceParser.parse(request.headers.get('User-Agent', '')),
         session_id=str(uuid.uuid4()),
         failure_reason=None
     )
@@ -120,14 +121,36 @@ def refresh():
         raise BizException("非法请求：缺少安全标识", code=400)
     try:
         # 修改：get_jwt_identity() 现在返回 uuid
-        current_user_uuid = get_jwt_identity()
+        current_user = g.user
         jwt_data = get_jwt()
-        jti = get_jwt()["jti"]
+        old_jti = jwt_data["jti"]
+        old_session_id = jwt_data.get("session_id")
 
         # 检查refresh token是否在黑名单中
-        blacklisted = TokenBlacklist.query.filter_by(jti=jti).first()
+        blacklisted = TokenBlacklist.query.filter_by(jti=old_jti).first()
         if blacklisted:
-            raise BizException("Token已失效", code=401)
+            logger.warning(f"refresh：Token {old_jti} was in TokenBlacklist")
+            raise BizException("Token was expired", code=401)
+
+        # 刷新时也检查活跃设备数
+        active_sessions = UserSession.query.filter_by(
+            user_id=current_user.id,
+            is_active=True
+        ).filter(
+            UserSession.session_id != old_session_id  # 排除当前即将被替换的会话
+        ).order_by(UserSession.created_at.asc()).all()
+        if len(active_sessions) >= UserService.MAX_CONCURRENT_DEVICES:
+            oldest = active_sessions[0]
+            oldest.is_active = False
+            blacklisted_old = TokenBlacklist(
+                jti=oldest.session_id,
+                user_id=current_user.id,
+                token_type='access',
+                expires_at=datetime.utcnow()
+            )
+            db.session.add(blacklisted_old)
+            db.session.add(oldest)
+            logger.info(f"Kicked oldest session during refresh: {oldest.session_id}")
 
         # 验证设备指纹
         current_fingerprint = generate_device_fingerprint()
@@ -135,33 +158,29 @@ def refresh():
 
         if stored_fingerprint != current_fingerprint:
             # 指纹不匹配，可能被盗用
-            logger.warning(f"Device fingerprint mismatch for user {current_user_uuid}")
+            logger.warning(f"Device fingerprint mismatch for user {current_user}:old:{stored_fingerprint} → new:{current_fingerprint}")
 
-            # 强制登出
-            blacklisted = TokenBlacklist(jti=jti,
+            blacklisted = TokenBlacklist(jti=old_jti,
+                                         user_id=current_user.id,
                                          token_type='refresh',
                                          expires_at=datetime.now() + current_app.config['JWT_REFRESH_TOKEN_EXPIRES'])
             db.session.add(blacklisted)
-            db.session.commit()
 
             # 记录异常登录历史
             # 修改：通过 uuid 查找用户，获取其 id
-            user = UserSetting.query.filter_by(uuid=current_user_uuid).first()
-            if user:
-                UserService.record_login_history(
-                    user_id=user.id,
-                    login_ip=get_remote_address(),
-                    user_agent=request.headers.get('User-Agent', ''),
-                    device_type=DeviceType.UNKNOWN.value,
-                    failure_reason="Device fingerprint mismatch"
-                )
-
-            raise BizException("安全验证失败，请重新登录", code=401)
+            UserService.record_login_history(
+                user_id=current_user.id,
+                login_ip=get_remote_address(),
+                user_agent=request.headers.get('User-Agent', ''),
+                device_type=DeviceParser.parse(request.headers.get('User-Agent', '')),
+                failure_reason="Device fingerprint mismatch"
+            )
+            raise BizException("Token is invalid.", code=401)
 
         # 生成新的access_token
         # 修改：identity 使用 uuid
         new_access_token = create_access_token(
-            identity=current_user_uuid,
+            identity=current_user.uuid,
             additional_claims={
                 "device_fingerprint": current_fingerprint,
                 "session_id": jwt_data.get("session_id")
@@ -171,17 +190,35 @@ def refresh():
         # 生成新的refresh token
         # 修改：identity 使用 uuid
         new_refresh_token = create_refresh_token(
-            identity=current_user_uuid,
+            identity=current_user.uuid,
             additional_claims={
                 "device_fingerprint": current_fingerprint,
                 "session_id": jwt_data.get("session_id")
             },
         )
-
+        # 更新会话最后活跃时间
+        session_record = UserSession.query.filter_by(session_id=old_session_id).first()
+        if session_record:
+            session_record.last_active = datetime.utcnow()
+            session_record.device_fingerprint = current_fingerprint
+            db.session.add(session_record)
+        else:
+            # 极端情况：找不到记录，新建（理论上不应发生）
+            new_session = UserSession(
+                user_id=current_user.id,
+                session_id=old_session_id,
+                device_fingerprint=current_fingerprint,
+                login_ip=get_remote_address(),
+                user_agent=request.headers.get('User-Agent', ''),
+                created_at=datetime.utcnow(),
+                last_active=datetime.utcnow(),
+                is_active=True
+            )
+            db.session.add(new_session)
         # 使旧refresh token失效
         # g.user 已经由 auth_refresh_required 装饰器设置，且 user_lookup_loader 已改为 uuid 查找
-        blacklisted = TokenBlacklist(jti=jti,
-                                     user_id=g.user.id, # g.user 已经是一个 UserSetting 对象
+        blacklisted = TokenBlacklist(jti=old_jti,
+                                     user_id=current_user.id,  # g.user 已经是一个 UserSetting 对象
                                      token_type='refresh',
                                      expires_at=datetime.now() + current_app.config['JWT_REFRESH_TOKEN_EXPIRES'])
         db.session.add(blacklisted)
@@ -198,8 +235,8 @@ def refresh():
         raise
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Refresh failed: {e}", exc_info=True)
-        raise BizException("Token刷新失败", code=401)
+        logger.error(f"Refresh token failed: {e}", exc_info=True)
+        raise BizException("Refresh token failed", code=401)
 
 
 @user_bp.route('/user', methods=['GET'])
@@ -264,7 +301,7 @@ def edit_password():
         # 2. 将当前 access token 加入黑名单
         blacklisted_access = TokenBlacklist(
             jti=access_jti,
-            user_id=user.id, # 关联用户ID
+            user_id=user.id,  # 关联用户ID
             token_type='access',
             expires_at=datetime.now() + current_app.config['JWT_ACCESS_TOKEN_EXPIRES']
         )
@@ -282,7 +319,7 @@ def edit_password():
                     jti=refresh_jti,
                     user_id=user.id,
                     token_type='refresh',
-                    expires_at=datetime.fromtimestamp(decoded_refresh['exp']) # 使用 refresh token 自身的过期时间
+                    expires_at=datetime.fromtimestamp(decoded_refresh['exp'])  # 使用 refresh token 自身的过期时间
                 )
                 db.session.add(blacklisted_refresh)
                 logger.info(f"Blacklisted refresh token during password change for user {user.username}")
@@ -290,7 +327,6 @@ def edit_password():
                 logger.warning(f"Failed to blacklist refresh token during password change: {e}", exc_info=True)
         else:
             logger.warning(f"No refresh token in cookie during password change for user {user.username}")
-
 
         # 4. 更新为新密码
         user.pwd_hash = UserSetting.hash_password(new_password)
@@ -301,7 +337,7 @@ def edit_password():
             user_id=user.id,
             login_ip=get_remote_address(),
             user_agent=request.headers.get('User-Agent', ''),
-            device_type=DeviceType.UNKNOWN.value,
+            device_type=DeviceParser.parse(request.headers.get('User-Agent', '')),
             failure_reason="Password changed"
         )
 
@@ -314,7 +350,7 @@ def edit_password():
             "access_token": new_access_token,
             # refresh_token 不直接返回，通过 cookie 设置
         })
-        set_refresh_cookies(response, new_refresh_token) # 设置新的 refresh token cookie
+        set_refresh_cookies(response, new_refresh_token)  # 设置新的 refresh token cookie
         return response
     except BizException:
         db.session.rollback()
@@ -332,7 +368,12 @@ def logout():
         # 修改：get_jwt_identity() 现在返回 uuid
         current_user_uuid = get_jwt_identity()
         access_jti = get_jwt()["jti"]
-
+        session_id = get_jwt().get("session_id")  # 获取 session_id
+        if session_id:
+            session = UserSession.query.filter_by(session_id=session_id).first()
+            if session:
+                session.is_active = False
+                db.session.add(session)
         # 1. 处理 refresh token (从 cookie 中获取并黑名单)
         refresh_token = request.cookies.get(current_app.config['JWT_REFRESH_COOKIE_NAME'])
         if refresh_token:
@@ -344,7 +385,7 @@ def logout():
                 # g.user 已经由 auth_required 装饰器设置，且 user_lookup_loader 已改为 uuid 查找
                 blacklisted_refresh = TokenBlacklist(
                     jti=refresh_jti,
-                    user_id=g.user.id, # g.user 已经是一个 UserSetting 对象
+                    user_id=g.user.id,  # g.user 已经是一个 UserSetting 对象
                     token_type='refresh',
                     expires_at=datetime.fromtimestamp(decoded_refresh['exp'])
                 )
@@ -359,7 +400,7 @@ def logout():
         # g.user 已经由 auth_required 装饰器设置
         blacklisted_access = TokenBlacklist(
             jti=access_jti,
-            user_id=g.user.id, # g.user 已经是一个 UserSetting 对象
+            user_id=g.user.id,  # g.user 已经是一个 UserSetting 对象
             token_type='access',
             expires_at=datetime.now() + current_app.config['JWT_ACCESS_TOKEN_EXPIRES']
         )
@@ -379,4 +420,3 @@ def logout():
         db.session.rollback()
         logger.error(f"Logout failed: {e}", exc_info=True)
         raise BizException("登出失败", code=500)
-

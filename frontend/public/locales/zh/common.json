@@ -78,6 +78,7 @@
   "msg_ai_analyzing": "AI分析中...",
   "msg_uploading": "上传中...",
   "msg_no_records": "暂无记录",
+  "msg_verifying_identity": "正在验证身份...",
 
   "info_hold_status": "持仓状态",
   "info_status_holding": "持仓中",

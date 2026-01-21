@@ -198,15 +198,16 @@ class AnalyticsWindowEnum(str, Enum):
         }
 
 
-class DeviceType(Enum):
-    WEB = 'web'
-    MOBILE = 'mobile'
-    DESKTOP = 'desktop'
-    TABLET = 'tablet'
-    UNKNOWN = 'unknown'
+class DeviceType(str, Enum):
+    WEB = 'WEB'
+    MOBILE = 'MOBILE'
+    DESKTOP = 'DESKTOP'
+    TABLET = 'TABLET'
+    BOT = 'BOT'
+    UNKNOWN = 'UNKNOWN'
 
 
-class LoginStatus(Enum):
-    SUCCESS = 'success'
-    FAILED = 'failed'
-    BLOCKED = 'blocked'
+class LoginStatus(str, Enum):
+    SUCCESS = 'SUCCESS'
+    FAILED = 'FAILED'
+    BLOCKED = 'BLOCKED'

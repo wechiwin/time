@@ -76,6 +76,7 @@
   "msg_ai_analyzing": "AI Analyzing...",
   "msg_uploading": "Uploading...",
   "msg_no_records": "No records available",
+  "msg_verifying_identity": "Verifying identity...",
 
   "info_hold_status": "Holding Status",
   "info_status_holding": "Holding",

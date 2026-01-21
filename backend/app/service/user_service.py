@@ -3,62 +3,91 @@ import logging
 import uuid
 from datetime import datetime
 
+from flask import current_app
 from flask_jwt_extended import create_access_token, create_refresh_token
 
 from app.framework.exceptions import BizException
-from app.models import UserSetting, DeviceType, db, LoginHistory, LoginStatus
+from app.models import UserSetting, db, LoginHistory, LoginStatus, UserSession, TokenBlacklist
+from app.schemas_marshall import UserSettingSchema
+from app.utils.device_parser import DeviceParser
 from app.utils.user_util import generate_device_fingerprint, calculate_risk_score
-from app.schemas_marshall import UserSettingSchema # 导入 UserSettingSchema
 
 logger = logging.getLogger(__name__)
 
-user_setting_schema = UserSettingSchema() # 实例化 Schema
+user_setting_schema = UserSettingSchema()  # 实例化 Schema
 
 
 class UserService:
+    MAX_CONCURRENT_DEVICES = current_app.config.get('MAX_CONCURRENT_DEVICES', 3)
 
     @classmethod
     def execute_login(cls, username, password, ip, user_agent):
         if not username or not password:
             raise BizException("用户名和密码不能为空", code=400)
 
-        # 1. 查询用户
+        # 校验用户
         user = UserSetting.query.filter_by(username=username).first()
-
-        # 2. 校验密码
         if not user or not UserSetting.verify_password(password, user.pwd_hash):
-            # 记录失败日志（可选，防止暴力破解分析）
-            # 注意：这里不记录 user_id，因为可能是无效用户名，避免信息泄露
             cls.record_login_history(
-                user_id=user.id if user else None, # 如果用户不存在，user_id 为 None
+                user_id=user.id if user else None,  # 如果用户不存在，user_id 为 None
                 login_ip=ip,
                 user_agent=user_agent,
-                device_type=DeviceType.UNKNOWN.value,
+                device_type=DeviceParser.parse(user_agent),
                 failure_reason="Invalid credentials"
             )
             raise BizException("用户名或密码错误", code=401)
 
-        # 3. 【关键】检查账号是否被锁定
+        # 检查账号是否被锁定
         if user.is_locked:
             # 记录尝试登录被阻断的日志
             cls.record_login_history(
                 user_id=user.id,
                 login_ip=ip,
                 user_agent=user_agent,
-                device_type=DeviceType.UNKNOWN.value,
+                device_type=DeviceParser.parse(user_agent),
                 failure_reason="Account locked"
             )
             raise BizException("账号已被锁定，请联系管理员", code=403)
 
-        # 4. 生成设备指纹和 Session ID
+        # 检查并清理旧会话
+        active_sessions = UserSession.query.filter_by(
+            user_id=user.id,
+            is_active=True
+        ).order_by(UserSession.created_at.asc()).all()
+        if len(active_sessions) >= cls.MAX_CONCURRENT_DEVICES:
+            oldest = active_sessions[0]
+            oldest.is_active = False
+            # 将其 Token 加入黑名单（增强安全性）
+            blacklisted = TokenBlacklist(
+                jti=oldest.session_id,
+                user_id=user.id,
+                token_type='access',
+                expires_at=datetime.utcnow()
+            )
+            db.session.add(blacklisted)
+            db.session.add(oldest)
+            logger.info(f"Kicked oldest session {oldest.session_id} for user {user.username}")
+
+        # 创建新会话
         device_fingerprint = generate_device_fingerprint()
         session_id = str(uuid.uuid4())
+        new_session = UserSession(
+            user_id=user.id,
+            session_id=session_id,
+            device_fingerprint=device_fingerprint,
+            login_ip=ip,
+            user_agent=user_agent,
+            created_at=datetime.utcnow(),
+            last_active=datetime.utcnow(),
+            is_active=True
+        )
+        db.session.add(new_session)
+
+        # 生成 Token
         additional_claims = {
             "device_fingerprint": device_fingerprint,
             "session_id": session_id
         }
-
-        # 5. 生成 Token
         access_token = create_access_token(
             identity=user.uuid,
             additional_claims=additional_claims
@@ -68,12 +97,12 @@ class UserService:
             additional_claims=additional_claims
         )
 
-        # 6. 记录成功登录历史
+        # 记录成功登录历史
         cls.record_login_history(
-            user_id=user.id, # 内部使用 id
+            user_id=user.id,
             login_ip=ip,
             user_agent=user_agent,
-            device_type=DeviceType.UNKNOWN.value,
+            device_type=DeviceParser.parse(user_agent),
             session_id=session_id
         )
 
@@ -104,7 +133,7 @@ class UserService:
             user_id=user_id,
             login_ip=login_ip,
             user_agent=user_agent,
-            device_type=DeviceType(device_type),
+            device_type=device_type,
             session_id=session_id,
             login_status=LoginStatus.SUCCESS if failure_reason is None else LoginStatus.FAILED,
             failure_reason=failure_reason,
@@ -122,4 +151,3 @@ class UserService:
             logger.error(e, exc_info=True)
 
         return login_history
-

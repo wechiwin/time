@@ -3,7 +3,7 @@ import React, {createContext, useCallback, useEffect, useState} from 'react';
 import SecureTokenStorage from "../../utils/tokenStorage";
 import useApi from "../../hooks/useApi";
 import {AUTH_TOKEN_REFRESHED} from "../../api/client";
-import useTokenManager from "../../hooks/api/useTokenManager";
+import useTokenManager from "../../hooks/useTokenManager";
 
 export const AuthContext = createContext();
 

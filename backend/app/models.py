@@ -241,7 +241,7 @@ class Trade(TimestampMixin, BaseModel):
     cash_amount = db.Column(db.Numeric(18, 2))  # 实际收付 = 交易净额 +/- 交易费用
     tr_cycle = db.Column(db.Integer, index=True)  # 轮次
     is_cleared = db.Column(db.Boolean, default=False)  # 是否清仓
-    dividend_type = db.Column(db.Enum(DividendTypeEnum))  # 分红类型
+    dividend_type = db.Column(db.Enum(DividendTypeEnum), nullable=True)  # 分红类型
     remark = db.Column(db.String(200))
 
     __table_args__ = (
@@ -782,6 +782,7 @@ class UserSetting(TimestampMixin, BaseModel):
     async_task_logs = db.relationship('AsyncTaskLog', backref='user', lazy='dynamic')
     token_blacklists = db.relationship('TokenBlacklist', backref='user', lazy='dynamic')
     login_history = db.relationship('LoginHistory', backref='user', lazy='dynamic')
+    sessions = db.relationship("UserSession", back_populates="user", cascade="all, delete-orphan")
 
     @staticmethod
     def hash_password(raw_password):
@@ -809,6 +810,28 @@ class UserSetting(TimestampMixin, BaseModel):
         except Exception as e:
             app.logger.error(f"Unexpected error in password verification: {str(e)}")
             return False
+
+
+class UserSession(db.Model):
+    __tablename__ = 'user_sessions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False)
+    session_id = db.Column(db.String(64), unique=True, nullable=False)  # UUID v4
+    device_fingerprint = db.Column(db.String(255), nullable=False)  # 设备指纹
+    login_ip = db.Column(db.String(45))  # 登录IP
+    user_agent = db.Column(db.String(512))  # 浏览器信息
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # 登录时间
+    last_active = db.Column(db.DateTime, default=datetime.utcnow)  # 最后活跃时间
+    is_active = db.Column(db.Boolean, default=True)  # 是否仍有效
+
+    # 关联用户
+    user = db.relationship("UserSetting", back_populates="sessions")
+
+    __table_args__ = (
+        db.Index('idx_user_active', 'user_id', 'is_active'),
+        db.Index('idx_session_id', 'session_id'),
+    )
 
 
 class TokenBlacklist(TimestampMixin, BaseModel):
