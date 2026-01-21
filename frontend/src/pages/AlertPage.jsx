@@ -1,5 +1,5 @@
 // src/pages/AlertPage.jsx
-import React, {useState, useCallback, useMemo, useEffect} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useTranslation} from "react-i18next";
 import {PlusIcon} from "@heroicons/react/16/solid";
 import AlertRuleTable from '../components/tables/AlertRuleTable';
@@ -12,6 +12,7 @@ import Pagination from "../components/common/Pagination";
 import {usePaginationState} from "../hooks/usePaginationState";
 import SearchArea from "../components/search/SearchArea";
 import useCommon from "../hooks/api/useCommon";
+import EmptyState from "../components/common/EmptyState";
 
 export default function AlertPage() {
     const {t} = useTranslation();
@@ -172,28 +173,29 @@ export default function AlertPage() {
             <div
                 className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
                 {/* Tab 切换器 */}
-                <div className="flex border-b border-gray-200 dark:border-gray-700 mb-4">
+                <div className="flex border-b border-gray-200 dark:border-gray-700 mb-6">
                     <button
                         onClick={() => handleModeChange('rule')}
-                        className={`px-4 py-2 text-sm font-medium transition-colors duration-200 -mb-px border-b-2 ${
+                        className={`px-5 py-3 text-sm font-medium relative transition-all duration-300 ease-in-out ${
                             mode === 'rule'
-                                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                                ? 'text-blue-600 dark:text-blue-400 after:absolute after:bottom-[-2px] after:left-0 after:right-0 after:h-1 after:bg-blue-500 after:rounded-t-md'
+                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
                         }`}
                     >
                         {t('alert_rule_management')}
                     </button>
                     <button
                         onClick={() => handleModeChange('history')}
-                        className={`px-4 py-2 text-sm font-medium transition-colors duration-200 -mb-px border-b-2 ${
+                        className={`px-5 py-3 text-sm font-medium relative transition-all duration-300 ease-in-out ${
                             mode === 'history'
-                                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                                ? 'text-blue-600 dark:text-blue-400 after:absolute after:bottom-[-2px] after:left-0 after:right-0 after:h-1 after:bg-blue-500 after:rounded-t-md'
+                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
                         }`}
                     >
                         {t('alert_history_management')}
                     </button>
                 </div>
+
 
                 {/* 搜索区域 (无独立背景) */}
                 <SearchArea
@@ -209,11 +211,20 @@ export default function AlertPage() {
 
             {/* 表格内容 */}
             {mode === 'rule' ? (
-                <AlertRuleTable data={data?.items || []} onDelete={handleDelete}
-                                onEdit={(item) => openModal('edit', item)}/>
+                data?.items?.length > 0 ? (
+                    <AlertRuleTable data={data.items} onDelete={handleDelete}
+                                    onEdit={(item) => openModal('edit', item)}/>
+                ) : (
+                    <EmptyState message={t('msg_no_records')}/>
+                )
             ) : (
-                <AlertHistoryTable data={data?.items || []}/>
+                data?.items?.length > 0 ? (
+                    <AlertHistoryTable data={data.items}/>
+                ) : (
+                    <EmptyState message={t('msg_no_records')}/>
+                )
             )}
+
 
             {/* 分页 */}
             {data?.pagination && (
