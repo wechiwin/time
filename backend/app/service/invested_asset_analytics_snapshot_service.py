@@ -12,7 +12,7 @@ from app.calendars.trade_calendar import TradeCalendar
 from app.database import db
 from app.framework.async_task_manager import create_task
 from app.models import (
-    InvestedAssetSnapshot, AnalyticsWindow, InvestedAssetAnalyticsSnapshot
+    InvestedAssetSnapshot, AnalyticsWindow, InvestedAssetAnalyticsSnapshot, UserSetting
 )
 
 logger = logging.getLogger(__name__)
@@ -21,18 +21,53 @@ trade_calendar = TradeCalendar()
 # 配置化常量
 RISK_FREE_RATE = 0.02  # TODO 目前硬编码为 0.02 (2%)。建议放入系统配置表或常量类中。
 TRADING_DAYS_PER_YEAR = 252
+CALENDAR_DAYS_PER_YEAR = 365.25  # 使用 365.25 更精确
 MIN_ANNUALIZATION_DAYS = 30  # 最小年化天数
 EPSILON = 1e-6  # 浮点精度阈值
 ZERO = Decimal('0')
+XIRR_BRACKET = [-0.999, 50.0]  # XIRR 求解范围 (-99.9% to 5000%)
 
 
 class InvestedAssetAnalyticsSnapshotService:
 
+    # ==================================================================
+    # 任务入口 (Task Entrypoints) - 已修改
+    # ==================================================================
+
     @classmethod
-    def generate_by_day(cls, target_date: Optional[date] = None):
+    def scheduled_daily_generation(cls):
         """
-        【增量任务入口】
-        通常由定时任务调用，生成 T-1 日的快照
+        【增量任务总入口】由 APScheduler 调用，为所有活跃用户生成 T-1 快照。
+        """
+        target_date = date.today() - timedelta(days=1)
+        if not trade_calendar.is_trade_day(target_date):
+            logger.info(f"{target_date} is not a trading day. Skipping daily generation.")
+            return
+
+        active_users = UserSetting.query.filter_by(is_active=True).all()
+        logger.info(f"Starting daily analytics generation for {len(active_users)} users for date {target_date}.")
+
+        for user in active_users:
+            try:
+                cls.generate_by_day(user_id=user.id, target_date=target_date)
+            except Exception as e:
+                # 隔离用户错误，防止一个用户的失败影响其他用户
+                error_msg = f"Failed to generate analytics for user {user.id} on {target_date}: {e}"
+                logger.error(error_msg, exc_info=True)
+                # 可以选择为失败的用户创建重试任务
+                create_task(
+                    task_name=f"retry_analytics_user_{user.id}_{target_date}",
+                    module_path="app.service.invested_asset_analytics_snapshot_service",
+                    class_name="InvestedAssetAnalyticsSnapshotService",
+                    method_name="generate_by_day",
+                    kwargs={"user_id": user.id, "target_date": target_date},
+                    error_message=error_msg
+                )
+
+    @classmethod
+    def generate_by_day(cls, user_id: int, target_date: Optional[date] = None):
+        """
+        为单个用户生成指定日期的分析快照。
         """
         if not target_date:
             target_date = date.today() - timedelta(days=1)
@@ -41,20 +76,23 @@ class InvestedAssetAnalyticsSnapshotService:
             logger.info(f"{target_date} is not a trading day. Skipping.")
             return None
 
-        logger.info(f"Starting InvestedAssetAnalyticsSnapshot generation for {target_date}...")
+        logger.info(f"Starting InvestedAssetAnalyticsSnapshot generation for user {user_id} on {target_date}...")
 
         total_generated = 0
         errors = []
         start_time = time.time()
 
         try:
-            results = cls.generate_analytics(start_date=target_date, end_date=target_date)
+            results = cls.generate_analytics(start_date=target_date, end_date=target_date, user_id=user_id)
             if not results:
                 return {"total_generated": 0, "errors": [], "duration": time.time() - start_time}
 
             # 删除旧数据（防重入）
-            InvestedAssetAnalyticsSnapshot.query.filter_by(snapshot_date=target_date).delete()
-            # 4. 保存入库
+            InvestedAssetAnalyticsSnapshot.query.filter_by(
+                user_id=user_id,
+                snapshot_date=target_date
+            ).delete(synchronize_session=False)
+
             db.session.add_all(results)
             db.session.commit()
             total_generated += len(results)
@@ -79,11 +117,11 @@ class InvestedAssetAnalyticsSnapshotService:
         return {"total_generated": total_generated, "errors": errors, "duration": duration}
 
     @classmethod
-    def regenerate_all(cls):
+    def regenerate_for_user(cls, user_id: int):
         """
         【全量重刷入口】 清除所有历史数据，从最早的持仓记录开始重新生成。
         """
-        logger.info("Starting Full Regeneration of InvestedAssetAnalyticsSnapshot...")
+        logger.info("Starting Full Regeneration of InvestedAssetAnalyticsSnapshot for user {user_id}...")
         start_time = time.time()
 
         total_generated = 0
@@ -102,7 +140,7 @@ class InvestedAssetAnalyticsSnapshotService:
         current_date = min_date
 
         try:
-            results = cls.generate_analytics(start_date=min_date, end_date=today)
+            results = cls.generate_analytics(start_date=min_date, end_date=today, user_id=user_id)
             if not results:
                 logger.warning(f"No InvestedAssetSnapshot generated for: {current_date}")
                 return {"total_generated": total_generated, "errors": errors, "duration": 0}
@@ -110,6 +148,7 @@ class InvestedAssetAnalyticsSnapshotService:
             # 删除旧数据（防重入）
             logger.info(f"Deleting existing analytics data from {min_date} to {today}...")
             InvestedAssetAnalyticsSnapshot.query.filter(
+                InvestedAssetAnalyticsSnapshot.user_id == user_id,
                 InvestedAssetAnalyticsSnapshot.snapshot_date >= min_date,
                 InvestedAssetAnalyticsSnapshot.snapshot_date <= today
             ).delete(synchronize_session=False)
@@ -143,7 +182,8 @@ class InvestedAssetAnalyticsSnapshotService:
     @classmethod
     def generate_analytics(cls,
                            start_date: date,
-                           end_date: date
+                           end_date: date,
+                           user_id: int,
                            ) -> Optional[List[InvestedAssetAnalyticsSnapshot]]:
         """
         核心方法：按窗口和时间范围生成分析快照
@@ -161,7 +201,7 @@ class InvestedAssetAnalyticsSnapshotService:
 
         # 2. 【性能优化】一次性加载截止到 end_date 的所有历史基础数据
         # 这样在循环中只需要做 DataFrame 切片，不需要查库
-        full_history_df = cls._load_history_data(end_date)
+        full_history_df = cls._load_history_data(user_id, end_date)
         if full_history_df.empty:
             logger.warning(f"No historical data available up to {end_date}")
             return []
@@ -201,6 +241,7 @@ class InvestedAssetAnalyticsSnapshotService:
 
                 # 构建对象
                 snap = InvestedAssetAnalyticsSnapshot(
+                    user_id=user_id,
                     snapshot_date=current_date,
                     window_key=window.window_key,
 
@@ -233,7 +274,7 @@ class InvestedAssetAnalyticsSnapshotService:
         return all_snapshots
 
     @classmethod
-    def _load_history_data(cls, up_to_date: date) -> pd.DataFrame:
+    def _load_history_data(cls, user_id: int, up_to_date: date) -> pd.DataFrame:
         """
         加载 InvestedAssetSnapshot 历史数据
         """
@@ -244,9 +285,9 @@ class InvestedAssetAnalyticsSnapshotService:
             InvestedAssetSnapshot.ias_net_external_cash_flow,
             InvestedAssetSnapshot.ias_market_value,
             InvestedAssetSnapshot.ias_daily_cash_dividend
-        ).filter(
-            InvestedAssetSnapshot.snapshot_date <= up_to_date
-        ).order_by(InvestedAssetSnapshot.snapshot_date)
+        ).filter(InvestedAssetSnapshot.user_id == user_id,
+                 InvestedAssetSnapshot.snapshot_date <= up_to_date
+                 ).order_by(InvestedAssetSnapshot.snapshot_date)
 
         rows = query.all()
         if not rows:
@@ -429,56 +470,58 @@ class InvestedAssetAnalyticsSnapshotService:
         1. 构造现金流 = 每日净投入(买卖) + 每日现金分红
         2. 最后一天的现金流 = 最后一天的市值 (视为全部赎回，正数流入)。
         """
-        df_copy = df.copy()
-        df_copy['flow'] = df_copy['net_inflow'] + df_copy['dividend']
+        # 1. 构造现金流
+        flows = df['net_inflow'] + df['dividend']
+        # 期初投入为负，期末市值为正
+        cash_flows = np.append(flows.values, df['mv'].iloc[-1])
+        dates = np.append(flows.index.to_pydatetime(), df.index[-1].to_pydatetime())
 
-        # 1. 获取 非零现金流 的日期
-        flows_df = df_copy[df_copy['flow'] != 0]
+        # 过滤掉零现金流，提高计算效率
+        non_zero_mask = cash_flows != 0
+        cash_flows = cash_flows[non_zero_mask]
+        dates = dates[non_zero_mask]
 
-        dates = []
-        amounts = []
-
-        # 添加历史现金流
-        for ts, row in flows_df.iterrows():
-            dates.append(ts)
-            amounts.append(row['net_inflow'])
-
-        # 添加期末市值 (视为全部赎回，正现金流)
-        last_date = df.index[-1]
-        last_mv = df.iloc[-1]['mv']
-
-        # 如果最后一天也有现金流，需要合并
-        if dates and dates[-1] == last_date:
-            amounts[-1] += last_mv
-        else:
-            dates.append(last_date)
-            amounts.append(last_mv)
-
-        if not dates:
+        if len(cash_flows) < 2 or not (any(cash_flows > 0) and any(cash_flows < 0)):
             return None
 
-        has_pos = any(a > 0 for a in amounts)
-        has_neg = any(a < 0 for a in amounts)
-        if not (has_pos and has_neg):
-            return None
-
-        # 2. 定义 XIRR 方程
-        # NPV = sum( amount_i / (1 + rate)^((date_i - date_0)/365) ) = 0
-        def xnpv(rate, dates, amounts):
+        # 2. 定义向量化的 XNPV 函数
+        def xnpv_np(rate, dates, amounts):
             if rate <= -1.0:
-                return float('inf')
-            d0 = dates[0]
-            return sum([a / ((1.0 + rate) ** ((d - d0).days / 365.0)) for d, a in zip(dates, amounts)])
+                # 返回一个巨大的正数，引导求解器离开无效区域
+                return 1e12
 
+            # (date - date0).days
+            time_diffs = np.array([(d - dates[0]).days for d in dates]) / CALENDAR_DAYS_PER_YEAR
+
+            # 避免在 rate 接近 -1 时出现溢出
+            # np.power 对于负基数和非整数指数会返回 nan，这里我们已经通过 rate <= -1 保护
+            discount_factors = np.power(1.0 + rate, time_diffs)
+
+            # 检查是否有无效的贴现因子（例如 inf）
+            if not np.all(np.isfinite(discount_factors)) or np.any(discount_factors == 0):
+                return 1e12
+
+            return np.sum(amounts / discount_factors)
+
+        # 3. 使用稳健的求解器 brentq
         try:
-            # 使用 Newton-Raphson 求解
-            return optimize.newton(lambda r: xnpv(r, dates, amounts), 0.1, tol=0.0001, maxiter=100)
-        except (RuntimeError, OverflowError):
-            try:
-                # 扩大搜索范围，防止加密货币等高波动资产报错
-                root, info = optimize.brentq(lambda r: xnpv(r, dates, amounts), -0.99, 100.0)
-                return root
-            except Exception:
-                return None
-        except Exception:
+            # brentq 需要一个函数值异号的区间 [a, b]
+            # 我们可以通过测试区间的端点来确认
+            f_a = xnpv_np(XIRR_BRACKET[0], dates, cash_flows)
+            f_b = xnpv_np(XIRR_BRACKET[1], dates, cash_flows)
+
+            if np.sign(f_a) == np.sign(f_b):
+                # 如果同号，说明解可能不在这个大区间内，或者有多个解，这在IRR中很少见但可能
+                logger.warning(f"XIRR solver could not find a valid bracket for cash flows on {dates[-1]}. f(a)={f_a}, f(b)={f_b}")
+                # 尝试使用 newton 作为备选
+                return optimize.newton(lambda r: xnpv_np(r, dates, cash_flows), 0.1, tol=1e-5, maxiter=100)
+
+            root, info = optimize.brentq(lambda r: xnpv_np(r, dates, cash_flows), XIRR_BRACKET[0], XIRR_BRACKET[1])
+
+            return root
+
+        except (RuntimeError, ValueError) as e:
+            # RuntimeError: 求解失败
+            # ValueError: f(a)和f(b)必须异号
+            logger.warning(f"XIRR calculation failed for period ending {df.index[-1].date()}: {e}")
             return None

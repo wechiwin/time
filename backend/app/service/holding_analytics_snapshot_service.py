@@ -8,6 +8,7 @@ from typing import List, Dict, Optional
 
 import numpy as np
 import pandas as pd
+from flask import g
 from scipy import optimize
 from sqlalchemy import or_
 
@@ -85,6 +86,7 @@ class HoldingAnalyticsSnapshotService:
             logger.error(err_msg)
             errors.append(err_msg)
             create_task(
+                user_id=g.user.id,
                 task_name=f"retry_holding_analytics_{target_date}",
                 module_path="app.service.holding_analytics_snapshot_service",
                 class_name="HoldingAnalyticsSnapshotService",
@@ -138,6 +140,7 @@ class HoldingAnalyticsSnapshotService:
                 logger.error(msg, exc_info=True)
                 errors.append(msg)
                 create_task(
+                    user_id=g.user.id,
                     task_name=f"retry_holding_analytics_full_{ho_id}",
                     module_path="app.service.holding_analytics_snapshot_service",
                     class_name="HoldingAnalyticsSnapshotService",
@@ -233,6 +236,7 @@ class HoldingAnalyticsSnapshotService:
                 metrics = cls._calculate_metrics(df_window, window.annualization_factor)
                 # 构建对象
                 snapshot = HoldingAnalyticsSnapshot()
+                snapshot.user_id = g.user.id
                 snapshot.ho_id = ho_id
                 snapshot.snapshot_date = current_date_obj
                 snapshot.window_key = window.window_key
@@ -673,73 +677,103 @@ class HoldingAnalyticsSnapshotService:
             return {"updated": 0}
 
         # 1. 构建需要更新的 HoldingAnalyticsSnapshot 日期映射
-        has_to_update_date_map = defaultdict(list)
+        has_to_update_map = defaultdict(lambda: defaultdict(list))
         for has in to_update_has_list:
-            has_to_update_date_map[has.snapshot_date].append(has)
+            has_to_update_map[has.snapshot_date][has.user_id].append(has)
         # 2. 获取日期范围并批量查询 InvestedAssetSnapshot
-        min_date = min(has_to_update_date_map.keys())
-        max_date = max(has_to_update_date_map.keys())
+        min_date = min(has_to_update_map.keys())
+        max_date = max(has_to_update_map.keys())
 
         # 3. 获取所有需要的持仓快照
+        user_ids = [user_id for date_map in has_to_update_map.values() for user_id in date_map.keys()]
+
         holding_snapshots = HoldingSnapshot.query.filter(
-            HoldingSnapshot.snapshot_date.between(min_date, max_date)
+            HoldingSnapshot.snapshot_date.between(min_date, max_date),
+            HoldingSnapshot.user_id.in_(user_ids)
         ).all()
 
-        holding_data_map = defaultdict(list)
+        holding_data_map = defaultdict(lambda: defaultdict(dict))
         for snap in holding_snapshots:
-            holding_data_map[snap.snapshot_date].append(snap)
+            holding_data_map[snap.snapshot_date][snap.user_id][snap.ho_id] = snap
 
         # 获取所有需要的投资组合快照 往前倒一天
+        ias_query_min_date = trade_calendar.prev_trade_day(min_date)
         ias_list = InvestedAssetSnapshot.query.filter(
-            InvestedAssetSnapshot.snapshot_date.between(trade_calendar.prev_trade_day(min_date), max_date)
+            InvestedAssetSnapshot.snapshot_date.between(ias_query_min_date, max_date),
+            InvestedAssetSnapshot.user_id.in_(user_ids)
         ).all()
-        ias_date_map = {ps.snapshot_date: ps for ps in ias_list}
+
+        ias_date_user_map = defaultdict(dict)
+        for ias in ias_list:
+            ias_date_user_map[ias.snapshot_date][ias.user_id] = ias
 
         updated_count = 0
+        records_to_commit = []  # 用于批量更新的列表
 
-        for target_date, has_records in has_to_update_date_map.items():
-            # 获取当日组合市值
-            ias_today = ias_date_map.get(target_date)
-            if not ias_today:
-                logger.warning(f"No ias_today found for {target_date}")
-                continue
+        # 遍历并计算更新
+        for target_date, users_has_records in has_to_update_map.items():
+            # 获取当日和前一日所有用户的组合快照
+            ias_for_target_date = ias_date_user_map.get(target_date, {})
+            ias_for_prev_date = ias_date_user_map.get(trade_calendar.prev_trade_day(target_date), {})
 
-            # 获取前一日组合市值
-            ias_prev = ias_date_map.get(trade_calendar.prev_trade_day(target_date))
-            if ias_prev is None:
-                logger.debug(f"No ias_prev found for {target_date}")
-                continue
+            # 获取当日所有用户的持仓快照
+            holding_snaps_for_target_date = holding_data_map.get(target_date, {})
 
-            holding_snaps_target = holding_data_map.get(target_date)
-            if not holding_snaps_target:
-                logger.debug(f"no holding_snaps_target for {target_date}")
-                continue
-            holding_snaps_target_map = {hst.ho_id: hst for hst in holding_snaps_target}
-
-            # 更新每个记录
-            for has in has_records:
-                holding_data = holding_snaps_target_map.get(has.ho_id)
-                if not holding_data:
-                    logger.debug(f"No holding data found for {target_date}, ho_id={has.ho_id}")
+            for user_id, has_records_for_user in users_has_records.items():
+                # 获取当前用户当日的组合市值
+                ias_today = ias_for_target_date.get(user_id)
+                if not ias_today:
+                    logger.warning(f"Skipping user_id={user_id} for date={target_date}: No InvestedAssetSnapshot found for today.")
                     continue
 
-                prev_mv = ias_prev.ias_market_value if ias_prev else ZERO
-                if prev_mv and prev_mv != ZERO:
-                    has.has_portfolio_contribution = holding_data.hos_daily_pnl / prev_mv
-                else:
-                    has.has_portfolio_contribution = ZERO
+                # 获取当前用户前一日的组合市值 (用于贡献度计算)
+                ias_prev = ias_for_prev_date.get(user_id)
+                # 注意：ias_prev 可能为 None，这表示该用户在 target_date 是其投资组合的第一个交易日。
+                # 在这种情况下，贡献度通常设为 ZERO。
 
-                if ias_today.ias_market_value and ias_today.ias_market_value != ZERO:
-                    has.has_position_ratio = holding_data.hos_market_value / ias_today.ias_market_value
-                else:
-                    has.has_position_ratio = ZERO
+                holding_snaps_for_user_on_date = holding_snaps_for_target_date.get(user_id, {})
 
-                updated_count += 1
-        try:
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"Error in update_position_ratios_and_contributions: {e}", exc_info=True)
-            raise
+                for has in has_records_for_user:
+                    holding_data = holding_snaps_for_user_on_date.get(has.ho_id)
+                    if not holding_data:
+                        logger.debug(f"Skipping HAS id={has.id} (user_id={user_id}, ho_id={has.ho_id}, date={target_date}): No HoldingSnapshot data found.")
+                        continue
 
-        return {"updated": updated_count, "duration": round(time.time() - start_time, 2)}
+                    # 计算 has_portfolio_contribution
+                    # 公式: contribution = holding_daily_pnl / portfolio_mv_yesterday
+                    # 此计算方式与 HoldingAnalyticsSnapshot 定义中的 "(该持仓当日收益额 / 整个组合昨日总市值)" 一致。
+                    # 并且，它也等价于“每日权重法”中单个持仓对组合的每日贡献 (每日权重 * 日收益率)。
+                    # hos_daily_pnl 已经包含了持仓层面的现金流和分红，代表了持仓当日的实际盈亏金额。
+                    prev_mv = ias_prev.ias_market_value if ias_prev else ZERO
+                    if prev_mv and prev_mv != ZERO:
+                        has.has_portfolio_contribution = holding_data.hos_daily_pnl / prev_mv
+                    else:
+                        # 如果前一日组合市值不存在或为零，则贡献度设为零。
+                        # 这通常发生在用户投资组合的第一个交易日。
+                        has.has_portfolio_contribution = ZERO
+
+                    # 计算 has_position_ratio
+                    # 公式: position_ratio = holding_mv / portfolio_mv (today)
+                    if ias_today.ias_market_value and ias_today.ias_market_value != ZERO:
+                        has.has_position_ratio = holding_data.hos_market_value / ias_today.ias_market_value
+                    else:
+                        # 如果当日组合市值不存在或为零，则仓位占比设为零。
+                        has.has_position_ratio = ZERO
+
+                    records_to_commit.append(has)
+                    updated_count += 1
+        if records_to_commit:
+            try:
+                db.session.bulk_save_objects(records_to_commit)  # 使用 bulk_save_objects 提高性能
+                db.session.commit()
+                logger.info(f"Successfully updated {updated_count} HoldingAnalyticsSnapshot records.")
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Error committing updates for HoldingAnalyticsSnapshot: {e}", exc_info=True)
+                raise  # 重新抛出异常，以便上层调用者处理
+        else:
+            logger.info("No HoldingAnalyticsSnapshot records were updated in this run after processing.")
+
+        duration = round(time.time() - start_time, 2)
+        logger.info(f"Finished update_position_ratios_and_contributions task in {duration} seconds. Updated {updated_count} records.")
+        return {"updated": updated_count, "duration": duration}

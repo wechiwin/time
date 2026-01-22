@@ -135,6 +135,26 @@
         color: #d1d5db; /* gray-300 */
     }
 
+    /* 自定义滚动条样式，适配亮色/暗色模式 */
+    .custom-scrollbar::-webkit-scrollbar {
+        @apply w-1.5; /* 滚动条宽度 */
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        @apply bg-transparent; /* 轨道背景透明 */
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        @apply rounded-full bg-gray-300; /* 亮色模式滑块 */
+    }
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+        @apply bg-gray-600; /* 暗色模式滑块 */
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        @apply bg-gray-400; /* 亮色模式滑块 hover */
+    }
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        @apply bg-gray-500; /* 暗色模式滑块 hover */
+    }
+
     /* React Select 样式 */
     .react-multi-select .select__control {
         border-radius: 0.375rem;

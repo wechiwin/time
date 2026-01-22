@@ -7,8 +7,10 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import List, Tuple
 
+from flask import g
+
 from app.calendars.trade_calendar import TradeCalendar
-from app.constant.biz_enums import TradeTypeEnum, DividendTypeEnum
+from app.constant.biz_enums import TradeTypeEnum, DividendTypeEnum, HoldingStatusEnum
 from app.framework.async_task_manager import create_task
 from app.framework.exceptions import AsyncTaskException
 from app.models import db, HoldingSnapshot, Holding, FundNavHistory, Trade
@@ -39,7 +41,7 @@ class PositionState:
 class HoldingSnapshotService:
 
     @classmethod
-    def generate_all_holding_snapshots(cls, ids: list[str] | None = None):
+    def generate_all_holding_snapshots(cls, ids: list[str] | None = None, user_id: str = None):
         """
         批量覆盖式生成所有快照。
         """
@@ -78,6 +80,7 @@ class HoldingSnapshotService:
             except Exception as e:
                 error_msg = f"Error processing holding {holding.ho_code}: {str(e)}"
                 create_task(
+                    user_id=user_id,
                     task_name=f"regenerate all holding snapshots for {holding.ho_code} - {holding.ho_short_name}",
                     module_path="app.services.holding_snapshot_service",
                     method_name="generate_all_holding_snapshots",
@@ -99,24 +102,34 @@ class HoldingSnapshotService:
     def _generate_for_holding(cls, holding: Holding) -> List[HoldingSnapshot]:
         """为单个持仓生成其生命周期内的所有快照（内部方法）"""
         logger.info(f"Processing holding: {holding.ho_code} ({holding.ho_name})")
+        snapshots = []
+
+        # 检查holding状态
+        if holding.ho_status == HoldingStatusEnum.NOT_HELD:
+            return snapshots
+
         # 获取所有交易记录 时间升序
         trade_list = Trade.query.filter(Trade.ho_id == holding.id).order_by(Trade.tr_date).all()
         if not trade_list:
-            return []
+            return snapshots
 
         # 根据tr_cycle分组
         trades_by_cycle = defaultdict(list)
         for trade in trade_list:
             trades_by_cycle[trade.tr_cycle].append(trade)
 
-        snapshots = []
+        max_tr_cycle = max(trades_by_cycle.keys())
 
         # 根据每周期交易记录，生成快照数据
         for tr_cycle, round_trades in trades_by_cycle.items():
             # 周期内第一次交易日期
             first_date = round_trades[0].tr_date
             # 周期内最后一次交易日期
-            last_date = round_trades[-1].tr_date
+            if tr_cycle == max_tr_cycle and holding.ho_status == HoldingStatusEnum.HOLDING:
+                # 如果是最后一轮持仓周期 且 目前仍在持仓中
+                last_date = trade_calendar.prev_trade_day(date.today())
+            else:
+                last_date = round_trades[-1].tr_date
 
             # 获取区间内所有净值
             nav_history_list = FundNavHistory.query.filter(
@@ -146,8 +159,6 @@ class HoldingSnapshotService:
 
                 trades_in_current_date = trades_by_date.get(date_to_str(current_date), [])
 
-                # hos_cash_dividend, hos_daily_reinvest_dividend = cls._apply_dividend(state, holding, nav_today)
-
                 state, net_external_cash_flow, hos_daily_buy_amount, hos_daily_sell_amount, hos_daily_cash_dividend, hos_daily_reinvest_dividend = cls._apply_trades(
                     state, trades_in_current_date)
 
@@ -164,7 +175,7 @@ class HoldingSnapshotService:
         return snapshots
 
     @classmethod
-    def generate_yesterday_snapshots(cls):
+    def generate_yesterday_snapshots(cls, user_id: str):
         """
         每日增量任务：为所有持仓生成昨天的快照（如果有净值），利用前天的快照来提高效率
         """
@@ -248,6 +259,7 @@ class HoldingSnapshotService:
                 if not nav:
                     error_msg = f"No NAV found for {holding.ho_code} - {holding.ho_short_name} on {current_date}. Skipping."
                     create_task(
+                        user_id=user_id,
                         task_name=f"regenerate yesterday holding snapshots for {holding.ho_code} - {holding.ho_short_name}",
                         module_path="app.services.holding_snapshot_service",
                         method_name="generate_yesterday_snapshots",
@@ -262,11 +274,12 @@ class HoldingSnapshotService:
                 if not prev_snapshot:
                     # 两种情况全部重新生成：1.新购买，昨天有交易记录，但是前天没有快照；2.问题数据
                     create_task(
+                        user_id=user_id,
                         task_name=f"regenerate all holding snapshots for {holding.ho_code} - {holding.ho_short_name}",
                         module_path="app.services.holding_snapshot_service",
                         method_name="generate_all_holding_snapshots",
                         kwargs={"ids": f"[{holding.id},]"},
-                        error_message=f"no day_before_yesterday_snapshot from holding_snapshot_service: generate_yesterday_snapshots"
+                        error_message=f"{current_date} no day_before_yesterday_snapshot from holding_snapshot_service: generate_yesterday_snapshots"
                     )
                     error_msg = f"Error processing generate_yesterday_snapshots of {holding.ho_code}, regenerated all."
                     errors.append(error_msg)
@@ -320,8 +333,9 @@ class HoldingSnapshotService:
             errors.append(e.async_task_log.error_message)
         except Exception as e:
             db.session.rollback()
-            error_msg = f"An error occurred during snapshot generation: {e}"
+            error_msg = f"{current_date} An error occurred during snapshot generation: {e}"
             create_task(
+                user_id=user_id,
                 task_name=f"regenerate yesterday holding snapshots",
                 module_path="app.services.holding_snapshot_service",
                 method_name="generate_yesterday_snapshots",
@@ -333,7 +347,8 @@ class HoldingSnapshotService:
 
     @staticmethod
     def _apply_trades(state: PositionState,
-                      trades: List[Trade]
+                      trades: List[Trade],
+                      user_id: str,
                       ) -> Tuple[PositionState, Decimal, Decimal, Decimal, Decimal, Decimal]:
         """
         处理当日的所有交易，包括分红。
@@ -345,6 +360,7 @@ class HoldingSnapshotService:
         hos_daily_reinvest_dividend = ZERO
         hos_daily_cash_dividend = ZERO
 
+        trades = sorted(trades, key=lambda x: x.tr_date)
         for trade in trades:
             # 买入
             if trade.tr_type == TradeTypeEnum.BUY.value:
@@ -360,6 +376,7 @@ class HoldingSnapshotService:
                 if state.shares <= ZERO:
                     # 数据质量问题：超卖
                     async_task_log = create_task(
+                        user_id=user_id,
                         task_name=f"regenerate all holding snapshots for {trade.ho_id} in _apply_trades",
                         module_path="app.services.holding_snapshot_service",
                         method_name="generate_all_holding_snapshots",
@@ -401,35 +418,6 @@ class HoldingSnapshotService:
 
         return state, net_external_cash_flow, hos_daily_buy_amount, hos_daily_sell_amount, hos_daily_cash_dividend, hos_daily_reinvest_dividend
 
-    # @staticmethod
-    # def _apply_dividend(state: PositionState, holding: Holding, nav: FundNavHistory) -> Tuple[Decimal, Decimal]:
-    #     """
-    #     处理分红
-    #     返回：分红产生的现金流,分红再投资的金额
-    #     """
-    #     if not nav.dividend_price or state.shares <= ZERO:
-    #         return ZERO, ZERO
-    #
-    #     dividend_amount = nav.dividend_price * state.shares
-    #     # 无论红利再投还是现金分红，都算作"收益"，累加到 total_dividend
-    #     state.total_dividend += dividend_amount
-    #     hos_daily_reinvest_dividend = ZERO
-    #
-    #     if holding.fund_detail.dividend_method == FundDividendMethodEnum.REINVEST.value:
-    #         # 红利再投：份额增加，成本增加（视为新增投入），无现金流出
-    #         # 注意：这里成本增加是为了平衡 PnL。
-    #         # 逻辑：再投 = 收到现金 + 立即买入。
-    #         reinvest_shares = dividend_amount / nav.nav_per_unit
-    #         state.shares += reinvest_shares
-    #         state.hos_holding_cost += dividend_amount
-    #         state.total_buy_amount += dividend_amount  # 视为追加投入
-    #
-    #         hos_daily_reinvest_dividend += dividend_amount
-    #         return ZERO, hos_daily_reinvest_dividend
-    #     else:
-    #         state.total_cash_dividend += dividend_amount
-    #         return dividend_amount, ZERO
-
     @staticmethod
     def _create_snapshot_from_state(state: PositionState,
                                     holding: Holding,
@@ -439,13 +427,15 @@ class HoldingSnapshotService:
                                     hos_daily_reinvest_dividend: Decimal,
                                     prev_snapshot: HoldingSnapshot | None,
                                     hos_daily_buy_amount: Decimal,
-                                    hos_daily_sell_amount: Decimal
+                                    hos_daily_sell_amount: Decimal,
+                                    user_id: str
                                     ) -> HoldingSnapshot:
         """
         根据当前状态和前一日快照，创建新的快照对象。
         """
         snapshot = HoldingSnapshot()
         # 不管是否清仓，通用记录数据：
+        snapshot.user_id = user_id
         snapshot.ho_id = holding.id
         snapshot.snapshot_date = nav_today.nav_date
         snapshot.market_price = nav_today.nav_per_unit
@@ -493,11 +483,12 @@ class HoldingSnapshotService:
             if not prev_snapshot:
                 # 清仓时，如果没有 prev_snapshot，说明历史数据有问题，重新生成这个持仓的所有快照
                 async_task_log = create_task(
+                    user_id=user_id,
                     task_name=f"regenerate all holding snapshots for {holding.ho_code} - {holding.ho_short_name}",
                     module_path="app.services.holding_snapshot_service",
                     method_name="generate_all_holding_snapshots",
                     kwargs={"ids": [holding.id]},
-                    error_message=f"{holding.ho_code} - {holding.ho_short_name}: no prev_snapshot from holding_snapshot_service: _create_snapshot_from_state"
+                    error_message=f"{holding.ho_code} - {nav_today.nav_date} - {holding.ho_short_name}: no prev_snapshot from holding_snapshot_service: _create_snapshot_from_state"
                 )
                 raise AsyncTaskException(async_task_log)
 

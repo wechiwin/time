@@ -1,6 +1,6 @@
 import logging
 
-from flask import Blueprint, request
+from flask import Blueprint, request, g
 
 from app.framework.auth import auth_required
 from app.framework.res import Res
@@ -20,21 +20,22 @@ def get_dashboard_summary():
       - window: 绩效分析的窗口 key (默认 R252 即一年)
     """
     try:
-        data = request.get_json()
+        user_id = g.user.id
+        data = request.get_json(silent=True) or {}
         days = data.get('days')
         window_key = data.get('window')
 
         # 2. 绩效指标 (TWRR, IRR, Sharpe)
-        performance = DashboardService.get_performance(window_key, days)
+        performance = DashboardService.get_performance(user_id, window_key, days)
 
         # 3. 趋势图数据
-        trend = DashboardService.get_portfolio_trend(days)
+        trend = DashboardService.get_portfolio_trend(user_id, days)
 
         # 4. 资产配置 (饼图数据)
-        allocation = DashboardService.get_holdings_allocation()
+        allocation = DashboardService.get_holdings_allocation(user_id, window_key)
 
         # 5. 近期预警
-        alerts = DashboardService.get_recent_alerts(limit=5)
+        alerts = DashboardService.get_recent_alerts(user_id, limit=5)
 
         return Res.success({
             'performance': performance,
@@ -53,8 +54,31 @@ def get_dashboard_summary():
 def get_account_overview():
     """获取账户整体状况"""
     try:
-        data = DashboardService.get_overview()
+        user_id = g.user.id
+        data = DashboardService.get_overview(user_id)
         return Res.success(data)
     except Exception as e:
         logger.exception("Error getting account overview")
         return Res.fail(f"Failed to load overview: {str(e)}")
+
+
+@dashboard_bp.route('/get_holdings_allocation', methods=['POST'])
+@auth_required
+def get_holdings_allocation():
+    """
+    聚合 Dashboard 所需的所有数据
+    参数:
+      - days: 趋势图的天数 (默认 30)
+      - window: 绩效分析的窗口 key (默认 R252 即一年)
+    """
+
+    # 4. 资产配置 (饼图数据)
+    user_id = g.user.id
+    data = request.get_json(silent=True) or {}
+    days = data.get('days')
+    window_key = data.get('window')
+    allocation = DashboardService.get_holdings_allocation(user_id, window_key)
+
+    return Res.success({
+        'allocation': allocation,
+    })

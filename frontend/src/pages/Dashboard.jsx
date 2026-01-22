@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {useTranslation} from 'react-i18next';
 import useDashboard from '../hooks/api/useDashboard';
 import ReactECharts from 'echarts-for-react';
@@ -12,7 +12,7 @@ import {
     ScaleIcon
 } from '@heroicons/react/24/outline';
 import useDarkMode from "../hooks/useDarkMode";
-import {formatCurrency, formatPercent, getColor} from '../utils/formatters';
+import {formatCurrency, formatPercent, formatPercentNeutral, formatRatioAsPercent, getColor} from '../utils/formatters';
 import {getLineOption, getPieOption} from '../utils/chartOptions';
 
 // 窗口名称映射表
@@ -29,6 +29,8 @@ export default function Dashboard() {
     const {t} = useTranslation();
     const [timeRange, setTimeRange] = useState('1y');
     const isDarkMode = useDarkMode();
+    const [highlightedIndex, setHighlightedIndex] = useState(null);
+    const chartRef = useRef(null);
     // 获取账户整体状况
     const {
         summaryData,
@@ -55,9 +57,44 @@ export default function Dashboard() {
         [trend, isDarkMode]
     );
     const pieOption = useMemo(() =>
-            getPieOption(allocation, isDarkMode),
-        [allocation, isDarkMode]
+            getPieOption(allocation, isDarkMode, highlightedIndex),
+        [allocation, isDarkMode, highlightedIndex]
     );
+
+    // 联动高亮效果
+    useEffect(() => {
+        const chartInstance = chartRef.current?.getEchartsInstance();
+        if (chartInstance && allocation.length > 0) {
+            if (highlightedIndex !== null) {
+                // 高亮指定扇区
+                chartInstance.dispatchAction({
+                    type: 'highlight',
+                    seriesIndex: 0,
+                    dataIndex: highlightedIndex,
+                });
+                // 显示 tooltip
+                chartInstance.dispatchAction({
+                    type: 'showTip',
+                    seriesIndex: 0,
+                    dataIndex: highlightedIndex,
+                });
+            } else {
+                // 取消所有高亮
+                chartInstance.dispatchAction({
+                    type: 'downplay',
+                    seriesIndex: 0,
+                });
+            }
+        }
+    }, [highlightedIndex, allocation]);
+    const handleChartEvents = {
+        mouseover: (params) => {
+            setHighlightedIndex(params.dataIndex);
+        },
+        mouseout: () => {
+            setHighlightedIndex(null);
+        },
+    };
 
     const handleRangeChange = (e) => {
         const val = e.target.value;
@@ -82,12 +119,6 @@ export default function Dashboard() {
         refetch(); // 使用统一的 refetch
     };
 
-    // // 计算派生数据
-    // const lastUpdateDate = useMemo(() => {
-    //     return (trend && trend.length > 0)
-    //         ? trend[trend.length - 1].date
-    //         : (overviewData?.date || null);
-    // }, [data, overviewData]);
 
     // 窗口名称
     const windowName = useMemo(() => {
@@ -132,6 +163,7 @@ export default function Dashboard() {
             </div>
         );
     }
+
     // 3. 正常渲染（即使数据为空）
     return (
         <div className="p-2 md:p-4 max-w-7xl mx-auto space-y-3">
@@ -265,32 +297,62 @@ export default function Dashboard() {
 
                     {allocation && allocation.length > 0 ? (
                         <>
-                            <div className="flex-1 min-h-[200px]">
+                            {/* ECharts 图表容器 */}
+                            <div className="flex-1 min-h-[180px] md:min-h-[200px] -mt-4 -mb-2">
                                 <ReactECharts
+                                    ref={chartRef}
                                     option={pieOption}
                                     style={{height: '100%', width: '100%'}}
                                     theme={isDarkMode ? 'dark' : 'light'}
+                                    notMerge={true}
+                                    onEvents={handleChartEvents}
                                 />
                             </div>
-                            <div className="mt-4 space-y-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
-                                {allocation.map((item) => (
-                                    <div key={item.code}
-                                         className="flex justify-between items-center text-sm p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded">
-                                        <div className="flex flex-col">
-                                            <span
-                                                className="text-gray-700 dark:text-gray-300 truncate w-32 font-medium">{item.name}</span>
-                                            <span className="text-xs text-gray-400">{item.code}</span>
-                                        </div>
-                                        <div className="text-right">
-                                            <div className="font-medium text-gray-900 dark:text-white">
-                                                {item.weight}%
+
+                            {/* 列表容器 */}
+                            <div className="mt-4 flex flex-col">
+                                {/* 列表项 */}
+                                <div className="space-y-1 max-h-48 overflow-y-auto pr-1 custom-scrollbar mt-2">
+                                    {allocation.map((item, index) => (
+                                        <div
+                                            key={item.ho_code}
+                                            className={`flex justify-between items-center text-sm p-2 rounded-md transition-colors duration-200 ${
+                                                highlightedIndex === index ? 'bg-gray-100 dark:bg-gray-700/50' : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'
+                                            }`}
+                                            onMouseEnter={() => setHighlightedIndex(index)}
+                                            onMouseLeave={() => setHighlightedIndex(null)}
+                                        >
+                                            {/* 左栏: 占比 */}
+                                            <div
+                                                className="w-14 text-left text-gray-800 dark:text-gray-200">
+                                                {/* 使用不带符号的百分比格式化 */}
+                                                {formatPercentNeutral(item.has_position_ratio)}
                                             </div>
-                                            <div className={`text-xs ${getColor(item.profit_rate)}`}>
-                                                {formatPercent(item.profit_rate)}
+
+                                            {/* 中栏: 名称/代码 */}
+                                            <div className="flex-1 min-w-0 mx-2">
+                                                <p className="text-gray-800 dark:text-gray-200 font-medium truncate"
+                                                   title={item.ho_short_name}>
+                                                    {item.ho_short_name}
+                                                </p>
+                                                <p className="text-xs text-gray-400">{item.ho_code}</p>
+                                            </div>
+
+                                            {/* 右栏: 盈亏/贡献 */}
+                                            <div className="w-24 text-right flex-shrink-0">
+                                                <div
+                                                    className={`font-semibold font-mono ${getColor(item.has_cumulative_pnl)}`}>
+                                                    {formatCurrency(item.has_cumulative_pnl)}
+                                                </div>
+                                                <div
+                                                    className={`text-xs font-mono ${getColor(item.has_portfolio_contribution)}`}>
+                                                    {/* 贡献度是带符号的百分比 */}
+                                                    {formatPercent(item.has_portfolio_contribution)}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
                             </div>
                         </>
                     ) : (

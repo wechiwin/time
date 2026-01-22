@@ -26,6 +26,28 @@ export const formatNumber = (val, decimals = 2) => {
     return Number(val).toFixed(decimals);
 };
 
+/**
+ * 将比例值格式化为百分比字符串
+ * @param {number | null | undefined} ratio - 小数值，例如 0.251
+ * @param {number} decimals - 保留的小数位数
+ * @returns {string} - 格式化后的字符串，例如 "+25.10%"
+ */
+export const formatRatioAsPercent = (ratio, decimals = 2) => {
+    if (ratio === null || ratio === undefined || isNaN(Number(ratio))) return '-';
+    const percentage = Number(ratio) * 100;
+    return formatPercent(percentage, decimals);
+};
+/**
+ * 格式化数字为不带正号的百分比字符串
+ * e.g., 0.123 -> '12.30%'
+ */
+export const formatPercentNeutral = (value) => {
+    if (typeof value !== 'number' || isNaN(value)) {
+        return '0.00%';
+    }
+    return `${(value * 100).toFixed(2)}%`;
+};
+
 export const getColor = (val, options = {}) => {
     const {
         invert = false,  // 是否反转红绿（如A股）
@@ -42,7 +64,8 @@ export const getColor = (val, options = {}) => {
     if (isNegative) return 'text-green-500 dark:text-green-400';
     return zeroColor;
 };
-// === 新增：专门用于数学计算的四舍五入函数 ===
+
+// 专门用于数学计算的四舍五入函数
 export const roundNumber = (num, precision = 2) => {
     if (!num && num !== 0) return 0;
     const val = Number(num);
