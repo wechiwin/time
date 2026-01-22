@@ -3,9 +3,9 @@ import logging
 import uuid
 from datetime import datetime
 
-from flask import current_app
 from flask_jwt_extended import create_access_token, create_refresh_token
 
+from app import Config
 from app.framework.exceptions import BizException
 from app.models import UserSetting, db, LoginHistory, LoginStatus, UserSession, TokenBlacklist
 from app.schemas_marshall import UserSettingSchema
@@ -18,7 +18,7 @@ user_setting_schema = UserSettingSchema()  # 实例化 Schema
 
 
 class UserService:
-    MAX_CONCURRENT_DEVICES = current_app.config.get('MAX_CONCURRENT_DEVICES', 3)
+    MAX_CONCURRENT_DEVICES = Config.MAX_CONCURRENT_DEVICES
 
     @classmethod
     def execute_login(cls, username, password, ip, user_agent):

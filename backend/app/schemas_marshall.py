@@ -16,6 +16,7 @@ class BaseSchema(SQLAlchemyAutoSchema):
         sqla_session = db.session  # 用于懒加载查询
         load_instance = True  # 反序列化时可直接得到模型实例
         unknown = EXCLUDE  # 忽略未知字段
+        exclude = ("user_id",)
 
     id = fields.Int(dump_only=True)
 
@@ -176,7 +177,10 @@ class BenchmarkHistorySchema(BaseSchema):
     closePrice = fields.Float(attribute='bmh_close_price', dump_only=True)
 
 
-class AsyncTaskLogSchema(BaseSchema):
+class AsyncTaskLogSchema(BaseSchema, EnumViewMixin):
+    enum_map = {
+        'status': TaskStatusEnum,
+    }
     user_id = fields.Int(dump_only=True)
 
     class Meta(BaseSchema.Meta):

@@ -8,16 +8,17 @@ from decimal import Decimal
 from typing import List, Tuple, Dict, Any
 
 import requests
-from flask import current_app
 from openai import OpenAI
 from paddleocr import PaddleOCR
 from sqlalchemy import desc, or_
 
+from app import Config
+from app.calendars.trade_calendar import TradeCalendar
 from app.constant.biz_enums import HoldingStatusEnum, TradeTypeEnum, ErrorMessageEnum, DividendTypeEnum
 from app.framework.exceptions import BizException
 from app.models import db, Holding, Trade, FundNavHistory
-from app.utils.common_util import is_blank, is_not_blank
-from app.utils.date_util import str_to_date
+from app.utils.common_util import is_not_blank
+from app.utils.date_util import str_to_date, date_to_str
 
 ocr = PaddleOCR(use_angle_cls=True, lang='ch')
 OLLAMA = r"C:\Users\Administrator\AppData\Local\Programs\Ollama\ollama.exe"
@@ -28,12 +29,13 @@ ZERO = Decimal(0)
 # 建议将 API_KEY 和 BASE_URL 放入环境变量或 Flask Config 中
 # 这里支持所有兼容 OpenAI 协议的模型（如 DeepSeek, Moonshot, 阿里通义千问等）
 client = OpenAI(
-    api_key=current_app.config.get('API_KEY'),
-    base_url=current_app.config.get('BASE_URL')
+    api_key=Config.API_KEY,
+    base_url=Config.BASE_URL
 )
 # 指定模型名称，建议使用支持视觉的模型，如 gpt-4o, qwen-vl-max 等
 # 如果使用不支持视觉的模型（如 deepseek-v3），则仍需保留 OCR 步骤
-MODEL_NAME = current_app.config.get('MODEL_NAME')
+MODEL_NAME = Config.MODEL_NAME
+trade_calendar = TradeCalendar()
 
 
 class TradeService:
@@ -283,6 +285,8 @@ OCR 文本：
 
             if not new_trade.ho_id:
                 raise BizException(ErrorMessageEnum.MISSING_FIELD.value)
+            if not trade_calendar.is_trade_day(new_trade.tr_date):
+                raise BizException(f"{date_to_str(new_trade.tr_date)}{ErrorMessageEnum.NOT_TRADE_DAY.value}")
 
             # 2. 先保存新记录 (此时 tr_cycle 可能不准，没关系，马上重算)
             # 默认给个 1 或者 0 都可以

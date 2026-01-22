@@ -11,8 +11,6 @@ class Config:
     ENV = os.getenv('FLASK_ENV', 'development').lower()
 
     """基础配置"""
-    # SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')
-
     # 数据库配置
     SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
     SQLALCHEMY_TRACK_MODIFICATIONS = False  # 禁用事件系统提升性能
@@ -30,15 +28,15 @@ class Config:
     BABEL_DEFAULT_LOCALE = 'zh',
     BABEL_TRANSLATION_DIRECTORIES = '../translations'
     # jwt
-    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
-    SALT = os.getenv('SALT')
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY') # 生产环境中从环境变量获取
+    # SALT = os.getenv('SALT')
     ITERATIONS = os.getenv('ITERATIONS')
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=15)
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=7)
     JWT_TOKEN_LOCATION = ["headers", "cookies"]
     JWT_ACCESS_COOKIE_NAME = "access_token"
     JWT_REFRESH_COOKIE_NAME = "refresh_token"
-
+    MAX_CONCURRENT_DEVICES = 3
     # -------------------------------------------------------
     # 前端使用 Authorization Header 发送 Access Token，
     # Header 方式天然免疫 CSRF，不需要开启此选项。
@@ -73,6 +71,10 @@ class Config:
     LOG_DIR = 'logs'
     LOG_FILE = 'app.log'
     LOG_MAX_BYTES = 8 * 1024 * 1024
+
+    API_KEY = os.getenv('API_KEY')
+    BASE_URL = os.getenv('BASE_URL')
+    MODEL_NAME = os.getenv('MODEL_NAME')
 
     # 自动识别当前环境配置
     @classmethod
