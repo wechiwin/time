@@ -10,6 +10,7 @@ from .holding_snapshot_bp import holding_snapshot_bp
 from .invested_asset_analytics_snapshot_bp import invested_asset_analytics_snapshot_bp
 from .invested_asset_snapshot_bp import invested_asset_snapshot_bp
 from .nav_history_bp import nav_history_bp
+from .task_bp import task_log_bp
 from .trade_bp import trade_bp
 from .user_bp import user_bp
 
@@ -27,3 +28,4 @@ def register_routes(app: Flask):
     app.register_blueprint(invested_asset_snapshot_bp)
     app.register_blueprint(invested_asset_analytics_snapshot_bp)
     app.register_blueprint(benchmark_bp)
+    app.register_blueprint(task_log_bp)

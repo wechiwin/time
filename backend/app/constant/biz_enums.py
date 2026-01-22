@@ -142,6 +142,7 @@ class ErrorMessageEnum(str, Enum):
     NO_SUCH_DATA = "数据不存在"
     OVERSOLD = "卖出份额不应大于买入份额"
     NO_AUTH = "暂无操作权限"
+    NOT_TRADE_DAY = "不是交易日期"
 
 
 class TaskStatusEnum(str, Enum):
@@ -151,6 +152,22 @@ class TaskStatusEnum(str, Enum):
     RETRYING = 'RETRYING'  # 执行失败，等待重试
     FAILED = 'FAILED'  # 达到最大重试次数，最终失败
     CANCELLED = 'CANCELLED'  # 手动取消
+
+    @property
+    def view(self):
+        if self == FundDividendMethodEnum.REINVEST:
+            return lazy_gettext('PENDING')
+        elif self == FundDividendMethodEnum.CASH:
+            return lazy_gettext('RUNNING')
+        elif self == FundDividendMethodEnum.CASH:
+            return lazy_gettext('SUCCESS')
+        elif self == FundDividendMethodEnum.CASH:
+            return lazy_gettext('RETRYING')
+        elif self == FundDividendMethodEnum.CASH:
+            return lazy_gettext('FAILED')
+        elif self == FundDividendMethodEnum.CASH:
+            return lazy_gettext('CANCELLED')
+        return self.name
 
 
 class AnalyticsWindowEnum(str, Enum):

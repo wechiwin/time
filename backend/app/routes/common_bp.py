@@ -32,6 +32,7 @@ def get_enum():
         'CurrencyEnum': CurrencyEnum,
         'FundDividendMethodEnum': FundDividendMethodEnum,
         'DividendTypeEnum': DividendTypeEnum,
+        'TaskStatusEnum': TaskStatusEnum,
         # 添加其他枚举类...
     }
 

@@ -127,6 +127,7 @@ class AsyncTaskManager:
 
     @staticmethod
     def _generate_task_fingerprint(
+            user_id: str,
             task_name: str,
             module_path: str,
             method_name: str,
@@ -141,6 +142,7 @@ class AsyncTaskManager:
         """
         # 构建可序列化的字典
         fingerprint_data = {
+            "user_id": user_id,
             "task_name": task_name,
             "module_path": module_path,
             "method_name": method_name,
@@ -192,6 +194,7 @@ class AsyncTaskManager:
 
 
 def create_task(
+        user_id: str,
         task_name: str,
         module_path: str,
         method_name: str,
@@ -229,6 +232,7 @@ def create_task(
 
     # 生成任务指纹
     task_fingerprint = AsyncTaskManager._generate_task_fingerprint(
+        user_id=user_id,
         task_name=task_name,
         module_path=module_path,
         method_name=method_name,
@@ -280,6 +284,7 @@ def create_task(
     serializable_params = json.loads(json.dumps(params, default=str))
 
     task_log = AsyncTaskLog(
+        user_id=user_id,
         task_name=task_name,
         params=serializable_params,
         max_retries=max_retries,

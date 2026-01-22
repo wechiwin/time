@@ -7,6 +7,7 @@ import {
     ChartBarIcon,
     ChevronLeftIcon,
     ChevronRightIcon,
+    ClockIcon,
     Cog6ToothIcon,
     HomeIcon,
     TableCellsIcon,
@@ -26,6 +27,7 @@ const navigation = [
     {key: 'menu_alert', name: '持仓监控', href: '/alert', icon: BellIcon},
     {key: 'menu_trade', name: '交易管理', href: '/trade', icon: ArrowsRightLeftIcon},
     {key: 'menu_nav_history', name: '净值历史', href: '/nav_history', icon: ChartBarIcon},
+    {key: 'menu_task_logs', name: '任务运行', href: '/task_logs', icon: ClockIcon},
 ];
 
 export default function Sidebar({onSelect, isCollapsed, onToggleCollapse}) {

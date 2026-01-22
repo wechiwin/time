@@ -162,3 +162,21 @@ msgid "FD_DIVIDEND_REINVEST"
 msgstr "分红再投资"
 msgid "FD_DIVIDEND_CASH"
 msgstr "现金分红"
+
+msgid "PENDING"
+msgstr "等待中"
+
+msgid "RUNNING"
+msgstr "执行中"
+
+msgid "SUCCESS"
+msgstr "执行成功"
+
+msgid "RETRYING"
+msgstr "重试中"
+
+msgid "FAILED"
+msgstr "执行失败"
+
+msgid "CANCELLED"
+msgstr "手动取消"
