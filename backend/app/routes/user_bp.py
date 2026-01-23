@@ -51,6 +51,7 @@ def register():
         username=username,
         pwd_hash=pwd_hash,
     )
+    new_user.is_locked = GlobalYesOrNo.NO
     try:
         db.session.add(new_user)
         db.session.commit()
@@ -421,4 +422,3 @@ def logout():
         db.session.rollback()
         logger.error(f"Logout failed: {e}", exc_info=True)
         raise BizException("登出失败", code=500)
-
