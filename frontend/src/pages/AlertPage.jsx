@@ -1,4 +1,7 @@
-import {useState, useCallback} from 'react';
+// src/pages/AlertPage.jsx
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import {useTranslation} from "react-i18next";
+import {PlusIcon} from "@heroicons/react/16/solid";
 import AlertRuleTable from '../components/tables/AlertRuleTable';
 import AlertHistoryTable from '../components/tables/AlertHistoryTable';
 import AlertRuleForm from '../components/forms/AlertRuleForm';
@@ -7,196 +10,239 @@ import FormModal from "../components/common/FormModal";
 import {useToast} from "../components/context/ToastContext";
 import Pagination from "../components/common/Pagination";
 import {usePaginationState} from "../hooks/usePaginationState";
-import {useTranslation} from "react-i18next";
+import SearchArea from "../components/search/SearchArea";
+import useCommon from "../hooks/api/useCommon";
+import EmptyState from "../components/common/EmptyState";
 
 export default function AlertPage() {
     const {t} = useTranslation();
-    const [mode, setMode] = useState('rule'); // 'rule' or 'history'
-    const [showModal, setShowModal] = useState(false);
-    const [modalTitle, setModalTitle] = useState(t('button_add'));
-    const [modalSubmit, setModalSubmit] = useState(() => () => {});
-    const [initialValues, setInitialValues] = useState({});
     const {showSuccessToast, showErrorToast} = useToast();
+    const {page, perPage, handlePageChange, handlePerPageChange} = usePaginationState();
 
-    const {
-        page,
-        perPage,
-        handlePageChange,
-        handlePerPageChange
-    } = usePaginationState();
+    const [mode, setMode] = useState('rule');
+    const [refreshKey, setRefreshKey] = useState(0);
+    // 统一管理所有搜索参数
+    const [searchParams, setSearchParams] = useState({});
 
-    const [keyword, setKeyword] = useState("");
-
-    const {
-        data,
-        loading,
-        error,
-        addRule,
-        updateRule,
-        deleteRule,
-        addHistory,
-        searchPage
-    } = useAlertList({
-        page,
-        perPage,
-        keyword,
-        autoLoad: true,
-        mode
+    const {data, addRule, updateRule, deleteRule} = useAlertList({
+        page, perPage, autoLoad: true, mode, refreshKey, ...searchParams
     });
 
-    const openAddModal = () => {
-        setModalTitle(t('button_add'));
-        setModalSubmit(() => addRule);
-        setInitialValues({
-            ar_type: 1,
-            ar_is_active: 1
-        });
-        setShowModal(true);
+    const {fetchMultipleEnumValues} = useCommon();
+    // const [hoTypeOptions, setHoTypeOptions] = useState([]);
+    const [typeOptions, setTypeOptions] = useState([]);
+    const [emailStatusOptions, setEmailStatusOptions] = useState([]);
+
+    useEffect(() => {
+        const loadEnumValues = async () => {
+            try {
+                const [
+                    typeOptions,
+                    emailStatusOptions,
+                ] = await fetchMultipleEnumValues([
+                    'TradeTypeEnum',
+                    'AlertEmailStatusEnum',
+                ]);
+                setTypeOptions(typeOptions);
+                setEmailStatusOptions(emailStatusOptions);
+            } catch (err) {
+                console.error('Failed to load enum values:', err);
+                showErrorToast('加载类型选项失败');
+            }
+        };
+        loadEnumValues();
+    }, [fetchMultipleEnumValues, showErrorToast]);
+
+    // 切换模式时重置搜索条件和分页
+    const handleModeChange = (newMode) => {
+        if (mode === newMode) return;
+        setMode(newMode);
+        setSearchParams({});
+        handlePageChange(1);
     };
 
-    const openEditModal = (rule) => {
-        setModalTitle(t('button_edit'));
-        setModalSubmit(() => updateRule);
-        setInitialValues(rule);
-        setShowModal(true);
-    };
+    // 为 SearchArea 定义搜索和重置回调
+    const handleSearch = useCallback((values) => {
+        setSearchParams(values);
+        handlePageChange(1);
+        setRefreshKey(p => p + 1);
+    }, [handlePageChange]);
 
-    const handleDelete = async (ar_id) => {
+    const handleReset = useCallback(() => {
+        setSearchParams({});
+        handlePageChange(1);
+        setRefreshKey(p => p + 1);
+    }, [handlePageChange]);
+
+    // 使用 useMemo 根据 mode 动态生成搜索字段配置
+    const searchFields = useMemo(() => {
+        const keywordField = {
+            name: 'keyword',
+            type: 'text',
+            label: t('label_fund_name_or_code'),
+            placeholder: t('msg_search_placeholder'),
+            className: 'md:col-span-3',
+        };
+
+        if (mode === 'rule') {
+            return [
+                keywordField,
+                {
+                    name: 'ar_is_active',
+                    type: 'select', // 使用 'select' 类型对应 SearchArea 的单选
+                    label: t('alert_status'),
+                    options: [
+                        {value: '1', label: t('status_active', '激活')},
+                        {value: '0', label: t('status_inactive', '禁用')},
+                    ],
+                    className: 'md:col-span-3',
+                },
+                {
+                    name: 'ar_type',
+                    type: 'select',
+                    label: t('th_tr_type'),
+                    options: typeOptions,
+                    className: 'md:col-span-3',
+                },
+            ];
+        }
+        // mode === 'history'
+        return [
+            keywordField,
+            {
+                name: 'ah_status',
+                type: 'select',
+                label: t('alert_status'),
+                options: emailStatusOptions,
+                className: 'md:col-span-4',
+            },
+        ];
+    }, [mode, t]);
+
+    // 使用 useMemo 根据 mode 动态生成操作按钮
+    const actionButtons = useMemo(() => {
+        if (mode === 'rule') {
+            return (
+                <button onClick={() => openModal('add')} className="btn-primary inline-flex items-center gap-2">
+                    <PlusIcon className="h-4 w-4"/>
+                    {t('button_add')}
+                </button>
+            );
+        }
+        return null;
+    }, [mode, t]);
+
+    const handleDelete = async (id) => {
         try {
-            await deleteRule(ar_id);
+            await deleteRule(id);
             showSuccessToast();
+
+            // 检查当前页数据情况，决定是否需要调整分页
+            if (data?.items?.length === 1 && page > 1) {
+                // 如果删除的是当前页的最后一条数据且不在第一页，则跳转到前一页
+                handlePageChange(page - 1);
+            } else {
+                // 否则保持当前页并刷新数据
+                setRefreshKey(p => p + 1);
+            }
         } catch (err) {
             showErrorToast(err.message);
         }
     };
 
-    const handleSearch = useCallback((keyword) => {
-        setKeyword(keyword);
-        handlePageChange(1);
-    }, [handlePageChange]);
+    const [modalConfig, setModalConfig] = useState({
+        show: false,
+        title: "",
+        submitAction: () => {
+        }, // 初始化为空函数而不是 null
+        initialValues: {}
+    });
 
-    const handleKeyDown = (e) => {
-        if (e.key === 'Enter') {
-            handleSearch(keyword);
-        }
+    const openModal = (type, values = {}) => {
+        setModalConfig({
+            show: true,
+            title: type === 'add' ? t('button_add') : t('button_edit'),
+            submitAction: type === 'add' ? addRule : updateRule,
+            initialValues: type === 'add' ? {ar_type: 'BUY', ar_is_active: 1} : values
+        });
     };
 
     return (
         <div className="space-y-6">
-            {/* 模式切换按钮 */}
-            <div className="flex items-center gap-4 mb-4">
-                {/* 模式切换按钮 - 带滑动动画的 Segmented Control */}
-                <div
-                    role="radiogroup"
-                    className="relative inline-flex w-64 rounded-md border border-gray-300 bg-white p-1 shadow-sm"
-                    tabIndex={0}
-                >
-                    {/* 滑动指示器（背景高亮条） */}
-                    <div
-                        className={`absolute left-0 top-0 h-full w-1/2 rounded-md bg-blue-500 transition-all duration-300 ease-in-out ${
-                            mode === 'history' ? 'translate-x-full' : 'translate-x-0'
-                        }`}
-                        aria-hidden="true"
-                    />
-
-                    {/* 选项：规则管理 */}
+            {/* 统一的控制面板 */}
+            <div
+                className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                {/* Tab 切换器 */}
+                <div className="flex border-b border-gray-200 dark:border-gray-700 mb-6">
                     <button
-                        type="button"
-                        role="radio"
-                        aria-checked={mode === 'rule'}
-                        tabIndex={mode === 'rule' ? 0 : -1}
-                        onClick={() => setMode('rule')}
-                        className={`relative z-10 flex-1 px-4 py-2 text-center text-sm font-medium transition-colors duration-200 
-          ${mode === 'rule'
-                            ? 'text-white'
-                            : 'text-gray-700 hover:text-gray-900'
+                        onClick={() => handleModeChange('rule')}
+                        className={`px-5 py-3 text-sm font-medium relative transition-all duration-300 ease-in-out ${
+                            mode === 'rule'
+                                ? 'text-blue-600 dark:text-blue-400 after:absolute after:bottom-[-2px] after:left-0 after:right-0 after:h-1 after:bg-blue-500 after:rounded-t-md'
+                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
                         }`}
                     >
                         {t('alert_rule_management')}
                     </button>
-
-                    {/* 选项：历史记录 */}
                     <button
-                        type="button"
-                        role="radio"
-                        aria-checked={mode === 'history'}
-                        tabIndex={mode === 'history' ? 0 : -1}
-                        onClick={() => setMode('history')}
-                        className={`relative z-10 flex-1 px-4 py-2 text-center text-sm font-medium transition-colors duration-200 
-          ${mode === 'history'
-                            ? 'text-white'
-                            : 'text-gray-700 hover:text-gray-900'
+                        onClick={() => handleModeChange('history')}
+                        className={`px-5 py-3 text-sm font-medium relative transition-all duration-300 ease-in-out ${
+                            mode === 'history'
+                                ? 'text-blue-600 dark:text-blue-400 after:absolute after:bottom-[-2px] after:left-0 after:right-0 after:h-1 after:bg-blue-500 after:rounded-t-md'
+                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
                         }`}
                     >
                         {t('alert_history_management')}
                     </button>
                 </div>
 
-            </div>
 
-            {/* 搜索 + 按钮行 */}
-            <div className="search-bar">
-                <input
-                    type="text"
-                    value={keyword}
-                    onChange={(e) => setKeyword(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder={t('msg_search_placeholder')}
-                    className="search-input"
+                {/* 搜索区域 (无独立背景) */}
+                <SearchArea
+                    key={mode}
+                    fields={searchFields}
+                    initialValues={searchParams}
+                    onSearch={handleSearch}
+                    onReset={handleReset}
+                    actionButtons={actionButtons}
+                    showWrapper={false} // <-- 关键：告诉 SearchArea 不要渲染自己的背景
                 />
-                <button
-                    onClick={() => handleSearch(keyword)}
-                    className="btn-primary"
-                >
-                    {t('button_search')}
-                </button>
-
-                {/* 右侧按钮组 - 只在规则模式下显示添加按钮 */}
-                {mode === 'rule' && (
-                    <div className="ml-auto flex items-center gap-2">
-                        <button onClick={openAddModal} className="btn-primary">
-                            {t('button_add')}
-                        </button>
-                    </div>
-                )}
             </div>
 
-            {/* 表格展示 */}
+            {/* 表格内容 */}
             {mode === 'rule' ? (
-                <AlertRuleTable
-                    data={data?.items || []}
-                    onDelete={handleDelete}
-                    onEdit={openEditModal}
-                />
+                data?.items?.length > 0 ? (
+                    <AlertRuleTable data={data.items} onDelete={handleDelete}
+                                    onEdit={(item) => openModal('edit', item)}/>
+                ) : (
+                    <EmptyState message={t('msg_no_records')}/>
+                )
             ) : (
-                <AlertHistoryTable
-                    data={data?.items || []}
-                />
+                data?.items?.length > 0 ? (
+                    <AlertHistoryTable data={data.items}/>
+                ) : (
+                    <EmptyState message={t('msg_no_records')}/>
+                )
             )}
+
 
             {/* 分页 */}
             {data?.pagination && (
                 <Pagination
-                    pagination={{
-                        page,
-                        per_page: perPage,
-                        total: data.pagination.total,
-                        pages: data.pagination.pages,
-                    }}
-                    onPageChange={handlePageChange}
-                    onPerPageChange={handlePerPageChange}
+                    pagination={{page, per_page: perPage, total: data.pagination.total, pages: data.pagination.pages}}
+                    onPageChange={handlePageChange} onPerPageChange={handlePerPageChange}
                 />
             )}
 
-            {/* 模态框 - 只在规则模式下显示 */}
+            {/* 弹窗 */}
             {mode === 'rule' && (
                 <FormModal
-                    title={modalTitle}
-                    show={showModal}
-                    onClose={() => setShowModal(false)}
-                    onSubmit={modalSubmit}
+                    title={modalConfig.title}
+                    show={modalConfig.show}
+                    onClose={() => setModalConfig(p => ({...p, show: false}))}
+                    onSubmit={modalConfig.submitAction}
                     FormComponent={AlertRuleForm}
-                    initialValues={initialValues}
+                    initialValues={modalConfig.initialValues}
                 />
             )}
         </div>

@@ -13,9 +13,9 @@
   "th_tr_type": "交易类型",
   "th_tr_nav_per_unit": "单位净值",
   "th_tr_shares": "交易份额",
-  "th_gross_amount": "交易总额",
+  "th_cash_amount": "实际收付",
   "th_tr_fee": "交易费用",
-  "th_tr_net_amount": "交易净额",
+  "th_tr_amount": "交易金额",
   "th_actions": "操作",
   "th_ho_manage_exp_rate": "基金管理费率",
   "th_ho_trustee_exp_rate": "基金托管费率",
@@ -33,6 +33,7 @@
   "th_feature": "特性标签",
   "th_currency": "计价货币",
   "th_fund_type": "基金类型",
+  "th_dividend_type": "分红类型",
 
   "start_date": "开始日期",
   "end_date": "结束日期",
@@ -58,6 +59,7 @@
   "button_back": "返回",
   "button_upload_image": "AI识别图片",
   "button_crawl_all": "爬取所有",
+  "button_reset": "重置",
 
   "project_title": "投资持仓管理系统",
 
@@ -75,6 +77,8 @@
   "msg_mydate_select_date": "选择日期",
   "msg_ai_analyzing": "AI分析中...",
   "msg_uploading": "上传中...",
+  "msg_no_records": "暂无记录",
+  "msg_verifying_identity": "正在验证身份...",
 
   "info_hold_status": "持仓状态",
   "info_status_holding": "持仓中",
@@ -105,6 +109,8 @@
   "pagination_right": "页",
   "total_name": "共",
   "total_item": "条",
+  "page_number": "页码",
+  "pagination_aria_label": "分页导航",
 
   "menu_alert": "持仓监控",
   "alert_rule_management": "提醒管理",
@@ -113,7 +119,7 @@
   "alert_type_buy": "买入",
   "alert_type_sell": "卖出",
   "alert_type_add": "加仓",
-  "alert_target_navpu": "目标单位净值",
+  "alert_target_price": "目标单价",
   "alert_status": "状态",
   "alert_trigger_time": "触发时间",
   "alert_status_pending": "待发送",
@@ -121,6 +127,8 @@
   "alert_status_failed": "发送失败",
   "status_active": "激活",
   "status_inactive": "未激活",
+  "alert_trigger_price": "触发单价",
+  "remark": "备注",
 
   "login_title": "登录系统",
   "register_title": "用户注册",
@@ -153,5 +161,25 @@
   "user_settings": "个人设置",
   "th_username": "用户名",
   "th_default_language": "默认语言",
-  "th_email_address": "邮箱地址"
+  "th_email_address": "邮箱地址",
+
+  "today": "今天",
+  "past": "过去",
+  "days": "天",
+  "current_month": "本月",
+  "past_month": "上个月",
+  "msg_select_date_range": "选择日期范围",
+  "label_fund_name_or_code": "持仓名称或代码",
+
+  "select_all": "全选",
+
+  "menu_task_logs": "任务运行",
+  "label_keyword": "搜索关键词",
+  "th_task_name": "任务名称",
+  "th_status": "任务状态",
+  "th_result_summary": "结果摘要",
+  "th_created_at": "创建时间",
+  "th_updated_at": "更新时间",
+  "th_retries": "重试次数",
+  "th_error_message": "错误信息"
 }

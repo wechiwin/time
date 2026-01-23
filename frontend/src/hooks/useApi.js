@@ -35,6 +35,7 @@ export default function useApi() {
             // 普通请求返回 data.data
             return response.data.data;
         } catch (err) {
+
             const msg = err.message || '请求失败';
             setError(msg);
             console.error(`[useApi] 请求错误: ${msg}`, err);
@@ -44,10 +45,10 @@ export default function useApi() {
         }
     }, []);
 
-    const get = useCallback((url, options) => request(url, 'GET', null, options), [request]);
-    const post = useCallback((url, body, options={}) => request(url, 'POST', body, options), [request]);
-    const put = useCallback((url, body, options) => request(url, 'PUT', body, options), [request]);
-    const del = useCallback((url, options) => request(url, 'DELETE', null, options), [request]);
+    const get = useCallback((url, options = {}) => request(url, 'GET', null, options), [request]);
+    const post = useCallback((url, body, options = {}) => request(url, 'POST', body, options), [request]);
+    const put = useCallback((url, body, options = {}) => request(url, 'PUT', body, options), [request]);
+    const del = useCallback((url, options = {}) => request(url, 'DELETE', null, options), [request]);
 
     // 专门的文件下载方法
     const download = useCallback(async (url, filename, config = {}) => {

@@ -11,9 +11,9 @@
   "th_tr_type": "Tipo di transazione",
   "th_tr_nav_per_unit": "Valore netto della transazione",
   "th_tr_shares": "Azioni della transazione",
-  "th_gross_amount": "Importo Lordo",
+  "th_cash_amount": "Pagamento/Ricevuta",
   "th_tr_fee": "Commissione della transazione",
-  "th_tr_net_amount": "Importo Netto",
+  "th_tr_amount": "Importo della transazione",
   "th_actions": "Azioni",
   "th_ho_manage_exp_rate": "Aliquota Gestione",
   "th_ho_trustee_exp_rate": "Aliquota Custodia",
@@ -31,6 +31,7 @@
   "th_feature": "Etichette Caratteristiche",
   "th_currency": "Valuta",
   "th_fund_type": "Tipo del Fondo",
+  "th_dividend_type": "Tipo del Dividendo",
 
   "start_date": "Data di inizio",
   "end_date": "Data di fine",
@@ -56,6 +57,7 @@
   "button_back": "Ritorno",
   "button_upload_image": "Analizza immagine",
   "button_crawl_all": "Crawl tutti",
+  "button_reset": "Reimposta",
 
   "project_title": "Sistema di Gestione delle Partecipazioni",
 
@@ -63,6 +65,7 @@
   "menu_holding": "Partecipazioni",
   "menu_trade": "Transazioni",
   "menu_nav_history": "Valore Netto",
+  "msg_no_records": "Nessun record disponibile",
 
   "msg_search_placeholder": "Inserisci nome o codice",
   "msg_delete_confirmation": "Confermi l'eliminazione?",
@@ -73,6 +76,7 @@
   "msg_mydate_select_date": "Seleziona data",
   "msg_ai_analyzing": "Analisi AI...",
   "msg_uploading": "Caricamento...",
+  "msg_verifying_identity": "Verifica dell'identità in corso...",
 
   "info_hold_status": "Stato della Posizione",
   "info_status_holding": "In Posizione",
@@ -98,11 +102,13 @@
   "prev_page": "Precedente",
   "next_page": "Successiva",
   "per_page": "Per pagina",
-  "jump_page": "Salta a",
   "pagination_left": "Pagina",
   "pagination_right": "",
-  "total_name": "",
   "total_item": "elementi",
+  "jump_page": "Vai",
+  "total_name": "Totale",
+  "page_number": "Pagina",
+  "pagination_aria_label": "Navigazione paginazione",
 
   "menu_alert": "Monitoraggio Posizioni",
   "alert_rule_management": "Gestione Avvisi",
@@ -111,7 +117,7 @@
   "alert_type_buy": "Acquista",
   "alert_type_sell": "Vendi",
   "alert_type_add": "Aumenta Posizione",
-  "alert_target_navpu": "NAV Target Per Unit",
+  "alert_target_price": "Prezzo Obiettivo",
   "alert_status": "Stato",
   "alert_trigger_time": "Ora di Trigger",
   "alert_status_pending": "In Attesa",
@@ -119,6 +125,7 @@
   "alert_status_failed": "Fallito",
   "status_active": "Attivo",
   "status_inactive": "Inattivo",
+  "remark": "Nota",
 
   "login_title": "Sistema di Accesso",
   "register_title": "Registrazione Utente",
@@ -150,5 +157,26 @@
   "user_settings": "Impostazioni Personali",
   "th_username": "Nome Utente",
   "th_default_language": "Lingua Predefinita",
-  "th_email_address": "Indirizzo Email"
+  "th_email_address": "Indirizzo Email",
+
+  "today": "Oggi",
+  "past": "Passati",
+  "days": "giorni",
+  "current_month": "Mese Corrente",
+  "past_month": "Mese Precedente",
+  "msg_select_date_range": "Seleziona Intervallo Date",
+  "label_fund_name_or_code": "Nome o Codice del Fondo",
+
+  "select_all": "Tutto",
+
+  "menu_task_logs": "Esecuzione dei task",
+  "label_keyword": "Parola chiave di ricerca",
+  "th_task_name": "Nome del task",
+  "th_status": "Stato del task",
+  "th_result_summary": "Riepilogo risultati",
+  "th_created_at": "Creato il",
+  "th_updated_at": "Aggiornato il",
+  "th_retries": "Numero di tentativi di ripetizione",
+  "th_error_message": "Messaggio di errore"
+
 }

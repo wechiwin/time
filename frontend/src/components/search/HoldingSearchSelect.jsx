@@ -1,30 +1,52 @@
 // src/components/search/HoldingSearchSelect.jsx
 import {useEffect, useRef, useState} from 'react';
 import SearchBox from './SearchBox';
-import {useDebouncedSearch} from '../../hooks/useDebouncedSearch';
 import useHoldingList from "../../hooks/api/useHoldingList";
+import useDebounce from "../../hooks/useDebounce";
 
-export default function HoldingSearchSelect({value, onChange, placeholder = '搜索基金'}) {
+export default function HoldingSearchSelect({
+                                                value,
+                                                onChange,
+                                                placeholder = '搜索基金',
+                                                disabled = false,
+                                                className = ''
+                                            }) {
     const [list, setList] = useState([]);
     const [open, setOpen] = useState(false);
     const {data, searchPage} = useHoldingList({autoLoad: false});
-    const [keyword, setKeyword] = useDebouncedSearch(searchPage, 500);
     const wrapperRef = useRef(null);
+    // 1. 管理输入框的即时值
+    const [inputValue, setInputValue] = useState('');
+    // 2. 对即时值进行防抖处理，得到用于搜索的关键词
+    const debouncedKeyword = useDebounce(inputValue, 500);
+    // 3. 管理当前选中的基金对象，用于区分用户输入和程序设置的显示值
     const [selectedFund, setSelectedFund] = useState(null);
-
-    // 每次外部传入的 value 变化时，同步到 keyword（用于回显）
+    // 4. 使用 useEffect 监听防抖后的关键词变化，并触发搜索
     useEffect(() => {
-        if (value) {
-            if (typeof value === 'string') {
-                // 如果是字符串，设置为搜索关键词
-                setKeyword(value);
-            } else if (value.ho_code) {
-                // 如果是基金对象，设置选中状态
-                setSelectedFund(value);
-                setKeyword(value.ho_code);
-            }
+        // 检查 debouncedKeyword 是否为有效字符串，并且下拉列表是打开状态
+        // 增加 open 判断可以避免在选择一项后，因 inputValue 更新而再次触发不必要的搜索
+        if (debouncedKeyword && open) {
+            // 假设 searchPage 接收一个对象作为参数
+            searchPage({keyword: debouncedKeyword, page: 1, perPage: 10});
+        } else if (!debouncedKeyword) {
+            // 如果关键词为空，清空列表
+            setList([]);
+        }
+    }, [debouncedKeyword, open, searchPage]); // 依赖于防抖后的关键词和下拉框的打开状态
+
+    // 每次外部传入的 value 变化时，同步到内部状态（用于编辑模式回显）
+    useEffect(() => {
+        if (value && value.ho_code) {
+            const displayName = value.ho_short_name
+                ? `${value.ho_code} - ${value.ho_short_name}`
+                : value.ho_code;
+            setInputValue(displayName);
+            setSelectedFund(value);
+        } else if (typeof value === 'string') { // 兼容旧的字符串传入方式
+            setInputValue(value);
+            setSelectedFund(null);
         } else {
-            setKeyword('');
+            setInputValue('');
             setSelectedFund(null);
         }
     }, [value]);
@@ -52,49 +74,50 @@ export default function HoldingSearchSelect({value, onChange, placeholder = '搜
         }
     }, [data]);
 
-    // 防抖搜索函数
-    const handleSearch = async (keyword) => {
-        if (!keyword) {
-            setList([]);
-            return;
-        }
-        try {
-            await searchPage(keyword);
-        } catch (err) {
-            console.error('搜索基金失败', err);
-            setList([]);
-        }
-    };
-
     // 处理选择基金
     const handleSelectFund = (fund) => {
         setSelectedFund(fund);
-        setKeyword(fund.ho_code);
+        setInputValue(`${fund.ho_code} - ${fund.ho_short_name}`);
         setOpen(false);
         // 通知父组件
         onChange(fund);
     };
 
-    return (
-        <div className="relative" ref={wrapperRef}>
-            <SearchBox
-                value={keyword}
-                onChange={(val) => {
-                    setKeyword(val);
-                    setOpen(true);
-                    // 如果清空了输入，清除选中状态
-                    if (!val && selectedFund) {
-                        setSelectedFund(null);
-                        onChange(null);
-                    }
+    // 新增：处理清空逻辑
+    const handleClear = () => {
+        setInputValue('');
+        setSelectedFund(null);
+        setList([]);
+        setOpen(false);
+        onChange(null); // 通知父组件已清空
+        // 清空后通常不需要自动打开下拉框，保持关闭即可，或者根据需求 setOpen(true)
+    };
 
+    return (
+        <div className={`relative ${className}`} ref={wrapperRef}>
+            <SearchBox
+                value={inputValue}
+                onChange={(val) => {
+                    setInputValue(val);
+                    // 用户开始输入时，自动打开下拉列表
+                    if (!disabled) {
+                        setOpen(true);
+                    }
+                    // 如果用户清空了输入框，也触发清空逻辑
+                    if (!val) {
+                        handleClear();
+                    }
                 }}
                 placeholder={placeholder}
-                onSearchNow={() => handleSearch(keyword)}
+                onSearchNow={() => searchPage({ keyword: inputValue })}
+                disabled={disabled}
+                onClear={handleClear}
+                title={inputValue}
+                onFocus={() => !disabled && inputValue && setOpen(true)} // 点击输入框时如果已有内容也打开
             />
-            {open && (
+            {open && !disabled && (
                 <div className="absolute z-10 mt-1 w-full card border rounded-md shadow-lg max-h-60 overflow-auto">
-                    {list.length ? (
+                    {list.length > 0 ? (
                         list.map((holding) => (
                             <div
                                 key={holding.id}
@@ -104,7 +127,7 @@ export default function HoldingSearchSelect({value, onChange, placeholder = '搜
                                 <div className="font-medium">{holding.ho_code} - {holding.ho_short_name}</div>
                             </div>
                         ))
-                    ) : keyword ? (
+                    ) : inputValue ? (
                         <div className="px-3 py-2 text-sm text-gray-400 dark:text-gray-200">
                             无匹配基金
                         </div>

@@ -7,30 +7,38 @@ export default function useAlertList(options = {}) {
         page = 1,
         perPage = 10,
         autoLoad = true,
-        mode = 'rule' // 'rule' or 'history'
+        mode = 'rule', // 'rule' or 'history'
+        refreshKey
     } = options;
 
     const [data, setData] = useState(null);
     const {loading, error, get, post, put, del} = useApi();
 
-    const searchPage = useCallback(async (searchKeyword = '', currentPage = 1, currentPerPage = 10, currentMode = mode) => {
-        const params = new URLSearchParams({
-            keyword: searchKeyword,
-            page: currentPage.toString(),
-            per_page: currentPerPage.toString()
-        }).toString();
+    const searchPage = useCallback(async (params = {}) => {
+        const currentMode = params.mode ?? mode;
+        let payload = {keyword, page, perPage, ...params};
 
-        const endpoint = currentMode === 'rule' ? '/alert/rule/search_page' : '/alert/history/search_page';
-        const result = await get(`${endpoint}?${params}`);
+        // 根据模式追加不同参数
+        if (currentMode === 'rule') {
+            if (params.ar_is_active !== undefined && params.ar_is_active !== '') {
+                payload = {...payload, ar_is_active: params.ar_is_active};
+            }
+            if (params.ar_type) payload = {...payload, ar_type: params.ar_type};
+        } else {
+            if (params.ah_status) payload = {...payload, ah_status: params.ah_status};
+        }
+
+        const endpoint = currentMode === 'rule' ? '/alert/rule/page_rule' : '/alert/history/page_rule_his';
+        const result = await post(endpoint, payload);
         setData(result);
         return result;
-    }, [get, mode]);
+    }, [post, mode, keyword, page, perPage]);
 
     useEffect(() => {
         if (autoLoad) {
-            searchPage(keyword, page, perPage, mode);
+            searchPage();
         }
-    }, [keyword, page, perPage, autoLoad, searchPage, mode]);
+    }, [keyword, page, perPage, autoLoad, searchPage, mode, refreshKey]);
 
     // AlertRule 操作
     const addRule = useCallback(async (body) => {
@@ -39,17 +47,17 @@ export default function useAlertList(options = {}) {
         return result;
     }, [post, searchPage, keyword, page, perPage]);
 
-    const updateRule = useCallback(async ({ar_id, ...body}) => {
-        const result = await put(`/alert/rule/${ar_id}`, body);
+    const updateRule = useCallback(async (body) => {
+        const result = await post('/alert/rule/update_rule', body);
         await searchPage(keyword, page, perPage, 'rule');
         return result;
-    }, [put, searchPage, keyword, page, perPage]);
+    }, [post, searchPage, keyword, page, perPage]);
 
-    const deleteRule = useCallback(async (ar_id) => {
-        const result = await del(`/alert/rule/${ar_id}`);
+    const deleteRule = useCallback(async (id) => {
+        const result = await post('/alert/rule/del_rule', {id});
         await searchPage(keyword, page, perPage, 'rule');
         return result;
-    }, [del, searchPage, keyword, page, perPage]);
+    }, [post, searchPage, keyword, page, perPage]);
 
     // AlertHistory 操作
     const addHistory = useCallback(async (body) => {

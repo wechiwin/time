@@ -3,7 +3,7 @@ from enum import Enum
 from flask_babel import lazy_gettext
 
 
-class HoldingTypeEnum(Enum):
+class HoldingTypeEnum(str, Enum):
     FUND = 'FUND'
 
     @property
@@ -13,7 +13,7 @@ class HoldingTypeEnum(Enum):
         return self.name
 
 
-class HoldingStatusEnum(Enum):
+class HoldingStatusEnum(str, Enum):
     NOT_HELD = 'NOT_HELD'
     HOLDING = 'HOLDING'
     CLOSED = 'CLOSED'
@@ -29,7 +29,7 @@ class HoldingStatusEnum(Enum):
         return self.name
 
 
-class AlertEmailStatusEnum(Enum):
+class AlertEmailStatusEnum(str, Enum):
     PENDING = 'PENDING'
     SENT = 'SENT'
     FAILED = 'FAILED'
@@ -45,9 +45,22 @@ class AlertEmailStatusEnum(Enum):
         return self.name
 
 
-class TradeTypeEnum(Enum):
-    SELL = 'SELL'
+class DividendTypeEnum(str, Enum):
+    CASH = 'CASH'
+    REINVEST = 'REINVEST'
+
+    @property
+    def view(self):
+        if self == DividendTypeEnum.CASH:
+            return lazy_gettext('CASH')
+        elif self == DividendTypeEnum.REINVEST:
+            return lazy_gettext('REINVEST')
+        return self.name
+
+
+class TradeTypeEnum(str, Enum):
     BUY = 'BUY'
+    SELL = 'SELL'
     DIVIDEND = 'DIVIDEND'
 
     # SPLIT = (3, gettext('TR_SPLIT'))
@@ -65,9 +78,9 @@ class TradeTypeEnum(Enum):
         return self.name
 
 
-class AlertRuleActionEnum(Enum):
-    SELL = 'SELL'
+class AlertRuleActionEnum(str, Enum):
     BUY = 'BUY'
+    SELL = 'SELL'
 
     @property
     def view(self):
@@ -78,7 +91,7 @@ class AlertRuleActionEnum(Enum):
         return self.name
 
 
-class CurrencyEnum(Enum):
+class CurrencyEnum(str, Enum):
     CNY = 'CNY'
 
     @property
@@ -86,7 +99,7 @@ class CurrencyEnum(Enum):
         return self.name
 
 
-class FundTradeMarketEnum(Enum):
+class FundTradeMarketEnum(str, Enum):
     """
     交易市场枚举：场内交易/场外交易
     """
@@ -105,7 +118,7 @@ class FundTradeMarketEnum(Enum):
         return self.name
 
 
-class FundDividendMethodEnum(Enum):
+class FundDividendMethodEnum(str, Enum):
     """
     基金分红方式枚举："现金分红", "分红再投资"
     """
@@ -121,15 +134,18 @@ class FundDividendMethodEnum(Enum):
         return self.name
 
 
-class ErrorMessageEnum(Enum):
+class ErrorMessageEnum(str, Enum):
     """
     错误提示语常量类（中文默认，支持未来扩展多语言）
     """
     MISSING_FIELD = "缺少必要字段"
     NO_SUCH_DATA = "数据不存在"
+    OVERSOLD = "卖出份额不应大于买入份额"
+    NO_AUTH = "暂无操作权限"
+    NOT_TRADE_DAY = "不是交易日期"
 
 
-class TaskStatusEnum(Enum):
+class TaskStatusEnum(str, Enum):
     PENDING = 'PENDING'  # 已创建，等待执行
     RUNNING = 'RUNNING'  # 正在执行
     SUCCESS = 'SUCCESS'  # 执行成功
@@ -137,25 +153,58 @@ class TaskStatusEnum(Enum):
     FAILED = 'FAILED'  # 达到最大重试次数，最终失败
     CANCELLED = 'CANCELLED'  # 手动取消
 
+    @property
+    def view(self):
+        if self == FundDividendMethodEnum.REINVEST:
+            return lazy_gettext('PENDING')
+        elif self == FundDividendMethodEnum.CASH:
+            return lazy_gettext('RUNNING')
+        elif self == FundDividendMethodEnum.CASH:
+            return lazy_gettext('SUCCESS')
+        elif self == FundDividendMethodEnum.CASH:
+            return lazy_gettext('RETRYING')
+        elif self == FundDividendMethodEnum.CASH:
+            return lazy_gettext('FAILED')
+        elif self == FundDividendMethodEnum.CASH:
+            return lazy_gettext('CANCELLED')
+        return self.name
+
 
 class AnalyticsWindowEnum(str, Enum):
     # expanding
-    ALL = "ALL"  # 自建仓以来
-    CUR = "CUR"  # 本轮持仓（since last clear）
-
+    ALL = "ALL"
+    """
+    自建仓以来
+    """
+    CUR = "CUR"
+    """
+    本轮持仓（since last clear）
+    """
     # rolling
-    ONE_MONTH = "R21"
-    THREE_MONTH = "R63"
-    SIX_MONTH = "R126"
-    ONE_YEAR = "R252"
+    R21 = "R21"
+    """
+    一个月
+    """
+    R63 = "R63"
+    """
+    三个月
+    """
+    R126 = "R126"
+    """
+    半年
+    """
+    R252 = "R252"
+    """
+    一年
+    """
 
     @classmethod
     def rolling_windows(cls):
         return {
-            cls.ONE_MONTH,
-            cls.THREE_MONTH,
-            cls.SIX_MONTH,
-            cls.ONE_YEAR,
+            cls.R21,
+            cls.R63,
+            cls.R126,
+            cls.R252,
         }
 
     @classmethod

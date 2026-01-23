@@ -1,7 +1,8 @@
 import logging
 import threading
 
-from flask import Blueprint, request, current_app
+from flask import Blueprint, request, current_app, g
+from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
 from app.constant.biz_enums import ErrorMessageEnum
@@ -11,6 +12,7 @@ from app.framework.res import Res
 from app.models import db, FundNavHistory, Holding
 from app.schemas_marshall import FundNavHistorySchema, marshal_pagination
 from app.service.nav_history_service import FundNavHistoryService
+from app.utils.user_util import get_or_raise
 
 nav_history_bp = Blueprint('nav_history', __name__, url_prefix='/api/nav_history')
 logger = logging.getLogger(__name__)
@@ -21,13 +23,32 @@ logger = logging.getLogger(__name__)
 def page_history():
     data = request.get_json()
     ho_id = data.get('ho_id')
+    keyword = data.get('keyword')
     page = data.get('page')
     per_page = data.get('per_page')
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
 
-    query = FundNavHistory.query.options(joinedload(FundNavHistory.holding))
+    user_id = g.user.id
+    query = FundNavHistory.query.join(
+        Holding, FundNavHistory.ho_id == Holding.id
+    ).filter(
+        Holding.user_id == user_id
+    )
+
     if ho_id:
         query = query.filter_by(ho_id=ho_id)
-
+    if start_date:
+        query = query.filter(FundNavHistory.nav_date >= start_date)
+    if end_date:
+        query = query.filter(FundNavHistory.nav_date <= end_date)
+    if keyword:
+        query = query.join(Holding, FundNavHistory.ho_id == Holding.id).filter(
+            or_(
+                Holding.ho_code.ilike(f'%{keyword}%'),
+                Holding.ho_short_name.ilike(f'%{keyword}%')
+            )
+        )
     # 分页查询
     pagination = query.order_by(FundNavHistory.nav_date.desc()).paginate(
         page=page, per_page=per_page, error_out=False
@@ -49,31 +70,34 @@ def list_history():
     return Res.success(FundNavHistorySchema(many=True).dump(data))
 
 
-@nav_history_bp.route('', methods=['POST'])
+@nav_history_bp.route('add_nv', methods=['POST'])
 @auth_required
 def create_net_value():
     data = request.get_json()
     required_fields = ['ho_code', 'nav_date', 'nav_per_unit']
     if not all(field in data for field in required_fields):
-        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD)
+        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.value)
     new_nv = FundNavHistorySchema().load(data)
     db.session.add(new_nv)
     db.session.commit()
     return Res.success()
 
 
-@nav_history_bp.route('/<int:nav_id>', methods=['GET'])
+@nav_history_bp.route('/get_nav', methods=['POST'])
 @auth_required
-def get_net_value(nav_id):
-    nv = FundNavHistory.query.get_or_404(nav_id)
+def get_nav():
+    data = request.get_json()
+    id = data.get('id')
+    nv = get_or_raise(FundNavHistory, id)
     return Res.success(FundNavHistorySchema().dump(nv))
 
 
-@nav_history_bp.route('/<int:nav_id>', methods=['PUT'])
+@nav_history_bp.route('/update_nav', methods=['POST'])
 @auth_required
-def update_net_value(nav_id):
-    nv = FundNavHistory.query.get_or_404(nav_id)
+def update_nav():
     data = request.get_json()
+    id = data.get('id')
+    nv = get_or_raise(FundNavHistory, id)
     updated_data = FundNavHistorySchema().load(data, instance=nv, partial=True)
 
     db.session.add(updated_data)
@@ -81,10 +105,12 @@ def update_net_value(nav_id):
     return Res.success()
 
 
-@nav_history_bp.route('/<int:nav_id>', methods=['DELETE'])
+@nav_history_bp.route('/del_nav', methods=['POST'])
 @auth_required
-def delete_net_value(nav_id):
-    nv = FundNavHistory.query.get_or_404(nav_id)
+def del_nav():
+    data = request.get_json()
+    id = data.get('id')
+    nv = get_or_raise(FundNavHistory, id)
     db.session.delete(nv)
     db.session.commit()
     return Res.success()
@@ -100,13 +126,13 @@ def crawl_nav_history():
     end_date = data.get("end_date")
 
     if not ho_code or not ho_id:
-        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD)
+        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.value)
     if not start_date or not end_date:
         raise BizException(msg="缺少时间限制")
 
     holding = Holding.query.filter_by(id=ho_id).first()
     if not holding:
-        raise BizException(msg="持仓不存在")
+        raise BizException(ErrorMessageEnum.NO_SUCH_DATA.value)
 
     FundNavHistoryService.crawl_one_nav_and_insert(holding, start_date, end_date)
 

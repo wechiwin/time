@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react';
+import {useState} from 'react';
 import {NavLink, useNavigate} from 'react-router-dom';
 import {
     ArrowRightOnRectangleIcon,
@@ -7,6 +7,7 @@ import {
     ChartBarIcon,
     ChevronLeftIcon,
     ChevronRightIcon,
+    ClockIcon,
     Cog6ToothIcon,
     HomeIcon,
     TableCellsIcon,
@@ -19,6 +20,7 @@ import {BellIcon} from "@heroicons/react/16/solid";
 import useUserSetting from "../../hooks/api/useUserSetting";
 import UserSettingForm from "../forms/UserSettingForm";
 import FormModal from "../common/FormModal";
+import {useIsMobile} from "../../hooks/useIsMobile";
 
 const navigation = [
     {key: 'menu_dashboard', name: 'Dashboard', href: '/dashboard', icon: HomeIcon},
@@ -26,31 +28,20 @@ const navigation = [
     {key: 'menu_alert', name: '持仓监控', href: '/alert', icon: BellIcon},
     {key: 'menu_trade', name: '交易管理', href: '/trade', icon: ArrowsRightLeftIcon},
     {key: 'menu_nav_history', name: '净值历史', href: '/nav_history', icon: ChartBarIcon},
+    {key: 'menu_task_logs', name: '任务运行', href: '/task_logs', icon: ClockIcon},
 ];
 
-export default function Sidebar({onSelect, isCollapsed, onToggleCollapse}) {
+// 新增 prop: showFloatingButton (默认为 true)
+export default function Sidebar({onSelect, isCollapsed, onToggleCollapse, showFloatingButton = true}) {
     const {t} = useTranslation();
     const [isOpen, setIsOpen] = useState(false);
-    const [isMobile, setIsMobile] = useState(false);
+    const isMobile = useIsMobile();
     const navigate = useNavigate();
     const {logout, fetchUserProfile, updateUser} = useUserSetting();
 
     // 模态框状态
     const [showUserSettingModal, setShowUserSettingModal] = useState(false);
     const [userSettingInitialValues, setUserSettingInitialValues] = useState({});
-
-    useEffect(() => {
-        const handleResize = () => {
-            setIsMobile(window.innerWidth < 768);
-            if (window.innerWidth >= 768) {
-                setIsOpen(false);
-            }
-        };
-
-        handleResize();
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
 
     const toggleSidebar = () => setIsOpen(!isOpen);
 
@@ -78,17 +69,22 @@ export default function Sidebar({onSelect, isCollapsed, onToggleCollapse}) {
         }
     };
 
+    // 计算浮动按钮是否可见
+    // 规则：是移动端 AND 侧边栏未打开 AND (父组件允许显示 OR 页面未滚动)
+    const isFloatingButtonVisible = isMobile && !isOpen && showFloatingButton;
+
     return (
         <>
             {/* 汉堡菜单按钮 */}
             <button
                 onClick={toggleSidebar}
-                className={`fixed top-4 left-4 z-50 p-2 rounded-md bg-white dark:bg-gray-800 shadow-md transition-opacity
-                    ${isMobile ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                className={`fixed top-4 left-4 z-50 p-2 rounded-md bg-white dark:bg-gray-800 shadow-md transition-all duration-300 ease-in-out
+                    ${isFloatingButtonVisible
+                    ? 'opacity-100 translate-y-0'
+                    : 'opacity-0 -translate-y-10 pointer-events-none'}`}
                 aria-label="Toggle sidebar"
-                aria-expanded={isOpen}
             >
-                {isOpen ? <XMarkIcon className="w-6 h-6"/> : <Bars3Icon className="w-6 h-6"/>}
+                <Bars3Icon className="w-6 h-6"/>
             </button>
 
             {/* 侧边栏 */}
@@ -98,12 +94,25 @@ export default function Sidebar({onSelect, isCollapsed, onToggleCollapse}) {
                     ? `w-64 transform ${isOpen ? 'translate-x-0' : '-translate-x-full'}`
                     : `${isCollapsed ? 'w-20' : 'w-64'} translate-x-0`}`}
             >
-                {/* Logo */}
+                {/* Logo & Header */}
                 <div
-                    className="h-16 flex items-center px-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+                    className="h-16 flex items-center justify-between px-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
                     <span className={`text-lg font-bold text-blue-600 ${isCollapsed && !isMobile ? 'hidden' : ''}`}>
                         {t('project_title')}
                     </span>
+
+                    {/*
+                       新增：侧边栏内部的关闭按钮
+                       因为浮动按钮在展开时被隐藏了，所以这里必须提供一个关闭入口
+                    */}
+                    {isMobile && (
+                        <button
+                            onClick={() => setIsOpen(false)}
+                            className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500"
+                        >
+                            <ChevronLeftIcon className="w-6 h-6" />
+                        </button>
+                    )}
                 </div>
 
                 {/* Nav */}

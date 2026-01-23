@@ -63,13 +63,13 @@ msgstr "单位净值"
 msgid "COL_TR_SHARES"
 msgstr "交易份数"
 
-msgid "COL_GROSS_AMOUNT"
-msgstr "交易总额"
+msgid "COL_CASH_AMOUNT"
+msgstr "交易本金"
 
 msgid "COL_TR_FEE"
 msgstr "交易费用"
 
-msgid "COL_TR_NET_AMOUNT"
+msgid "COL_TR_AMOUNT"
 msgstr "交易净额"
 
 msgid "TEMPLATE_TR_IMPORT"
@@ -83,6 +83,15 @@ msgstr "买入"
 
 msgid "TR_SELL"
 msgstr "卖出"
+
+msgid "TR_DIVIDEND"
+msgstr "分红"
+
+msgid "CASH"
+msgstr "现金分红"
+
+msgid "REINVEST"
+msgstr "分红再投资"
 
 msgid "TR_LOG"
 msgstr "交易记录"
@@ -153,3 +162,21 @@ msgid "FD_DIVIDEND_REINVEST"
 msgstr "分红再投资"
 msgid "FD_DIVIDEND_CASH"
 msgstr "现金分红"
+
+msgid "PENDING"
+msgstr "等待中"
+
+msgid "RUNNING"
+msgstr "执行中"
+
+msgid "SUCCESS"
+msgstr "执行成功"
+
+msgid "RETRYING"
+msgstr "重试中"
+
+msgid "FAILED"
+msgstr "执行失败"
+
+msgid "CANCELLED"
+msgstr "手动取消"

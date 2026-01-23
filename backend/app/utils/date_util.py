@@ -9,6 +9,13 @@ def get_today_date_str():
     return today_str
 
 
+def get_yesterday_date():
+    """
+    返回昨天日期的字符串 YYYY-MM-DD
+    """
+    yesterday = date.today() - timedelta(days=1)
+    return yesterday
+
 def get_yesterday_date_str():
     """
     返回昨天日期的字符串 YYYY-MM-DD

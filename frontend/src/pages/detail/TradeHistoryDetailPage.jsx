@@ -48,7 +48,7 @@ export default function TradeHistoryDetailPage() {
                 setFundInfo(infoData);
                 setSnapshots(snapshotData);
             } catch (e) {
-                console.log(e)
+                console.error(e)
             } finally {
                 setLoading(false)
             }

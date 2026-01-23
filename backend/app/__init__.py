@@ -16,11 +16,11 @@ from app.database import db
 from app.framework.error_handler import register_error_handler
 from app.framework.interceptor import register_request_response_logger
 from app.framework.log_config import setup_logging, get_early_logger
-from app.routes.user_bp import user_bp
+from .cache import cache
 from .config import Config
-from .framework.cache_manager import CacheManager
-from .scheduler import init_scheduler
+from .framework.jwt_config import configure_jwt
 from .routes import register_routes
+from .scheduler import init_scheduler
 
 scheduler = APScheduler()
 babel = Babel()
@@ -32,8 +32,7 @@ limiter = Limiter(
 )
 # 初始化邮件扩展
 mail = Mail()
-cache_manager = CacheManager()
-
+# cache_manager = CacheManager()
 
 def get_locale():
     """获取i18n语言"""
@@ -89,7 +88,7 @@ def create_app():
             "methods": app.config.get('CORS_METHODS', ["GET", "POST", "PUT", "DELETE", "OPTIONS"]),
             "supports_credentials": app.config['CORS_SUPPORTS_CREDENTIALS'],
             "expose_headers": app.config['CORS_EXPOSE_HEADERS'],
-            "allow_headers": app.config.get('CORS_ALLOW_HEADERS', ["Content-Type", "Authorization", "X-CSRF-Token"]),
+            "allow_headers": app.config.get('CORS_ALLOW_HEADERS', ["Content-Type", "Authorization"]),
             "max_age": 3600  # 预检请求缓存1小时
         }
     })
@@ -102,8 +101,11 @@ def create_app():
     babel.init_app(app, locale_selector=get_locale)
 
     jwt = JWTManager(app)
+    configure_jwt(jwt)
+
     mail.init_app(app)
-    limiter.init_app(app)
+    if not app.debug:
+        limiter.init_app(app)
 
     # 禁用 ASCII 转义
     app.json = NoAsciiJSONProvider(app)
@@ -122,7 +124,7 @@ def create_app():
     db.init_app(app)
 
     # 初始化缓存
-    cache_manager.init_app(app)
+    cache.init_app(app)
 
     # Register Blueprints
     register_routes(app)

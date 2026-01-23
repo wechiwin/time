@@ -11,9 +11,9 @@
   "th_tr_type": "Buy/Sell",
   "th_tr_nav_per_unit": "Trade NAV Per Unit",
   "th_tr_shares": "Trade Shares",
-  "th_gross_amount": "Gross Amount",
+  "th_cash_amount": "Payment/Receipt",
   "th_tr_fee": "Trade Fee",
-  "th_tr_net_amount": "Net Amount",
+  "th_tr_amount": "Transaction Amount",
   "th_actions": "Actions",
   "th_ho_manage_exp_rate": "Fund Management Fee Rate",
   "th_ho_trustee_exp_rate": "Fund Custody Fee Rate",
@@ -31,6 +31,7 @@
   "th_feature": "Feature Tags",
   "th_currency": "Currency",
   "th_fund_type": "Fund Type",
+  "th_dividend_type": "Dividend Type",
 
   "start_date": "Start Date",
   "end_date": "End Date",
@@ -56,6 +57,7 @@
   "button_back": "Back",
   "button_upload_image": "AI image recognition",
   "button_crawl_all": "Crawl All",
+  "button_reset": "Reset",
 
   "project_title": "Holding Management System",
 
@@ -73,6 +75,8 @@
   "msg_mydate_select_date": "Choose Date",
   "msg_ai_analyzing": "AI Analyzing...",
   "msg_uploading": "Uploading...",
+  "msg_no_records": "No records available",
+  "msg_verifying_identity": "Verifying identity...",
 
   "info_hold_status": "Holding Status",
   "info_status_holding": "Holding",
@@ -97,12 +101,14 @@
 
   "prev_page": "Prev",
   "next_page": "Next",
-  "per_page": "Per Page",
-  "jump_page": "Jump",
   "pagination_left": "Page",
   "pagination_right": "",
-  "total_name": "",
+  "jump_page": "Go",
+  "per_page": "Per page",
+  "total_name": "Total",
   "total_item": "items",
+  "page_number": "Page",
+  "pagination_aria_label": "Pagination navigation",
 
   "menu_alert": "Position Monitoring",
   "alert_rule_management": "Alert Management",
@@ -111,14 +117,16 @@
   "alert_type_buy": "Buy",
   "alert_type_sell": "Sell",
   "alert_type_add": "Add Position",
-  "alert_target_navpu": "NAV Target Per Unità",
+  "alert_target_price": "Target Price",
   "alert_status": "Status",
-  "alert_trigger_time": "Trigger Time",
+  "alert_trigger_time": "Trigger Date",
   "alert_status_pending": "Pending",
   "alert_status_sent": "Sent",
   "alert_status_failed": "Failed",
   "status_active": "Active",
   "status_inactive": "Inactive",
+  "trigger_nav_date": "Date of Trigger Price",
+  "remark": "Nota",
 
   "login_title": "Login System",
   "register_title": "User Registration",
@@ -150,5 +158,26 @@
   "user_settings": "User Settings",
   "th_username": "Username",
   "th_default_language": "Default Language",
-  "th_email_address": "Email Address"
+  "th_email_address": "Email Address",
+
+  "today": "Today",
+  "past": "Past",
+  "days": "days",
+  "current_month": "Current Month",
+  "past_month": "Last Month",
+  "msg_select_date_range": "Select Date Range",
+  "label_fund_name_or_code": "Fund Name or Code",
+
+  "select_all": "All",
+
+  "menu_task_logs": "Task Execution",
+  "label_keyword ": "Search Keyword",
+  "th_task_name ": "Task Name",
+  "th_status": "Task Status",
+  "th_result_summary": "result_summary",
+  "th_created_at": "Create Datetime",
+  "th_updated_at": "Update Datetime",
+  "th_retries": "Retry Times",
+  "th_error_message": "Error Message"
+
 }

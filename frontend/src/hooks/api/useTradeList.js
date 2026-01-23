@@ -7,53 +7,58 @@ export default function useTradeList(options = {}) {
         keyword = '',
         page = 1,
         perPage = 10,
-        autoLoad = true
+        autoLoad = true,
+        refreshKey = 0,
+        tr_type = '',
+        start_date = null,
+        end_date = null
     } = options;
 
     // 业务层管理数据状态
     const [data, setData] = useState(null);
-    const {loading, error, get, post, put, del, download} = useApi();
+    const {loading, error, get, post, download} = useApi();
     const urlPrefix = '/trade';
 
-    const search = useCallback(async (searchKeyword = '', currentPage = 1, currentPerPage = 10) => {
-        const params = new URLSearchParams({
-            keyword: encodeURIComponent(searchKeyword),
-            page: currentPage.toString(),
-            per_page: currentPerPage.toString()
-        }).toString();
-        const result = await get(`/trade?${params}`);
-        setData(result);  // 业务逻辑设置 data
+    const search = useCallback(async (params = {}) => {
+        let payload = {keyword, page, perPage, tr_type, start_date, end_date, ...params};
+
+        const result = await post(urlPrefix + '/tr_page', {
+            keyword: payload.keyword,
+            page: payload.page,
+            per_page: payload.perPage,
+            start_date: payload.start_date,
+            end_date: payload.end_date,
+            tr_type: payload.tr_type
+        });
+        setData(result);
         return result;
-    }, [get]);
+    }, [post, keyword, page, perPage, tr_type, start_date, end_date]);
 
     // 自动根据参数变化加载数据
     useEffect(() => {
         if (autoLoad) {
-            search(keyword, page, perPage);
+            search();
         }
-    }, [keyword, page, perPage, autoLoad, search]);
+    }, [keyword, page, perPage, tr_type, start_date, end_date, autoLoad, search, refreshKey]);
 
     const add = useCallback(async (body) => {
-        const result = await post('/trade', body);
-        await search(keyword, page, perPage);
+        const result = await post(urlPrefix + '/add_tr', body);
         return result;
-    }, [post, search, keyword, page, perPage]);
+    }, [post]);
 
     const remove = useCallback(async (id) => {
-        const result = await del(`/trade/${id}`);
-        await search(keyword, page, perPage);
+        const result = await post(urlPrefix + '/del_tr', {id});
         return result;
-    }, [del, search, keyword, page, perPage]);
+    }, [post]);
 
     const update = useCallback(async ({tr_id, ...body}) => {
-        const result = await put(`/trade/${tr_id}`, body);
-        await search(keyword, page, perPage);
+        const result = await post(urlPrefix + "/update_tr", body);
         return result;
-    }, [put, search, keyword, page, perPage]);
+    }, [post]);
 
     // 下载模板
     const downloadTemplate = useCallback(async () => {
-        const url = '/trade/template';
+        const url = urlPrefix + '/template';
         const filename = 'TradeImportTemplate.xlsx';
 
         try {
@@ -69,7 +74,7 @@ export default function useTradeList(options = {}) {
         const formData = new FormData();
         formData.append('file', file);
 
-        return post('/trade/import', formData, {
+        return post(urlPrefix + '/import', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },
@@ -77,7 +82,7 @@ export default function useTradeList(options = {}) {
     }, [post]);
 
     const listByHoId = useCallback(async (ho_id = '') => {
-        const result = await post(`${urlPrefix}/list_by_ho_id`,{ho_id});
+        const result = await post(urlPrefix + '/list_by_ho_id', {ho_id});
         setData(result);  // 业务逻辑设置 data
         return result;
     }, [post]);
@@ -99,7 +104,7 @@ export default function useTradeList(options = {}) {
 
         // 注意：这里去掉了手动设置 'Content-Type': 'multipart/form-data'
         // 让浏览器自动生成 boundary
-        return post('/trade/upload_sse', formData, {});
+        return post(urlPrefix + '/upload_sse', formData, {});
     }, [post]);
 
     return {

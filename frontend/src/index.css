@@ -57,6 +57,10 @@
         opacity: 1; /* 确保不透明 */
     }
 
+    .dark .read-only-input {
+        @apply bg-gray-700 text-gray-400;
+    }
+
     .btn-group {
         @apply flex flex-wrap gap-2 w-full md:w-auto;
     }
@@ -124,6 +128,250 @@
         @apply ml-1 text-blue-600 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-100;
     }
 
+    .search-area-label {
+        font-size: 0.875rem; /* 14px */
+        font-weight: 500;
+        color: #374151; /* gray-700 */
+        margin-bottom: 0.25rem;
+    }
+
+    .dark .search-area-label {
+        color: #d1d5db; /* gray-300 */
+    }
+
+    /* 自定义滚动条样式，适配亮色/暗色模式 */
+    .custom-scrollbar::-webkit-scrollbar {
+        @apply w-1.5;
+        /* 滚动条宽度 */
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        @apply bg-transparent;
+        /* 轨道背景透明 */
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        @apply rounded-full bg-gray-300;
+        /* 亮色模式滑块 */
+    }
+
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+        @apply bg-gray-600;
+        /* 暗色模式滑块 */
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        @apply bg-gray-400;
+        /* 亮色模式滑块 hover */
+    }
+
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        @apply bg-gray-500;
+        /* 暗色模式滑块 hover */
+    }
+
+    /* React Select 样式 */
+    .react-multi-select .select__control {
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+    }
+
+    .react-multi-select .select__control--is-focused {
+        border-color: #3b82f6 !important;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1) !important;
+    }
+
+    .react-multi-select .select__menu {
+        border-radius: 0.375rem;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    .react-multi-select .select__option {
+        padding: 0.5rem 0.75rem;
+        cursor: pointer;
+    }
+
+    .react-multi-select .select__option--is-focused {
+        background-color: #eff6ff;
+    }
+
+    .react-multi-select .select__option--is-selected {
+        background-color: #3b82f6;
+        color: white;
+    }
+
+    .react-multi-select .select__multi-value {
+        background-color: #dbeafe;
+        border-radius: 0.25rem;
+    }
+
+    .react-multi-select .select__multi-value__label {
+        color: #1e40af;
+        font-weight: 500;
+    }
+
+    .react-multi-select .select__multi-value__remove {
+        color: #1e40af;
+    }
+
+    .react-multi-select .select__multi-value__remove:hover {
+        background-color: #bfdbfe;
+        color: #dc2626;
+    }
+
+    .react-multi-select .select__indicator-separator {
+        background-color: #d1d5db;
+    }
+
+    .react-multi-select .select__dropdown-indicator {
+        color: #9ca3af;
+    }
+
+    .react-multi-select .select__dropdown-indicator:hover {
+        color: #6b7280;
+    }
+
+    .react-multi-select .select__clear-indicator {
+        color: #9ca3af;
+        padding: 4px;
+    }
+
+    .react-multi-select .select__clear-indicator:hover {
+        color: #dc2626;
+    }
+
+    /* 暗色模式支持 */
+    .dark .react-multi-select .select__control {
+        background-color: #1f2937;
+        border-color: #4b5563;
+        color: #f9fafb;
+    }
+
+    .dark .react-multi-select .select__single-value {
+        color: #f9fafb;
+    }
+
+    .dark .react-multi-select .select__input {
+        color: #f9fafb;
+    }
+
+    .dark .react-multi-select .select__menu {
+        background-color: #1f2937;
+        border-color: #4b5563;
+    }
+
+    .dark .react-multi-select .select__option {
+        color: #f9fafb;
+    }
+
+    .dark .react-multi-select .select__option--is-focused {
+        background-color: #374151;
+        color: #f9fafb;
+    }
+
+    .dark .react-multi-select .select__option--is-selected {
+        background-color: #3b82f6;
+        color: white;
+    }
+
+    .dark .react-multi-select .select__multi-value {
+        background-color: #374151;
+    }
+
+    .dark .react-multi-select .select__multi-value__label {
+        color: #93c5fd;
+    }
+
+    .dark .react-multi-select .select__placeholder {
+        color: #9ca3af;
+    }
+
+    .dark .react-multi-select .select__indicator {
+        color: #9ca3af;
+    }
+
+    .dark .react-multi-select .select__indicator:hover {
+        color: #d1d5db;
+    }
+
+    /* 在 index.css 的 dark .react-multi-select 部分添加 */
+    .dark .react-multi-select .select__multi-value {
+        background-color: #1e3a8a; /* 更深的蓝色背景 */
+    }
+
+    .dark .react-multi-select .select__multi-value__label {
+        color: #93c5fd; /* 更亮的蓝色文字 */
+    }
+
+    .dark .react-multi-select .select__multi-value__remove {
+        color: #93c5fd; /* 亮色关闭图标 */
+    }
+
+    .dark .react-multi-select .select__multi-value__remove:hover {
+        background-color: #7f1d1d; /* 深红色背景 */
+        color: #fca5a5; /* 亮红色图标 */
+    }
+
+    .dark .react-multi-select .select__control {
+        background-color: #1f2937;
+        border-color: #4b5563;
+        color: #f9fafb;
+    }
+
+    .dark .react-multi-select .select__control--is-focused {
+        border-color: #3b82f6 !important;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3) !important;
+    }
+
+    .dark .react-multi-select .select__single-value {
+        color: #f9fafb;
+    }
+
+    .dark .react-multi-select .select__input {
+        color: #f9fafb;
+    }
+
+    .dark .react-multi-select .select__menu {
+        background-color: #1f2937;
+        border-color: #4b5563;
+    }
+
+    .dark .react-multi-select .select__option {
+        color: #f9fafb;
+    }
+
+    .dark .react-multi-select .select__option--is-focused {
+        background-color: #374151;
+        color: #f9fafb;
+    }
+
+    .dark .react-multi-select .select__option--is-selected {
+        background-color: #3b82f6;
+        color: white;
+    }
+
+    .dark .react-multi-select .select__placeholder {
+        color: #9ca3af;
+    }
+
+    .dark .react-multi-select .select__indicator {
+        color: #9ca3af;
+    }
+
+    .dark .react-multi-select .select__indicator:hover {
+        color: #d1d5db;
+    }
+
+    .dark .react-multi-select .select__clear-indicator {
+        color: #9ca3af;
+    }
+
+    .dark .react-multi-select .select__clear-indicator:hover {
+        color: #fca5a5; /* 亮红色 */
+    }
+
     .chart-box {
         @apply w-full min-h-[300px] md:min-h-[400px] flex items-center justify-center;
     }
@@ -140,6 +388,130 @@
     .react-datepicker__year-select,
     .react-datepicker__month-select {
         @apply px-3 h-8 text-sm rounded-md border border-slate-300;
+    }
+
+    /* =========================================
+       React DatePicker 暗黑模式支持
+       ========================================= */
+    /* 1. 弹窗容器背景与边框 */
+    .dark .react-datepicker {
+        background-color: #1f2937; /* gray-800 */
+        border-color: #4b5563; /* gray-600 */
+        color: #f3f4f6; /* gray-100 */
+    }
+
+    /* 2. 头部背景（月份/年份选择区域） */
+    .dark .react-datepicker__header {
+        background-color: #374151; /* gray-700 */
+        border-bottom-color: #4b5563;
+    }
+
+    /* 3. 当前月份/年份文字颜色 */
+    .dark .react-datepicker__current-month {
+        color: #f3f4f6;
+    }
+
+    /* 4. 星期标题（Mon, Tue...） */
+    .dark .react-datepicker__day-name {
+        color: #9ca3af; /* gray-400 */
+    }
+
+    /* 5. 日期单元格基础样式 */
+    .dark .react-datepicker__day {
+        color: #e5e7eb; /* gray-200 */
+    }
+
+    /* 6. 日期单元格 Hover 状态 */
+    .dark .react-datepicker__day:hover,
+    .dark .react-datepicker__month-text:hover,
+    .dark .react-datepicker__quarter-text:hover,
+    .dark .react-datepicker__year-text:hover {
+        background-color: #4b5563; /* gray-600 */
+        color: #ffffff;
+        border-radius: 0.375rem;
+    }
+
+    /* 7. 选中日期的样式 */
+    .dark .react-datepicker__day--selected,
+    .dark .react-datepicker__day--keyboard-selected {
+        background-color: #2563eb; /* blue-600 */
+        color: #ffffff;
+    }
+
+    /* 8. 选中日期的 Hover 状态（防止被 hover 覆盖） */
+    .dark .react-datepicker__day--selected:hover,
+    .dark .react-datepicker__day--keyboard-selected:hover {
+        background-color: #1d4ed8; /* blue-700 */
+    }
+
+    /* 9. 禁用日期（不在当前月份或被禁用的日期） */
+    .dark .react-datepicker__day--disabled,
+    .dark .react-datepicker__month-text--disabled,
+    .dark .react-datepicker__quarter-text--disabled,
+    .dark .react-datepicker__year-text--disabled {
+        color: #6b7280; /* gray-500 */
+        cursor: default;
+    }
+
+    /* 10. 今日日期的高亮 */
+    .dark .react-datepicker__day--today {
+        font-weight: bold;
+        color: #60a5fa; /* blue-400 */
+    }
+
+    /* 11. 输入框样式（确保在暗黑模式下背景正确） */
+    /* 注意：这里使用了 !important 来确保优先级高于 react-datepicker 的默认内联样式 */
+    .dark .react-datepicker-wrapper input.input-field {
+        background-color: #1f2937 !important; /* gray-800 */
+        color: #f3f4f6 !important; /* gray-100 */
+        border-color: #4b5563 !important; /* gray-600 */
+    }
+
+    /* 12. 月份/年份下拉框样式 */
+    .dark .react-datepicker__month-select,
+    .dark .react-datepicker__year-select {
+        background-color: #1f2937;
+        color: #f3f4f6;
+        border-color: #4b5563;
+    }
+
+    /* 13. 时间选择器样式（如果使用） */
+    .dark .react-datepicker__time-container {
+        border-left-color: #4b5563;
+        background-color: #1f2937;
+    }
+
+    .dark .react-datepicker__time {
+        background-color: #1f2937;
+    }
+
+    .dark .react-datepicker__time-list-item {
+        color: #e5e7eb;
+    }
+
+    .dark .react-datepicker__time-list-item:hover {
+        background-color: #4b5563;
+        color: #ffffff;
+    }
+
+    .dark .react-datepicker__time-list-item--selected {
+        background-color: #2563eb;
+        color: #ffffff;
+    }
+
+    /* 14. 箭头导航按钮 */
+    .dark .react-datepicker__navigation {
+        border-color: #d1d5db; /* gray-300 */
+    }
+
+    .dark .react-datepicker__navigation:hover {
+        border-color: #ffffff;
+    }
+
+    /* 15. 三角形箭头（小三角） */
+    .dark .react-datepicker-popper[data-placement^="bottom"] .react-datepicker__triangle::before,
+    .dark .react-datepicker-popper[data-placement^="bottom"] .react-datepicker__triangle::after {
+        border-bottom-color: #374151; /* 匹配 header 颜色 */
     }
 
 
@@ -198,7 +570,8 @@
 
     /* 触摸友好的按钮 */
     .touch-button {
-        @apply px-4 py-3 text-base; /* 更大的点击区域 */
+        @apply px-4 py-3 text-base;
+        /* 更大的点击区域 */
     }
 
     /* 移动端导航优化 */

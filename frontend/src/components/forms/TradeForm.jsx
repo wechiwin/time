@@ -6,21 +6,65 @@ import useTradeList from "../../hooks/api/useTradeList";
 import MyDate from "../common/MyDate";
 import MySelect from "../common/MySelect";
 import useCommon from "../../hooks/api/useCommon";
+import HoldingSearchSelect from "../search/HoldingSearchSelect";
+import {roundNumber} from "../../utils/formatters";
+import {ExclamationTriangleIcon, CheckCircleIcon} from "@heroicons/react/24/outline";
+import {EventSourcePolyfill} from 'event-source-polyfill';
 
 const init = {
-    tr_id: '',
+    id: '',
+    ho_id: '',
     ho_code: '',
+    ho_short_name: '',
     tr_type: '',
     tr_date: '',
     tr_nav_per_unit: '',
     tr_shares: '',
-    gross_amount: '',
+    tr_amount: '',
     tr_fee: '',
-    tr_net_amount: '',
+    cash_amount: '',
+    dividend_type: null,
+};
+
+// 气泡提示组件
+const WarningBubble = ({warning, onApply}) => {
+    if (!warning) return null;
+
+    // 解构 warning 对象，兼容旧逻辑（如果只是字符串）
+    const message = typeof warning === 'string' ? warning : warning.message;
+    const suggestedValue = typeof warning === 'object' ? warning.suggestedValue : null;
+
+    return (
+        <div className="absolute z-20 left-0 -bottom-1 translate-y-full w-full">
+            <div
+                className="relative bg-orange-50 border border-orange-200 text-orange-800 text-xs rounded-md p-2 shadow-lg flex flex-col gap-1">
+                {/* 小三角箭头 */}
+                <div
+                    className="absolute -top-1.5 left-4 w-3 h-3 bg-orange-50 border-t border-l border-orange-200 transform rotate-45"></div>
+                <div className="flex items-start gap-1.5">
+                    <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0 mt-0.5 text-orange-600"/>
+                    <span className="leading-tight">{message}</span>
+                </div>
+
+                {/* 应用按钮：只有存在建议值时才显示 */}
+                {suggestedValue !== null && suggestedValue !== undefined && (
+                    <button
+                        type="button"
+                        onClick={() => onApply(suggestedValue)}
+                        className="mt-1 flex items-center justify-center gap-1 w-full bg-orange-100 hover:bg-orange-200 text-orange-700 py-1 px-2 rounded transition-colors text-xs font-medium border border-orange-200"
+                    >
+                        <CheckCircleIcon className="w-3.5 h-3.5"/>
+                        应用 {suggestedValue}
+                    </button>
+                )}
+            </div>
+        </div>
+    );
 };
 
 export default function TradeForm({onSubmit, onClose, initialValues}) {
     const [form, setForm] = useState(init);
+    const [warnings, setWarnings] = useState({}); // 存储校验警告信息
     const {showSuccessToast, showErrorToast} = useToast();
     const {t} = useTranslation()
     const [uploading, setUploading] = useState(false);
@@ -30,21 +74,26 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
     // 用于管理 EventSource 连接，以便随时关闭
     const eventSourceRef = useRef(null);
 
-    const {fetchEnumValues} = useCommon();
+    const {fetchEnum} = useCommon();
     const [typeOptions, setTypeOptions] = useState([]);
+    const [dividendTypeOptions, setDividendTypeOptions] = useState([]); // 新增：分红类型选项
 
     useEffect(() => {
         const loadEnumValues = async () => {
             try {
-                const options = await fetchEnumValues('TradeTypeEnum');
-                setTypeOptions(options);
+                const [tradeTypes, dividendTypes] = await Promise.all([
+                    fetchEnum('TradeTypeEnum'),
+                    fetchEnum('DividendTypeEnum')
+                ]);
+                setTypeOptions(tradeTypes);
+                setDividendTypeOptions(dividendTypes);
             } catch (err) {
                 console.error('Failed to load enum values:', err);
                 showErrorToast('加载类型选项失败');
             }
         };
         loadEnumValues();
-    }, [fetchEnumValues, showErrorToast]);
+    }, [fetchEnum, showErrorToast]);
 
     // 组件卸载时，强制关闭未完成的连接
     useEffect(() => {
@@ -55,7 +104,129 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
         };
     }, []);
 
-    // SSE
+    // --- 核心逻辑：实时校验 ---
+    useEffect(() => {
+        const newWarnings = {};
+        const nav = parseFloat(form.tr_nav_per_unit);
+        const shares = parseFloat(form.tr_shares);
+        const amount = parseFloat(form.tr_amount);
+        const fee = parseFloat(form.tr_fee);
+        const cash = parseFloat(form.cash_amount);
+        const type = form.tr_type;
+
+        // 仅在非现金分红时校验 tr_amount
+        if (form.dividend_type !== 'CASH' && !isNaN(nav) && !isNaN(shares) && !isNaN(amount)) {
+            const calcAmount = roundNumber(nav * shares, 2);
+            if (Math.abs(calcAmount - amount) > 0.05) {
+                newWarnings.tr_amount = {
+                    message: `计算值 (${calcAmount}) 与输入值不符`,
+                    suggestedValue: calcAmount
+                };
+            }
+        }
+
+        // 仅在买入/卖出类型时校验 cash_amount
+        const isBuySell = ['BUY', 'SUBSCRIPTION', 'INVEST', 'SELL', 'REDEMPTION', 'DIVEST'].includes(type?.toUpperCase());
+        if (isBuySell && !isNaN(amount) && !isNaN(fee) && !isNaN(cash)) {
+            let expectedCash = null;
+            const isBuy = ['BUY', 'SUBSCRIPTION', 'INVEST'].includes(type.toUpperCase());
+            const isSell = ['SELL', 'REDEMPTION', 'DIVEST'].includes(type.toUpperCase());
+
+            if (isBuy) {
+                expectedCash = roundNumber(amount + fee, 2);
+            } else if (isSell) {
+                expectedCash = roundNumber(amount - fee, 2);
+            }
+
+            if (expectedCash !== null && Math.abs(expectedCash - cash) > 0.05) {
+                newWarnings.cash_amount = {
+                    message: `计算值 (${expectedCash}) 与输入值不符`,
+                    suggestedValue: expectedCash
+                };
+            }
+        }
+
+        setWarnings(newWarnings);
+    }, [form]); // 依赖整个 form 对象，简化依赖列表
+
+    // 统一的 Change 处理，触发自动计算
+    const handleFieldChange = (field, value) => {
+        setForm(prev => {
+            const nextForm = {...prev, [field]: value};
+
+            // 1. 当交易类型改变时，重置相关字段
+            if (field === 'tr_type') {
+                // 如果新类型不是分红，清空分红类型
+                if (value !== 'DIVIDEND') {
+                    nextForm.dividend_type = null;
+                }
+                // 每次类型切换都清空数值，避免旧数据污染
+                nextForm.tr_nav_per_unit = '';
+                nextForm.tr_shares = '';
+                nextForm.tr_amount = '';
+                nextForm.tr_fee = '';
+                nextForm.cash_amount = '';
+            }
+
+            // 2. 当分红类型改变时，重置相关字段
+            if (field === 'dividend_type') {
+                if (value === 'CASH') {
+                    // 现金分红，清空再投资字段
+                    nextForm.tr_nav_per_unit = '';
+                    nextForm.tr_shares = '';
+                    nextForm.tr_amount = '';
+                    nextForm.tr_fee = '';
+                } else if (value === 'REINVEST') {
+                    // 分红再投资，清空现金字段
+                    nextForm.cash_amount = '';
+                }
+            }
+
+            // 3. 联动计算逻辑
+            const nav = parseFloat(nextForm.tr_nav_per_unit);
+            const shares = parseFloat(nextForm.tr_shares);
+            const amount = parseFloat(nextForm.tr_amount);
+            const fee = parseFloat(nextForm.tr_fee);
+            const type = nextForm.tr_type;
+
+            // 3.1 自动计算 tr_amount (适用于买卖和分红再投资)
+            if (['tr_nav_per_unit', 'tr_shares'].includes(field) && !isNaN(nav) && !isNaN(shares)) {
+                nextForm.tr_amount = roundNumber(nav * shares, 2).toString();
+            }
+
+            // 3.2 自动计算 cash_amount (仅适用于买卖)
+            const isBuySell = ['BUY', 'SUBSCRIPTION', 'INVEST', 'SELL', 'REDEMPTION', 'DIVEST'].includes(type?.toUpperCase());
+            if (isBuySell) {
+                const currentAmount = parseFloat(nextForm.tr_amount);
+                const currentFee = parseFloat(nextForm.tr_fee);
+                if (!isNaN(currentAmount) && !isNaN(currentFee)) {
+                    const isBuy = ['BUY', 'SUBSCRIPTION', 'INVEST'].includes(type.toUpperCase());
+                    if (isBuy) {
+                        nextForm.cash_amount = roundNumber(currentAmount + currentFee, 2).toString();
+                    } else {
+                        nextForm.cash_amount = roundNumber(currentAmount - currentFee, 2).toString();
+                    }
+                }
+            }
+            return nextForm;
+        });
+    };
+
+    const handleApplyFix = (field, value) => {
+        // 调用 handleFieldChange 以确保触发联动逻辑（例如修正 Amount 后自动修正 Cash）
+        handleFieldChange(field, value.toString());
+    };
+
+    const handleFundSelectChange = (fund) => {
+        setForm(prev => ({
+            ...prev,
+            ho_code: fund?.ho_code || '',
+            ho_id: fund?.id || '',
+            ho_short_name: fund?.ho_short_name || ''
+        }));
+    };
+
+    // SSE 上传逻辑
     const handleUpload = async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -94,8 +265,16 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
             eventSourceRef.current.close();
         }
 
+        const token = localStorage.getItem('access_token');
+
         // 建立新连接
-        const eventSource = new EventSource(`/api/trade/stream/${taskId}`);
+        const eventSource = new EventSourcePolyfill(`/api/trade/stream/${taskId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            heartbeatTimeout: 120000,
+        });
+
         eventSourceRef.current = eventSource;
 
         eventSource.onmessage = (event) => {
@@ -107,25 +286,25 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                     const o = data.data.parsed_json; // 注意后端结构是 data -> data -> parsed_json
 
                     setForm(prev => {
-                        const isEditMode = !!initialValues?.tr_id;
+                        const isEditMode = !!initialValues?.id;
                         return {
                             ...prev,
-                            // 使用 nullish coalescing  仅当 LLM 返回有效值时覆盖
-                            ho_code: isEditMode ? prev.ho_code : (o.ho_code ?? prev.ho_code ?? ''), // 在编辑模式下禁止被覆盖
-                            tr_net_amount: o.tr_net_amount ?? prev.tr_net_amount ?? '',
+                            id: o.id ?? prev.id ?? '',
+                            ho_code: isEditMode ? prev.ho_code : (o.ho_code ?? prev.ho_code ?? ''),
+                            ho_id: isEditMode ? prev.ho_id : (o.ho_id ?? prev.ho_id ?? ''),
+                            ho_short_name: isEditMode ? prev.ho_short_name : (o.ho_short_name ?? prev.ho_short_name ?? ''),
+                            tr_amount: o.tr_amount ?? prev.tr_amount ?? '',
                             tr_date: o.tr_date ?? prev.tr_date ?? '',
                             tr_fee: o.tr_fee ?? prev.tr_fee ?? '',
                             tr_nav_per_unit: o.tr_nav_per_unit ?? prev.tr_nav_per_unit ?? '',
                             tr_shares: o.tr_shares ?? prev.tr_shares ?? '',
-                            gross_amount: o.gross_amount ?? prev.gross_amount ?? '',
-                            tr_type: o.tr_type ?? prev.tr_type ?? 1,
+                            cash_amount: o.cash_amount ?? prev.cash_amount ?? '',
+                            tr_type: o.tr_type ?? prev.tr_type ?? '',
                         };
                     });
 
                     showSuccessToast();
-
-                    // 可选：显示 OCR 原文
-                    // console.log("OCR Text:", data.data.ocr_text);
+                    console.log("OCR Text:", data.data.ocr_text);
 
                 } else if (data.error) {
                     showErrorToast(data.error);
@@ -157,12 +336,15 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
 
     const submit = async (e) => {
         e.preventDefault();
+        // 禁用按钮防止重复提交
+        setUploading(true);
+
         try {
             await onSubmit(form);
-            setForm(init);
-            showSuccessToast();
         } catch (err) {
-            showErrorToast(err.message);
+            console.error('Form submission error:', err);
+        } finally {
+            setUploading(false);
         }
     };
 
@@ -170,134 +352,188 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
     useEffect(() => {
         if (initialValues) {
             setForm({
-                tr_id: initialValues.tr_id,
+                id: initialValues.id,
+                ho_id: initialValues.ho_id || '',
                 ho_code: initialValues.ho_code || '',
+                ho_short_name: initialValues.ho_short_name || '',
                 tr_type: initialValues.tr_type || '',
                 tr_date: initialValues.tr_date || '',
                 tr_nav_per_unit: initialValues.tr_nav_per_unit || '',
                 tr_shares: initialValues.tr_shares || '',
-                gross_amount: initialValues.gross_amount || '',
+                tr_amount: initialValues.tr_amount || '',
                 tr_fee: initialValues.tr_fee || '',
-                tr_net_amount: initialValues.tr_net_amount || ''
+                cash_amount: initialValues.cash_amount || '',
             });
         }
     }, [initialValues]);
 
+    // 计算是否为编辑模式
+    const isEditMode = !!initialValues?.id;
+    const holdingSelectValue = form.ho_id ? {
+        id: form.ho_id,
+        ho_code: form.ho_code,
+        ho_short_name: form.ho_short_name
+    } : null;
+
+    // 条件渲染的控制变量
+    const isDividend = form.tr_type === 'DIVIDEND';
+    const isCashDividend = isDividend && form.dividend_type === 'CASH';
+    const isReinvestDividend = isDividend && form.dividend_type === 'REINVEST';
+
+    // 决定哪些字段组可见
+    const showReinvestFields = !isDividend || isReinvestDividend;
+    const showCashAmountField = !isDividend || isCashDividend;
+
     return (
-        <form onSubmit={submit} className="space-y-4 p-4 page-bg rounded-lg">
-            {/* 移动端使用单列布局，桌面端使用多列 */}
-            <div className="grid grid-cols-1 gap-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex flex-col">
-                        <label className="text-sm font-medium mb-1">{t('th_ho_code')}</label>
-                        <input
-                            placeholder={t('th_ho_code')}
-                            value={form.ho_code}
-                            onChange={(e) => setForm({...form, ho_code: e.target.value})}
-                            required
-                            className={`input-field ${initialValues?.tr_id ? 'read-only-input' : ''}`}
-                            readOnly={!!initialValues?.tr_id}
-                        />
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="text-sm font-medium mb-1">{t('th_tr_type')}</label>
-                        <MySelect
-                            options={typeOptions}
-                            value={form.tr_type}
-                            onChange={(val) => setForm({...form, currency: val})}
-                            className="input-field"
-                        />
-                    </div>
+        <form onSubmit={submit} className="p-3 sm:p-4 page-bg rounded-lg">
+            {/*
+               --- 改进点 1: 紧凑布局 ---
+               手机端使用 grid-cols-2，gap-3
+               通过 col-span-2 控制全宽字段
+            */}
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+
+                {/* 基金代码 - 全宽 */}
+                <div className="col-span-2 flex flex-col">
+                    <label className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_ho_code')}</label>
+                    <HoldingSearchSelect
+                        value={holdingSelectValue}
+                        onChange={handleFundSelectChange}
+                        placeholder={t('th_ho_code')}
+                        disabled={isEditMode}
+                        className="w-full text-sm"
+                    />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex flex-col">
-                        <label className="text-sm font-medium mb-1">{t('th_nav_date')}</label>
-                        <MyDate
-                            value={form.tr_date}
-                            onChange={(dateStr) => setForm({...form, tr_date: dateStr})}
-                            className="input-field"
-                        />
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="text-sm font-medium mb-1">{t('th_tr_nav_per_unit')}</label>
-                        <input
-                            type="number"
-                            step="0.0001"
-                            placeholder={t('th_tr_nav_per_unit')}
-                            required
-                            value={form.tr_nav_per_unit}
-                            onChange={(e) => setForm({...form, tr_nav_per_unit: e.target.value})}
-                            className="input-field"
-                        />
-                    </div>
+                {/* 交易类型 - 半宽 */}
+                <div className="col-span-1 flex flex-col">
+                    <label className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_tr_type')}</label>
+                    <MySelect
+                        options={typeOptions}
+                        value={form.tr_type}
+                        onChange={(val) => handleFieldChange('tr_type', val)}
+                        className="input-field text-sm py-1.5" // 稍微减小内边距
+                    />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex flex-col">
-                        <label className="text-sm font-medium mb-1">{t('th_tr_shares')}</label>
-                        <input
-                            type="number"
-                            step="0.0001"
-                            placeholder={t('th_tr_shares')}
-                            required
-                            value={form.tr_shares}
-                            onChange={(e) => setForm({...form, tr_shares: e.target.value})}
-                            className="input-field"
-                        />
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="text-sm font-medium mb-1">{t('th_gross_amount')}</label>
-                        <input
-                            type="number"
-                            step="0.0001"
-                            placeholder={t('th_gross_amount')}
-                            required
-                            value={form.gross_amount}
-                            onChange={(e) => setForm({...form, gross_amount: e.target.value})}
-                            className="input-field"
-                        />
-                    </div>
+                {/* 交易日期 - 半宽 */}
+                <div className="col-span-1 flex flex-col">
+                    <label className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_nav_date')}</label>
+                    <MyDate
+                        value={form.tr_date}
+                        onChange={(dateStr) => setForm({...form, tr_date: dateStr})}
+                        className="input-field text-sm py-1.5"
+                    />
                 </div>
+                {/* 分红类型 - 条件显示 */}
+                {isDividend && (
+                    <div className="col-span-2">
+                        <label
+                            className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_dividend_type', 'Dividend Type')}</label>
+                        <MySelect options={dividendTypeOptions} value={form.dividend_type}
+                                  onChange={(val) => handleFieldChange('dividend_type', val)}
+                                  className="input-field text-sm py-1.5"/>
+                    </div>
+                )}
+                {showReinvestFields && (
+                    <>
+                        {/* 净值 - 半宽 */}
+                        <div className="col-span-1 flex flex-col">
+                            <label
+                                className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_tr_nav_per_unit')}</label>
+                            <input
+                                type="number"
+                                step="0.0001"
+                                placeholder="0.0000"
+                                required
+                                value={form.tr_nav_per_unit}
+                                onChange={(e) => setForm({...form, tr_nav_per_unit: e.target.value})}
+                                className="input-field text-sm py-1.5"
+                            />
+                        </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex flex-col">
-                        <label className="text-sm font-medium mb-1">{t('th_tr_fee')}</label>
+                        {/* 份额 - 半宽 */}
+                        <div className="col-span-1 flex flex-col">
+                            <label
+                                className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_tr_shares')}</label>
+                            <input
+                                type="number"
+                                step="0.0001"
+                                placeholder="0.00"
+                                required
+                                value={form.tr_shares}
+                                onChange={(e) => setForm({...form, tr_shares: e.target.value})}
+                                className="input-field text-sm py-1.5"
+                            />
+                        </div>
+
+                        {/* 交易金额 - 半宽 (带校验) */}
+                        <div className="col-span-1 flex flex-col relative">
+                            <label
+                                className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_tr_amount')}</label>
+                            <input
+                                type="number"
+                                step="0.0001"
+                                placeholder="0.00"
+                                required
+                                value={form.tr_amount}
+                                onChange={(e) => handleFieldChange('tr_amount', e.target.value)}
+                                className={`input-field text-sm py-1.5 ${warnings.tr_amount ? 'border-orange-500 focus:ring-orange-500 focus:border-orange-500' : ''}`}
+                            />
+                            <WarningBubble
+                                warning={warnings.tr_amount}
+                                onApply={(val) => handleApplyFix('tr_amount', val)}
+                            />
+                        </div>
+
+                        {/* 费用 - 半宽 */}
+                        <div className="col-span-1 flex flex-col">
+                            <label
+                                className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_tr_fee')}</label>
+                            <input
+                                type="number"
+                                step="0.0001"
+                                placeholder="0.00"
+                                required
+                                value={form.tr_fee}
+                                onChange={(e) => handleFieldChange('tr_fee', e.target.value)}
+                                className="input-field text-sm py-1.5"
+                            />
+                        </div>
+                    </>
+                )}
+                {/* 结算金额 - 全宽 (带校验) */}
+                {showCashAmountField && (
+                    <div className="col-span-2 flex flex-col relative">
+                        <label
+                            className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_cash_amount')}</label>
                         <input
                             type="number"
                             step="0.0001"
-                            placeholder={t('th_tr_fee')}
+                            placeholder="0.00"
                             required
-                            value={form.tr_fee}
-                            onChange={(e) => setForm({...form, tr_fee: e.target.value})}
-                            className="input-field"
+                            value={form.cash_amount}
+                            onChange={(e) => setForm({...form, cash_amount: e.target.value})}
+                            className={`input-field text-sm py-1.5 font-semibold bg-gray-50 ${warnings.cash_amount ? 'border-orange-500 focus:ring-orange-500 focus:border-orange-500' : ''}`}
+                        />
+                        <WarningBubble
+                            warning={warnings.cash_amount}
+                            onApply={(val) => handleApplyFix('cash_amount', val)}
                         />
                     </div>
-                    <div className="flex flex-col">
-                        <label className="text-sm font-medium mb-1">{t('th_tr_net_amount')}</label>
-                        <input
-                            type="number"
-                            step="0.0001"
-                            placeholder={t('th_tr_net_amount')}
-                            required
-                            value={form.tr_net_amount}
-                            onChange={(e) => setForm({...form, tr_net_amount: e.target.value})}
-                            className="input-field"
-                        />
-                    </div>
-                </div>
+                )}
             </div>
             <div className="flex flex-col sm:flex-row sm:justify-end space-y-2 sm:space-y-0 sm:space-x-2 pt-2">
                 {/* 状态提示 */}
                 {uploading && (
-                    <div className="sm:hidden text-sm text-blue-600 animate-pulse">
+                    <div className="sm:hidden text-xs text-blue-600 animate-pulse text-center mb-2">
                         {processingStatus}
                     </div>
                 )}
 
-                <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
-                    {/* 上传按钮 */}
-                    <div>
+                <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:gap-2">
+                    {/* 上传按钮 - 手机端占一半宽度 */}
+                    <div className="col-span-2 sm:w-auto">
                         <input
                             id="trade-upload"
                             type="file"
@@ -308,7 +544,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                         />
                         <label
                             htmlFor="trade-upload"
-                            className={`btn-secondary inline-flex items-center justify-center gap-2 w-full sm:w-auto ${uploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                            className={`btn-secondary flex items-center justify-center gap-2 w-full sm:w-auto text-sm py-2 ${uploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                         >
                             {t('button_upload_image')}
                         </label>
@@ -316,7 +552,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
 
                     <button
                         type="button"
-                        className="btn-secondary w-full sm:w-auto"
+                        className="btn-secondary w-full sm:w-auto text-sm py-2"
                         onClick={onClose}
                         disabled={uploading}
                     >
@@ -324,7 +560,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                     </button>
                     <button
                         type="submit"
-                        className="btn-primary w-full sm:w-auto"
+                        className="btn-primary w-full sm:w-auto text-sm py-2"
                         disabled={uploading}
                     >
                         {t('button_confirm')}
@@ -333,7 +569,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
 
                 {/* 桌面端状态提示 */}
                 {uploading && (
-                    <div className="hidden sm:block text-sm text-blue-600 animate-pulse ml-2">
+                    <div className="hidden sm:block text-sm text-blue-600 animate-pulse ml-2 self-center">
                         {processingStatus}
                     </div>
                 )}

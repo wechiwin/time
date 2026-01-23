@@ -11,10 +11,17 @@ class Config:
     ENV = os.getenv('FLASK_ENV', 'development').lower()
 
     """基础配置"""
-    # SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')
-
     # 数据库配置
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
+    # SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
+    # 新的 PostgreSQL 配置
+    DB_USER = os.getenv('DB_USER')
+    DB_PASSWORD = os.getenv('DB_PASSWORD')
+    DB_HOST = os.getenv('DB_HOST', 'localhost')
+    DB_PORT = os.getenv('DB_PORT', '5432')
+    DB_NAME = os.getenv('DB_NAME')
+    if not all([DB_USER, DB_PASSWORD, DB_NAME]):
+        raise ValueError("数据库环境变量 DB_USER, DB_PASSWORD, DB_NAME 必须被设置！")
+    SQLALCHEMY_DATABASE_URI = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
     SQLALCHEMY_TRACK_MODIFICATIONS = False  # 禁用事件系统提升性能
     # 邮件配置
     MAIL_SERVER = os.getenv('MAIL_SERVER')
@@ -30,15 +37,23 @@ class Config:
     BABEL_DEFAULT_LOCALE = 'zh',
     BABEL_TRANSLATION_DIRECTORIES = '../translations'
     # jwt
-    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
-    SALT = os.getenv('SALT')
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')  # 生产环境中从环境变量获取
+    # SALT = os.getenv('SALT')
     ITERATIONS = os.getenv('ITERATIONS')
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=15)
+    # JWT_ACCESS_TOKEN_EXPIRES = timedelta(seconds=15)
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=7)
     JWT_TOKEN_LOCATION = ["headers", "cookies"]
     JWT_ACCESS_COOKIE_NAME = "access_token"
     JWT_REFRESH_COOKIE_NAME = "refresh_token"
-    JWT_COOKIE_CSRF_PROTECT = True
+    MAX_CONCURRENT_DEVICES = 3
+    # -------------------------------------------------------
+    # 前端使用 Authorization Header 发送 Access Token，
+    # Header 方式天然免疫 CSRF，不需要开启此选项。
+    # 开启会导致后端忽略 Header 而去校验 Cookie 的 CSRF，从而导致 401。
+    # -------------------------------------------------------
+    JWT_COOKIE_CSRF_PROTECT = False
+
     JWT_COOKIE_SAMESITE = "Lax"
     JWT_COOKIE_DOMAIN = None
     JWT_REFRESH_COOKIE_PATH = '/api'
@@ -51,8 +66,6 @@ class Config:
         'http://127.0.0.1:5173'
     ]
     CORS_EXPOSE_HEADERS = [
-        'X-CSRF-Token',
-        'x-csrf-token',
         'X-Request-ID',
         'Content-Type',
         'Authorization',
@@ -60,14 +73,21 @@ class Config:
     ]
     CORS_SUPPORTS_CREDENTIALS = True
     CORS_ALLOW_HEADERS = ['Content-Type', 'Authorization', 'X-CSRF-Token', 'Accept-Language', 'X-Request-ID',
-                          'Set-Cookie']
+                          'Set-Cookie', 'X-Requested-With']
     CORS_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
 
     SCHEDULER_TIMEZONE = "Asia/Shanghai"
 
     LOG_DIR = 'logs'
     LOG_FILE = 'app.log'
-    LOG_MAX_BYTES = 8 * 1024 * 1024
+    LOG_MAX_SIZE_IN_MB = os.getenv('LOG_MAX_SIZE_IN_MB', 10)
+
+    API_KEY = os.getenv('API_KEY')
+    BASE_URL = os.getenv('BASE_URL')
+    MODEL_NAME = os.getenv('MODEL_NAME')
+
+    CACHE_TYPE = 'SimpleCache'  # 使用内存缓存
+    CACHE_DEFAULT_TIMEOUT = 300  # 缓存默认超时时间（秒
 
     # 自动识别当前环境配置
     @classmethod
@@ -84,7 +104,7 @@ class Config:
 class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_ECHO = True  # 开发时显示SQL日志
-    JWT_AUTH_REQUIRED = False
+    JWT_AUTH_REQUIRED = True
     JWT_COOKIE_SECURE = False
     MAIL_DEBUG = True  # 开启调试
     SCHEDULER_ENABLED = True

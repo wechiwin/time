@@ -1,3 +1,4 @@
+// src/sub/NavHistoryChart.jsx
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import ReactECharts from 'echarts-for-react';
 import dayjs from "dayjs";
@@ -10,7 +11,8 @@ import {useDarkModeContext} from "../../components/context/DarkModeContext";
 import {Switch} from "@headlessui/react";
 import useChartData from "../../hooks/useChartData";
 
-export default function NavHistoryChart({navHistory, snapshots, trades, fundInfo}) {
+// 新增 props: onRangeChange, isLoadingMore
+export default function NavHistoryChart({navHistory, snapshots, trades, fundInfo, onRangeChange, isLoadingMore}) {
     const {t} = useTranslation();
     const {showSuccessToast, showErrorToast} = useToast();
     const {isDarkMode} = useDarkModeContext();
@@ -26,6 +28,15 @@ export default function NavHistoryChart({navHistory, snapshots, trades, fundInfo
     // 仅用于获取对比基金的数据 Hooks
     const {getByCode} = useHoldingList({autoLoad: false});
     const {searchList} = useNavHistoryList({autoLoad: false});
+
+    // 处理时间切换的函数
+    const handleTimeRangeClick = (range) => {
+        setTimeRange(range);
+        // 通知父组件，父组件判断是否需要加载更多数据
+        if (onRangeChange) {
+            onRangeChange(range);
+        }
+    };
 
     useEffect(() => {
         const end = dayjs();
@@ -131,7 +142,11 @@ export default function NavHistoryChart({navHistory, snapshots, trades, fundInfo
         }
         const start = dayjs(dateParams.start_date);
         const end = dayjs(dateParams.end_date);
-        const filteredNavHistory = (navHistory || []).filter(s => {
+
+        // 增加空值检查
+        const safeNavHistory = navHistory || [];
+
+        const filteredNavHistory = safeNavHistory.filter(s => {
             const current = dayjs(s.nav_date);
             return current.isAfter(start) && current.isBefore(end);
         });
@@ -144,7 +159,7 @@ export default function NavHistoryChart({navHistory, snapshots, trades, fundInfo
             return current.isAfter(start) && current.isBefore(end);
         });
         return {filteredNavHistory, filteredSnapshots, filteredTrades};
-    }, [navHistory, snapshots, trades, dateParams]);
+    }, [navHistory, snapshots, trades, dateParams, timeRange]); // 依赖项加入 timeRange
 
     // 图表数据准备
     const mainFundName = useMemo(() => {
@@ -241,20 +256,20 @@ export default function NavHistoryChart({navHistory, snapshots, trades, fundInfo
     }, [legendData, legendSelected, xAxisData, series, isDarkMode]);
 
     // 在 return 语句前添加调试输出
-    console.log('Chart Data Debug:', {
-        navHistoryLength: navHistory?.length,
-        filteredNavHistoryLength: filteredData.filteredNavHistory?.length,
-        snapshotsLength: snapshots?.length,
-        tradesLength: trades?.length,
-        xAxisDataLength: xAxisData?.length,
-        seriesCount: series?.length,
-        xAxisDataSample: xAxisData?.slice(0, 5),
-        seriesSample: series?.map(s => ({
-            name: s.name,
-            dataLength: s.data?.length,
-            dataSample: s.data?.slice(0, 3)
-        }))
-    });
+    // console.log('Chart Data Debug:', {
+    //     navHistoryLength: navHistory?.length,
+    //     filteredNavHistoryLength: filteredData.filteredNavHistory?.length,
+    //     snapshotsLength: snapshots?.length,
+    //     tradesLength: trades?.length,
+    //     xAxisDataLength: xAxisData?.length,
+    //     seriesCount: series?.length,
+    //     xAxisDataSample: xAxisData?.slice(0, 5),
+    //     seriesSample: series?.map(s => ({
+    //         name: s.name,
+    //         dataLength: s.data?.length,
+    //         dataSample: s.data?.slice(0, 3)
+    //     }))
+    // });
 
 
     return (
@@ -298,8 +313,8 @@ export default function NavHistoryChart({navHistory, snapshots, trades, fundInfo
                     </div>
                 </div>
 
-                {/* 时间范围按钮组 */}
-                <div className="mb-4">
+                {/* 时间范围按钮组 - 修改 onClick 事件 */}
+                <div className="mb-4 flex items-center">
                     <div className="inline-flex rounded-md shadow-sm" role="group">
                         {['1y', '3y', '5y', 'all'].map((range) => {
                             const labels = {
@@ -313,7 +328,8 @@ export default function NavHistoryChart({navHistory, snapshots, trades, fundInfo
                                 <button
                                     key={range}
                                     type="button"
-                                    onClick={() => setTimeRange(range)}
+                                    // 修改这里：调用 handleTimeRangeClick
+                                    onClick={() => handleTimeRangeClick(range)}
                                     className={`px-4 py-2 text-sm font-medium border first:rounded-l-lg last:rounded-r-lg transition-colors
                                         ${active
                                         ? 'bg-indigo-600 dark:bg-indigo-500 text-white border-indigo-600 dark:border-indigo-500'
@@ -325,6 +341,16 @@ export default function NavHistoryChart({navHistory, snapshots, trades, fundInfo
                             );
                         })}
                     </div>
+                    {/* 显示加载状态 */}
+                    {(isLoadingMore || loadingCompare) && (
+                        <div className="ml-4 text-sm text-gray-500 flex items-center">
+                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            {t('msg_loading_data', '加载数据中...')}
+                        </div>
+                    )}
                 </div>
 
                 {/* 已选对比标签 */}
@@ -351,7 +377,8 @@ export default function NavHistoryChart({navHistory, snapshots, trades, fundInfo
                     ref={chartRef}
                     option={getChartOptions()}
                     style={{height: 450}}
-                    showLoading={loadingCompare}
+                    // 合并 loading 状态
+                    showLoading={isLoadingMore || loadingCompare}
                     notMerge={true}
                     lazyUpdate={false}
                 />

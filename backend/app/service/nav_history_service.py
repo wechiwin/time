@@ -5,11 +5,11 @@ from decimal import Decimal
 
 import requests
 from sqlalchemy import func, desc
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
 
 from app.framework.exceptions import BizException
 from app.models import db, FundNavHistory, Holding
-from app.tools.date_tool import str_to_date
+from app.utils.date_util import str_to_date
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class FundNavHistoryService:
             return ''
 
         # 基础查询：左连接 Holding 表
-        query = FundNavHistory.query.options(joinedload(FundNavHistory.holding))
+        query = FundNavHistory.query.options(selectinload(FundNavHistory.holding))
 
         filters = []
 
@@ -43,7 +43,7 @@ class FundNavHistoryService:
         """
         爬取所有基金的市场数据
         """
-        yesterday = datetime.now() - timedelta(days=1)
+        yesterday = datetime.now().date() - timedelta(days=1)
 
         # 查询所有基金的信息
         all_holdings = Holding.query.all()

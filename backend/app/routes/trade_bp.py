@@ -6,10 +6,10 @@ from io import BytesIO
 from queue import Queue
 
 import pandas as pd
-from flask import Blueprint, request, Response, stream_with_context, current_app
+from flask import Blueprint, request, Response, stream_with_context, current_app, g
 from flask import send_file
 from flask_babel import gettext
-from sqlalchemy import desc, or_, func
+from sqlalchemy import desc, or_
 from sqlalchemy.orm import joinedload
 
 from app.constant.biz_enums import ErrorMessageEnum
@@ -19,7 +19,7 @@ from app.framework.res import Res
 from app.models import db, Trade, Holding
 from app.schemas_marshall import TradeSchema, marshal_pagination
 from app.service.trade_service import TradeService
-from app.tools.date_tool import date_to_str
+from app.utils.user_util import get_or_raise
 
 trade_bp = Blueprint('trade', __name__, url_prefix='/api/trade')
 
@@ -27,18 +27,21 @@ task_queues = {}
 logger = logging.getLogger(__name__)
 
 
-@trade_bp.route('', methods=['GET'])
+@trade_bp.route('/tr_page', methods=['POST'])
 @auth_required
-def search_page():
-    ho_code = request.args.get('ho_code')
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
-    keyword = request.args.get('keyword')
+def tr_page():
+    data = request.get_json()
+    ho_code = data.get('ho_code')
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+    keyword = data.get('keyword')
     # 添加分页参数
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 10, type=int)
+    page = data.get('page') or 1
+    per_page = data.get('per_page') or 10
+    tr_type = data.get('tr_type')
 
     query = Trade.query.options(joinedload(Trade.holding))
+    query = query.filter_by(user_id=g.user.id)
 
     if ho_code:
         query = query.filter_by(ho_code=ho_code)
@@ -46,6 +49,8 @@ def search_page():
         query = query.filter(Trade.tr_date >= start_date)
     if end_date:
         query = query.filter(Trade.tr_date <= end_date)
+    if tr_type:
+        query = query.filter(Trade.tr_type == tr_type)
     if keyword:
         query = query.join(Holding, Trade.ho_id == Holding.id).filter(
             or_(
@@ -63,44 +68,58 @@ def search_page():
     return Res.success(result)
 
 
-@trade_bp.route('', methods=['POST'])
+@trade_bp.route('/add_tr', methods=['POST'])
 @auth_required
-def create_transaction():
+def add_tr():
     data = request.get_json()
-    required_fields = ['ho_id', 'tr_type', 'tr_date', 'tr_nav_per_unit',
-                       'tr_shares', 'gross_amount', 'tr_fee', 'tr_net_amount']
+    required_fields = ['tr_type', 'tr_date', 'tr_nav_per_unit',
+                       'tr_shares', 'tr_amount', 'tr_fee', 'cash_amount', ]
 
     if not all(field in data for field in required_fields):
-        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD)
+        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.value)
 
     new_transaction = TradeSchema().load(data)
+    new_transaction.user_id = g.user.id
     return Res.success() if TradeService.create_transaction(new_transaction) else Res.fail()
 
 
-@trade_bp.route('/<int:tr_id>', methods=['GET'])
+@trade_bp.route('/get_tr', methods=['POST'])
 @auth_required
-def get_transaction(tr_id):
-    t = Trade.query.get_or_404(tr_id)
+def get_transaction():
+    data = request.get_json()
+    id = data.get('id')
+    t = get_or_raise(Trade, id)
     return Res.success(TradeSchema().dump(t))
 
 
-@trade_bp.route('/<int:tr_id>', methods=['PUT'])
+@trade_bp.route('/update_tr', methods=['POST'])
 @auth_required
-def update_transaction(tr_id):
-    t = Trade.query.get_or_404(tr_id)
+def update_tr():
     data = request.get_json()
-    updated_data = TradeSchema().load(data, instance=t, partial=True)
+    id = data.get('id')
+    t = get_or_raise(Trade, id)
 
-    db.session.add(updated_data)
+    updated_trade = TradeSchema().load(data, instance=t, partial=True)
+
+    db.session.add(updated_trade)
+    db.session.flush()
+    TradeService.recalculate_holding_trades(updated_trade.ho_id)
     db.session.commit()
     return Res.success()
 
 
-@trade_bp.route('/<int:tr_id>', methods=['DELETE'])
+@trade_bp.route('/del_tr', methods=['POST'])
 @auth_required
-def delete_transaction(tr_id):
-    t = Trade.query.get_or_404(tr_id)
+def del_tr():
+    data = request.get_json()
+    id = data.get('id')
+    t = get_or_raise(Trade, id)
+    ho_id = t.ho_id
+
     db.session.delete(t)
+    db.session.flush()
+    TradeService.recalculate_holding_trades(ho_id)
+
     db.session.commit()
     return Res.success()
 
@@ -115,9 +134,9 @@ def export_trade():
         gettext('COL_TR_DATE'): t.tr_date,
         gettext('COL_TR_NAV_PER_UNIT'): t.tr_nav_per_unit,
         gettext('COL_TR_SHARES'): t.tr_shares,
-        gettext('COL_GROSS_AMOUNT'): t.gross_amount,
+        gettext('COL_TR_AMOUNT'): t.tr_amount,
         gettext('COL_TR_FEE'): t.tr_fee,
-        gettext('COL_TR_NET_AMOUNT'): t.tr_net_amount
+        gettext('COL_CASH_AMOUNT'): t.cash_amount,
     } for t in trade])
 
     output = BytesIO()
@@ -149,11 +168,12 @@ def download_template():
         gettext('COL_TR_NAV_PER_UNIT'),
         # '交易份数',
         gettext('COL_TR_SHARES'),
-        gettext('COL_GROSS_AMOUNT'),
+        # '交易金额',
+        gettext('COL_TR_AMOUNT'),
         # '交易费用',
         gettext('COL_TR_FEE'),
-        # '交易金额',
-        gettext('COL_TR_NET_AMOUNT'),
+        # '实际收付',
+        gettext('COL_CASH_AMOUNT'),
     ])
 
     # 添加示例数据（使用concat替代append）
@@ -163,9 +183,9 @@ def download_template():
         gettext('COL_TR_DATE'): '2023-01-01',
         gettext('COL_TR_NAV_PER_UNIT'): 1.0,
         gettext('COL_TR_SHARES'): 100,
-        gettext('COL_GROSS_AMOUNT'): 100,
+        gettext('COL_TR_AMOUNT'): 100,
         gettext('COL_TR_FEE'): 0.1,
-        gettext('COL_TR_NET_AMOUNT'): 100.1
+        gettext('COL_CASH_AMOUNT'): 100.1,
     }])
 
     df = pd.concat([df, example_data], ignore_index=True)
@@ -216,11 +236,12 @@ def import_trade():
         gettext('COL_TR_NAV_PER_UNIT'),
         # '交易份数',
         gettext('COL_TR_SHARES'),
-        gettext('COL_GROSS_AMOUNT'),
+        # '交易金额',
+        gettext('COL_TR_AMOUNT'),
         # '交易费用',
         gettext('COL_TR_FEE'),
-        # '交易金额',
-        gettext('COL_TR_NET_AMOUNT'),
+        # '实际收付',
+        gettext('COL_CASH_AMOUNT'),
     ]
     if not all(col in df.columns for col in required_columns):
         raise BizException(msg="Excel缺少必要列")
@@ -233,9 +254,9 @@ def import_trade():
     numeric_cols = [
         gettext('COL_TR_NAV_PER_UNIT'),
         gettext('COL_TR_SHARES'),
-        gettext('COL_GROSS_AMOUNT'),
+        gettext('COL_CASH_AMOUNT'),
         gettext('COL_TR_FEE'),
-        gettext('COL_TR_NET_AMOUNT')
+        gettext('COL_TR_AMOUNT')
     ]
     for col in numeric_cols:
         df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
@@ -248,9 +269,9 @@ def import_trade():
             tr_date=str(row[gettext('COL_TR_DATE')]),
             tr_nav_per_unit=float(row[gettext('COL_TR_NAV_PER_UNIT')]),
             tr_shares=float(row[gettext('COL_TR_SHARES')]),
-            gross_amount=float(row[gettext('COL_GROSS_AMOUNT')]),
+            tr_amount=float(row[gettext('COL_TR_AMOUNT')]),
             tr_fee=float(row[gettext('COL_TR_FEE')]),
-            tr_net_amount=float(row[gettext('COL_TR_NET_AMOUNT')]),
+            cash_amount=float(row[gettext('COL_CASH_AMOUNT')]),
         )
         transactions.append(transaction)
 
@@ -300,7 +321,7 @@ def upload():
 
     file_bytes = file.read()
     # print(file_bytes)
-    result = TradeService.process_trade_image(file_bytes)
+    result = TradeService.process_trade_image_online(file_bytes)
 
     resp = {
         "ocr_text": result["ocr_text"],
@@ -319,7 +340,8 @@ def background_worker(task_id, file_bytes, app):
             logger.info(f"Task {task_id}: 开始调用 LLM...")
 
             # 调用耗时的 LLM 逻辑
-            result = TradeService.process_trade_image(file_bytes)
+            # result = TradeService.process_trade_image_local(file_bytes)
+            result = TradeService.process_trade_image_online(file_bytes)
 
             # 将结果放入队列
             if task_id in task_queues:

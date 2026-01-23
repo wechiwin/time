@@ -1,5 +1,7 @@
 import logging
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, g
+
+from app.framework.auth import auth_required
 from app.framework.res import Res
 from app.service.invested_asset_analytics_snapshot_service import InvestedAssetAnalyticsSnapshotService
 
@@ -9,6 +11,7 @@ invested_asset_analytics_snapshot_bp = Blueprint('invested_asset_analytics_snaps
 
 
 @invested_asset_analytics_snapshot_bp.route('/remake_all', methods=['GET'])
+@auth_required
 def remake_all():
-    data = InvestedAssetAnalyticsSnapshotService.regenerate_all()
+    data = InvestedAssetAnalyticsSnapshotService.regenerate_all(g.user.id)
     return Res.success(data)

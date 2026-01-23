@@ -2,20 +2,44 @@ import {useEffect, useState} from 'react';
 import {useToast} from '../context/ToastContext';
 import {useTranslation} from "react-i18next";
 import HoldingSearchSelect from "../search/HoldingSearchSelect";
+import useCommon from "../../hooks/api/useCommon";
+import MySelect from "../common/MySelect";
 
 export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
     const [form, setForm] = useState({
-        ar_id: null,
+        id: null,
+        ho_id: '',
         ho_code: '',
-        ar_type: 1,
-        ar_target_navpu: '',
+        action: '',
+        target_price: '',
         ar_is_active: 1,
         ho_short_name: '',
         ar_name: '',
     });
     const {showSuccessToast, showErrorToast} = useToast();
     const {t} = useTranslation()
-    const isEditMode = !!initialValues?.ar_id;
+    const isEditMode = !!initialValues?.id;
+
+    const {fetchMultipleEnumValues} = useCommon();
+    const [actionOptions, setActionOptions] = useState([]);
+
+    useEffect(() => {
+        const loadEnumValues = async () => {
+            try {
+                const [
+                    actionOptions,
+                ] = await fetchMultipleEnumValues([
+                    'AlertRuleActionEnum',
+                ]);
+                setActionOptions(actionOptions);
+            } catch (err) {
+                console.error('Failed to load enum values:', err);
+                showErrorToast('加载类型选项失败');
+            }
+        };
+        loadEnumValues();
+    }, [fetchMultipleEnumValues, showErrorToast]);
+
 
     // 自动生成监控名称的effect
     useEffect(() => {
@@ -23,7 +47,7 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
         // if (isEditMode) return;
 
         // 检查必要字段是否都有值
-        if (form.ho_short_name && form.ar_target_navpu) {
+        if (form.ho_short_name && form.target_price) {
             // 获取告警类型文本映射
             const typeTextMap = {
                 0: t('alert_type_sell'),
@@ -31,9 +55,9 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
                 2: t('alert_type_add')
             };
 
-            const typeText = typeTextMap[form.ar_type] || '';
+            const typeText = typeTextMap[form.action] || '';
             // 生成名称格式：基金简称_操作类型_目标净值
-            const generatedName = `${form.ho_code}_${form.ho_short_name}_${typeText}_${form.ar_target_navpu}`;
+            const generatedName = `${form.ho_code}_${form.ho_short_name}_${typeText}_${form.target_price}`;
 
             // 只在生成的名称与当前不同时才更新，避免不必要的渲染
             if (generatedName !== form.ar_name) {
@@ -43,7 +67,7 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
                 }));
             }
         }
-    }, [form.ho_short_name, form.ar_type, form.ar_target_navpu, t, isEditMode]);
+    }, [form.ho_short_name, form.action, form.target_price, t, isEditMode]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -60,17 +84,38 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
     useEffect(() => {
         if (initialValues) {
             setForm({
-                ar_id: initialValues.ar_id || null,
+                id: initialValues.id || null,
+                ho_id: initialValues.ho_id || '',
                 ho_code: initialValues.ho_code || '',
                 ho_short_name: initialValues.ho_short_name || '',
                 ar_name: initialValues.ar_name || '',
-                ar_type: initialValues.ar_type || 1,
-                ar_target_navpu: initialValues.ar_target_navpu || '',
+                action: initialValues.action || '',
+                target_price: initialValues.target_price || '',
                 ar_is_active: initialValues.ar_is_active || 1,
             });
         }
     }, [initialValues]);
+    const holdingSelectValue = form.ho_short_name
+        ? {ho_code: form.ho_code, ho_short_name: form.ho_short_name, id: form.ho_id}
+        : form.ho_code;
 
+    const handleFundSelectChange = (fund) => {
+        if (fund) {
+            setForm(prev => ({
+                ...prev,
+                ho_code: fund.ho_code,
+                ho_id: fund.id,
+                ho_short_name: fund.ho_short_name
+            }));
+        } else {
+            setForm(prev => ({
+                ...prev,
+                ho_code: '',
+                ho_id: '',
+                ho_short_name: ''
+            }));
+        }
+    };
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -88,12 +133,8 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
                     ) : (
                         // 添加模式下显示可编辑的选择器
                         <HoldingSearchSelect
-                            value={form.ho_code}
-                            onChange={(ho) => setForm({
-                                ...form,
-                                ho_code: ho.ho_code,
-                                ho_short_name: ho.ho_short_name
-                            })}
+                            value={holdingSelectValue}
+                            onChange={handleFundSelectChange}
                             placeholder={t('th_ho_code')}
                         />
                     )}
@@ -122,24 +163,21 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
                 </div>
                 <div className="flex flex-col">
                     <label className="text-sm font-medium mb-1">{t('alert_type')}</label>
-                    <select
-                        value={form.ar_type}
-                        onChange={(e) => setForm({...form, ar_type: parseInt(e.target.value)})}
+                    <MySelect
+                        options={actionOptions}
+                        value={form.action}
+                        onChange={(val) => setForm({...form, action: val})}
                         className="input-field"
-                    >
-                        <option value="1">{t('alert_type_buy')}</option>
-                        <option value="2">{t('alert_type_add')}</option>
-                        <option value="0">{t('alert_type_sell')}</option>
-                    </select>
+                    />
                 </div>
                 <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('alert_target_navpu')}</label>
+                    <label className="text-sm font-medium mb-1">{t('alert_target_price')}</label>
                     <input
                         type="number"
                         step="0.0001"
-                        placeholder={t('alert_target_navpu')}
-                        value={form.ar_target_navpu}
-                        onChange={(e) => setForm({...form, ar_target_navpu: parseFloat(e.target.value)})}
+                        placeholder={t('alert_target_price')}
+                        value={form.target_price}
+                        onChange={(e) => setForm({...form, target_price: parseFloat(e.target.value)})}
                         required
                         className="input-field"
                     />

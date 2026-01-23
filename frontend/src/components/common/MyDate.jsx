@@ -5,6 +5,8 @@ import zhCN from 'date-fns/locale/zh-CN'
 import enUS from 'date-fns/locale/en-US'
 import it from 'date-fns/locale/it'
 import 'react-datepicker/dist/react-datepicker.css'
+import useDarkMode from "../../hooks/useDarkMode";
+import {toDate, toString} from '../../utils/timeUtil';
 
 /* 把可能用到的语言一次性注册 */
 registerLocale('zh', zhCN)
@@ -21,18 +23,10 @@ export default function MyDate({
                                    ...rest         // 其余原生属性 min/max/disabled/className 等
                                }) {
     const {i18n, t} = useTranslation()
-
-    // 字符串 ↔ Date 互转
-    const toDate = (str) => (str ? new Date(str) : null)
-    const toString = (date) => (date ? date.toISOString().slice(0, 10) : '')
+    const {dark} = useDarkMode(); // 获取当前暗黑模式状态
 
     return (
         <div className="flex flex-col">
-            {/* {label !== false && ( */}
-            {/*     <label className="text-sm font-medium mb-1"> */}
-            {/*         {label || t('th_nav_date')} */}
-            {/*     </label> */}
-            {/* )} */}
             <DatePicker
                 selected={toDate(value)}
                 onChange={(d) => onChange(toString(d))}
@@ -43,6 +37,7 @@ export default function MyDate({
                 showYearDropdown
                 showMonthDropdown
                 dropdownMode="select"
+                calendarClassName={dark ? "dark" : ""}
                 {...rest}
             />
         </div>

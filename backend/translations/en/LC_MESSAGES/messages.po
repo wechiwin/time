@@ -62,13 +62,13 @@ msgstr "NAV Per Unit"
 msgid "COL_TR_SHARES"
 msgstr "Trade Shares"
 
-msgid "COL_GROSS_AMOUNT"
+msgid "COL_CASH_AMOUNT"
 msgstr "Gross Amount"
 
 msgid "COL_TR_FEE"
 msgstr "Trade Fee"
 
-msgid "COL_TR_NET_AMOUNT"
+msgid "COL_TR_AMOUNT"
 msgstr "Net Amount"
 
 msgid "TEMPLATE_TR_IMPORT"
@@ -82,6 +82,15 @@ msgstr "Buy"
 
 msgid "TR_SELL"
 msgstr "Sell"
+
+msgid "TR_DIVIDEND"
+msgstr "Dividend"
+
+msgid "CASH"
+msgstr "Cash Dividend"
+
+msgid "REINVEST"
+msgstr "Dividend Reinvestment"
 
 msgid "TR_LOG"
 msgstr "Trade Log"
@@ -152,3 +161,16 @@ msgid "FD_DIVIDEND_REINVEST"
 msgstr "Dividend Reinvestment"
 msgid "FD_DIVIDEND_CASH"
 msgstr "Cash Dividend"
+
+msgid "PENDING"
+msgstr "Pending"
+msgid "RUNNING"
+msgstr "Running"
+msgid "SUCCESS"
+msgstr "Success"
+msgid "RETRYING"
+msgstr "Retrying"
+msgid "FAILED"
+msgstr "Failed"
+msgid "CANCELLED"
+msgstr "Cancelled"

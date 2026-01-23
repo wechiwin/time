@@ -4,6 +4,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Optional
 
+from flask import g
 from sqlalchemy import func, Date
 
 from app.calendars.trade_calendar import TradeCalendar
@@ -24,7 +25,7 @@ class InvestedAssetSnapshotService:
     """
 
     @classmethod
-    def generate_by_day(cls, target_date: Date = None):
+    def generate_by_day(cls, target_date: Date = None, user_id: str = None):
         """
         【增量任务入口】
         通常由定时任务调用，生成 T-1 日的快照
@@ -61,6 +62,7 @@ class InvestedAssetSnapshotService:
             logger.error(error_msg, exc_info=True)
             # 触发重试
             create_task(
+                user_id=user_id,
                 task_name=f"retry_invested_asset_snapshot_{target_date}",
                 module_path="app.service.invested_asset_snapshot_service",
                 class_name="InvestedAssetSnapshotService",
@@ -71,7 +73,7 @@ class InvestedAssetSnapshotService:
             return None
 
     @classmethod
-    def regenerate_all(cls):
+    def regenerate_all(cls, user_id: str):
         """
         【全量重刷入口】
         清除所有历史数据，从最早的持仓记录开始重新生成。
@@ -131,6 +133,7 @@ class InvestedAssetSnapshotService:
             errors.append(error_msg)
             # 触发重试
             create_task(
+                user_id=user_id,
                 task_name=f"retry_invested_asset_snapshot_{current_date}",
                 module_path="app.service.invested_asset_snapshot_service",
                 class_name="InvestedAssetSnapshotService",
@@ -146,7 +149,8 @@ class InvestedAssetSnapshotService:
     @classmethod
     def _calculate_snapshot(cls,
                             target_date: date,
-                            prev_snapshot: Optional[InvestedAssetSnapshot]
+                            prev_snapshot: Optional[InvestedAssetSnapshot],
+                            user_id: str
                             ) -> Optional[InvestedAssetSnapshot]:
         """
         【内部方法】纯计算逻辑
@@ -176,6 +180,7 @@ class InvestedAssetSnapshotService:
         prev_mv = prev_snapshot.ias_market_value if prev_snapshot else ZERO
         prev_total_pnl = prev_snapshot.ias_total_pnl if prev_snapshot else ZERO
         prev_total_div = prev_snapshot.ias_total_dividend if prev_snapshot else ZERO
+        prev_total_reinvest_div = prev_snapshot.ias_total_reinvest_dividend if prev_snapshot else ZERO
         prev_total_cash_div = prev_snapshot.ias_total_cash_dividend if prev_snapshot else ZERO
         prev_total_buy = prev_snapshot.ias_total_buy_amount if prev_snapshot else ZERO
         prev_total_sell = prev_snapshot.ias_total_sell_amount if prev_snapshot else ZERO
@@ -194,6 +199,7 @@ class InvestedAssetSnapshotService:
 
         # 3. 构建对象
         snapshot = InvestedAssetSnapshot()
+        snapshot.user_id = user_id
         snapshot.snapshot_date = target_date
         # -------- A. Point-in-Time (时点状态) --------
         snapshot.ias_market_value = curr_mv
@@ -202,8 +208,9 @@ class InvestedAssetSnapshotService:
         # -------- B. Daily Flow (当日流量) --------
         snapshot.ias_net_external_cash_flow = daily_net_flow
         snapshot.ias_daily_cash_dividend = daily_cash_div
+        snapshot.ias_daily_reinvest_dividend = daily_reinvest_div
 
-        # 当日盈亏 = 期末市值 - 期初市值 - 净投入 + 现金分红
+        # 当日盈亏 = 当日市值 - 昨日市值 + 当日外部现金流(买负卖正) + 当日现金分红
         snapshot.ias_daily_pnl = (
                 snapshot.ias_market_value
                 - prev_mv
@@ -226,6 +233,7 @@ class InvestedAssetSnapshotService:
         snapshot.ias_total_pnl = prev_total_pnl + snapshot.ias_daily_pnl
         # 2. 累计现金分红
         snapshot.ias_total_cash_dividend = prev_total_cash_div + daily_cash_div
+        snapshot.ias_total_reinvest_dividend = prev_total_reinvest_div + daily_reinvest_div
         # 累计总分红，包含现金分红和分红再投资
         snapshot.ias_total_dividend = prev_total_div + daily_cash_div + daily_reinvest_div
 

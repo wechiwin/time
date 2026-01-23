@@ -4,7 +4,6 @@ import {useToast} from '../context/ToastContext';
 import {useTranslation} from "react-i18next";
 import MyDate from "../common/MyDate";
 import useCommon from "../../hooks/api/useCommon";
-import HoldingSearchSelect from "../search/HoldingSearchSelect";
 import MySelect from "../common/MySelect";
 
 export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl}) {
@@ -79,7 +78,23 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
                 ho_name: holding.ho_name || '',
                 ho_short_name: holding.ho_short_name || '',
                 ho_type: holding.ho_type || '',
-                // 可以在这里预填充其他已知信息
+                establishment_date: holding.establishment_date || '',
+                currency: holding.currency || '',
+                fund_detail: {
+                    fund_type: holding.fund_detail?.fund_type || '',
+                    risk_level: holding.fund_detail?.risk_level || '',
+                    trade_market: holding.fund_detail?.trade_market || '',
+                    manage_exp_rate: holding.fund_detail?.manage_exp_rate || '',
+                    trustee_exp_rate: holding.fund_detail?.trustee_exp_rate || '',
+                    sales_exp_rate: holding.fund_detail?.sales_exp_rate || '',
+                    company_id: holding.fund_detail?.company_id || '',
+                    company_name: holding.fund_detail?.company_name || '',
+                    fund_manager: holding.fund_detail?.fund_manager || '',
+                    dividend_method: holding.fund_detail?.dividend_method || '',
+                    index_code: holding.fund_detail?.index_code || '',
+                    index_name: holding.fund_detail?.index_name || '',
+                    feature: holding.fund_detail?.feature || '',
+                },
             }));
         }
     };
@@ -133,6 +148,7 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
 
     const handleCrawl = () => {
         if (!form.ho_code) return showErrorToast('请先输入基金代码');
+        console.log(form)
         // 把当前表单 setForm 传进去，方便回调里直接 setState
         onCrawl(form.ho_code, (patch) =>
             setForm((prev) => ({...prev, ...patch}))
@@ -355,7 +371,7 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
                     {/* </select> */}
                 </div>
                 <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_trade_market')}</label>
+                    <label className="text-sm font-medium mb-1">{t('th_dividend_method')}</label>
                     <MySelect
                         options={dividendOptions}
                         value={form.fund_detail.dividend_method}

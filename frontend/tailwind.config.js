@@ -3,7 +3,8 @@ module.exports = {
     content: [
         "./index.html",
         "./src/**/*.{js,jsx,ts,tsx}",
-        "./node_modules/@heroicons/react/**/*.{js,ts,jsx,tsx}"
+        "./node_modules/@heroicons/react/**/*.{js,ts,jsx,tsx}",
+        "./node_modules/react-tailwindcss-datepicker/dist/index.esm.js"
     ],
     theme: {
         extend: {
@@ -17,5 +18,5 @@ module.exports = {
                 'fade-in': 'fade-in 0.3s ease-out'
             }
         }
-    }
+    },
 }

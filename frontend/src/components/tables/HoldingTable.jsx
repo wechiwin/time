@@ -19,10 +19,11 @@ export default function HoldingTable({data = [], onDelete, onEdit}) {
                 <tr>
                     <th className="table-header">{t('th_ho_code')}</th>
                     <th className="table-header">{t('th_ho_name')}</th>
-                    <th className="table-header">{t('th_ho_short_name')}</th>
+                    {/* <th className="table-header">{t('th_ho_short_name')}</th> */}
                     <th className="table-header">{t('th_ho_type')}</th>
                     <th className="table-header">{t('th_ho_establish_date')}</th>
-                    <th className="table-header">{t('th_currency')}</th>
+                    <th className="table-header">{t('info_hold_status')}</th>
+                    {/* <th className="table-header">{t('th_currency')}</th> */}
                 </tr>
                 </thead>
                 <tbody className="card divide-y divide-gray-200">
@@ -38,10 +39,11 @@ export default function HoldingTable({data = [], onDelete, onEdit}) {
                         </td>
                         {/* <td className="table-cell font-medium">{f.ho_name}</td> */}
                         <td className="table-cell font-medium">{f.ho_short_name}</td>
-                        <td className="table-cell font-medium">{f.ho_nickname}</td>
+                        {/* <td className="table-cell font-medium">{f.ho_nickname}</td> */}
                         <td className="table-cell">{f.ho_type$view}</td>
                         <td className="table-cell">{f.establishment_date}</td>
-                        <td className="table-cell">{f.currency}</td>
+                        <td className="table-cell">{f.ho_status$view}</td>
+                        {/* <td className="table-cell">{f.currency}</td> */}
                         <td className="table-cell">
                             <div className="flex items-center space-x-2">
                                 <button
@@ -52,7 +54,7 @@ export default function HoldingTable({data = [], onDelete, onEdit}) {
                                 </button>
                                 <DeleteButton
                                     onConfirm={() => onDelete(f.ho_id)}
-                                    description={`${t('msg_delete_confirmation')} ${f.ho_name} - (${f.ho_code}) ?`}
+                                    description={`${t('msg_delete_confirmation')} ${f.ho_code} - ${f.ho_short_name} ?`}
                                 />
                             </div>
                         </td>

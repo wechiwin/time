@@ -62,13 +62,13 @@ msgstr "Valore netto"
 msgid "COL_TR_SHARES"
 msgstr "Azioni della transazione"
 
-msgid "COL_GROSS_AMOUNT"
+msgid "COL_CASH_AMOUNT"
 msgstr "Importo Lordo"
 
 msgid "COL_TR_FEE"
 msgstr "Commissione della transazione"
 
-msgid "COL_TR_NET_AMOUNT"
+msgid "COL_TR_AMOUNT"
 msgstr "Importo Netto"
 
 msgid "TEMPLATE_TR_IMPORT"
@@ -82,6 +82,16 @@ msgstr "Acquisto"
 
 msgid "TR_SELL"
 msgstr "Vendita"
+
+
+msgid "TR_DIVIDEND"
+msgstr "Dividendo"
+
+msgid "CASH"
+msgstr "Dividendo"
+
+msgid "REINVEST"
+msgstr "Reinvestimento del Dividendo"
 
 msgid "TR_LOG"
 msgstr "Registri delle transazioni"
@@ -151,3 +161,17 @@ msgid "FD_DIVIDEND_REINVEST"
 msgstr "Reinvestimento dei Dividendi"
 msgid "FD_DIVIDEND_CASH"
 msgstr "Dividendo in Contanti"
+
+msgid "PENDING"
+msgstr "In sospeso"
+msgid "RUNNING"
+msgstr "In corso"
+msgid "SUCCESS"
+msgstr "Successo"
+msgid "RETRYING"
+msgstr "Ripetizione"
+msgid "FAILED"
+msgstr "Fallito"
+msgid "CANCELLED"
+msgstr "Annullato"
+

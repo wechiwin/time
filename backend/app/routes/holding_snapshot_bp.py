@@ -1,5 +1,5 @@
 # app/blueprints/holding_snapshot_bp.py
-from flask import Blueprint, request
+from flask import Blueprint, request, g
 
 from app.framework.auth import auth_required
 from app.framework.res import Res
@@ -73,6 +73,16 @@ def list_hos():
 
 
 @holding_snapshot_bp.route('/generate_all_snapshots', methods=['GET'])
+@auth_required
 def generate_all_snapshots():
-    data = HoldingSnapshotService.generate_all_holding_snapshots()
+    data = HoldingSnapshotService.generate_all_holding_snapshots(user_id=g.user.id)
+    return Res.success(data)
+
+
+@holding_snapshot_bp.route('/remake_by_ho_id', methods=['POST'])
+@auth_required
+def remake_by_ho_id():
+    data = request.get_json()
+    ho_id = data.get('ho_id')
+    data = HoldingSnapshotService.generate_all_holding_snapshots(ids=[ho_id, ], user_id=g.user.id)
     return Res.success(data)

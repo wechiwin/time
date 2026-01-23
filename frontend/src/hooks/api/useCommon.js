@@ -1,19 +1,14 @@
-// src/hooks/api/useDashboard.js
+// src/hooks/api/useCommon.js
 import {useCallback, useEffect, useState} from 'react';
 import useApi from '../useApi';
 
-export default function useCommon(options = {}) {
-    const {
-        autoLoad = true,
-        days = 30
-    } = options;
-
+export default function useCommon() {
     const [data, setData] = useState(null);
     const {loading, error, get} = useApi();
 
     const urlPrefix = '/common';
 
-    // const fetchEnumValues = useCallback(async (enum_name) => {
+    // const fetchEnum = useCallback(async (enum_name) => {
     //     try {
     //         const params = new URLSearchParams({enum_name});
     //         const url = `${urlPrefix}/get_enum?${params}`;
@@ -34,7 +29,7 @@ export default function useCommon(options = {}) {
      * @param {string} [options.labelKey='view'] 标签字段名
      * @returns {Promise<Array>} 返回处理后的选项数组
      */
-    const fetchEnumValues = useCallback(async (enum_name, options = {}) => {
+    const fetchEnum = useCallback(async (enum_name, options = {}) => {
         const {
             transformFn,
             valueKey = 'code',
@@ -46,7 +41,7 @@ export default function useCommon(options = {}) {
             const enumData = await get(`${urlPrefix}/get_enum?${params}`);
 
             if (!enumData || !Array.isArray(enumData)) {
-                console.warn(`[useApi] 枚举 ${enum_name} 返回数据格式不正确`);
+                console.warn(`[useCommon] 枚举 ${enum_name} 返回数据格式不正确`);
                 return [];
             }
             // 如果有自定义转换函数，使用它
@@ -55,12 +50,12 @@ export default function useCommon(options = {}) {
             }
             // 默认转换逻辑
             return enumData.map(item => ({
-                value: item[valueKey],
-                label: item[labelKey],
-                ...item // 保留原始数据的所有属性
+                value: item[valueKey] ?? null,
+                label: item[labelKey] ?? 'unknown',
+                ...item
             }));
         } catch (err) {
-            console.error(`[useApi] 获取枚举 ${enumName} 失败:`, err);
+            console.error(`[useCommon] fetchEnum ${enum_name} failed:`, err);
             throw err;
         }
     }, [get]);
@@ -76,9 +71,9 @@ export default function useCommon(options = {}) {
             // 准备Promise数组
             const promises = enumRequests.map(request => {
                 if (typeof request === 'string') {
-                    return fetchEnumValues(request, options);
+                    return fetchEnum(request, options);
                 } else if (typeof request === 'object') {
-                    return fetchEnumValues(request.enumName, {
+                    return fetchEnum(request.enumName, {
                         ...options,
                         ...request.options
                     });
@@ -88,17 +83,17 @@ export default function useCommon(options = {}) {
             // 并行获取所有枚举
             return await Promise.all(promises);
         } catch (err) {
-            console.error('[useApi] 批量获取枚举失败:', err);
+            console.error('[useCommon] fetchMultipleEnumValues failed:', err);
             throw err;
         }
-    }, [fetchEnumValues]);
+    }, [fetchEnum]);
 
 
     return {
         data,
         loading,
         error,
-        fetchEnumValues,
+        fetchEnum,
         fetchMultipleEnumValues,
         setData
     };
