@@ -1,15 +1,11 @@
 import base64
 import json
 import logging
-import os
-import tempfile
 from collections import defaultdict
 from decimal import Decimal
 from typing import List, Tuple, Dict, Any
 
-import requests
 from openai import OpenAI
-from paddleocr import PaddleOCR
 from sqlalchemy import desc, or_
 
 from app import Config
@@ -20,20 +16,15 @@ from app.models import db, Holding, Trade, FundNavHistory
 from app.utils.common_util import is_not_blank
 from app.utils.date_util import str_to_date, date_to_str
 
-ocr = PaddleOCR(use_angle_cls=True, lang='ch')
-OLLAMA = r"C:\Users\Administrator\AppData\Local\Programs\Ollama\ollama.exe"
 logger = logging.getLogger(__name__)
 ZERO = Decimal(0)
 
-# 初始化 OpenAI 客户端
-# 建议将 API_KEY 和 BASE_URL 放入环境变量或 Flask Config 中
-# 这里支持所有兼容 OpenAI 协议的模型（如 DeepSeek, Moonshot, 阿里通义千问等）
+# 初始化 OpenAI 客户端 支持所有兼容 OpenAI 协议的模型（如 DeepSeek, Moonshot, 阿里通义千问等）
 client = OpenAI(
     api_key=Config.API_KEY,
     base_url=Config.BASE_URL
 )
-# 指定模型名称，建议使用支持视觉的模型，如 gpt-4o, qwen-vl-max 等
-# 如果使用不支持视觉的模型（如 deepseek-v3），则仍需保留 OCR 步骤
+# 指定模型名称，建议使用支持视觉的模型，如 gpt-4o, qwen-vl-max 等 如果使用不支持视觉的模型（如 deepseek-v3），则仍需保留 OCR 步骤
 MODEL_NAME = Config.MODEL_NAME
 trade_calendar = TradeCalendar()
 
@@ -42,7 +33,6 @@ class TradeService:
     def __init__(self):
         pass
 
-    # ===========================在线api 开始==================================
     @classmethod
     def process_trade_image_online(cls, file_bytes: bytes) -> Dict[str, Any]:
         """
@@ -136,120 +126,6 @@ class TradeService:
         except json.JSONDecodeError:
             logger.error(f"JSON 解析失败，原始文本: {text}")
             return {}
-
-    # ===========================在线api 结束==================================
-
-    # ===========================本地离线 开始==================================
-    @classmethod
-    def process_trade_image_local(cls, file_bytes):
-        """
-        用于 HTTP 和 WebSocket 的通用逻辑
-        参数：字节流
-        返回 OCR 文本 + LLM JSON
-        """
-
-        # 保存到临时文件( OCR模型通常需要路径 )
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
-            tmp.write(file_bytes)
-            img_path = tmp.name
-
-        # ===== 1) OCR =====
-        ocr_result = ocr.ocr(img_path)
-        os.remove(img_path)
-
-        try:
-            texts = ocr_result[0]['rec_texts']
-            text = "\n".join(texts)
-        except Exception:
-            text = ""
-
-        # ===== 2) LLM 解析 =====
-        parsed_json = cls.generate_json_from_text_local(text)
-        # logger.info("ocr识别文字：" + text)
-        # logger.info("LLM解析json结果：%s", str(parsed_json))
-        return {
-            "ocr_text": text,
-            "parsed_json": parsed_json
-        }
-
-    @classmethod
-    def generate_json_from_text_local(cls, text: str):
-        template = """{
-    "ho_code": "",
-    "ho_short_name": "",
-    "tr_type": "BUY",
-    "tr_date": "YYYY-MM-DD",
-    "tr_nav_per_unit": 1.0,
-    "tr_shares": 100.0,
-    "tr_amount": 100.0,
-    "tr_fee": 0.1,
-    "cash_amount": 100.1
-}"""
-
-        prompt = f"""
-你是一个专业的基金交易单据解析专家。你的任务是从 OCR 文本中提取结构化数据，并确保金额逻辑完全正确。
-请严格遵循以下五步推理过程（内部思考，不要输出）：
-1. 根据字段含义找出所有关键字段的原始值，字段含义：
-   - ho_code: string，持仓代码
-   - ho_short_name: string，持仓名称
-   - tr_type: string，交易类型(买入为 BUY，卖出为 SELL)
-   - tr_date: string，交易时间(YYYY-MM-DD格式)
-   - tr_nav_per_unit: float，交易净值(单位净值)
-   - tr_shares: float，交易份额
-   - tr_amount: float，交易金额，计算公式：tr_nav_per_unit * tr_shares
-   - tr_fee: float，手续费
-   - cash_amount: float，实际收付的现金，买入时等于 cash_amount + tr_fee，卖出时等于 cash_amount - tr_fee
-2. 根据 tr_type 判断是买入还是卖出
-3. 计算理论上的 tr_amount = tr_nav_per_unit × tr_shares
-4. 检查 tr_amount 和 cash_amount 的关系是否符合业务规则：
-   - 买入时：cash_amount = cash_amount + tr_fee，cash_amount 应该大于等于 tr_amount（因为含手续费）
-   - 卖出时：cash_amount = cash_amount - tr_fee，cash_amount 应该小于等于 tr_amount（因为扣手续费）
-5. 如果发现 tr_amount 和 cash_amount 数值颠倒或者根据识别出结果发现不满足4中的公式，请自动交换 或者重新计算 tr_amount 和 cash_amount 的值
-【输出要求】
-- 只输出最终 JSON，不含任何解释或代码块
-- 必须是合法 JSON
-- 字段必须包含：ho_code, ho_short_name, tr_type, tr_date, tr_nav_per_unit, tr_shares, tr_amount, tr_fee, cash_amount
-- 无法识别的string设为空字符串，无法识别的int或者float设为0
-- 数值字段必须为 float/int，不能加引号
-【示例格式】
-{template}
-OCR 文本：
-{text}
-现在开始，请只输出 JSON。
-"""
-
-        result = cls._call_local_llm(prompt)
-
-        # 尝试提取 JSON
-        try:
-            data = json.loads(result)
-            logger.info("LLM解析json结果：%s", str(data))
-            if data.get('ho_short_name') and not data.get('ho_code'):
-                # 根据名称获取代码
-                h = Holding.query.filter_by(ho_short_name=data.get('ho_short_name')).first()
-                if h:
-                    data['ho_short_name'] = h.ho_short_name
-                    data['ho_code'] = h.ho_code
-                    data['ho_id'] = h.id
-            logger.info("ai返回结果：%s", str(data))
-            return data
-        except Exception as e:
-            logger.info(e)
-            return {"error": "LLM 解析 JSON 失败", "raw": result}
-
-    @staticmethod
-    def _call_local_llm(prompt: str):
-        """
-        调用 Ollama 本地模型
-        """
-        resp = requests.post(
-            "http://localhost:11434/api/generate",
-            json={"model": "qwen2.5:3b", "prompt": prompt, "stream": False},
-            timeout=20
-        )
-        return resp.json()["response"]
-
-    # ===========================本地离线 结束==================================
 
     @classmethod
     def list_trade(cls, ho_code: int):
