@@ -75,7 +75,6 @@ class HoldingSchema(BaseSchema, EnumViewMixin):
         'currency': CurrencyEnum,
     }
     user_id = fields.Int(dump_only=True)
-    ho_type = fields.Enum(HoldingTypeEnum, by_value=True)
 
     fund_detail = fields.Nested(FundDetailSchema, required=False, allow_none=True)
 
@@ -115,7 +114,6 @@ class AlertRuleSchema(BaseSchema, EnumViewMixin):
     }
 
     user_id = fields.Int(dump_only=True)
-    action = fields.Enum(AlertRuleActionEnum, by_value=True)
 
     class Meta(BaseSchema.Meta):
         model = AlertRule

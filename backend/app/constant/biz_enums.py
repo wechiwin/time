@@ -213,18 +213,3 @@ class AnalyticsWindowEnum(str, Enum):
             cls.ALL,
             cls.CUR,
         }
-
-
-class DeviceType(str, Enum):
-    WEB = 'WEB'
-    MOBILE = 'MOBILE'
-    DESKTOP = 'DESKTOP'
-    TABLET = 'TABLET'
-    BOT = 'BOT'
-    UNKNOWN = 'UNKNOWN'
-
-
-class LoginStatus(str, Enum):
-    SUCCESS = 'SUCCESS'
-    FAILED = 'FAILED'
-    BLOCKED = 'BLOCKED'

@@ -1,7 +1,7 @@
 import re
 from typing import Optional
 
-from app.models import DeviceType  # 确保无循环导入
+from app.constant.sys_enums import DeviceType, GlobalYesOrNo
 
 
 class DeviceParser:
@@ -37,14 +37,14 @@ class DeviceParser:
         return DeviceType.UNKNOWN
 
     @staticmethod
-    def _is_suspicious_bot(user_agent: str) -> bool:
+    def _is_suspicious_bot(user_agent: str) -> int:
         """增强机器人检测（防御性安全措施）"""
         # 检查无浏览器特征的请求
         if 'curl' in user_agent.lower() or 'python-requests' in user_agent.lower():
-            return True
+            return GlobalYesOrNo.YES
 
         # 检查常见扫描工具
         if any(tool in user_agent.lower() for tool in ['nikto', 'sqlmap', 'wpscan']):
-            return True
+            return GlobalYesOrNo.YES
 
-        return False
+        return GlobalYesOrNo.NO

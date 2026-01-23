@@ -12,7 +12,16 @@ class Config:
 
     """基础配置"""
     # 数据库配置
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
+    # SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
+    # 新的 PostgreSQL 配置
+    DB_USER = os.getenv('DB_USER')
+    DB_PASSWORD = os.getenv('DB_PASSWORD')
+    DB_HOST = os.getenv('DB_HOST', 'localhost')
+    DB_PORT = os.getenv('DB_PORT', '5432')
+    DB_NAME = os.getenv('DB_NAME')
+    if not all([DB_USER, DB_PASSWORD, DB_NAME]):
+        raise ValueError("数据库环境变量 DB_USER, DB_PASSWORD, DB_NAME 必须被设置！")
+    SQLALCHEMY_DATABASE_URI = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
     SQLALCHEMY_TRACK_MODIFICATIONS = False  # 禁用事件系统提升性能
     # 邮件配置
     MAIL_SERVER = os.getenv('MAIL_SERVER')
@@ -32,6 +41,7 @@ class Config:
     # SALT = os.getenv('SALT')
     ITERATIONS = os.getenv('ITERATIONS')
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=15)
+    # JWT_ACCESS_TOKEN_EXPIRES = timedelta(seconds=15)
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=7)
     JWT_TOKEN_LOCATION = ["headers", "cookies"]
     JWT_ACCESS_COOKIE_NAME = "access_token"
@@ -75,6 +85,9 @@ class Config:
     API_KEY = os.getenv('API_KEY')
     BASE_URL = os.getenv('BASE_URL')
     MODEL_NAME = os.getenv('MODEL_NAME')
+
+    CACHE_TYPE = 'SimpleCache' # 使用内存缓存
+    CACHE_DEFAULT_TIMEOUT = 300 # 缓存默认超时时间（秒
 
     # 自动识别当前环境配置
     @classmethod

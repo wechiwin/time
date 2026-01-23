@@ -2,10 +2,13 @@ import hashlib
 
 from flask import request, g
 from flask_limiter.util import get_remote_address
+import logging
 
 from app.constant.biz_enums import ErrorMessageEnum
 from app.framework.exceptions import BizException
 from app.utils.device_parser import DeviceParser
+
+logger = logging.getLogger(__name__)
 
 
 def generate_device_fingerprint() -> str:
@@ -17,8 +20,8 @@ def generate_device_fingerprint() -> str:
     device_type = DeviceParser.parse(user_agent).value
 
     # 组合关键特征（防碰撞设计）
-    fingerprint_data = f"{ip}|{user_agent}|{device_type}|{request.headers.get('Accept-Language', '')}"
-
+    fingerprint_data = f"{ip}|{user_agent}|{device_type}"
+    logger.info(f"fingerprint_data=={fingerprint_data}")
     # 使用SHA3-256（抗碰撞更强）
     return hashlib.sha3_256(fingerprint_data.encode()).hexdigest()
 

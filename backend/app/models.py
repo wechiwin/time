@@ -8,7 +8,7 @@ from passlib.exc import InvalidHashError
 from passlib.hash import pbkdf2_sha256
 from sqlalchemy import inspect
 
-from app.constant.biz_enums import *
+from app.constant.sys_enums import GlobalYesOrNo
 from app.database import db
 
 
@@ -100,8 +100,8 @@ class TimestampMixin:
     混入类：为继承它的所有模型统一增加
     created_at 和 updated_at 两个时间戳字段
     """
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
-    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(),
+    created_at = db.Column(db.DateTime(timezone=True), default=db.func.current_timestamp(), nullable=False)
+    updated_at = db.Column(db.DateTime(timezone=True), default=db.func.current_timestamp(),
                            onupdate=db.func.current_timestamp(), nullable=False)
 
 
@@ -117,10 +117,10 @@ class Holding(TimestampMixin, BaseModel):
     ho_name = db.Column(db.String(100), nullable=False)  # 名称
     ho_short_name = db.Column(db.String(100))  # 简称
     ho_nickname = db.Column(db.String(100))  # 自定义别称
-    ho_type = db.Column(db.Enum(HoldingTypeEnum), nullable=False)  # 持仓类型枚举(目前只有场外基金) FUND STOCK
-    ho_status = db.Column(db.String(50), default=HoldingStatusEnum.NOT_HELD.value, nullable=False)  # 持仓状态：0,未持仓;1,持仓中；2.已清仓
+    ho_type = db.Column(db.String(50), nullable=False)  # 持仓类型枚举(目前只有场外基金) FUND STOCK
+    ho_status = db.Column(db.String(50), nullable=False)  # 持仓状态：0,未持仓;1,持仓中；2.已清仓
     # exchange = db.Column(db.String(100))  # 交易所，如 NASDAQ, SZSE。
-    currency = db.Column(db.String(50), default='CNY')  # 计价货币枚举，如 USD, CNY。
+    currency = db.Column(db.String(50))  # 计价货币枚举，如 USD, CNY。
     establishment_date = db.Column(db.Date)  # 成立日期
     # company = db.Column(db.String(100))
     # industry = db.Column(db.String(100))  # 行业分类 (对股票和行业基金有用)
@@ -232,7 +232,7 @@ class Trade(TimestampMixin, BaseModel):
     ho_id = db.Column(db.Integer, db.ForeignKey('holding.id'), index=True)
     ho_code = db.Column(db.String(50))
 
-    tr_type = db.Column(db.Enum(TradeTypeEnum), nullable=False)  # 交易类型(买入/卖出/分红/拆分)
+    tr_type = db.Column(db.String(50), nullable=False)  # 交易类型(买入/卖出/分红/拆分)
     tr_date = db.Column(db.Date, index=True, nullable=False)  # 交易日期
     tr_nav_per_unit = db.Column(db.Numeric(18, 4))  # 市价
     tr_shares = db.Column(db.Numeric(18, 2))  # 交易份额
@@ -240,8 +240,8 @@ class Trade(TimestampMixin, BaseModel):
     tr_fee = db.Column(db.Numeric(18, 2))  # 交易费用
     cash_amount = db.Column(db.Numeric(18, 2))  # 实际收付 = 交易净额 +/- 交易费用
     tr_cycle = db.Column(db.Integer, index=True)  # 轮次
-    is_cleared = db.Column(db.Boolean, default=False)  # 是否清仓
-    dividend_type = db.Column(db.Enum(DividendTypeEnum), nullable=True)  # 分红类型
+    is_cleared = db.Column(db.Integer)  # 是否清仓
+    dividend_type = db.Column(db.String(50), nullable=True)  # 分红类型
     remark = db.Column(db.String(200))
 
     __table_args__ = (
@@ -261,7 +261,7 @@ class AlertRule(TimestampMixin, BaseModel):
     ho_id = db.Column(db.Integer, db.ForeignKey('holding.id'), index=True, nullable=False)
     ho_code = db.Column(db.String(50))
     ar_name = db.Column(db.String(200))  # 名称
-    action = db.Column(db.Enum(AlertRuleActionEnum), nullable=False)  # 提醒类型
+    action = db.Column(db.String(50), nullable=False)  # 提醒类型
     target_price = db.Column(db.Numeric(18, 4))  # 目标单位净值
     tracked_date = db.Column(db.Date)  # 已追踪日期
     ar_is_active = db.Column(db.Integer)  # 是否激活:1.是;0.否
@@ -280,12 +280,12 @@ class AlertHistory(TimestampMixin, BaseModel):
     ho_id = db.Column(db.Integer, db.ForeignKey('holding.id'), index=True, nullable=False)
     ho_code = db.Column(db.String(50))
     ar_name = db.Column(db.String(100))  # 提醒名称
-    action = db.Column(db.Enum(AlertRuleActionEnum), nullable=False)  # 提醒类型：1.买入/2.加仓/0.卖出
+    action = db.Column(db.String(50), nullable=False)  # 提醒类型：1.买入/2.加仓/0.卖出
     trigger_price = db.Column(db.Numeric(18, 4))  # 触发单位净值
     trigger_nav_date = db.Column(db.Date)  # 触发净值日
     target_price = db.Column(db.Numeric(18, 4))  # 目标单位净值
-    send_status = db.Column(db.Enum(AlertEmailStatusEnum), nullable=False)  # 发送状态:0:'pending', 1:'sent', 2:'failed'
-    sent_time = db.Column(db.DateTime)  # 发送时间
+    send_status = db.Column(db.String(50), nullable=False)  # 发送状态:0:'pending', 1:'sent', 2:'failed'
+    sent_time = db.Column(db.DateTime(timezone=True))  # 发送时间
     remark = db.Column(db.String(2000))  # 备注
 
     holding = db.relationship('Holding', back_populates='alert_histories')
@@ -378,7 +378,7 @@ class HoldingSnapshot(TimestampMixin, BaseModel):
     """
     持仓周期，每次清仓加一，从1开始
     """
-    is_cleared = db.Column(db.Boolean, default=False)
+    is_cleared = db.Column(db.Integer)
     """
     是否清仓日
     """
@@ -737,12 +737,12 @@ class AsyncTaskLog(TimestampMixin, BaseModel):
     #   "kwargs": {"ids": ["id1", "id2"]}
     # }
     params = db.Column(db.JSON, nullable=False)
-    status = db.Column(db.Enum(TaskStatusEnum), nullable=False, default=TaskStatusEnum.PENDING, index=True)
+    status = db.Column(db.String(50), nullable=False, index=True)
     result_summary = db.Column(db.Text)
     error_message = db.Column(db.Text)
     max_retries = db.Column(db.Integer, default=3, nullable=False)
     retry_count = db.Column(db.Integer, default=0, nullable=False)
-    next_retry_at = db.Column(db.DateTime, nullable=True, index=True)
+    next_retry_at = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
     task_fingerprint = db.Column(db.String(64), index=True, comment='任务指纹，用于去重')
     business_key = db.Column(db.String(255), index=True, comment='业务关键字段')
     deduplication_strategy = db.Column(db.String(50), default='exact_match', comment='去重策略')
@@ -767,8 +767,8 @@ class UserSetting(TimestampMixin, BaseModel):
     default_lang = db.Column(db.String(20))
     email_address = db.Column(db.String(50))
     avatar_url = db.Column(db.String(500), nullable=True)
-    last_login_at = db.Column(db.DateTime, nullable=True)
-    is_locked = db.Column(db.Boolean, default=False, nullable=False)
+    last_login_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    is_locked = db.Column(db.Integer, nullable=False)
 
     holdings = db.relationship('Holding', backref='user', lazy='dynamic')
     trades = db.relationship('Trade', backref='user', lazy='dynamic')
@@ -821,9 +821,9 @@ class UserSession(db.Model):
     device_fingerprint = db.Column(db.String(255), nullable=False)  # 设备指纹
     login_ip = db.Column(db.String(45))  # 登录IP
     user_agent = db.Column(db.String(512))  # 浏览器信息
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # 登录时间
-    last_active = db.Column(db.DateTime, default=datetime.utcnow)  # 最后活跃时间
-    is_active = db.Column(db.Boolean, default=True)  # 是否仍有效
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)  # 登录时间
+    last_active = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)  # 最后活跃时间
+    is_active = db.Column(db.Integer)  # 是否仍有效
 
     # 关联用户
     user = db.relationship("UserSetting", back_populates="sessions")
@@ -841,7 +841,7 @@ class TokenBlacklist(TimestampMixin, BaseModel):
     user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False)
     jti = db.Column(db.String(36), nullable=False, unique=True, index=True)
     token_type = db.Column(db.String(10), nullable=False)  # 'access' or 'refresh'
-    expires_at = db.Column(db.DateTime, nullable=False)  # 过期时间
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=False)  # 过期时间
 
 
 class LoginHistory(TimestampMixin, BaseModel):
@@ -854,7 +854,7 @@ class LoginHistory(TimestampMixin, BaseModel):
     # 登录信息
     login_ip = db.Column(db.String(45), nullable=False, index=True)  # IPv6最长45字符
     user_agent = db.Column(db.Text, nullable=True)
-    device_type = db.Column(db.Enum(DeviceType), default=DeviceType.UNKNOWN, nullable=False)
+    device_type = db.Column(db.String(50), nullable=False)
     device_id = db.Column(db.String(255), nullable=True)
 
     # 地理位置
@@ -865,11 +865,11 @@ class LoginHistory(TimestampMixin, BaseModel):
     longitude = db.Column(db.DECIMAL(11, 8), nullable=True)
 
     # 登录状态
-    login_status = db.Column(db.Enum(LoginStatus), default=LoginStatus.SUCCESS, nullable=False)
+    login_status = db.Column(db.String(50), nullable=False)
     failure_reason = db.Column(db.String(255), nullable=True)
 
     # 安全信息
-    is_suspicious = db.Column(db.Boolean, default=False, nullable=False)
+    is_suspicious = db.Column(db.Integer, nullable=False)
     risk_score = db.Column(db.Integer, default=0, nullable=False)  # 0-100
 
     @property
@@ -896,6 +896,6 @@ class LoginHistory(TimestampMixin, BaseModel):
             score += 15
 
         self.risk_score = min(score, 100)
-        self.is_suspicious = score > 50
+        self.is_suspicious = GlobalYesOrNo.YES if score > 50 else GlobalYesOrNo.NO
 
         return score

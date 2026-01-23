@@ -10,6 +10,7 @@ from flask_jwt_extended import (
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
+from app.constant.sys_enums import GlobalYesOrNo
 from app.framework.auth import auth_required, auth_refresh_required
 from app.framework.exceptions import BizException
 from app.framework.res import Res
@@ -135,13 +136,13 @@ def refresh():
         # 刷新时也检查活跃设备数
         active_sessions = UserSession.query.filter_by(
             user_id=current_user.id,
-            is_active=True
+            is_active=GlobalYesOrNo.YES
         ).filter(
             UserSession.session_id != old_session_id  # 排除当前即将被替换的会话
         ).order_by(UserSession.created_at.asc()).all()
         if len(active_sessions) >= UserService.MAX_CONCURRENT_DEVICES:
             oldest = active_sessions[0]
-            oldest.is_active = False
+            oldest.is_active = GlobalYesOrNo.NO
             blacklisted_old = TokenBlacklist(
                 jti=oldest.session_id,
                 user_id=current_user.id,
@@ -212,7 +213,7 @@ def refresh():
                 user_agent=request.headers.get('User-Agent', ''),
                 created_at=datetime.utcnow(),
                 last_active=datetime.utcnow(),
-                is_active=True
+                is_active=GlobalYesOrNo.YES
             )
             db.session.add(new_session)
         # 使旧refresh token失效
@@ -372,7 +373,7 @@ def logout():
         if session_id:
             session = UserSession.query.filter_by(session_id=session_id).first()
             if session:
-                session.is_active = False
+                session.is_active = GlobalYesOrNo.NO
                 db.session.add(session)
         # 1. 处理 refresh token (从 cookie 中获取并黑名单)
         refresh_token = request.cookies.get(current_app.config['JWT_REFRESH_COOKIE_NAME'])
@@ -420,3 +421,4 @@ def logout():
         db.session.rollback()
         logger.error(f"Logout failed: {e}", exc_info=True)
         raise BizException("登出失败", code=500)
+
