@@ -37,7 +37,7 @@ class Config:
     BABEL_DEFAULT_LOCALE = 'zh',
     BABEL_TRANSLATION_DIRECTORIES = '../translations'
     # jwt
-    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY') # 生产环境中从环境变量获取
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')  # 生产环境中从环境变量获取
     # SALT = os.getenv('SALT')
     ITERATIONS = os.getenv('ITERATIONS')
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=15)
@@ -80,14 +80,15 @@ class Config:
 
     LOG_DIR = 'logs'
     LOG_FILE = 'app.log'
-    LOG_MAX_BYTES = 8 * 1024 * 1024
+    LOG_MAX_SIZE_IN_MB = os.getenv('LOG_MAX_SIZE_IN_MB', 10)
+    LOG_MAX_BYTES = LOG_MAX_SIZE_IN_MB * 1024 * 1024
 
     API_KEY = os.getenv('API_KEY')
     BASE_URL = os.getenv('BASE_URL')
     MODEL_NAME = os.getenv('MODEL_NAME')
 
-    CACHE_TYPE = 'SimpleCache' # 使用内存缓存
-    CACHE_DEFAULT_TIMEOUT = 300 # 缓存默认超时时间（秒
+    CACHE_TYPE = 'SimpleCache'  # 使用内存缓存
+    CACHE_DEFAULT_TIMEOUT = 300  # 缓存默认超时时间（秒
 
     # 自动识别当前环境配置
     @classmethod

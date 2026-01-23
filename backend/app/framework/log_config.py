@@ -44,8 +44,18 @@ class SizedDailyRotatingFileHandler(BaseRotatingHandler):
         if now_day != self.current_day:
             return True
 
-        if self.maxBytes > 0 and os.path.exists(self.baseFilename):
-            return os.path.getsize(self.baseFilename) >= self.maxBytes
+        if self.maxBytes > 0:
+            current_file = self.baseFilename
+            if os.path.exists(current_file):
+                try:
+                    file_size = os.path.getsize(current_file)
+                    should_rotate = file_size >= self.maxBytes
+                    if should_rotate:
+                        print(f"大小轮转: {current_file} 大小: {file_size}/{self.maxBytes}")
+                    return should_rotate
+                except OSError as e:
+                    print(f"获取文件大小失败: {e}")
+                    return False
 
         return False
 
@@ -108,6 +118,7 @@ def setup_logging(app):
     # 1. 从配置中获取参数，提供默认值
     log_dir = app.config.get('LOG_DIR', 'logs')
     log_file = app.config.get('LOG_FILE', 'app.log')
+    log_max_bytes = app.config.get('LOG_MAX_BYTES', 'app.log')
     log_path = os.path.join(log_dir, log_file)
     log_level_str = app.config.get('LOG_LEVEL', 'INFO')
     log_level = getattr(logging, log_level_str.upper(), logging.INFO)
@@ -137,7 +148,7 @@ def setup_logging(app):
     # 文件Handler
     file_handler = SizedDailyRotatingFileHandler(
         filename='logs/app.log',  # 自动生成 app.log.2025-10-23 等文件
-        maxBytes=2 * 1024 * 1024,  # 2MB大小限制
+        maxBytes=log_max_bytes,
         encoding='utf-8',
         delay=True
     )
@@ -165,15 +176,11 @@ def setup_logging(app):
     sqlalchemy_level = logging.DEBUG if app.debug else logging.INFO
     sqlalchemy_engine_logger = logging.getLogger('sqlalchemy.engine')
     sqlalchemy_engine_logger.setLevel(sqlalchemy_level)
-    # sqlalchemy_engine_logger.addHandler(file_handler)
-    # sqlalchemy_engine_logger.addHandler(console_handler)
     sqlalchemy_engine_logger.propagate = True
 
     # Flask-SQLAlchemy ORM 层日志
     flask_sqlalchemy_logger = logging.getLogger('flask_sqlalchemy')
     flask_sqlalchemy_logger.setLevel(logging.INFO)
-    # flask_sqlalchemy_logger.addHandler(file_handler)
-    # flask_sqlalchemy_logger.addHandler(console_handler)
     flask_sqlalchemy_logger.propagate = True
 
     app.logger.info('Application logging initialized')
