@@ -347,7 +347,7 @@ export default function Dashboard() {
                                                 <div
                                                     className={`text-xs font-mono ${getColor(item.has_portfolio_contribution)}`}>
                                                     {/* 贡献度是带符号的百分比 */}
-                                                    {formatPercent(item.has_portfolio_contribution)}
+                                                    {formatRatioAsPercent(item.has_portfolio_contribution)}
                                                 </div>
                                             </div>
                                         </div>

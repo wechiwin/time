@@ -64,7 +64,6 @@ export default function AsyncTaskLogPage() {
             name: 'keyword',
             type: 'text',
             label: t('label_keyword'),
-            placeholder: t('msg_search_placeholder_task'),
             className: 'md:col-span-3',
         },
         {

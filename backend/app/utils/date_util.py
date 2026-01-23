@@ -16,6 +16,7 @@ def get_yesterday_date():
     yesterday = date.today() - timedelta(days=1)
     return yesterday
 
+
 def get_yesterday_date_str():
     """
     返回昨天日期的字符串 YYYY-MM-DD
@@ -30,6 +31,15 @@ def date_to_str(date_entity):
     """
     date_str = date_entity.strftime('%Y-%m-%d')
     return date_str
+
+
+def datetime_to_str(datetime_entity):
+    """
+    返回指定时间的字符串 YYYY-MM-DD HH:MM:SS
+    """
+    if datetime_entity is None:
+        return None
+    return datetime_entity.strftime('%Y-%m-%d %H:%M:%S')
 
 
 def str_to_date(date_str: str):

@@ -37,15 +37,15 @@ export const formatRatioAsPercent = (ratio, decimals = 2) => {
     const percentage = Number(ratio) * 100;
     return formatPercent(percentage, decimals);
 };
+
 /**
  * 格式化数字为不带正号的百分比字符串
  * e.g., 0.123 -> '12.30%'
  */
 export const formatPercentNeutral = (value) => {
-    if (typeof value !== 'number' || isNaN(value)) {
-        return '0.00%';
-    }
-    return `${(value * 100).toFixed(2)}%`;
+    if (value === null || value === undefined || isNaN(Number(value))) return '0.00%';
+    const percentage = Number(value) * 100;
+    return `${percentage.toFixed(2)}%`;
 };
 
 export const getColor = (val, options = {}) => {

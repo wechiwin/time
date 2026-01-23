@@ -63,6 +63,19 @@ Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 # 你会看到提示，输入 `Y` 确认。
 ```
 
+## 测试
+```
+# 运行所有测试
+cd backend
+pytest
+# 生成 HTML 覆盖率报告
+pytest --cov=app --cov-report=html
+# 报告位置: backend/htmlcov/index.html
+# 运行特定模块测试
+pytest backend/app/tests/unit/test_services/test_holding_service.py
+# 运行并显示详细输出
+pytest -v
+```
 
 ## 📦 Docker 启动
 
