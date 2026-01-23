@@ -25,24 +25,9 @@ def get_dashboard_summary():
         days = data.get('days')
         window_key = data.get('window')
 
-        # 2. 绩效指标 (TWRR, IRR, Sharpe)
-        performance = DashboardService.get_performance(user_id, window_key, days)
+        result = DashboardService.get_summary(user_id, window_key, days)
 
-        # 3. 趋势图数据
-        trend = DashboardService.get_portfolio_trend(user_id, days)
-
-        # 4. 资产配置 (饼图数据)
-        allocation = DashboardService.get_holdings_allocation(user_id, window_key)
-
-        # 5. 近期预警
-        alerts = DashboardService.get_recent_alerts(user_id, limit=5)
-
-        return Res.success({
-            'performance': performance,
-            'trend': trend,
-            'allocation': allocation,
-            'alerts': alerts
-        })
+        return Res.success(result)
 
     except Exception as e:
         logger.exception("Dashboard summary error")

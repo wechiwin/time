@@ -16,8 +16,8 @@ from app.database import db
 from app.framework.error_handler import register_error_handler
 from app.framework.interceptor import register_request_response_logger
 from app.framework.log_config import setup_logging, get_early_logger
+from .cache import cache
 from .config import Config
-from .framework.cache_manager import CacheManager
 from .framework.jwt_config import configure_jwt
 from .routes import register_routes
 from .scheduler import init_scheduler
@@ -32,8 +32,7 @@ limiter = Limiter(
 )
 # 初始化邮件扩展
 mail = Mail()
-cache_manager = CacheManager()
-
+# cache_manager = CacheManager()
 
 def get_locale():
     """获取i18n语言"""
@@ -125,7 +124,7 @@ def create_app():
     db.init_app(app)
 
     # 初始化缓存
-    cache_manager.init_app(app)
+    cache.init_app(app)
 
     # Register Blueprints
     register_routes(app)

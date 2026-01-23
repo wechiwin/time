@@ -4,6 +4,7 @@ from typing import Dict, List
 
 from sqlalchemy import desc, func
 
+from app.cache import cache
 from app.constant.biz_enums import AnalyticsWindowEnum
 from app.database import db
 from app.mapper.dashboard_mapper import DashboardMapper
@@ -20,6 +21,28 @@ class DashboardService:
     """
     基于快照(Snapshot)模型的 Dashboard 服务
     """
+
+    @classmethod
+    @cache.memoize(timeout=6 * 60 * 60)  # 缓存 6h
+    def get_summary(cls, user_id: int, window_key: str = 'R252', days: int = 365) -> Dict:
+        # 2. 绩效指标 (TWRR, IRR, Sharpe)
+        performance = cls.get_performance(user_id, window_key, days)
+
+        # 3. 趋势图数据
+        trend = cls.get_portfolio_trend(user_id, days)
+
+        # 4. 资产配置 (饼图数据)
+        allocation = cls.get_holdings_allocation(user_id, window_key)
+
+        # 5. 近期预警
+        alerts = cls.get_recent_alerts(user_id, limit=5)
+        logger.info("get from db")
+        return {
+            'performance': performance,
+            'trend': trend,
+            'allocation': allocation,
+            'alerts': alerts
+        }
 
     @classmethod
     def get_performance(cls, user_id: int, window_key: str = 'R252', days: int = 365) -> Dict:
@@ -41,6 +64,9 @@ class DashboardService:
             InvestedAssetAnalyticsSnapshot.snapshot_date.between(start_date, end_date),
             InvestedAssetAnalyticsSnapshot.window_key == window_key
         ).order_by(InvestedAssetAnalyticsSnapshot.snapshot_date.desc()).first()
+
+        if not analytics:
+            return {}
 
         return {
             'window': analytics.window_key,
@@ -97,7 +123,7 @@ class DashboardService:
             return []
 
         holding_ana_snaps = DashboardMapper.get_holdings_allocation(date_to_str(latest_date), window_key)
-        logger.info(str(holding_ana_snaps))
+
         return holding_ana_snaps
 
     @classmethod
@@ -137,7 +163,8 @@ class DashboardService:
         return result
 
     @classmethod
-    def get_overview(cls, user_id: int, ) -> Dict:
+    @cache.memoize(timeout=6 * 60 * 60)  # 缓存 6h
+    def get_overview(cls, user_id: int) -> Dict:
         """
         获取账户整体状况（不随时间筛选变化的数据）
         包含：当前总资产、总成本、成立以来累计盈亏、成立以来TWRR、成立以来IRR
