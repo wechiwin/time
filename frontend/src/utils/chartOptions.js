@@ -93,18 +93,81 @@ export const getLineOption = (data, isDark) => {
         ]
     };
 };
-// [新增] 定义一套更专业的调色盘
-const PIE_CHART_COLORS = [
-    '#66B2FF', // 浅蓝 (接近 Tailwind blue-400)
-    '#3399FF', // 中蓝 (接近 Tailwind blue-500)
-    '#0066CC', // 深蓝 (接近 Tailwind blue-700)
-    '#00CCFF', // 青色 (接近 Tailwind cyan-400)
-    '#0099CC', // 深青 (接近 Tailwind cyan-600)
-    '#99CCFF', // 更浅的蓝
-    '#3366FF', // 另一种中蓝
-    '#003399', // 更深的蓝
-    '#66FFFF'  // 极浅青
-];
+/**
+ * 生成从深到浅的协调蓝色调色板
+ * @param {number} count - 颜色数量，默认10
+ * @param {number} hue - 色相值，默认210（蓝色）
+ * @param {Object} options - 可选配置
+ * @param {number} options.minLightness - 最浅色的明度，默认85%
+ * @param {number} options.maxLightness - 最深色的明度，默认15%
+ * @param {number} options.minSaturation - 最浅色的饱和度，默认30%
+ * @param {number} options.maxSaturation - 最深色的饱和度，默认100%
+ * @returns {string[]} HEX颜色数组
+ */
+const generateBluePalette = (
+    count = 10,
+    hue = 210,
+    options = {}
+) => {
+    const {
+        minLightness = 85,   // 最浅色（最小数据块）
+        maxLightness = 35,   // 最深色（最大数据块）
+        minSaturation = 30,  // 最浅色饱和度
+        maxSaturation = 100  // 最深色饱和度
+    } = options;
+
+    const colors = [];
+
+    for (let i = 0; i < count; i++) {
+        // 从深到浅：索引0最深，索引count-1最浅
+        const progress = i / (count - 1);
+
+        // 明度：从深（低明度）到浅（高明度）
+        const lightness = maxLightness + (minLightness - maxLightness) * progress;
+
+        // 饱和度：深色饱和度高，浅色饱和度低（更自然）
+        const saturation = maxSaturation + (minSaturation - maxSaturation) * progress;
+
+        // 转换为HEX格式
+        colors.push(hslToHex(hue, saturation, lightness));
+    }
+
+    return colors;
+};
+
+/**
+ * HSL转HEX辅助函数
+ */
+const hslToHex = (h, s, l) => {
+    s /= 100;
+    l /= 100;
+
+    const c = (1 - Math.abs(2 * l - 1)) * s;
+    const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+    const m = l - c / 2;
+
+    let r, g, b;
+
+    if (h >= 0 && h < 60) {
+        [r, g, b] = [c, x, 0];
+    } else if (h >= 60 && h < 120) {
+        [r, g, b] = [x, c, 0];
+    } else if (h >= 120 && h < 180) {
+        [r, g, b] = [0, c, x];
+    } else if (h >= 180 && h < 240) {
+        [r, g, b] = [0, x, c];
+    } else if (h >= 240 && h < 300) {
+        [r, g, b] = [x, 0, c];
+    } else {
+        [r, g, b] = [c, 0, x];
+    }
+
+    r = Math.round((r + m) * 255);
+    g = Math.round((g + m) * 255);
+    b = Math.round((b + m) * 255);
+
+    return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+};
 // 饼图配置
 export const getPieOption = (data, isDark, highlightedIndex = null) => {
     if (!Array.isArray(data) || data.length === 0) {
@@ -118,7 +181,8 @@ export const getPieOption = (data, isDark, highlightedIndex = null) => {
     }));
     return {
         backgroundColor: 'transparent',
-        color: PIE_CHART_COLORS, // 应用专业调色盘
+        // color: PIE_CHART_COLORS, // 应用专业调色盘
+        color: generateBluePalette(data.length),
         tooltip: {
             trigger: 'item',
             // [优化] 使用 formatter 函数提供更丰富的信息
@@ -154,15 +218,15 @@ export const getPieOption = (data, isDark, highlightedIndex = null) => {
         series: [{
             name: '持仓分布',
             type: 'pie',
-            radius: ['70%', '90%'],
+            radius: ['75%', '90%'],
             center: ['50%', '50%'],
             avoidLabelOverlap: false,
             itemStyle: {
-                borderRadius: 10,
+                borderRadius: 1,
                 // 使用背景色作为边框色，从而制造出 "间距" 的效果
                 // borderColor: isDark ? '#1f2937' : '#fff',
                 // 增加边框宽度，使间距更明显
-                borderWidth: 4
+                borderWidth: 1
             },
             // [优化] 标签用于在中心显示高亮项信息
             label: {
@@ -191,29 +255,6 @@ export const getPieOption = (data, isDark, highlightedIndex = null) => {
                 // 启用放大效果
                 scale: true,
                 scaleSize: 8, // 放大尺寸
-                // 高亮时显示中心标签
-                // label: {
-                //     show: true,
-                //     // [核心] 使用 rich text 格式化中心文本
-                //     formatter: [
-                //         '{a|{d}%}', // 第一行：百分比
-                //         '{b|{b}}'  // 第二行：名称
-                //     ].join('\n'),
-                //     rich: {
-                //         a: {
-                //             color: isDark ? '#f9fafb' : '#111827',
-                //             fontSize: 24,
-                //             fontWeight: 'bold',
-                //             lineHeight: 32
-                //         },
-                //         b: {
-                //             color: isDark ? '#9ca3af' : '#6b7280',
-                //             fontSize: 14,
-                //             lineHeight: 20,
-                //             padding: [4, 0, 0, 0] // 给第二行增加一点上边距
-                //         }
-                //     }
-                // }
             },
             data: chartData
         }]
