@@ -43,7 +43,7 @@ export default function LanguageSwitcher() {
             >
                 {/* 这里使用 bottom-full 和 mb-2 让菜单向上弹出 */}
                 <Menu.Items
-                    className="absolute bottom-full right-0 mb-2 w-32 origin-bottom-right bg-white dark:bg-gray-700 divide-y divide-gray-100 dark:divide-gray-600 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                    className="absolute bottom-full left-0 mb-2 w-32 origin-bottom-left bg-white dark:bg-gray-700 divide-y divide-gray-100 dark:divide-gray-600 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                     <div className="py-1">
                         {LANGUAGES.map((lang) => (
                             <Menu.Item key={lang.code}>
