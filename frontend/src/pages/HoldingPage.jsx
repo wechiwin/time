@@ -10,8 +10,11 @@ import {usePaginationState} from "../hooks/usePaginationState";
 import useCommon from "../hooks/api/useCommon";
 import {ArrowDownTrayIcon, DocumentArrowDownIcon, PlusIcon} from "@heroicons/react/16/solid";
 import SearchArea from "../components/search/SearchArea";
+import {useIsMobile} from "../hooks/useIsMobile";
+import HoldingFormMobile from "../components/forms/HoldingFormMobile";
 
 export default function HoldingPage() {
+    const isMobile = useIsMobile();
     const {t} = useTranslation();
     const {showSuccessToast, showErrorToast} = useToast();
     const {page, perPage, handlePageChange, handlePerPageChange} = usePaginationState();
@@ -216,7 +219,7 @@ export default function HoldingPage() {
                 onClose={() => setModalConfig(p => ({...p, show: false}))}
                 onSubmit={modalConfig.submitAction || (() => {
                 })} // 双重保险
-                FormComponent={HoldingForm}
+                FormComponent={isMobile ? HoldingFormMobile : HoldingForm}
                 initialValues={modalConfig.initialValues}
                 modalProps={{onCrawl: handleCrawl}}
             />
