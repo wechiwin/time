@@ -31,15 +31,27 @@ export default function AlertHistoryTable({data = []}) {
             <table className="min-w-full divide-y divide-gray-200">
                 <thead className="page-bg">
                 <tr>
+                    <th className="table-header">{t('th_ho_code')}</th>
+                    <th className="table-header">{t('th_ar_name')}</th>
+                    <th className="table-header">{t('alert_target_price')}</th>
+                    <th className="table-header">{t('th_actions')}</th>
+                    <th className="table-header">{t('alert_trigger_price')}</th>
                     <th className="table-header">{t('alert_trigger_time')}</th>
                     <th className="table-header">{t('alert_status')}</th>
+                    <th className="table-header">{t('th_created_at')}</th>
                 </tr>
                 </thead>
                 <tbody className="card divide-y divide-gray-200">
                 {data.map((history, index) => (
-                    <tr key={history.ah_id || index} className="hover:page-bg">
-                        <td className="table-cell">{history.ah_triggered_time}</td>
-                        <td className="table-cell">{history.ah_status$view}</td>
+                    <tr key={history.id || index} className="hover:page-bg">
+                        <td className="table-cell">{history.ho_code}</td>
+                        <td className="table-cell">{history.ar_name}</td>
+                        <td className="table-cell">{history.target_price}</td>
+                        <td className="table-cell">{history.action$view}</td>
+                        <td className="table-cell">{history.trigger_price}</td>
+                        <td className="table-cell">{history.trigger_nav_date}</td>
+                        <td className="table-cell">{history.send_status$view}</td>
+                        <td className="table-cell">{history.created_at}</td>
                     </tr>
                 ))}
                 </tbody>

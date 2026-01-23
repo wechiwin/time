@@ -119,7 +119,7 @@
   "alert_type_buy": "买入",
   "alert_type_sell": "卖出",
   "alert_type_add": "加仓",
-  "alert_target_price": "目标单位净值",
+  "alert_target_price": "目标单价",
   "alert_status": "状态",
   "alert_trigger_time": "触发时间",
   "alert_status_pending": "待发送",
@@ -127,6 +127,8 @@
   "alert_status_failed": "发送失败",
   "status_active": "激活",
   "status_inactive": "未激活",
+  "alert_trigger_price": "触发单价",
+  "remark": "备注",
 
   "login_title": "登录系统",
   "register_title": "用户注册",
@@ -169,5 +171,15 @@
   "msg_select_date_range": "选择日期范围",
   "label_fund_name_or_code": "持仓名称或代码",
 
-  "select_all": "全选"
+  "select_all": "全选",
+
+  "menu_task_logs": "任务运行",
+  "label_keyword": "搜索关键词",
+  "th_task_name": "任务名称",
+  "th_status": "任务状态",
+  "th_result_summary": "结果摘要",
+  "th_created_at": "创建时间",
+  "th_updated_at": "更新时间",
+  "th_retries": "重试次数",
+  "th_error_message": "错误信息"
 }

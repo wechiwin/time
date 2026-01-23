@@ -143,7 +143,7 @@ def page_rule_his():
     pagination = query.order_by(desc(AlertHistory.updated_at)).paginate(
         page=page, per_page=per_page, error_out=False)
 
-    result = marshal_pagination(pagination, AlertRuleSchema)
+    result = marshal_pagination(pagination, AlertHistorySchema)
 
     return Res.success(result)
 

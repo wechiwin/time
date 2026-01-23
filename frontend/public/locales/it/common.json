@@ -117,7 +117,7 @@
   "alert_type_buy": "Acquista",
   "alert_type_sell": "Vendi",
   "alert_type_add": "Aumenta Posizione",
-  "alert_target_price": "NAV Target Per Unit",
+  "alert_target_price": "Prezzo Obiettivo",
   "alert_status": "Stato",
   "alert_trigger_time": "Ora di Trigger",
   "alert_status_pending": "In Attesa",
@@ -125,6 +125,7 @@
   "alert_status_failed": "Fallito",
   "status_active": "Attivo",
   "status_inactive": "Inattivo",
+  "remark": "Nota",
 
   "login_title": "Sistema di Accesso",
   "register_title": "Registrazione Utente",
@@ -166,6 +167,16 @@
   "msg_select_date_range": "Seleziona Intervallo Date",
   "label_fund_name_or_code": "Nome o Codice del Fondo",
 
-  "select_all": "Tutto"
+  "select_all": "Tutto",
+
+  "menu_task_logs": "Esecuzione dei task",
+  "label_keyword": "Parola chiave di ricerca",
+  "th_task_name": "Nome del task",
+  "th_status": "Stato del task",
+  "th_result_summary": "Riepilogo risultati",
+  "th_created_at": "Creato il",
+  "th_updated_at": "Aggiornato il",
+  "th_retries": "Numero di tentativi di ripetizione",
+  "th_error_message": "Messaggio di errore"
 
 }
