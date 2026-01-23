@@ -118,7 +118,7 @@ def setup_logging(app):
     # 1. 从配置中获取参数，提供默认值
     log_dir = app.config.get('LOG_DIR', 'logs')
     log_file = app.config.get('LOG_FILE', 'app.log')
-    log_max_bytes = app.config.get('LOG_MAX_BYTES', 'app.log')
+    log_max_bytes = int(app.config.get('LOG_MAX_SIZE_IN_MB', 10)) * 1024 * 1024
     log_path = os.path.join(log_dir, log_file)
     log_level_str = app.config.get('LOG_LEVEL', 'INFO')
     log_level = getattr(logging, log_level_str.upper(), logging.INFO)

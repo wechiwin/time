@@ -81,7 +81,6 @@ class Config:
     LOG_DIR = 'logs'
     LOG_FILE = 'app.log'
     LOG_MAX_SIZE_IN_MB = os.getenv('LOG_MAX_SIZE_IN_MB', 10)
-    LOG_MAX_BYTES = LOG_MAX_SIZE_IN_MB * 1024 * 1024
 
     API_KEY = os.getenv('API_KEY')
     BASE_URL = os.getenv('BASE_URL')

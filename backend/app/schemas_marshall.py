@@ -4,14 +4,12 @@ from marshmallow import fields, EXCLUDE, post_dump
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 
 from app.constant.biz_enums import *
-from app.database import db
 from app.models import *
 
 logger = logging.getLogger(__name__)
 
 
 class BaseSchema(SQLAlchemyAutoSchema):
-    # 你可能已经有了一些通用配置
     class Meta:
         sqla_session = db.session  # 用于懒加载查询
         load_instance = True  # 反序列化时可直接得到模型实例
@@ -19,6 +17,25 @@ class BaseSchema(SQLAlchemyAutoSchema):
         exclude = ("user_id",)
 
     id = fields.Int(dump_only=True)
+    # 覆盖默认的日期和日期时间字段类型
+    TYPE_MAPPING = {
+        **SQLAlchemyAutoSchema.TYPE_MAPPING,
+        date: fields.Date,
+        datetime: fields.DateTime,
+    }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # 自动格式化所有日期/日期时间字段
+        self._format_datetime_fields()
+
+    def _format_datetime_fields(self):
+        """自动检测并格式化所有日期/日期时间字段"""
+        for field_name, field_obj in self.fields.items():
+            if isinstance(field_obj, fields.DateTime):
+                field_obj.format = '%Y-%m-%d %H:%M:%S'
+            elif isinstance(field_obj, fields.Date):
+                field_obj.format = '%Y-%m-%d'
 
     @post_dump
     def trim_decimal_zero(self, data, **kwargs):
@@ -120,7 +137,7 @@ class AlertRuleSchema(BaseSchema, EnumViewMixin):
         include_fk = True
 
 
-class AlertHistorySchema(BaseSchema):
+class AlertHistorySchema(BaseSchema, EnumViewMixin):
     enum_map = {
         'action': AlertRuleActionEnum,
         'send_status': AlertEmailStatusEnum,
