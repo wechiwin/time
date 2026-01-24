@@ -48,22 +48,6 @@ export const formatPercentNeutral = (value) => {
     return `${percentage.toFixed(2)}%`;
 };
 
-export const getColor = (val, options = {}) => {
-    const {
-        invert = false,  // 是否反转红绿（如A股）
-        zeroColor = 'text-gray-500 dark:text-gray-400'
-    } = options;
-
-    if (val === null || val === undefined || isNaN(Number(val))) return zeroColor;
-
-    const numVal = Number(val);
-    const isPositive = invert ? numVal < 0 : numVal > 0;
-    const isNegative = invert ? numVal > 0 : numVal < 0;
-
-    if (isPositive) return 'text-red-500 dark:text-red-400';
-    if (isNegative) return 'text-green-500 dark:text-green-400';
-    return zeroColor;
-};
 
 // 专门用于数学计算的四舍五入函数
 export const roundNumber = (num, precision = 2) => {

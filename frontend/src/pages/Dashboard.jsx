@@ -12,18 +12,25 @@ import {
     ScaleIcon
 } from '@heroicons/react/24/outline';
 import useDarkMode from "../hooks/useDarkMode";
-import {formatCurrency, formatPercent, formatPercentNeutral, formatRatioAsPercent, getColor} from '../utils/formatters';
+import {
+    formatCurrency,
+    formatPercent,
+    formatPercentNeutral,
+    formatRatioAsPercent,
+} from '../utils/numberFormatters';
 import {getLineOption, getPieOption} from '../utils/chartOptions';
+import {getBadgeStyle, getColor} from "../utils/colorFormatters";
 
-// 窗口名称映射表
-const WINDOW_NAME_MAP = {
-    'ALL': '投资以来',
-    'CUR': '本轮持仓',
-    'R21': '近一月',
-    'R63': '近三月',
-    'R126': '近半年',
-    'R252': '近一年'
+const TIME_RANGE_CONFIG = {
+    '1m': {window: 'R21', days: 30, i18nKey: 'period_last_30_days'},
+    '3m': {window: 'R63', days: 90, i18nKey: 'period_last_90_days'},
+    '6m': {window: 'R126', days: 180, i18nKey: 'period_last_6_months'},
+    '1y': {window: 'R252', days: 365, i18nKey: 'period_last_12_months'},
+    'all': {window: 'ALL', days: 3650, i18nKey: 'period_since_inception'},
 };
+
+const DEFAULT_TIME_RANGE_KEY = '1y';
+const DEFAULT_RANGE_PARAMS = TIME_RANGE_CONFIG[DEFAULT_TIME_RANGE_KEY];
 
 export default function Dashboard() {
     const {t} = useTranslation();
@@ -41,8 +48,8 @@ export default function Dashboard() {
         refetch
     } = useDashboard({
         autoLoad: true,
-        defaultDays: 365,
-        defaultWindow: 'R252'
+        defaultDays: DEFAULT_RANGE_PARAMS.days,
+        defaultWindow: DEFAULT_RANGE_PARAMS.window
     });
 
     // 性能数据简写，使用可选链和空值合并
@@ -53,12 +60,12 @@ export default function Dashboard() {
 
     // Memoized chart options
     const lineOption = useMemo(() =>
-            getLineOption(trend, isDarkMode),
-        [trend, isDarkMode]
+            getLineOption(trend, isDarkMode, t('msg_no_records')),
+        [trend, isDarkMode, t]
     );
     const pieOption = useMemo(() =>
-            getPieOption(allocation, isDarkMode, highlightedIndex),
-        [allocation, isDarkMode, highlightedIndex]
+            getPieOption(allocation, isDarkMode, t('msg_no_records'), highlightedIndex),
+        [allocation, isDarkMode, highlightedIndex, t]
     );
 
     // 联动高亮效果
@@ -87,6 +94,7 @@ export default function Dashboard() {
             }
         }
     }, [highlightedIndex, allocation]);
+
     const handleChartEvents = {
         mouseover: (params) => {
             setHighlightedIndex(params.dataIndex);
@@ -97,40 +105,22 @@ export default function Dashboard() {
     };
 
     const handleRangeChange = (e) => {
-        const val = e.target.value;
-        setTimeRange(val);
+        const newRangeKey = e.target.value;
+        setTimeRange(newRangeKey);
 
-        const rangeMap = {
-            '1m': {win: 'R21', days: 30},
-            '3m': {win: 'R63', days: 90},
-            '6m': {win: 'R126', days: 180},
-            '1y': {win: 'R252', days: 365},
-            'all': {win: 'ALL', days: 3650}
-        };
-
-        const {win, days} = rangeMap[val] || {win: 'R252', days: 365};
-        // 添加调试日志
-        // console.log(`切换窗口: ${val}, win: ${win}, days: ${days}`);
+        // 从统一配置中获取参数，并提供一个安全的回退
+        const {win, days} = TIME_RANGE_CONFIG[newRangeKey] || DEFAULT_RANGE_PARAMS;
 
         refetch(days, win);
     };
 
     const handleRefresh = () => {
-        refetch(); // 使用统一的 refetch
+        // 找到当前 timeRange 对应的配置来刷新
+        const {win, days} = TIME_RANGE_CONFIG[timeRange] || DEFAULT_RANGE_PARAMS;
+        refetch(days, win);
     };
 
-
-    // 窗口名称
-    const windowName = useMemo(() => {
-        const rangeMap = {
-            '1m': '近一月',
-            '3m': '近三月',
-            '6m': '近半年',
-            '1y': '近一年',
-            'all': '投资以来'
-        };
-        return rangeMap[timeRange] || '近一年';
-    }, [timeRange]);
+    const windowName = t(TIME_RANGE_CONFIG[timeRange]?.i18nKey || DEFAULT_RANGE_PARAMS.i18nKey);
 
     // 1. 初始加载时，显示骨架屏
     if (isInitialLoading) {
@@ -140,7 +130,6 @@ export default function Dashboard() {
                     {[...Array(4)].map((_, i) => <KpiCardSkeleton key={i}/>)}
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <ChartSkeleton/>
                     <ChartSkeleton/>
                 </div>
             </div>
@@ -154,10 +143,10 @@ export default function Dashboard() {
                 <div
                     className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-center">
                     <ExclamationTriangleIcon className="w-12 h-12 text-red-500 mx-auto mb-2"/>
-                    <p className="text-red-700 dark:text-red-300">数据加载失败: {error.message || '未知错误'}</p>
+                    <p className="text-red-700 dark:text-red-300">{t('data_loading_failed')}: {error.message || t('unknown_error')}</p>
                     <button onClick={handleRefresh} disabled={isRefreshing}
                             className="mt-4 text-blue-500 underline disabled:opacity-50">
-                        {isRefreshing ? '重试中...' : '重试'}
+                        {isRefreshing ? `${t('retrying')}` : `${t('retry')}`}
                     </button>
                 </div>
             </div>
@@ -170,13 +159,13 @@ export default function Dashboard() {
             {/* 第一部分：账户整体概览 (来自 /overview 接口) */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                 <KpiCard
-                    title="总资产"
+                    title={t('total_asset')}
                     value={formatCurrency(overviewData?.total_mv)}
-                    subValue={overviewData?.holding_cost ? `持仓成本 ${formatCurrency(overviewData?.holding_cost)}` : null}
+                    subValue={overviewData?.holding_cost ? `${t('position_cost')} ${formatCurrency(overviewData?.holding_cost)}` : null}
                     icon={<CurrencyDollarIcon className="w-5 h-5 text-blue-500"/>}
                 />
                 <KpiCard
-                    title="累计盈亏"
+                    title={t('cumulative_profit_loss')}
                     value={formatCurrency(overviewData?.total_pnl)}
                     valueColor={getColor(overviewData?.total_pnl)}
                     subValue={overviewData?.total_pnl_ratio ? `${formatPercent(overviewData?.total_pnl_ratio)}` : '0.00%'}
@@ -184,27 +173,27 @@ export default function Dashboard() {
                     icon={<ScaleIcon className="w-5 h-5 text-purple-500"/>}
                 />
                 <KpiCard
-                    title="累计 TWRR"
+                    title={t('cumulative_twrr')}
                     value={formatPercent(overviewData?.twrr_cum)}
                     valueColor={getColor(overviewData?.twrr_cum)}
                     subValue={`年化 IRR: ${formatPercent(overviewData?.irr_ann)}`}
                     subValueColor={getColor(overviewData?.total_pnl_ratio)}
                     icon={<PresentationChartLineIcon className="w-5 h-5 text-orange-500"/>}
-                    tooltip="时间加权收益率：反映策略自成立以来的累计表现，剔除资金进出影响。"
+                    tooltip={t('twrr_description')}
                 />
                 <KpiCard
-                    title="历史最大回撤"
+                    title={t('max_drawdown')}
                     value={formatPercent(overviewData?.max_drawdown)}
                     valueColor={getColor(overviewData?.max_drawdown)}
                     icon={<ClockIcon className="w-5 h-5 text-green-500"/>}
-                    tooltip="内部收益率：反映实际资金的年化回报，包含加减仓时机的影响。"
+                    tooltip={t('irr_description')}
                 />
             </div>
             {/* 分隔线与控制栏 */}
             <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-1">
                 <div className="flex items-center gap-2 text-xs text-gray-400">
-                    <span>以下数据更新于: {overviewData?.update_date || '-'}</span>
-                    {overviewData?.total_mv === 0 && <span className="text-orange-500">(空仓)</span>}
+                    <span>{t('last_updated_at')}: {overviewData?.update_date || '-'}</span>
+                    {overviewData?.total_mv === 0 && <span className="text-orange-500">({t('empty_position')})</span>}
                 </div>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -213,26 +202,19 @@ export default function Dashboard() {
                         onChange={handleRangeChange}
                         className="flex-1 sm:flex-none bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md px-3 py-1.5 text-sm focus:ring-1 focus:ring-blue-500 dark:text-white outline-none shadow-sm"
                     >
-                        <option value="1m">近1月</option>
-                        <option value="3m">近3月</option>
-                        <option value="6m">近半年</option>
-                        <option value="1y">近1年</option>
-                        <option value="all">投资以来</option>
+                        {Object.entries(TIME_RANGE_CONFIG).map(([key, {i18nKey}]) => (
+                            <option key={key} value={key}>
+                                {t(i18nKey)}
+                            </option>
+                        ))}
                     </select>
-                    {/* <button */}
-                    {/*     onClick={handleRefresh} */}
-                    {/*     className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm" */}
-                    {/*     title="刷新数据" */}
-                    {/* > */}
-                    {/*     <ArrowPathIcon className={`w-4 h-4 text-gray-500 ${isInitialLoading ? 'animate-spin' : ''}`}/> */}
-                    {/* </button> */}
                 </div>
             </div>
 
             {/* 第二部分：区间分析 (来自 /summary 接口) */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <KpiCard
-                    title={`区间盈亏 (${windowName})`}
+                    title={`${t('interval_profit_loss')} (${windowName})`}
                     value={formatCurrency(performance?.period_pnl)}
                     valueColor={getColor(performance?.period_pnl)}
                     subValue={formatPercent(performance?.period_pnl_ratio)}
@@ -244,31 +226,31 @@ export default function Dashboard() {
                     value={formatPercent(performance?.twrr_cumulative)}
                     valueColor={getColor(performance?.twrr_cumulative)}
                     subValue={performance?.irr_annualized === 0
-                        ? '年化 IRR: -'
-                        : `年化 IRR: ${formatPercent(performance?.irr_annualized)}`}
+                        ? `${t('annualized_irr')}: -`
+                        : `${t('annualized_irr')}: ${formatPercent(performance?.irr_annualized)}`}
                     icon={<PresentationChartLineIcon className="w-6 h-6 text-orange-500"/>}
-                    tooltip="TWRR衡量策略表现(剔除资金进出影响)，IRR衡量实际到手回报"
+                    tooltip={t('twrr_explanation')}
                 />
                 {/* 卡片 3: 超额收益 (Alpha) - 替换原来的波动率 */}
                 <KpiCard
-                    title="超额收益 (Alpha)"
+                    title={t('excess_return')}
                     value={formatPercent(performance?.alpha)}
                     valueColor={getColor(performance?.alpha)}
                     // Beta 衡量对市场的敏感度，与 Alpha 成对出现最合适
                     subValue={`Beta: ${performance?.beta ? formatPercent(performance.beta) : '-'}`}
                     subValueColor="text-gray-500"
                     icon={<CurrencyDollarIcon className="w-6 h-6 text-orange-500"/>}
-                    tooltip="Alpha: 跑赢基准的超额收益；Beta: 相对基准的波动敏感度 (>1 表示比基准波动大)"
+                    tooltip={t('alpha_beta_explanation')}
                 />
                 {/* 卡片 4: 基准表现*/}
                 <KpiCard
-                    title="同期基准收益"
+                    title={t('benchmark_return_same_period')}
                     value={formatPercent(performance?.benchmark_cumulative_return)}
                     valueColor={getColor(performance?.benchmark_cumulative_return)}
                     // 显示具体的基准名称，让用户知道在和谁比
                     subValue={performance?.benchmark_name || '沪深300'}
                     icon={<ChartPieIcon className="w-6 h-6 text-gray-500"/>}
-                    tooltip="同一时间区间内，对标指数（如沪深300）的涨跌幅"
+                    tooltip={t('benchmark_return_description')}
                 />
             </div>
 
@@ -278,7 +260,7 @@ export default function Dashboard() {
                 <div
                     className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700">
                     <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
-                        资产走势 <span className="text-sm font-normal text-gray-500">({windowName})</span>
+                        {t('asset_trend')} <span className="text-sm font-normal text-gray-500">({windowName})</span>
                     </h3>
                     <div className="h-80">
                         <ReactECharts
@@ -293,7 +275,7 @@ export default function Dashboard() {
                 {/* 资产配置 */}
                 <div
                     className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700 flex flex-col">
-                    <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">持仓分布</h3>
+                    <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">{t('label_position_allocation')}</h3>
 
                     {allocation && allocation.length > 0 ? (
                         <>
@@ -361,8 +343,8 @@ export default function Dashboard() {
                             <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-full mb-3">
                                 <ChartPieIcon className="w-8 h-8 text-gray-300 dark:text-gray-500"/>
                             </div>
-                            <p className="text-sm">当前无持仓数据</p>
-                            <p className="text-xs text-gray-400 mt-1">请添加交易记录或等待数据更新</p>
+                            <p className="text-sm">{t('msg_no_current_positions')}</p>
+                            <p className="text-xs text-gray-400 mt-1">{t('msg_add_trades_or_wait')}</p>
                         </div>
                     )}
                 </div>
@@ -374,58 +356,60 @@ export default function Dashboard() {
                 <div
                     className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700">
                     <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
-                        风险分析 <span className="text-sm font-normal text-gray-500">({windowName})</span>
+                        {t('risk_analysis')} <span className="text-sm font-normal text-gray-500">({windowName})</span>
                     </h3>
                     {performance ? (
                         <div className="grid grid-cols-2 gap-4">
-                            <RiskMetric label="夏普比率" value={performance.sharpe_ratio?.toFixed(2)}
-                                        desc=">1 为佳"/>
-                            <RiskMetric label="最大回撤" value={formatPercent(performance.max_drawdown)}
-                                        color={getColor(performance.max_drawdown)} desc="越小越好"/>
-                            <RiskMetric label="年化波动率" value={formatPercent(performance.volatility)}
-                                        desc="风险程度"/>
-                            <RiskMetric label="胜率" value={formatPercent(performance.win_rate)}
-                                        desc="盈利天数占比"/>
+                            <RiskMetric label={t('label_sharpe_ratio')} value={performance.sharpe_ratio?.toFixed(2)}
+                                        desc={t('hint_sharpe_ratio_optimal')}/>
+                            <RiskMetric label={t('label_max_drawdown')} value={formatPercent(performance.max_drawdown)}
+                                        color={getColor(performance.max_drawdown)} desc={t('smaller_is_better')}/>
+                            <RiskMetric label={t('label_annualized_volatility')}
+                                        value={formatPercent(performance.volatility)}
+                                        desc={t('label_risk_level')}/>
+                            <RiskMetric label={t('label_win_rate')} value={formatPercent(performance.win_rate)}
+                                        desc={t('label_profitable_days_ratio')}/>
                         </div>
                     ) : (
-                        <div className="text-center py-8 text-gray-400 text-sm">暂无风险分析数据</div>
+                        <div className="text-center py-8 text-gray-400 text-sm">{t('msg_no_risk_analysis_data')}</div>
                     )}
                 </div>
 
                 {/* 预警列表 */}
                 <div
                     className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700">
-                    <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">近期信号</h3>
+                    <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">{t('msg_recent_signals')}</h3>
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left">
                             <thead className="text-xs text-gray-500 uppercase bg-gray-50 dark:bg-gray-700/50">
                             <tr>
-                                <th className="px-3 py-2 rounded-l-lg">标的</th>
-                                <th className="px-3 py-2">类型</th>
-                                <th className="px-3 py-2">触发价</th>
-                                <th className="px-3 py-2 rounded-r-lg">日期</th>
+                                <th className="px-3 py-2 rounded-l-lg">{t('th_ar_name')}</th>
+                                <th className="px-3 py-2">{t('th_actions')}</th>
+                                <th className="px-3 py-2">{t('alert_trigger_price')}</th>
+                                <th className="px-3 py-2 rounded-r-lg">{t('alert_trigger_time')}</th>
                             </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                             {alerts && alerts.length > 0 ? alerts.map(alert => (
                                 <tr key={alert.id}
                                     className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                                    <td className="px-3 py-3 font-medium text-gray-900 dark:text-white">{alert.name}</td>
+                                    <td className="px-3 py-3 font-medium text-gray-900 dark:text-white"
+                                        title={alert.ar_name}>
+                                        {alert.ar_name}
+                                    </td>
                                     <td className="px-3 py-3">
-                                            <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                                alert.type === 'BUY'
-                                                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-                                                    : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                                            }`}>
-                                                {alert.type_text}
+                                            <span
+                                                className={`px-2 py-1 rounded text-xs font-medium ${getBadgeStyle(alert.action)}`}>
+                                                {alert.action$view}
                                             </span>
                                     </td>
-                                    <td className="px-3 py-3 text-gray-700 dark:text-gray-300">{alert.current_nav}</td>
-                                    <td className="px-3 py-3 text-gray-500 dark:text-gray-400">{alert.date}</td>
+                                    <td className="px-3 py-3 text-gray-700 dark:text-gray-300">{alert.trigger_price}</td>
+                                    <td className="px-3 py-3 text-gray-500 dark:text-gray-400">{alert.trigger_nav_date}</td>
                                 </tr>
                             )) : (
                                 <tr>
-                                    <td colSpan="4" className="text-center py-8 text-gray-500">暂无预警消息</td>
+                                    <td colSpan="4"
+                                        className="text-center py-8 text-gray-500">{t('msg_no_alert_signals')}</td>
                                 </tr>
                             )}
                             </tbody>

@@ -12,8 +12,9 @@ import {
     CurrencyYenIcon,
     PresentationChartLineIcon
 } from '@heroicons/react/24/outline';
-import {formatCurrency, formatPercent, formatNumber, getColor} from '../../utils/formatters';
-import NavChart from './NavChart'; // 新建图表组件
+import {formatCurrency, formatPercent, formatNumber} from '../../utils/numberFormatters';
+import NavChart from './NavChart';
+import {getColor} from "../../utils/colorFormatters"; // 新建图表组件
 
 export default function TradeTimeline({rounds = [], loading = false}) {
     const {t} = useTranslation();

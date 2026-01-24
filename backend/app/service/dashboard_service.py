@@ -12,6 +12,7 @@ from app.models import (
     InvestedAssetSnapshot, InvestedAssetAnalyticsSnapshot,
     AlertHistory, HoldingAnalyticsSnapshot
 )
+from app.schemas_marshall import AlertHistorySchema
 from app.utils.date_util import date_to_str
 
 logger = logging.getLogger(__name__)
@@ -23,7 +24,7 @@ class DashboardService:
     """
 
     @classmethod
-    @cache.memoize(timeout=6 * 60 * 60)  # 缓存 6h
+    @cache.memoize(timeout=6 * 60)
     def get_summary(cls, user_id: int, window_key: str = 'R252', days: int = 365) -> Dict:
         # 2. 绩效指标 (TWRR, IRR, Sharpe)
         performance = cls.get_performance(user_id, window_key, days)
@@ -35,7 +36,7 @@ class DashboardService:
         allocation = cls.get_holdings_allocation(user_id, window_key)
 
         # 5. 近期预警
-        alerts = cls.get_recent_alerts(user_id, limit=5)
+        alerts = cls.get_recent_alert_signals(user_id, limit=5)
         logger.info("get from db")
         return {
             'performance': performance,
@@ -127,43 +128,20 @@ class DashboardService:
         return holding_ana_snaps
 
     @classmethod
-    def get_recent_alerts(cls, user_id: int, limit: int = 5) -> List[Dict]:
+    def get_recent_alert_signals(cls, user_id: int, limit: int = 5) -> List[Dict]:
         """
         获取近期预警
         """
-        alerts = AlertHistory.query.filter(
+        signals = AlertHistory.query.filter(
             AlertHistory.user_id == user_id  # 用户隔离
         ).order_by(
             desc(AlertHistory.created_at)
         ).limit(limit).all()
-        result = []
 
-        for alert in alerts:
-            # 1. 处理操作类型 (BUY/SELL)
-            # 数据库模型中 action 定义为 db.Enum(AlertRuleActionEnum)，所以取出来直接是 Enum 对象
-            action_type = alert.action.name if hasattr(alert.action, 'name') else str(alert.action)
-            # alert.action.view 返回的是 lazy_gettext 对象，需要转为 str 才能被 JSON 序列化
-            action_text = str(alert.action.view) if hasattr(alert.action, 'view') else str(alert.action)
-            # 2. 处理发送状态 (PENDING/SENT/FAILED)
-            status_code = alert.send_status.name if hasattr(alert.send_status, 'name') else str(alert.send_status)
-            status_text = str(alert.send_status.view) if hasattr(alert.send_status, 'view') else str(alert.send_status)
-            result.append({
-                'id': alert.id,
-                'code': alert.ho_code,
-                'name': alert.ar_name,
-                'type': action_type,  # 例如: 'BUY'
-                'type_text': action_text,  # 例如: '买入' (根据语言环境变化)
-                'current_nav': float(alert.trigger_price or 0),
-                'target_nav': float(alert.target_price or 0),
-                'date': alert.trigger_nav_date.strftime('%Y-%m-%d') if alert.trigger_nav_date else '',
-                'status': status_code,  # 例如: 'SENT'
-                'status_text': status_text  # 例如: '已发送'
-            })
-
-        return result
+        return AlertHistorySchema(many=True).dump(signals)
 
     @classmethod
-    @cache.memoize(timeout=6 * 60 * 60)  # 缓存 6h
+    @cache.memoize(timeout=6 * 60)  # 缓存 6h
     def get_overview(cls, user_id: int) -> Dict:
         """
         获取账户整体状况（不随时间筛选变化的数据）

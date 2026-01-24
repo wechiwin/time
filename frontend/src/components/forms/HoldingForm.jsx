@@ -192,9 +192,9 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* 基金搜索选择器 - 只在新增时显示 */}
                 <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">持仓代码</label>
+                    <label className="text-sm font-medium mb-1">{t('th_ho_code')}</label>
                     <input
-                        placeholder="基金代码"
+                        placeholder={t('th_ho_code')}
                         value={form.ho_code}
                         onChange={(e) => setForm({...form, ho_code: e.target.value})}
                         required
@@ -468,7 +468,7 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
             </div>
             <div className="flex justify-end space-x-2 pt-2">
                 <p className="text-s text-gray-500 mt-1">
-                    选择持仓后，点击爬取按钮可自动获取信息
+                    {t('crawl_hint')}
                 </p>
                 <button type="button" className="btn-primary" onClick={handleCrawl}>
                     {t('button_crawl_info')}

@@ -11,14 +11,15 @@ logger = logging.getLogger(__name__)
 common_bp = Blueprint('common', __name__, url_prefix='/api/common')
 
 
-@common_bp.route('/get_enum', methods=['GET'])
+@common_bp.route('/get_enum', methods=['POST'])
 @auth_required
 def get_enum():
     """
     根据枚举类名称获取枚举值列表
     :return: 包含枚举code和value的JSON数组
     """
-    enum_name = request.args.get('enum_name')
+    data = request.get_json(silent=True) or {}
+    enum_name = data.get('enum_name')
     if not enum_name:
         return Res.fail(ErrorMessageEnum.MISSING_FIELD.value)
 

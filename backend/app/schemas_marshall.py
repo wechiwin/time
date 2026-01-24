@@ -17,6 +17,7 @@ class BaseSchema(SQLAlchemyAutoSchema):
         exclude = ("user_id",)
 
     id = fields.Int(dump_only=True)
+
     # 覆盖默认的日期和日期时间字段类型
     TYPE_MAPPING = {
         **SQLAlchemyAutoSchema.TYPE_MAPPING,
@@ -79,7 +80,6 @@ class FundDetailSchema(BaseSchema, EnumViewMixin):
         'trade_market': FundTradeMarketEnum,
         'dividend_method': FundDividendMethodEnum,
     }
-    user_id = fields.Int(dump_only=True)
 
     class Meta(BaseSchema.Meta):
         model = FundDetail
@@ -91,8 +91,6 @@ class HoldingSchema(BaseSchema, EnumViewMixin):
         'ho_status': HoldingStatusEnum,
         'currency': CurrencyEnum,
     }
-    user_id = fields.Int(dump_only=True)
-
     fund_detail = fields.Nested(FundDetailSchema, required=False, allow_none=True)
 
     class Meta(BaseSchema.Meta):
@@ -103,8 +101,6 @@ class TradeSchema(BaseSchema, EnumViewMixin):
     enum_map = {
         'tr_type': TradeTypeEnum,
     }
-    user_id = fields.Int(dump_only=True)
-
     ho_short_name = fields.String(attribute='holding.ho_short_name', dump_only=True)
 
     class Meta(BaseSchema.Meta):
@@ -115,8 +111,6 @@ class TradeSchema(BaseSchema, EnumViewMixin):
 
 
 class FundNavHistorySchema(BaseSchema):
-    user_id = fields.Int(dump_only=True)
-
     ho_code = fields.String(attribute='holding.ho_code', dump_only=True)
     ho_short_name = fields.String(attribute='holding.ho_short_name', dump_only=True)
 
@@ -130,8 +124,6 @@ class AlertRuleSchema(BaseSchema, EnumViewMixin):
         'action': AlertRuleActionEnum,
     }
 
-    user_id = fields.Int(dump_only=True)
-
     class Meta(BaseSchema.Meta):
         model = AlertRule
         include_fk = True
@@ -142,7 +134,6 @@ class AlertHistorySchema(BaseSchema, EnumViewMixin):
         'action': AlertRuleActionEnum,
         'send_status': AlertEmailStatusEnum,
     }
-    user_id = fields.Int(dump_only=True)
 
     class Meta(BaseSchema.Meta):
         model = AlertHistory
@@ -150,28 +141,24 @@ class AlertHistorySchema(BaseSchema, EnumViewMixin):
 
 
 class HoldingSnapshotSchema(BaseSchema):
-    user_id = fields.Int(dump_only=True)
 
     class Meta(BaseSchema.Meta):
         model = HoldingSnapshot
 
 
 class HoldingAnalyticsSnapshotSchema(BaseSchema):
-    user_id = fields.Int(dump_only=True)
 
     class Meta(BaseSchema.Meta):
         model = HoldingAnalyticsSnapshot
 
 
 class InvestedAssetSnapshotSchema(BaseSchema):
-    user_id = fields.Int(dump_only=True)
 
     class Meta(BaseSchema.Meta):
         model = InvestedAssetSnapshot
 
 
 class InvestedAssetAnalyticsSnapshotSchema(BaseSchema):
-    user_id = fields.Int(dump_only=True)
 
     class Meta(BaseSchema.Meta):
         model = InvestedAssetAnalyticsSnapshot
@@ -196,14 +183,12 @@ class AsyncTaskLogSchema(BaseSchema, EnumViewMixin):
     enum_map = {
         'status': TaskStatusEnum,
     }
-    user_id = fields.Int(dump_only=True)
 
     class Meta(BaseSchema.Meta):
         model = AsyncTaskLog
 
 
 class TokenBlacklistSchema(BaseSchema):
-    user_id = fields.Int(dump_only=True)
 
     class Meta(BaseSchema.Meta):
         model = TokenBlacklist

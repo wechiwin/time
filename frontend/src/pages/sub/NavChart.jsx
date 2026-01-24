@@ -4,7 +4,7 @@ import ReactECharts from 'echarts-for-react';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import useNavHistoryList from "../../hooks/api/useNavHistoryList";
-import { formatCurrency, formatNumber } from '../../utils/formatters'; // 假设你有这些工具函数
+import { formatCurrency, formatNumber } from '../../utils/numberFormatters'; // 假设你有这些工具函数
 
 export default function NavChart({ hoId, startDate, endDate, trades = [], className = '' }) {
     const { t } = useTranslation();

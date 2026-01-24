@@ -117,7 +117,7 @@ export default function AlertPage() {
                 className: 'md:col-span-4',
             },
         ];
-    }, [mode, t]);
+    }, [mode, t, typeOptions, emailStatusOptions]);
 
     // 使用 useMemo 根据 mode 动态生成操作按钮
     const actionButtons = useMemo(() => {
@@ -215,13 +215,13 @@ export default function AlertPage() {
                     <AlertRuleTable data={data.items} onDelete={handleDelete}
                                     onEdit={(item) => openModal('edit', item)}/>
                 ) : (
-                    <EmptyState message={t('msg_no_records')}/>
+                    <EmptyState/>
                 )
             ) : (
                 data?.items?.length > 0 ? (
                     <AlertHistoryTable data={data.items}/>
                 ) : (
-                    <EmptyState message={t('msg_no_records')}/>
+                    <EmptyState/>
                 )
             )}
 

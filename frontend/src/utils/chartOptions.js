@@ -1,7 +1,7 @@
 // src/utils/chartOptions.js
 
 // 空数据处理配置
-const getEmptyOption = (isDark, text = '该时间段暂无数据') => ({
+const getEmptyOption = (isDark, text) => ({
     backgroundColor: 'transparent',
     title: {
         text,
@@ -12,9 +12,9 @@ const getEmptyOption = (isDark, text = '该时间段暂无数据') => ({
 });
 
 // 折线图配置
-export const getLineOption = (data, isDark) => {
+export const getLineOption = (data, isDark, emptyMsg) => {
     if (!Array.isArray(data) || data.length === 0) {
-        return getEmptyOption(isDark, '该时间段暂无资产走势数据');
+        return getEmptyOption(isDark, emptyMsg);
     }
 
     return {
@@ -169,9 +169,9 @@ const hslToHex = (h, s, l) => {
     return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
 };
 // 饼图配置
-export const getPieOption = (data, isDark, highlightedIndex = null) => {
+export const getPieOption = (data, isDark, emptyMsg, highlightedIndex = null) => {
     if (!Array.isArray(data) || data.length === 0) {
-        return getEmptyOption(isDark, '当前无持仓数据');
+        return getEmptyOption(isDark, emptyMsg);
     }
     const chartData = data.map(item => ({
         value: item.has_position_ratio,
@@ -187,8 +187,8 @@ export const getPieOption = (data, isDark, highlightedIndex = null) => {
             trigger: 'item',
             // [优化] 使用 formatter 函数提供更丰富的信息
             formatter: (params) => {
-                const { name, value, data, color } = params;
-                const { rawData } = data;
+                const {name, value, data, color} = params;
+                const {rawData} = data;
                 if (!rawData) return `${name}: ${(value * 100).toFixed(2)}%`;
 
                 const pnlColor = rawData.has_cumulative_pnl >= 0 ? '#ef4444' : '#22c55e';
@@ -201,14 +201,17 @@ export const getPieOption = (data, isDark, highlightedIndex = null) => {
                     </div>
                     <div style="font-size: 12px; display: grid; grid-template-columns: auto auto; gap: 4px 16px;">
                         <span>持仓占比:</span><span style="font-weight: 600; text-align: right;">${(value * 100).toFixed(2)}%</span>
-                        <span>累计盈亏:</span><span style="font-weight: 600; color: ${pnlColor}; text-align: right;">${rawData.has_cumulative_pnl.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <span>累计盈亏:</span><span style="font-weight: 600; color: ${pnlColor}; text-align: right;">${rawData.has_cumulative_pnl.toLocaleString('zh-CN', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                })}</span>
                         <span>组合贡献:</span><span style="font-weight: 600; color: ${contributionColor}; text-align: right;">${(rawData.has_portfolio_contribution * 100).toFixed(2)}%</span>
                     </div>
                 `;
             },
             backgroundColor: isDark ? 'rgba(31, 41, 55, 0.9)' : 'rgba(255, 255, 255, 0.95)',
             borderColor: isDark ? '#4b5563' : '#e5e7eb',
-            textStyle: { color: isDark ? '#f3f4f6' : '#1f2937' },
+            textStyle: {color: isDark ? '#f3f4f6' : '#1f2937'},
             padding: 12,
             confine: true, // 防止 tooltip 溢出图表区域
         },
