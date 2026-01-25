@@ -9,7 +9,7 @@
   "th_nav_accumulated_per_unit": "Valore netto accumulato",
   "th_tr_date": "Data della transazione",
   "th_tr_type": "Tipo di transazione",
-  "th_tr_nav_per_unit": "Valore netto della transazione",
+  "th_tr_nav_per_unit": "Prezzo per Unità",
   "th_tr_shares": "Azioni della transazione",
   "th_cash_amount": "Pagamento/Ricevuta",
   "th_tr_fee": "Commissione della transazione",
@@ -109,7 +109,7 @@
 
   "menu_holding": "Partecipazioni",
   "menu_trade": "Transazioni",
-  "menu_nav_history": "Valore Netto",
+  "menu_history_trend": "Andamento Storico",
   "msg_no_records": "Nessun record disponibile",
 
   "msg_search_placeholder": "Inserisci nome o codice",
@@ -219,11 +219,11 @@
   "menu_task_logs": "Esecuzione dei Task",
   "label_keyword": "Parola Chiave di Ricerca",
   "th_task_name": "Nome del Task",
-  "th_status": "Stato del Task",
+  "th_status": "Stato",
   "th_result_summary": "Riepilogo Risultati",
   "th_created_at": "Creato Data",
   "th_updated_at": "Aggiornato Data",
-  "th_retries": "Numero di Tentativi di Ripetizione",
+  "th_retries": "Ripetizione",
   "th_error_message": "Messaggio di Errore"
 
 }

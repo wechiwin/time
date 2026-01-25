@@ -7,7 +7,7 @@ export default function NavHistoryTable({data = [], onDelete, onEdit}) {
     const {t} = useTranslation()
     const navigate = useNavigate();
     const handleRowClick = (n) => {
-        navigate(`/nav_history/${n.ho_id}`);
+        navigate(`/historical_trend/${n.ho_id}`);
     };
     return (
         <div className="overflow-x-auto">

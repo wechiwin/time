@@ -109,7 +109,7 @@
 
   "menu_holding": "Holdings",
   "menu_trade": "Trades",
-  "menu_nav_history": "Nav History",
+  "menu_history_trend": "Historical Trend",
 
   "msg_search_placeholder": "Enter name or code",
   "msg_delete_confirmation": "Confirm deletion?",

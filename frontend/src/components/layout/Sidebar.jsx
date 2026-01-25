@@ -27,7 +27,7 @@ const navigation = [
     {key: 'menu_holding', name: '持仓管理', href: '/holding', icon: TableCellsIcon},
     {key: 'menu_alert', name: '持仓监控', href: '/alert', icon: BellIcon},
     {key: 'menu_trade', name: '交易管理', href: '/trade', icon: ArrowsRightLeftIcon},
-    {key: 'menu_nav_history', name: '净值历史', href: '/nav_history', icon: ChartBarIcon},
+    {key: 'menu_history_trend', name: '历史走势', href: '/historical_trend', icon: ChartBarIcon},
     {key: 'menu_task_logs', name: '任务运行', href: '/task_logs', icon: ClockIcon},
 ];
 

@@ -14,7 +14,6 @@ class BaseSchema(SQLAlchemyAutoSchema):
         sqla_session = db.session  # 用于懒加载查询
         load_instance = True  # 反序列化时可直接得到模型实例
         unknown = EXCLUDE  # 忽略未知字段
-        exclude = ("user_id",)
 
     id = fields.Int(dump_only=True)
 
@@ -83,6 +82,7 @@ class FundDetailSchema(BaseSchema, EnumViewMixin):
 
     class Meta(BaseSchema.Meta):
         model = FundDetail
+        exclude = ("user_id",)
 
 
 class HoldingSchema(BaseSchema, EnumViewMixin):
@@ -95,6 +95,7 @@ class HoldingSchema(BaseSchema, EnumViewMixin):
 
     class Meta(BaseSchema.Meta):
         model = Holding  # 对应 ORM 模型
+        exclude = ("user_id",)
 
 
 class TradeSchema(BaseSchema, EnumViewMixin):
@@ -106,6 +107,7 @@ class TradeSchema(BaseSchema, EnumViewMixin):
     class Meta(BaseSchema.Meta):
         model = Trade
         include_fk = True
+        exclude = ("user_id",)
 
     # tr_date = fields.Date(format='%Y-%m-%d')
 
@@ -113,6 +115,7 @@ class TradeSchema(BaseSchema, EnumViewMixin):
 class FundNavHistorySchema(BaseSchema):
     ho_code = fields.String(attribute='holding.ho_code', dump_only=True)
     ho_short_name = fields.String(attribute='holding.ho_short_name', dump_only=True)
+    exclude = ("user_id",)
 
     class Meta(BaseSchema.Meta):
         model = FundNavHistory
@@ -127,6 +130,7 @@ class AlertRuleSchema(BaseSchema, EnumViewMixin):
     class Meta(BaseSchema.Meta):
         model = AlertRule
         include_fk = True
+        exclude = ("user_id",)
 
 
 class AlertHistorySchema(BaseSchema, EnumViewMixin):
@@ -138,30 +142,35 @@ class AlertHistorySchema(BaseSchema, EnumViewMixin):
     class Meta(BaseSchema.Meta):
         model = AlertHistory
         include_fk = True
+        exclude = ("user_id",)
 
 
 class HoldingSnapshotSchema(BaseSchema):
 
     class Meta(BaseSchema.Meta):
         model = HoldingSnapshot
+        exclude = ("user_id",)
 
 
 class HoldingAnalyticsSnapshotSchema(BaseSchema):
 
     class Meta(BaseSchema.Meta):
         model = HoldingAnalyticsSnapshot
+        exclude = ("user_id",)
 
 
 class InvestedAssetSnapshotSchema(BaseSchema):
 
     class Meta(BaseSchema.Meta):
         model = InvestedAssetSnapshot
+        exclude = ("user_id",)
 
 
 class InvestedAssetAnalyticsSnapshotSchema(BaseSchema):
 
     class Meta(BaseSchema.Meta):
         model = InvestedAssetAnalyticsSnapshot
+        exclude = ("user_id",)
 
 
 class BenchmarkSchema(BaseSchema):
@@ -186,12 +195,14 @@ class AsyncTaskLogSchema(BaseSchema, EnumViewMixin):
 
     class Meta(BaseSchema.Meta):
         model = AsyncTaskLog
+        exclude = ("user_id",)
 
 
 class TokenBlacklistSchema(BaseSchema):
 
     class Meta(BaseSchema.Meta):
         model = TokenBlacklist
+        exclude = ("user_id",)
 
 
 class UserSettingSchema(BaseSchema):
@@ -204,6 +215,7 @@ class UserSettingSchema(BaseSchema):
 class LoginHistorySchema(BaseSchema):
     class Meta(BaseSchema.Meta):
         model = LoginHistory
+        exclude = ("user_id",)
 
 
 def marshal_pagination(pagination, schema_cls):

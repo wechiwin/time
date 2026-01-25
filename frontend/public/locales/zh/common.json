@@ -111,7 +111,7 @@
 
   "menu_holding": "持仓管理",
   "menu_trade": "交易管理",
-  "menu_nav_history": "净值历史",
+  "menu_history_trend": "历史走势",
 
   "msg_search_placeholder": "请输入名称或代码",
   "msg_delete_confirmation": "确认删除",

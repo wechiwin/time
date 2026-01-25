@@ -58,9 +58,9 @@ export default function App() {
                                 <Route path="holding" element={<HoldingPage/>}/>
                                 <Route path="trade" element={<TradePage/>}/>
                                 <Route path="alert" element={<AlertPage/>}/>
-                                <Route path="nav_history" element={<NavHistoryPage/>}/>
+                                <Route path="historical_trend" element={<NavHistoryPage/>}/>
                                 <Route path="/trade/:ho_id" element={<TradeHistoryDetailPage/>}/>
-                                <Route path="/nav_history/:ho_id" element={<NavHistoryDetailPage/>}/>
+                                <Route path="/historical_trend/:ho_id" element={<NavHistoryDetailPage/>}/>
                                 <Route path="/task_logs" element={<AsyncTaskLogPage/>}/>
                             </Route>
                         </Route>

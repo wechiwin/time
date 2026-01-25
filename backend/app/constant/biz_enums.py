@@ -155,17 +155,17 @@ class TaskStatusEnum(str, Enum):
 
     @property
     def view(self):
-        if self == FundDividendMethodEnum.REINVEST:
+        if self == TaskStatusEnum.PENDING:
             return lazy_gettext('PENDING')
-        elif self == FundDividendMethodEnum.CASH:
+        elif self == TaskStatusEnum.RUNNING:
             return lazy_gettext('RUNNING')
-        elif self == FundDividendMethodEnum.CASH:
+        elif self == TaskStatusEnum.SUCCESS:
             return lazy_gettext('SUCCESS')
-        elif self == FundDividendMethodEnum.CASH:
+        elif self == TaskStatusEnum.RETRYING:
             return lazy_gettext('RETRYING')
-        elif self == FundDividendMethodEnum.CASH:
+        elif self == TaskStatusEnum.FAILED:
             return lazy_gettext('FAILED')
-        elif self == FundDividendMethodEnum.CASH:
+        elif self == TaskStatusEnum.CANCELLED:
             return lazy_gettext('CANCELLED')
         return self.name
 

@@ -34,7 +34,8 @@ export default function AsyncTaskLogPage() {
     useEffect(() => {
         const loadEnumValues = async () => {
             try {
-                const [statusOptions] = await fetchMultipleEnumValues(['TaskStatusEnum']);
+                const [statusOptions] = await fetchMultipleEnumValues(
+                    ['TaskStatusEnum']);
                 setTaskStatusOptions(statusOptions);
             } catch (err) {
                 console.error('Failed to load enum values:', err);
