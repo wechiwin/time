@@ -30,9 +30,9 @@ export default function AsyncTaskLogTable({data = [] /*, onShowDetails */}) {
     );
 
     return (
-        <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="page-bg dark:bg-gray-700/50">
+        <div className="table-container">
+            <table className="min-w-full">
+                <thead>
                 <tr>
                     <th scope="col" className="table-header">{t('th_task_name')}</th>
                     <th scope="col" className="table-header">{t('th_status')}</th>
@@ -43,9 +43,9 @@ export default function AsyncTaskLogTable({data = [] /*, onShowDetails */}) {
                     <th scope="col" className="table-header">{t('th_retries')}</th>
                 </tr>
                 </thead>
-                <tbody className="card divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {data.map((log) => (
-                    <tr key={log.id} className="hover:page-bg dark:hover:bg-gray-700/50">
+                    <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
                         <td className="table-cell">{log.task_name}</td>
                         <td className="table-cell">{renderStatusBadge(log.status, log.status$view)}</td>
                         <td className="table-cell max-w-xs truncate" title={log.error_message}>{log.error_message}</td>

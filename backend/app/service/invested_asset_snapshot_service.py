@@ -4,7 +4,6 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Optional
 
-from flask import g
 from sqlalchemy import func, Date
 
 from app.calendars.trade_calendar import TradeCalendar

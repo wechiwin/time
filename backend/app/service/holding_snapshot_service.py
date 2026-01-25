@@ -7,8 +7,6 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import List, Tuple
 
-from flask import g
-
 from app.calendars.trade_calendar import TradeCalendar
 from app.constant.biz_enums import TradeTypeEnum, DividendTypeEnum, HoldingStatusEnum
 from app.framework.async_task_manager import create_task

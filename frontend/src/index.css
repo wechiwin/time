@@ -94,9 +94,11 @@
 
     /* 表头 */
     .table-header {
-        @apply px-3 py-2 md:px-6 md:py-3 text-xs md:text-sm font-medium
-        text-gray-500 dark:text-gray-400 tracking-wider
-        bg-gray-50 dark:bg-gray-700;
+        @apply px-3 py-3 md:px-6 text-xs md:text-sm font-semibold /* 字体加粗 */
+        text-gray-600 dark:text-gray-300 /* 增强文字对比度 */
+        tracking-wider text-left /* 确保文本左对齐 */
+        bg-gray-100 dark:bg-slate-800 /* 核心：更换背景色，与页面/卡片背景形成对比 */
+        border-b-2 border-gray-200 dark:border-slate-700; /* 添加更明确的底部分割线 */
     }
 
     /* 单元格 */
