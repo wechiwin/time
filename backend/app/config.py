@@ -14,6 +14,12 @@ class Config:
     # 数据库配置
     SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI')
     SQLALCHEMY_TRACK_MODIFICATIONS = False  # 禁用事件系统提升性能
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_recycle": 240,
+        "pool_pre_ping": True,
+        "pool_timeout": 30,
+        "echo": False,
+    }
     # 邮件配置
     MAIL_SERVER = os.getenv('MAIL_SERVER')
     MAIL_PORT = os.getenv('MAIL_PORT')
