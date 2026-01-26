@@ -47,15 +47,12 @@ class Config:
 
     JWT_COOKIE_SAMESITE = "Lax"
     JWT_COOKIE_DOMAIN = None
-    JWT_REFRESH_COOKIE_PATH = '/api'
-    JWT_ACCESS_COOKIE_PATH = '/api'
+    JWT_REFRESH_COOKIE_PATH = '/time'
+    JWT_ACCESS_COOKIE_PATH = '/time'
 
     # CORS配置
-    CORS_ORIGINS = [
-        'http://192.168.3.33:5173',
-        'http://localhost:5173',
-        'http://127.0.0.1:5173'
-    ]
+    origins_str = os.getenv('CORS_ORIGINS')
+    CORS_ORIGINS = [origin.strip() for origin in origins_str.split(',')]
     CORS_EXPOSE_HEADERS = [
         'X-Request-ID',
         'Content-Type',

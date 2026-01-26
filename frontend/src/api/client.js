@@ -3,8 +3,10 @@ import i18n from '../i18n/i18n';
 import SecureTokenStorage from "../utils/tokenStorage";
 import {toastInstance} from "../utils/toastInstance";
 
+const baseURL = import.meta.env.VITE_API_BASE_URL || '';
+
 const apiClient = axios.create({
-    baseURL: '/api',
+    baseURL: baseURL,
     timeout: 10000,
     withCredentials: true, // 携带 Cookie
 });
