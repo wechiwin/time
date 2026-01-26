@@ -1,7 +1,14 @@
 FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONIOENCODING=utf-8
+
 WORKDIR /app
 COPY backend/requirements.txt .
-RUN pip install -r requirements.txt
-COPY backend/ backend/
-WORKDIR /app/backend
-CMD ["python", "run.py"]
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY backend/ .
+
+EXPOSE 8080
+CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:8080", "wsgi:app"]
