@@ -69,7 +69,12 @@ apiClient.interceptors.response.use(
         const {status} = error.response;
 
         // 处理 401：尝试刷新 Token
-        if (status === 401 && !originalRequest._retry) {
+        if (
+            error.response?.status === 401 &&
+            !originalRequest._retry &&
+            !originalRequest.url.endsWith('/login') &&
+            !originalRequest.url.endsWith('/refresh')
+        ) {
             if (isRefreshing) {
                 // 正在刷新，加入队列等待
                 return new Promise((resolve, reject) => {
@@ -86,7 +91,7 @@ apiClient.interceptors.response.use(
             isRefreshing = true;
 
             try {
-                const response = await apiClient.post('/user_setting/refresh', {}, {
+                const response = await apiClient.post(`${baseURL}/user_setting/refresh`, {}, {
                     withCredentials: true,
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
