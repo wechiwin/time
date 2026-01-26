@@ -268,7 +268,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
         const token = localStorage.getItem('access_token');
 
         // 建立新连接
-        const eventSource = new EventSourcePolyfill(`/api/trade/stream/${taskId}`, {
+        const eventSource = new EventSourcePolyfill(`/time/trade/stream/${taskId}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             },

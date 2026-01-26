@@ -13,7 +13,7 @@ from app.service.alert_service import AlertService
 from app.utils.date_util import get_yesterday_date
 from app.utils.user_util import get_or_raise
 
-alert_bp = Blueprint('alert', __name__, url_prefix='/api/alert')
+alert_bp = Blueprint('alert', __name__, url_prefix='/alert')
 
 
 # AlertRule 接口

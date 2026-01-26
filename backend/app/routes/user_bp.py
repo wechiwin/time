@@ -22,13 +22,13 @@ from app.utils.user_util import generate_device_fingerprint
 
 logger = logging.getLogger(__name__)
 
-user_bp = Blueprint('user_setting', __name__, url_prefix='/api/user_setting')
+user_setting_bp = Blueprint('user_setting', __name__, url_prefix='/user_setting')
 limiter = Limiter(key_func=get_remote_address)
 
 user_setting_schema = UserSettingSchema()
 
 
-@user_bp.route('/register', methods=['POST'])
+@user_setting_bp.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
     username = data.get('username')
@@ -86,7 +86,7 @@ def register():
     return response
 
 
-@user_bp.route('/login', methods=['POST'])
+@user_setting_bp.route('/login', methods=['POST'])
 @limiter.limit("5 per minute")
 def login():
     data = request.get_json()
@@ -114,7 +114,7 @@ def login():
     return response
 
 
-@user_bp.route('/refresh', methods=['POST'])
+@user_setting_bp.route('/refresh', methods=['POST'])
 @auth_refresh_required
 @limiter.limit("10 per hour")
 def refresh():
@@ -241,7 +241,7 @@ def refresh():
         raise BizException("Refresh token failed", code=401)
 
 
-@user_bp.route('/user', methods=['GET'])
+@user_setting_bp.route('/user', methods=['GET'])
 @auth_required
 def get_user():
     if not g.user:
@@ -251,7 +251,7 @@ def get_user():
     return Res.success(result)
 
 
-@user_bp.route('/update_user', methods=['POST'])
+@user_setting_bp.route('/update_user', methods=['POST'])
 @auth_required
 def update_user():
     """更新用户基本信息"""
@@ -273,7 +273,7 @@ def update_user():
     return Res.success()
 
 
-@user_bp.route('/pwd', methods=['POST'])
+@user_setting_bp.route('/pwd', methods=['POST'])
 @auth_required
 def edit_password():
     user = g.user
@@ -363,7 +363,7 @@ def edit_password():
         raise BizException("密码修改失败", code=500)
 
 
-@user_bp.route('/logout', methods=['POST'])
+@user_setting_bp.route('/logout', methods=['POST'])
 @auth_required
 def logout():
     try:

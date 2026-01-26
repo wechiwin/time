@@ -8,7 +8,7 @@ from app.service.holding_analytics_snapshot_service import HoldingAnalyticsSnaps
 
 logger = logging.getLogger(__name__)
 
-holding_analytics_snapshot_bp = Blueprint('holding_analytics_snapshot', __name__, url_prefix='/api/holding_analytics_snapshot')
+holding_analytics_snapshot_bp = Blueprint('holding_analytics_snapshot', __name__, url_prefix='/holding_analytics_snapshot')
 
 
 @holding_analytics_snapshot_bp.route('/generate_analysis', methods=['GET'])

@@ -8,7 +8,7 @@ from app.framework.res import Res
 
 logger = logging.getLogger(__name__)
 
-common_bp = Blueprint('common', __name__, url_prefix='/api/common')
+common_bp = Blueprint('common', __name__, url_prefix='/common')
 
 
 @common_bp.route('/get_enum', methods=['POST'])

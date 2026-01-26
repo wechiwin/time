@@ -83,7 +83,7 @@ def create_app():
 
     # 初始化CORS
     CORS(app, resources={
-        r"/api/*": {
+        r"/time/*": {
             "origins": app.config['CORS_ORIGINS'],
             "methods": app.config.get('CORS_METHODS', ["GET", "POST", "PUT", "DELETE", "OPTIONS"]),
             "supports_credentials": app.config['CORS_SUPPORTS_CREDENTIALS'],
@@ -135,14 +135,5 @@ def create_app():
 
     # 统一异常处理
     register_error_handler(app)
-
-    # --- Add a root route for basic testing/info ---
-    # --- Example of a simple health check endpoint ---
-    @app.route('/health')
-    def health_check():
-        """
-        A health check endpoint to verify the application's status.
-        """
-        return jsonify({"status": "healthy", "message": "API is running."}), 200
 
     return app

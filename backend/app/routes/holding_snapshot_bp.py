@@ -7,7 +7,7 @@ from app.models import db, HoldingSnapshot, Holding
 from app.schemas_marshall import HoldingSnapshotSchema
 from app.service.holding_snapshot_service import HoldingSnapshotService
 
-holding_snapshot_bp = Blueprint('holding_snapshot', __name__, url_prefix='/api/holding_snapshot')
+holding_snapshot_bp = Blueprint('holding_snapshot', __name__, url_prefix='/holding_snapshot')
 schema = HoldingSnapshotSchema()
 
 

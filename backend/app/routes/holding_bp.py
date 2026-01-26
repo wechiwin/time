@@ -16,7 +16,7 @@ from app.schemas_marshall import HoldingSchema, marshal_pagination, FundDetailSc
 from app.service.holding_service import HoldingService
 from app.utils.user_util import get_or_raise
 
-holding_bp = Blueprint('holding', __name__, url_prefix='/api/holding')
+holding_bp = Blueprint('holding', __name__, url_prefix='/holding')
 logger = logging.getLogger(__name__)
 
 

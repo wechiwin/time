@@ -7,7 +7,7 @@ from app.service.benchmark_service import BenchmarkService
 
 logger = logging.getLogger(__name__)
 
-benchmark_bp = Blueprint('benchmark', __name__, url_prefix='/api/benchmark')
+benchmark_bp = Blueprint('benchmark', __name__, url_prefix='/benchmark')
 
 
 @benchmark_bp.route('/sync', methods=['GET'])

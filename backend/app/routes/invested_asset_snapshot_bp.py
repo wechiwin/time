@@ -8,7 +8,7 @@ from app.service.invested_asset_snapshot_service import InvestedAssetSnapshotSer
 
 logger = logging.getLogger(__name__)
 
-invested_asset_snapshot_bp = Blueprint('invested_asset_snapshot', __name__, url_prefix='/api/invested_asset_snapshot')
+invested_asset_snapshot_bp = Blueprint('invested_asset_snapshot', __name__, url_prefix='/invested_asset_snapshot')
 
 
 @invested_asset_snapshot_bp.route('/remake_all', methods=['GET'])

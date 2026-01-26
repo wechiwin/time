@@ -46,7 +46,7 @@ export default function useTokenManager() {
             isRefreshingRef.current = true;
             console.log('[TokenManager] ?? Token 即将过期，启动预刷新...', now());
 
-            const response = await fetch('/api/user_setting/refresh', {
+            const response = await fetch('/time/user_setting/refresh', {
                 method: 'POST',
                 credentials: 'include', // 必须携带 Cookie（用于 refresh_token）
                 headers: {

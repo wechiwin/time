@@ -14,7 +14,7 @@ from app.schemas_marshall import FundNavHistorySchema, marshal_pagination
 from app.service.nav_history_service import FundNavHistoryService
 from app.utils.user_util import get_or_raise
 
-nav_history_bp = Blueprint('nav_history', __name__, url_prefix='/api/nav_history')
+nav_history_bp = Blueprint('nav_history', __name__, url_prefix='/nav_history')
 logger = logging.getLogger(__name__)
 
 

@@ -21,7 +21,7 @@ from app.schemas_marshall import TradeSchema, marshal_pagination
 from app.service.trade_service import TradeService
 from app.utils.user_util import get_or_raise
 
-trade_bp = Blueprint('trade', __name__, url_prefix='/api/trade')
+trade_bp = Blueprint('trade', __name__, url_prefix='/trade')
 
 task_queues = {}
 logger = logging.getLogger(__name__)

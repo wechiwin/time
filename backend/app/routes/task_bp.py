@@ -9,7 +9,7 @@ from app.framework.sys_constant import DEFAULT_PAGE_SIZE
 from app.models import AsyncTaskLog
 from app.schemas_marshall import marshal_pagination, AsyncTaskLogSchema
 
-task_log_bp = Blueprint('task', __name__, url_prefix='/api/task_log')
+task_log_bp = Blueprint('task', __name__, url_prefix='/task_log')
 
 @task_log_bp.route('/log_page', methods=['POST'])
 @auth_required
