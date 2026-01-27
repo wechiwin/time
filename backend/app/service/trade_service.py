@@ -11,6 +11,7 @@ from sqlalchemy import desc, or_
 from app import Config
 from app.calendars.trade_calendar import TradeCalendar
 from app.constant.biz_enums import HoldingStatusEnum, TradeTypeEnum, ErrorMessageEnum, DividendTypeEnum
+from app.constant.sys_enums import GlobalYesOrNo
 from app.framework.exceptions import BizException
 from app.models import db, Holding, Trade, FundNavHistory
 from app.utils.common_util import is_not_blank
@@ -282,7 +283,7 @@ class TradeService:
                         current_shares -= trade_shares
                         # 检测是否清仓
                         if current_shares < Decimal('0.0001'):
-                            trade.is_cleared = True
+                            trade.is_cleared = GlobalYesOrNo.YES
                             current_shares = Decimal('0')  # 修正精度
                             current_tr_cycle += 1  # 轮次+1
 
@@ -391,9 +392,9 @@ class TradeService:
         holding_shares = {}  # ho_code -> total shares
 
         for trade in trades:
-            if trade.is_cleared == 0 and trade.tr_type == 1:  # 未清仓且是买入
+            if trade.is_cleared == GlobalYesOrNo.NO and trade.tr_type == 1:  # 未清仓且是买入
                 holding_shares[trade.ho_code] = holding_shares.get(trade.ho_code, 0) + trade.tr_shares
-            elif trade.is_cleared == 0 and trade.tr_type == 0:  # 未清仓且是卖出
+            elif trade.is_cleared == GlobalYesOrNo.NO and trade.tr_type == 0:  # 未清仓且是卖出
                 # 卖出会减少持仓
                 holding_shares[trade.ho_code] = holding_shares.get(trade.ho_code, 0) - trade.tr_shares
                 if holding_shares[trade.ho_code] <= 0:
@@ -457,7 +458,7 @@ class TradeService:
 
             # 重置当前记录的状态
             trade.tr_cycle = current_cycle
-            trade.is_cleared = False
+            trade.is_cleared = GlobalYesOrNo.NO
 
             if trade.tr_type == TradeTypeEnum.BUY.value:
                 current_shares += trade_shares
@@ -477,7 +478,7 @@ class TradeService:
                 # 如果剩余份额非常接近0，视为清仓
                 if abs(current_shares) < EPSILON:
                     current_shares = Decimal('0')  # 修正为绝对0
-                    trade.is_cleared = True
+                    trade.is_cleared = GlobalYesOrNo.YES
                     # 只有在清仓发生的这一笔交易完成后，下一笔交易才进入下一个周期
                     current_cycle += 1
 

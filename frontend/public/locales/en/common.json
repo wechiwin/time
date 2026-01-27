@@ -123,6 +123,7 @@
   "msg_no_records": "No records available",
   "msg_verifying_identity": "Verifying identity...",
   "msg_no_alert_signals": "No alert signals",
+  "msg_task_started": "Task has started in the background",
 
   "info_hold_status": "Holding Status",
   "info_status_holding": "Holding",

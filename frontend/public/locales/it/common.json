@@ -123,6 +123,7 @@
   "msg_uploading": "Caricamento...",
   "msg_verifying_identity": "Verifica dell'identità in corso...",
   "msg_no_alert_signals": "Nessun segnale di allerta",
+  "msg_task_started": "L'attività è stata avviata in background",
 
   "info_hold_status": "Stato della Posizione",
   "info_status_holding": "In Posizione",

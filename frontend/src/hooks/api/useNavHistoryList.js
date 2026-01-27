@@ -34,7 +34,7 @@ export default function useNavHistoryList(options = {}) {
         if (start_date) payload.start_date = start_date;
         if (end_date) payload.end_date = end_date;
 
-        const result = await post(urlPrefix_ + '/list_history', payload);
+        const result = await post(urlPrefix + '/list_history', payload);
         return result;
     }, [post]);
 

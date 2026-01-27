@@ -125,6 +125,7 @@
   "msg_no_records": "暂无记录",
   "msg_verifying_identity": "正在验证身份...",
   "msg_no_alert_signals": "暂无预警信号",
+  "msg_task_started": "任务已后台启动",
 
   "info_hold_status": "持仓状态",
   "info_status_holding": "持仓中",
