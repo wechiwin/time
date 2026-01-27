@@ -1,112 +1,105 @@
 # app/framework/interceptor.py
 import time
 import uuid
+import json
+from flask import request, g, current_app
 
-from flask import request, g
-
-
-def register_request_response_logger(app):
+def register_interceptors(app):
     """
-    注册请求和响应日志拦截器
+    注册应用的拦截器，包括请求初始化、日志记录和安全头。
     """
-    # 定义不需要记录详细信息的敏感 API 路径
-    NO_LOG_PATHS = {'login', 'refresh', 'pwd', 'register'}
+    # 定义不需要记录详细请求/响应体的敏感 API 路径关键词
+    # 使用集合(set)以便进行更高效的成员检查
+    SENSITIVE_PATH_KEYWORDS = {'login', 'refresh', 'pwd', 'register'}
 
     @app.before_request
-    def before_request():
+    def initialize_request_context():
         """
-        在每个请求开始前执行
-        1. 生成唯一的 Trace ID 用于追踪整个请求生命周期
-        2. 记录请求开始时间用于计算耗时
+        在每个请求开始前执行，仅用于初始化请求上下文。
+        1. 生成唯一的 Trace ID 用于追踪整个请求生命周期。
+        2. 记录请求开始时间用于计算耗时。
         """
-        # 将所有初始化放在一起，确保原子性
         g.trace_id = str(uuid.uuid4())
         g.start_time = time.time()
 
     @app.after_request
-    def after_request(response):
+    def log_and_finalize_request(response):
         """
-        在每个请求处理后执行
-        1. 将 Trace ID 添加到响应头，方便前端排查问题
-        2. 记录响应信息
-        3. 添加安全响应头
+        在每个请求处理完成后执行。
+        1. 收集请求和响应信息，生成单条结构化日志。
+        2. 将 Trace ID 添加到响应头。
+        3. 添加安全响应头。
         """
-        # 1. 安全地获取 Trace ID，如果 g.trace_id 不存在（例如在 before_request 阶段就出错），则使用默认值
-        trace_id = g.get('trace_id', 'N/A')
-        response.headers['X-Trace-ID'] = trace_id
+        # 1. 收集日志信息
+        log_data = build_log_data(response)
 
-        # 2. 记录响应日志
-        _log_response_info(response, trace_id)
+        # 2. 将日志数据序列化为 JSON 字符串并记录
+        # 使用 current_app.logger 确保使用配置好的 logger 实例
+        current_app.logger.info(json.dumps(log_data, ensure_ascii=False))
 
-        # 3. 添加安全头
-        _add_security_headers(response)
+        # 3. 添加 Trace ID 到响应头
+        response.headers['X-Trace-ID'] = g.trace_id
+
+        # 4. 添加安全头
+        add_security_headers(response)
 
         return response
 
-    def _log_request_info():
-        """记录请求详情的内部函数"""
-        # 获取 body 参数（可能是 JSON）
-        try:
-            body = request.get_json(silent=True)
-        except Exception:
-            body = None
+    def build_log_data(response):
+        """
+        构建结构化的日志数据字典。
+        """
+        # 计算耗时（毫秒）
+        duration_ms = round((time.time() - g.start_time) * 1000)
 
-        # 从 g 对象安全获取 trace_id，因为 before_request 可能失败
-        trace_id = g.get('trace_id', 'N/A')
+        log_data = {
+            "trace_id": g.trace_id,
+            "remote_addr": request.remote_addr,
+            "method": request.method,
+            "path": request.path,
+            "status_code": response.status_code,
+            "duration_ms": duration_ms,
+            "response_size_bytes": response.content_length,
+        }
 
-        if any(sensitive in request.path for sensitive in NO_LOG_PATHS):
-            # 敏感路径：简单记录
-            app.logger.info(f"[{trace_id}] - [{request.method}] - {request.path}")
-        else:
-            app.logger.info(f"""
-            ===== Request Begin =====
-            TraceId: {trace_id}
-            Method: {request.method}
-            Path: {request.path}
-            Args: {dict(request.args)}
-            JSON Body: {body}
-            Form Data: {dict(request.form)} 
-            Remote Addr: {request.remote_addr}
-            ===== Request End =====
-            """)
+        # 检查是否为敏感路径，如果是，则不记录详细的请求和响应数据
+        is_sensitive = any(keyword in request.path for keyword in SENSITIVE_PATH_KEYWORDS)
 
-    def _log_response_info(response, trace_id):
-        """记录响应详情的内部函数"""
-        # 安全地获取开始时间，如果不存在则使用当前时间，耗时为0
-        start_time = g.get('start_time', time.time())
-        elapsed = time.time() - start_time
+        if not is_sensitive:
+            # 记录非敏感的请求参数和响应体
+            log_data["request_args"] = dict(request.args)
 
-        try:
-            resp_data = response.get_json()
-        except Exception:
-            resp_data = response.get_data(as_text=True)
+            # 安全地获取请求体
+            try:
+                # get_data 比 get_json 更通用，但需要注意缓存
+                request_body = request.get_data(as_text=True)
+                if request_body:
+                    # 同样截断过长的请求体
+                    log_data["request_body"] = (request_body[:1024] + '... [truncated]') if len(request_body) > 1024 else request_body
+            except Exception:
+                log_data["request_body"] = "[Error reading body]"
 
-        # 只截取前 1KB 防止日志爆炸
-        if isinstance(resp_data, str) and len(resp_data) > 1024:
-            resp_data = resp_data[:1024] + '... [truncated]'
+            # 安全地获取响应体
+            try:
+                # 仅当响应类型为 JSON 时尝试解析
+                if response.is_json:
+                    resp_data = response.get_json()
+                    log_data["response_body"] = resp_data
+                else:
+                    # 对于非 JSON 响应，获取文本并截断
+                    resp_text = response.get_data(as_text=True)
+                    log_data["response_body"] = (resp_text[:1024] + '... [truncated]') if len(resp_text) > 1024 else resp_text
+            except Exception:
+                log_data["response_body"] = "[Error reading response body]"
 
-        if any(sensitive in request.path for sensitive in NO_LOG_PATHS):
-            # 敏感路径：简单记录
-            app.logger.info(f"[{trace_id}] - [{request.method}] - {request.path}")
-        else:
-            app.logger.info(f"""
-            ===== Response Begin =====
-            TraceId: {trace_id}
-            Path: {request.path}
-            Status: {response.status}
-            Duration: {elapsed:.3f}s
-            Response: {resp_data}
-            ===== Response End =====
-            """)
+        return log_data
 
-    def _add_security_headers(response):
+    def add_security_headers(response):
         """添加安全响应头的内部函数"""
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'DENY'
         response.headers['X-XSS-Protection'] = '1; mode=block'
-        # 注意：HSTS 头在生产环境且使用 HTTPS 时启用
-        # response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        # 在生产环境的 HTTPS 代理后启用 HSTS
+        # if not current_app.debug:
+        #     response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
 
-    # 将请求日志记录也注册为 before_request，确保在初始化之后执行
-    # Flask 按注册顺序执行 before_request
-    app.before_request(_log_request_info)

@@ -14,7 +14,7 @@ from flask_mail import Mail
 
 from app.database import db
 from app.framework.error_handler import register_error_handler
-from app.framework.interceptor import register_request_response_logger
+from app.framework.interceptor import register_interceptors
 from app.framework.log_config import setup_logging, get_early_logger
 from .cache import cache
 from .config import Config
@@ -117,7 +117,7 @@ def create_app():
     # 初始化日志
     setup_logging(app)
     # log_response(app)
-    register_request_response_logger(app)
+    register_interceptors(app)
 
     # Initialize the SQLAlchemy instance with the Flask app
     # This is the crucial step to connect Flask-SQLAlchemy to your app

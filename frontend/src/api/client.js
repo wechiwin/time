@@ -9,6 +9,9 @@ const apiClient = axios.create({
     baseURL: baseURL,
     timeout: 10000,
     withCredentials: true, // 携带 Cookie
+    headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+    }
 });
 
 // 请求拦截器
@@ -91,7 +94,7 @@ apiClient.interceptors.response.use(
             isRefreshing = true;
 
             try {
-                const response = await apiClient.post(`${baseURL}/user_setting/refresh`, {}, {
+                const response = await apiClient.post('/user_setting/refresh', {}, {
                     withCredentials: true,
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',

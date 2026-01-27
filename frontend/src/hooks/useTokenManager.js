@@ -3,6 +3,7 @@ import {useEffect, useRef} from 'react';
 import SecureTokenStorage from "../utils/tokenStorage";
 import {isTokenExpiringSoon} from "../utils/jwtUtils";
 import {now} from "../utils/timeUtil";
+import apiClient from "../api/client";
 
 /**
  * useTokenManager - 专职管理 Access Token 的生命周期
@@ -31,7 +32,7 @@ export default function useTokenManager() {
 
         const token = SecureTokenStorage.getAccessToken();
         if (!token) {
-            console.warn('[TokenManager] 无有效 Token，跳过预刷新', now());
+            console.warn('[TokenManager] No token available, skipping proactive refresh.', now());
             return;
         }
 
@@ -44,42 +45,26 @@ export default function useTokenManager() {
         try {
             // 2. 加锁
             isRefreshingRef.current = true;
-            console.log('[TokenManager] ?? Token 即将过期，启动预刷新...', now());
+            console.log('[TokenManager] Token expiring soon, initiating proactive refresh...', now());
 
-            const response = await fetch('/time/user_setting/refresh', {
-                method: 'POST',
-                credentials: 'include', // 必须携带 Cookie（用于 refresh_token）
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest' // 后端安全校验字段
-                },
-                body: JSON.stringify({})
+            const response = await apiClient.post('/user_setting/refresh', {}, {
+                _skipAuth: true // 同样跳过 Access Token 注入
             });
 
-            if (response.status === 401) {
-                // 如果这里 401，说明 Refresh Token 彻底失效了，应该让 AuthContext 处理登出
-                // 但不要在这里抛错，以免中断 Promise 链
-                console.warn('[TokenManager] Refresh Token 已失效', now());
-                return;
-            }
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const result = await response.json();
-            const newAccessToken = result?.data?.access_token;
-
+            const newAccessToken = response.data?.data?.access_token;
             if (newAccessToken) {
                 SecureTokenStorage.setAccessToken(newAccessToken);
-                console.log('[TokenManager] Token 预刷新成功', now());
-
-                // 可选：触发一个事件通知其他组件 Token 已更新
-                // window.dispatchEvent(new CustomEvent('AUTH_TOKEN_REFRESHED', { detail: { token: newAccessToken } }));
+                console.log('[TokenManager] Proactive token refresh successful.', now());
+                window.dispatchEvent(new CustomEvent('AUTH_TOKEN_REFRESHED', { detail: { token: newAccessToken } }));
+            } else {
+                // 这种情况通常意味着后端成功响应了 200，但返回的数据格式不符合预期
+                console.warn('[TokenManager] Refresh endpoint returned success but no new token was found in the response.', now());
             }
         } catch (err) {
             // 不抛错，不影响主流程。被动刷新机制仍是后备方案。
-            console.error('[TokenManager] Token 预刷新失败:', err.message || err, now());
+            // axios 在遇到非 2xx 状态码时会自动抛出错误，所以 catch 块现在只会处理真正的失败
+            // err 对象是 axios 封装的错误对象，err.message 包含了详细信息
+            console.error('[TokenManager] Proactive token refresh failed:', err.message || err, now());
         } finally {
             // 3. 无论成功失败，必须解锁
             isRefreshingRef.current = false;
