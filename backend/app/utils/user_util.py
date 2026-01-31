@@ -40,11 +40,11 @@ def calculate_risk_score(login_ip: str, user_agent: str) -> int:
 def get_or_raise(model_cls, resource_id):
     """针对多用户表格的数据校验，会对传入的resource_id和返回的对象进行判空校验并抛出异常"""
     if not resource_id:
-        raise BizException(ErrorMessageEnum.MISSING_FIELD.value)
+        raise BizException(ErrorMessageEnum.MISSING_FIELD.view)
 
     obj = model_cls.get_by_id_and_user(resource_id, g.user.id)
 
     if not obj:
-        raise BizException(ErrorMessageEnum.NO_SUCH_DATA)
+        raise BizException(ErrorMessageEnum.DATA_NOT_FOUND)
 
     return obj

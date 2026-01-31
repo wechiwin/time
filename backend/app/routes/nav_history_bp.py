@@ -76,7 +76,7 @@ def create_net_value():
     data = request.get_json()
     required_fields = ['ho_code', 'nav_date', 'nav_per_unit']
     if not all(field in data for field in required_fields):
-        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.value)
+        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.view)
     new_nv = FundNavHistorySchema().load(data)
     db.session.add(new_nv)
     db.session.commit()
@@ -126,13 +126,13 @@ def crawl_nav_history():
     end_date = data.get("end_date")
 
     if not ho_code or not ho_id:
-        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.value)
+        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.view)
     if not start_date or not end_date:
         raise BizException(msg="缺少时间限制")
 
     holding = Holding.query.filter_by(id=ho_id).first()
     if not holding:
-        raise BizException(ErrorMessageEnum.NO_SUCH_DATA.value)
+        raise BizException(ErrorMessageEnum.DATA_NOT_FOUND.view)
 
     FundNavHistoryService.crawl_one_nav_and_insert(holding, start_date, end_date)
 

@@ -76,7 +76,7 @@ def add_tr():
                        'tr_shares', 'tr_amount', 'tr_fee', 'cash_amount', ]
 
     if not all(field in data for field in required_fields):
-        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.value)
+        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.view)
 
     new_transaction = TradeSchema().load(data)
     new_transaction.user_id = g.user.id

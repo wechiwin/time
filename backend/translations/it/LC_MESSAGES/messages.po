@@ -175,3 +175,25 @@ msgstr "Fallito"
 msgid "CANCELLED"
 msgstr "Annullato"
 
+msgid "MISSING_FIELD"
+msgstr "Campo obbligatorio mancante"
+
+msgid "DATA_NOT_FOUND"
+msgstr "Dati non trovati"
+
+msgid "DUPLICATE_DATA"
+msgstr "Dati duplicati"
+
+msgid "OVERSOLD"
+msgstr "Le azioni in vendita non possono superare quelle in acquisto"
+
+msgid "NO_AUTH"
+msgstr "Autorizzazioni insufficienti"
+
+msgid "NOT_TRADE_DAY"
+msgstr "Giorno non negoziale"
+msgid "OPERATION_FAILED"
+msgstr "Operazione non riuscita"
+
+msgid "NO_UPLOAD_FILE"
+msgstr "Nessun file caricato"

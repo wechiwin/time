@@ -101,11 +101,11 @@ def page_holding():
 def add_ho():
     data = request.get_json()
     if not data.get('ho_name') or not data.get('ho_code'):
-        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.value)
+        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.view)
 
     # 检查基金代码是否已存在
-    if Holding.query.filter_by(ho_code=data['ho_code']).first():
-        raise BizException(msg="基金代码已存在")
+    if Holding.query.filter_by(ho_code=data['ho_code'],user_id=g.user.id).first():
+        raise BizException(msg=ErrorMessageEnum.DUPLICATE_DATA.view)
 
     try:
         fund_detail_data = data.pop('fund_detail', None)
@@ -172,7 +172,7 @@ def update_holding():
         db.session.rollback()  # 发生错误时回滚事务
         logger.error(f"Error updating holding {id}: {e}", exc_info=True)
         # 可以根据异常类型返回更具体的错误信息
-        raise BizException(msg="更新持仓信息失败")
+        raise BizException(msg=ErrorMessageEnum.OPERATION_FAILED.view)
     return Res.success()
 
 
@@ -255,16 +255,16 @@ def download_template():
 @auth_required
 def import_holdings():
     if 'file' not in request.files:
-        raise BizException(msg="没有上传文件")
+        raise BizException(msg=ErrorMessageEnum.NO_FILE_UPLOAD.view)
 
     file = request.files['file']
     if file.filename == '':
-        raise BizException(msg="没有选择文件")
+        raise BizException(msg=ErrorMessageEnum.NO_FILE_UPLOAD.view)
 
     try:
         df = pd.read_excel(file, dtype={gettext('COL_HO_CODE'): str})
         if gettext('COL_HO_CODE') not in df.columns:
-            raise BizException(msg="Excel缺少必要列")
+            raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.view)
 
         ho_codes = df[gettext('COL_HO_CODE')].dropna().unique().tolist()
 
@@ -272,7 +272,7 @@ def import_holdings():
         return Res.success(success_count)
     except Exception as e:
         logger.error(e, exc_info=True)
-        raise BizException(msg="持仓导入失败")
+        raise BizException(msg=ErrorMessageEnum.OPERATION_FAILED.view)
 
 
 @holding_bp.route('/crawl_fund', methods=['POST'])
@@ -281,18 +281,3 @@ def crawl_fund():
     ho_code = request.form.get('ho_code')  # 表单
     fund_data = HoldingService.crawl_fund_info(ho_code)
     return Res.success(fund_data)
-
-# @holding_bp.route('/crawl_stock', methods=['POST'])
-# @auth_required
-# def crawl_stock():
-#     ho_code = request.form.get('ho_code')  # 表单
-#
-#     df = akshare.stock_individual_info_em(
-#         symbol=ho_code,
-#         period="daily",
-#         start_date=start_date.replace("-", ""),
-#         end_date=end_date.replace("-", ""),
-#         adjust=adjust
-#     )
-#     EASTMONEY_STOCK_URL = "https://push2.eastmoney.com/api/qt/stock/get"
-#     return Res.success()

@@ -21,7 +21,7 @@ def get_enum():
     data = request.get_json(silent=True) or {}
     enum_name = data.get('enum_name')
     if not enum_name:
-        return Res.fail(ErrorMessageEnum.MISSING_FIELD.value)
+        return Res.fail(ErrorMessageEnum.MISSING_FIELD.view)
 
     ENUM_MAPPING = {
         'HoldingTypeEnum': HoldingTypeEnum,

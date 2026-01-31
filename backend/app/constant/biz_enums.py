@@ -136,13 +136,36 @@ class FundDividendMethodEnum(str, Enum):
 
 class ErrorMessageEnum(str, Enum):
     """
-    错误提示语常量类（中文默认，支持未来扩展多语言）
+    错误提示语常量类
     """
     MISSING_FIELD = "缺少必要字段"
-    NO_SUCH_DATA = "数据不存在"
+    DATA_NOT_FOUND = "数据不存在"
+    DUPLICATE_DATA = "数据已存在"
     OVERSOLD = "卖出份额不应大于买入份额"
     NO_AUTH = "暂无操作权限"
     NOT_TRADE_DAY = "不是交易日期"
+    OPERATION_FAILED = "操作失败"
+    NO_FILE_UPLOAD = "没有上传文件"
+
+    @property
+    def view(self):
+        if self == ErrorMessageEnum.MISSING_FIELD:
+            return lazy_gettext('MISSING_FIELD')
+        elif self == ErrorMessageEnum.DATA_NOT_FOUND:
+            return lazy_gettext('DATA_NOT_FOUND')
+        elif self == ErrorMessageEnum.DUPLICATE_DATA:
+            return lazy_gettext('DUPLICATE_DATA')
+        elif self == ErrorMessageEnum.OVERSOLD:
+            return lazy_gettext('OVERSOLD')
+        elif self == ErrorMessageEnum.NO_AUTH:
+            return lazy_gettext('NO_AUTH')
+        elif self == ErrorMessageEnum.NOT_TRADE_DAY:
+            return lazy_gettext('NOT_TRADE_DAY')
+        elif self == ErrorMessageEnum.OPERATION_FAILED:
+            return lazy_gettext('OPERATION_FAILED')
+        elif self == ErrorMessageEnum.NO_FILE_UPLOAD:
+            return lazy_gettext('NO_FILE_UPLOAD')
+        return self.name
 
 
 class TaskStatusEnum(str, Enum):

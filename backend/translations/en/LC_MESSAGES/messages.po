@@ -174,3 +174,26 @@ msgid "FAILED"
 msgstr "Failed"
 msgid "CANCELLED"
 msgstr "Cancelled"
+
+msgid "MISSING_FIELD"
+msgstr "Required field missing"
+
+msgid "DATA_NOT_FOUND"
+msgstr "Data not found"
+
+msgid "DUPLICATE_DATA"
+msgstr "Duplicate data"
+
+msgid "OVERSOLD"
+msgstr "Sell shares cannot exceed buy shares"
+
+msgid "NO_AUTH"
+msgstr "Insufficient permissions"
+
+msgid "NOT_TRADE_DAY"
+msgstr "Non-trading day"
+msgid "OPERATION_FAILED"
+msgstr "Operation failed"
+
+msgid "NO_UPLOAD_FILE"
+msgstr "No file uploaded"

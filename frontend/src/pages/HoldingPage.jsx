@@ -149,7 +149,7 @@ export default function HoldingPage() {
         try {
             const info = await crawlFundInfo(code);
             setFormPatch(info);
-            showSuccessToast('基金信息爬取成功');
+            showSuccessToast();
         } catch (e) {
             showErrorToast(e.message);
         }

@@ -23,7 +23,7 @@ def create_rule():
     data = request.get_json()
     if not data.get('ho_code') or not data.get('action') or not data.get('ar_is_active') or not data.get(
             'target_price'):
-        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.value)
+        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.view)
 
     new_rule = AlertRuleSchema().load(data)
     new_rule.user_id = g.user.id

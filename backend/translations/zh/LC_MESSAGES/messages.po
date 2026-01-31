@@ -180,3 +180,26 @@ msgstr "执行失败"
 
 msgid "CANCELLED"
 msgstr "手动取消"
+
+msgid "MISSING_FIELD"
+msgstr "字段缺失"
+
+msgid "DATA_NOT_FOUND"
+msgstr "数据不存在"
+
+msgid "DUPLICATE_DATA"
+msgstr "数据重复"
+
+msgid "OVERSOLD"
+msgstr "卖出份额不可超过买入份额"
+
+msgid "NO_AUTH"
+msgstr "权限不足"
+
+msgid "NOT_TRADE_DAY"
+msgstr "非交易日"
+msgid "OPERATION_FAILED"
+msgstr "操作失败"
+
+msgid "NO_UPLOAD_FILE"
+msgstr "未上传文件"

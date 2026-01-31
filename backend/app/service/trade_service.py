@@ -161,9 +161,9 @@ class TradeService:
                     new_trade.ho_id = h.id
 
             if not new_trade.ho_id:
-                raise BizException(ErrorMessageEnum.MISSING_FIELD.value)
+                raise BizException(ErrorMessageEnum.MISSING_FIELD.view)
             if not trade_calendar.is_trade_day(new_trade.tr_date):
-                raise BizException(f"{date_to_str(new_trade.tr_date)}{ErrorMessageEnum.NOT_TRADE_DAY.value}")
+                raise BizException(f"{date_to_str(new_trade.tr_date)}{ErrorMessageEnum.NOT_TRADE_DAY.view}")
 
             # 2. 先保存新记录 (此时 tr_cycle 可能不准，没关系，马上重算)
             # 默认给个 1 或者 0 都可以
@@ -190,7 +190,7 @@ class TradeService:
         try:
             trade = Trade.query.get(tr_id)
             if not trade:
-                raise BizException(ErrorMessageEnum.NO_SUCH_DATA.value)
+                raise BizException(ErrorMessageEnum.DATA_NOT_FOUND.view)
 
             # 记录旧的 ho_id，防止用户修改了关联的持仓（虽然一般不允许改 ho_id）
             old_ho_id = trade.ho_id
@@ -369,59 +369,6 @@ class TradeService:
                     total_cost -= sell_cost
 
         return total_shares, total_cost
-
-    @classmethod
-    def calculate_cumulative_profit(cls):
-        """
-        计算累计收益
-        累计收益 = 卖出总金额 + 当前持仓市值 - 买入总金额
-        其中：
-          - 买入总金额 = 所有买入交易的 cash_amount（含费用）之和
-          - 卖出总金额 = 所有卖出交易的 cash_amount（含费用）之和
-          - 当前持仓市值 = 所有未清仓持仓的份额 × 最新单位净值
-        """
-        # 1. 获取所有交易记录
-        trades = Trade.query.all() or []
-
-        # 2. 计算买入和卖出总额（含交易费用）
-        total_buy_amount = sum(trade.cash_amount for trade in trades if trade.tr_type == 1)
-        total_sell_amount = sum(trade.cash_amount for trade in trades if trade.tr_type == 0)
-
-        # 3. 获取所有未清仓的持仓（is_cleared == 0）
-        unclosed_holding_codes = set()
-        holding_shares = {}  # ho_code -> total shares
-
-        for trade in trades:
-            if trade.is_cleared == GlobalYesOrNo.NO and trade.tr_type == 1:  # 未清仓且是买入
-                holding_shares[trade.ho_code] = holding_shares.get(trade.ho_code, 0) + trade.tr_shares
-            elif trade.is_cleared == GlobalYesOrNo.NO and trade.tr_type == 0:  # 未清仓且是卖出
-                # 卖出会减少持仓
-                holding_shares[trade.ho_code] = holding_shares.get(trade.ho_code, 0) - trade.tr_shares
-                if holding_shares[trade.ho_code] <= 0:
-                    holding_shares[trade.ho_code] = 0  # 防止负数
-
-        # 4. 获取每个基金的最新单位净值（nav_per_unit）
-        # 使用 NavHistory 表，按 ho_code 和 nav_date 降序取最新一条
-        latest_navs = {}
-        for ho_code in holding_shares.keys():
-            if not ho_code:
-                continue
-            latest_nav = FundNavHistory.query.filter_by(ho_code=ho_code) \
-                .order_by(FundNavHistory.nav_date.desc()) \
-                .first()
-            if latest_nav:
-                latest_navs[ho_code] = latest_nav.market_price
-
-        # 5. 计算当前持仓市值
-        current_market_value = 0.0
-        for ho_code, shares in holding_shares.items():
-            if shares > 0 and ho_code in latest_navs:
-                current_market_value += shares * latest_navs[ho_code]
-
-        # 6. 计算累计收益
-        cumulative_profit = total_sell_amount + current_market_value - total_buy_amount
-
-        return cumulative_profit
 
     @classmethod
     def recalculate_holding_trades(cls, ho_id: int):
