@@ -1,10 +1,10 @@
-# TIME – Personal Investment Analytics Platform
+# TIME – Transaction-based Investment Management Engine
 
 <div align="left" style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0.75rem 0;">
   <img src="https://img.shields.io/badge/Python-3.11-3776AB.svg?style=flat&logo=python" alt="Python 3.11" />
   <img src="https://img.shields.io/badge/Flask-3.1-000000.svg?style=flat&logo=flask" alt="Flask 3.1" />
   <img src="https://img.shields.io/badge/React-18.2-61DAFB.svg?style=flat&logo=react" alt="React 18.2" />
-  <img src="https://img.shields.io/badge/Vite-%5E5.0-646CFF.svg?style=flat&logo=vite" alt="Vite ^5.0" />
+  <img src="https://img.shields.io/badge/Vite-%5E5.0-646CFF.svg?style=flat&logo=vite" alt="Vite ^5.1" />
   <img src="https://img.shields.io/badge/PostgreSQL-15-4169E1.svg?style=flat&logo=postgresql" alt="PostgreSQL 15" />
   <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License" />
 </div>
@@ -13,20 +13,10 @@
 
 ## 1. Project Overview
 
-**TIME (Time Invest My Elevation)** is a personal investment analytics platform focused on **transaction-level accuracy, auditable financial logic, and quantitative performance evaluation**.
+**TIME (Transaction-based Investment Management Engine)** is a personal investment analytics platform designed to ensure **transaction-level accuracy, auditable financial logic, and quantitative performance evaluation**.
 
 
-
-This project is designed as a **research-oriented engineering system** and is used as a portfolio project for applying to a **Master’s program in Computer Science**.
-
-
-
-
-
-TODO 这里放gif
-
-
-
+This project functions as a research-oriented engineering system, serving as a technical portfolio for Master’s program applications.
 ### License
 
 MIT License - Open source for academic review purposes
@@ -35,29 +25,24 @@ MIT License - Open source for academic review purposes
 
 ## 2. Problem Statement & Motivation
 
-目前的市面上各种基金股票交易软件很多，投资者可能在很多平台购买了金融产品，但是缺少对整体的投资水平的记录、评价和回顾。这个项目解决了这个痛点，它可以聚合跨平台的交易数据，并且根据用户的交易记录生成分析数据，并根据一定财务计算逻辑对用户的操作进行评价。
+While numerous commercial trading platforms exist, retail investors often suffer from data fragmentation, lacking a unified system to record, evaluate, and review aggregate investment performance across different accounts. Existing tools typically prioritize execution over holistic retrospective analysis.
 
-The system aggregates investment data across multiple platforms and reconstructs portfolio states strictly from transaction records, enabling reliable analysis, validation, and future research extensions.
+This project addresses these limitations by consolidating cross-platform transaction data. It reconstructs portfolio history to generate analytical metrics, evaluating user performance based on standardized financial accounting logic.
 
+Unlike most retail tools that abstract away core financial calculations, this system prioritizes:
 
+- **Explicit modeling** of transactions, holdings, and historical states.
+- **Derivable and auditable** portfolio states.
+- **Time-window–based** quantitative analytics.
+- A scalable foundation for **backtesting, risk analysis, and attribution research**.
 
-Most retail investment tools prioritize visualization while abstracting away core financial logic, making them unsuitable for verification, analysis, or academic research.
-
-This project aims to:
-
-- Explicitly modeling **transactions, holdings, and historical data**
-- Ensuring **fully derivable and auditable portfolio states**
-- Supporting **time-window–based quantitative analytics**
-- Providing a scalable foundation for **backtesting, risk analysis, and attribution research**
-
-The system is designed at the intersection of **finance, data modeling, and software engineering**.
+The system is positioned at the intersection of **financial engineering, data modeling, and full-stack software development**.
 
 ---
 
 ## 3. Architecture
 
-The system adopts a **front-end / back-end separated architecture**.
-
+The system adopts a **decoupled client-server architecture**.
 
 ```mermaid
 graph LR
@@ -79,7 +64,6 @@ graph LR
 - React + Vite
 - Tailwind CSS
 - Multi-language (ZH / IT / EN) support
-- Dashboard-oriented UI design
 
 ## 4. Tech Stack
 
@@ -117,96 +101,85 @@ graph LR
 ## 5. Key Features
 
 ### 5.1 Dashboard
-
-- Portfolio overview and period-based summaries
-  - Market value
-  - Profit and loss (PnL)
-  - Time-Weighted Rate of Return (TWRR)
-  - Internal Rate of Return (IRR)
-- Risk indicators
-  - Sharpe Ratio
-  - Maximum drawdown
-  - Annualized volatility
-  - Win rate
-
-- Recent alert signals to buy or sell
-- Cached high-frequency dashboard queries using Flask-Caching
+- **Portfolio Overview:** Period-based summaries including Market Value and PnL.
+- **Return Metrics:** Time-Weighted Rate of Return (TWRR) and Internal Rate of Return (IRR).
+- **Risk Indicators:** Sharpe Ratio, Maximum Drawdown, Annualized Volatility, and Win Rate.
+- **Performance:** High-frequency queries optimized via Flask-Caching.
 
 ### 5.2 Holdings Management
-
-- Unified management of cross-platform holdings
-- Data ingestion via crawler or Excel import
-- Position tracking derived from transaction aggregation
+- Unified management of cross-platform assets.
+- Data ingestion via web scraping or batch Excel import.
+- Position tracking derived strictly from transaction aggregation.
 
 ### 5.3 Transaction Management
-
-- Transaction ingestion via Excel or LLM-assisted OCR (screenshots)
-- Dynamic field computation to avoid input errors
+- Support for manual entry, Excel upload, or LLM-assisted OCR (from screenshots).
+- Dynamic field computation to minimize input errors.
 
 ### 5.4 Alerts & Signals
-
-- Rule-based monitoring on price of specified holding
-- Automatic email notifications when trigger conditions are met
+- Rule-based monitoring for specific holding prices.
+- Automated email notifications upon trigger conditions.
 
 ### 5.5 Historical Data & Trends
-
-- Full historical price crawling or time-range crawling
-- Daily background jobs for price updates
+- Automated crawling of historical price data (full history or specific time ranges).
+- Daily scheduled jobs for market data updates.
 
 ### 5.6 Tasks & Logs
-
-- Manual triggering of background jobs
-- Execution logs and result inspection
+- Interface for manual triggering of background jobs.
+- Comprehensive execution logs for system monitoring.
 
 ### 5.7 Authentication
-
-- Silent pre-refresh of authentication tokens to ensure seamless user experience
-- Support for up to three concurrent active devices per user account
+- Silent token refresh mechanisms for seamless user sessions.
+- Concurrency control limiting active sessions to three devices.
 
 ---
-## 5. Data Model 
+
+## 6. Data Model
+
+The database schema is designed to ensure referential integrity between transactions, snapshots, and asset definitions.
 
 ![time_er](./time_er.png)
 
-## 6. Analytics
+---
 
-This project implements a **production-grade portfolio analytics engine** with accounting-consistent performance measurement.
+## 7. Analytics Engine
+
+This project implements a **production-grade portfolio analytics engine** consistent with standard accounting practices.
 
 ### Core Design
 
-- Daily **asset-level snapshots** are generated by aggregating all positions, serving as the single source of truth.
-- All analytics are derived from historical snapshots, ensuring **full reproducibility and auditability**.
+- **Daily Snapshots:** Asset-level snapshots are generated daily by aggregating all positions, serving as the single source of truth.
+- **Reproducibility:** All analytics are derived from historical snapshots, ensuring full auditability.
 
 ### Return Measurement
 
-- **Time-Weighted Rate of Return (TWRR)**
-   Computed via geometric chaining of daily returns, suitable for manager performance evaluation.
-- **Money-Weighted Return (IRR / XIRR)**
-   Derived from real cash flows (buy/sell, dividends, terminal value) using robust numerical solvers.
+- **Time-Weighted Rate of Return (TWRR):** Computed via geometric chaining of daily returns to evaluate strategy performance independent of external cash flows.
+- **Money-Weighted Return (IRR / XIRR):** Derived from actual cash flows (buy/sell, dividends, terminal value) using numerical solvers.
 
 ### Risk & Performance Metrics
 
-- Annualized return and volatility
-- Maximum drawdown (with start, trough, and recovery dates)
-- Sharpe, Sortino, and Calmar ratios
-- Win rate and return distribution statistics
+- Annualized return and volatility.
+- Maximum drawdown (identifying peak, trough, and recovery dates).
+- Sharpe, Sortino, and Calmar ratios.
+- Return distribution statistics.
 
 ### Window-Based Analytics
 
-- Expanding windows (entire history)
-- Rolling windows (e.g. 21 / 63 / 126 / 252 trading days)
+- **Expanding Windows:** Analytics covering the entire investment history.
+- **Rolling Windows:** Analytics over fixed periods (e.g., 21, 63, 126, 252 trading days).
 
 ### Financial Integrity
 
-- Strict separation of **cash flows vs. valuation effects**
-- Recursive accounting identities guarantee balance consistency
-- Safe handling of partial liquidation and full clearance scenarios
+- Strict separation of **cash flows vs. valuation effects**.
+- Recursive accounting identities guarantee balance consistency.
+- Robust handling of partial liquidations and full clearance scenarios.
 
-This architecture reflects **real-world portfolio accounting and quantitative research standards**, rather than simplified backtesting assumptions.
+---
 
-## 8. Deployment & Running
+## 8. Deployment & Execution
 
-This project is already deployed on www.wechiwin.com/xxx, also it can be run locally with following steps:
+A live demonstration of the system is available at https://app.wechiwin.com
+
+For local development or testing, adhere to the following setup procedures:
 
 ### Backend
 
@@ -228,30 +201,26 @@ npm run dev
 
 ## 9. Future Improvements
 
-Planned improvements include:
-- Support for additional transaction types (currently OTC funds only)
-- Natural-language-driven alert configuration
-- Cost or income rebalancing support in alerts management
-- AI-assisted portfolio evaluation in dashboard
-- More data ingestion methods
-- Risk attribution analysis
-- Text-to-SQL / LLM-assisted querying
-- UI and interaction refinement
+Planned enhancements to the system include:
+
+- Support for diverse asset classes (expanding beyond OTC funds).
+- Support for diverse countries (expanding beyond Chinese market).
+- Natural Language Processing (NLP) for alert configuration.
+- Inclusion of transaction costs and dividend reinvestment in alert logic.
+- AI-assisted portfolio commentary and evaluation.
+- Expanded data ingestion pipelines.
+- Risk attribution analysis.
+- Text-to-SQL capabilities for ad-hoc reporting.
+- Refinement of UI/UX interactions.
 
 ---
 
 ## 10. About the Author
 
-Author: Wei Qirui
-
-
+**Qirui Wei**
 
 Email: weiqirui8888@gmail.com
 
-
-
 Background:
 - Bachelor's degree in Financial Management
-- Senior Java Engineer with 5+ years of backend and data engineering experience
-- Strong interest in software engineering
-
+- Senior Java Engineer with years of backend and data engineering experience
