@@ -19,7 +19,6 @@ export default function FormModal({
             console.error('onSubmit is not a function');
             return;
         }
-
         setSubmitting(true);
         try {
             const result = await onSubmit(values);
@@ -27,9 +26,10 @@ export default function FormModal({
             if (result === true || result?.success) {
                 onClose();
             }
+            return result;
         } catch (error) {
             console.error('Form submission error:', error);
-            // 错误处理由 onSubmit 内部完成，这里不自动关闭
+            throw error;
         } finally {
             setSubmitting(false);
         }

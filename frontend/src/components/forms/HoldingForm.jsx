@@ -141,6 +141,7 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
                 }
             });
             showSuccessToast();
+            onClose();
         } catch (err) {
             showErrorToast(err.message);
         }
