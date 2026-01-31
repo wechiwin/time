@@ -177,8 +177,8 @@
   "alert_trigger_price": "触发单价",
   "remark": "备注",
 
-  "login_title": "登录系统",
-  "register_title": "用户注册",
+  "login_title": "登录 TIME",
+  "register_title": "注册 TIME",
   "register_subtitle": "创建您的个人账户",
   "username": "用户名",
   "password": "密码",

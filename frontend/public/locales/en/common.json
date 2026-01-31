@@ -176,8 +176,8 @@
   "remark": "Nota",
   "alert_trigger_price": "Trigger Price",
 
-  "login_title": "Login System",
-  "register_title": "User Registration",
+  "login_title": "Log in to TIME",
+  "register_title": "Sign up for TIME",
   "register_subtitle": "Create your personal account",
   "username": "Username",
   "password": "Password",

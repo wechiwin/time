@@ -39,7 +39,7 @@ def get_locale():
     try:
         # 检查是否有请求上下文
         if not request:
-            return 'zh'  # 默认返回中文
+            return 'en'  # default english
 
         lang = request.args.get("lang")
         if lang in ['zh', 'it', 'en']:
@@ -49,8 +49,8 @@ def get_locale():
         best_match = request.accept_languages.best_match(['zh', 'it', 'en'])
         return best_match if best_match else 'zh'
     except RuntimeError:
-        # 无请求上下文时返回默认语言
-        return 'zh'
+        # fallback english
+        return 'en'
 
 
 class NoAsciiJSONProvider(DefaultJSONProvider):

@@ -8,8 +8,8 @@ i18n
     .use(LanguageDetector)
     .use(initReactI18next)
     .init({
-        lng: 'zh',
-        fallbackLng: 'zh',
+        lng: 'en',
+        fallbackLng: 'en',
         supportedLngs: ['zh', 'it', 'en'],
         debug: true,
         // 防止 XSS 攻击
