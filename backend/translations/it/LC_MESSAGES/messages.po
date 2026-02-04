@@ -197,3 +197,6 @@ msgstr "Operazione non riuscita"
 
 msgid "NO_UPLOAD_FILE"
 msgstr "Nessun file caricato"
+
+msgid "CRAWL_NO_INFO"
+msgstr "Nessun dato estratto"

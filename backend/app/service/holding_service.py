@@ -14,7 +14,7 @@ from app.constant.biz_enums import (
     ErrorMessageEnum
 )
 from app.framework.exceptions import BizException
-from app.models import db, Holding, FundDetail
+from app.models import db, Holding, FundDetail, AlertRule
 from app.utils.date_util import str_to_date
 
 logger = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ class HoldingService:
             resp = requests.get(url_api, params=params, headers=headers, timeout=10)
             data = resp.json().get("Datas", {})
             if not data:
-                raise BizException(msg="未爬取到相关信息")
+                raise BizException(ErrorMessageEnum.CRAWL_NO_INFO.view)
 
             result = {
                 "ho_code": data.get("FCODE"),
@@ -83,33 +83,7 @@ class HoldingService:
 
         except requests.exceptions.RequestException as e:
             logger.error(f"爬取基金信息失败: {str(e)}")
-            raise BizException(msg="爬取基金信息失败，请检查网络或稍后重试")
-
-    @staticmethod
-    def crawl_stock_info(ho_code: str) -> dict:
-        """爬取股票信息"""
-        try:
-            # 使用akshare获取股票基本信息
-            stock_info = ak.stock_individual_info_em(symbol=ho_code)
-            if stock_info.empty:
-                raise BizException(msg="未找到该股票信息")
-
-            # 转换为字典格式
-            info_dict = {row['item']: row['value'] for _, row in stock_info.iterrows()}
-
-            return {
-                "ho_code": ho_code,
-                "ho_name": info_dict.get('股票简称', ''),
-                "ho_short_name": info_dict.get('股票简称', ''),
-                "ho_type": HoldingTypeEnum.STOCK.value,
-                "establishment_date": info_dict.get('成立日期', ''),
-                "trade_market": HoldingService._determine_stock_market(ho_code),
-                # 其他股票特有字段...
-            }
-
-        except Exception as e:
-            logger.error(f"爬取股票信息失败: {str(e)}")
-            raise BizException(msg="爬取股票信息失败，请检查股票代码或稍后重试")
+            raise BizException(ErrorMessageEnum.OPERATION_FAILED.view)
 
     @staticmethod
     def _determine_trade_market(fund_data: dict) -> str:
@@ -173,7 +147,7 @@ class HoldingService:
         }
 
     @staticmethod
-    def create_holding(data: dict) -> Holding:
+    def create_holding(data: dict, user_id) -> Holding:
         """
         创建持仓及其基金详情
         使用 SQLAlchemy 的 relationship 自动处理外键关联
@@ -182,8 +156,8 @@ class HoldingService:
             raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.view)
 
         # 检查是否已存在
-        if Holding.query.filter_by(ho_code=data['ho_code']).first():
-            raise BizException(msg="该代码已存在")
+        if Holding.query.filter_by(ho_code=data['ho_code'], user_id=user_id).first():
+            raise BizException(ErrorMessageEnum.DUPLICATE_DATA.view)
 
         try:
             # 分离 fund_detail 数据
@@ -212,14 +186,14 @@ class HoldingService:
         except SQLAlchemyError as e:
             db.session.rollback()
             logger.error(f"创建持仓数据库错误: {str(e)}")
-            raise BizException(msg=f"创建持仓 {data.get('ho_code')} 失败: 数据库错误")
+            raise BizException(msg=f"{data.get('ho_code')}:{ErrorMessageEnum.OPERATION_FAILED.view}")
         except Exception as e:
             db.session.rollback()
             logger.error(f"创建持仓未知错误: {str(e)}")
-            raise BizException(msg=f"创建持仓 {data.get('ho_code')} 失败: {str(e)}")
+            raise BizException(msg=f"{data.get('ho_code')}:{ErrorMessageEnum.OPERATION_FAILED.view}")
 
     @staticmethod
-    def import_holdings(ho_codes: list) -> dict:
+    def import_holdings(ho_codes: list, user_id: str) -> dict:
         """
         批量导入持仓
         返回详细的导入结果统计
@@ -236,7 +210,7 @@ class HoldingService:
             if not code:
                 continue
             # 1. 检查是否存在 (避免不必要的爬虫请求)
-            if Holding.query.filter_by(ho_code=code).first():
+            if Holding.query.filter_by(ho_code=code, user_id=user_id).first():
                 results["skipped"] += 1
                 continue
             try:
@@ -246,7 +220,7 @@ class HoldingService:
                 # 实际项目中建议根据用户选择或正则更精确判断。
                 data = HoldingService.crawl_fund_info(code)
                 # 3. 写入数据库
-                HoldingService.create_holding(data)
+                HoldingService.create_holding(data, user_id)
                 results["success"] += 1
 
                 # 礼貌性延时，防止被封IP
@@ -260,3 +234,38 @@ class HoldingService:
                 results["failed"] += 1
                 results["errors"].append(f"{code}: 系统错误")
         return results
+
+    @staticmethod
+    def get_cascade_delete_info(holding: Holding) -> dict:
+        """
+        获取删除一个 Holding 将会级联删除的关联数据摘要。
+        只执行 COUNT 查询，性能高。
+        """
+        if not holding:
+            return {}
+        # 使用 relationship 属性来查询关联对象的数量
+        # 这会触发高效的 COUNT(*) 查询
+        cascade_counts = {
+            'trades': len(holding.trades),
+            'alert_rules': len(holding.alert_rules),
+            'fund_nav_histories': len(holding.fund_nav_history_list),
+            'holding_snapshots': len(holding.holding_snapshots),
+            # 添加其他需要检查的关联模型
+        }
+        # 只返回数量大于0的项，简化前端处理
+        return {k: v for k, v in cascade_counts.items() if v > 0}
+
+    @staticmethod
+    def delete_holding_with_cascade(holding: Holding):
+        """
+        在一个事务中删除 Holding 及其所有关联数据。
+        依赖于在 models.py 中定义的 cascade="all, delete-orphan"。
+        """
+        try:
+            # SQLAlchemy 将基于 model 中定义的 cascade 规则自动删除所有关联数据
+            db.session.delete(holding)
+            db.session.commit()
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            logger.error(f"删除持仓 {holding.ho_code} 失败: {e}", exc_info=True)
+            raise BizException(ErrorMessageEnum.OPERATION_FAILED.view)

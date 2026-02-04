@@ -225,6 +225,14 @@
   "th_created_at": "Creato Data",
   "th_updated_at": "Aggiornato Data",
   "th_retries": "Ripetizione",
-  "th_error_message": "Messaggio di Errore"
+  "th_error_message": "Messaggio di Errore",
+
+  "title_delete_confirmation": "Conferma eliminazione",
+  "msg_delete_confirmation_simple": "Sei sicuro di voler eliminare {{name}}?",
+  "msg_delete_confirmation_cascade": "Sei sicuro di voler eliminare {{name}}? Questa azione eliminerà in modo permanente anche: {{details}}.",
+  "cascade_item_trades": "registrazioni delle operazioni",
+  "cascade_item_alert_rules": "regole di allerta",
+  "cascade_item_fund_nav_histories": "cronologia del valore patrimoniale netto (NAV)",
+  "cascade_item_holding_snapshots": "registrazioni degli istantanei di portafoglio"
 
 }
