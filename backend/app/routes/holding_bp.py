@@ -104,7 +104,7 @@ def add_ho():
         raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.view)
 
     # 检查基金代码是否已存在
-    if Holding.query.filter_by(ho_code=data['ho_code'],user_id=g.user.id).first():
+    if Holding.query.filter_by(ho_code=data['ho_code'], user_id=g.user.id).first():
         raise BizException(msg=ErrorMessageEnum.DUPLICATE_DATA.view)
 
     try:
@@ -180,12 +180,19 @@ def update_holding():
 @auth_required
 def del_ho():
     data = request.get_json()
-    id = data.get('id')
-    h = get_or_raise(Holding, id)
-
-    db.session.delete(h)
-    db.session.commit()
-    return Res.success()
+    holding_id = data.get('id')
+    # dry_run 参数用于区分检查阶段和实际删除阶段
+    is_dry_run = data.get('dry_run', False)
+    # 使用 get_or_raise 确保 holding 存在且属于当前用户
+    holding = get_or_raise(Holding, holding_id)
+    if is_dry_run:
+        # 检查模式：返回将要被删除的关联数据信息
+        cascade_info = HoldingService.get_cascade_delete_info(holding)
+        return Res.success(cascade_info)
+    else:
+        # 删除模式：执行实际的删除操作
+        HoldingService.delete_holding_with_cascade(holding)
+        return Res.success()
 
 
 @holding_bp.route('/export', methods=['GET'])
@@ -268,7 +275,7 @@ def import_holdings():
 
         ho_codes = df[gettext('COL_HO_CODE')].dropna().unique().tolist()
 
-        success_count = HoldingService.import_holdings(ho_codes)
+        success_count = HoldingService.import_holdings(ho_codes, g.user.id)
         return Res.success(success_count)
     except Exception as e:
         logger.error(e, exc_info=True)

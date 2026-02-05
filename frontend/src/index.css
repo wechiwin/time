@@ -86,6 +86,14 @@
         focus:outline-none focus:ring-2 focus:ring-red-500;
     }
 
+    /* 用于次要或提示性操作的按钮 */
+    .btn-subtle {
+        @apply px-3 py-1.5 text-sm font-medium rounded-md transition-colors whitespace-nowrap
+        bg-gray-100 text-gray-700 hover:bg-gray-200
+        dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600
+        focus:outline-none focus:ring-2 focus:ring-blue-500;
+    }
+
     /* 表格容器 */
     .table-container {
         @apply overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg;
@@ -98,7 +106,8 @@
         text-gray-600 dark:text-gray-300 /* 增强文字对比度 */
         tracking-wider text-left /* 确保文本左对齐 */
         bg-gray-100 dark:bg-slate-800 /* 核心：更换背景色，与页面/卡片背景形成对比 */
-        border-b-2 border-gray-200 dark:border-slate-700; /* 添加更明确的底部分割线 */
+        border-b-2 border-gray-200 dark:border-slate-700;
+        /* 添加更明确的底部分割线 */
     }
 
     /* 单元格 */
@@ -395,125 +404,94 @@
     /* =========================================
        React DatePicker 暗黑模式支持
        ========================================= */
-    /* 1. 弹窗容器背景与边框 */
+    /* 1. 弹窗容器：背景、边框、文字颜色 */
     .dark .react-datepicker {
-        background-color: #1f2937; /* gray-800 */
-        border-color: #4b5563; /* gray-600 */
-        color: #f3f4f6; /* gray-100 */
+        @apply bg-gray-800 border-gray-600 text-gray-300 rounded-lg shadow-lg;
+        border-width: 1px; /* 确保边框显示 */
     }
 
-    /* 2. 头部背景（月份/年份选择区域） */
+    /* 2. 弹窗小箭头 */
+    .dark .react-datepicker__triangle::before,
+    .dark .react-datepicker__triangle::after {
+        /* 核心：让箭头颜色与弹窗背景色一致 */
+        border-bottom-color: #374151 !important; /* gray-700 */
+    }
+
+    .dark .react-datepicker__triangle::before {
+        border-bottom-color: #4b5563 !important; /* gray-600, for border */
+    }
+
+    /* 3. 头部区域：背景、边框 */
     .dark .react-datepicker__header {
-        background-color: #374151; /* gray-700 */
-        border-bottom-color: #4b5563;
+        @apply bg-gray-700 border-b-gray-600;
     }
 
-    /* 3. 当前月份/年份文字颜色 */
+    /* 4. 当前月份文字 */
     .dark .react-datepicker__current-month {
-        color: #f3f4f6;
+        @apply text-gray-100;
     }
 
-    /* 4. 星期标题（Mon, Tue...） */
+    /* 5. 星期标题 (Su, Mo...) */
     .dark .react-datepicker__day-name {
-        color: #9ca3af; /* gray-400 */
+        @apply text-gray-400;
     }
 
-    /* 5. 日期单元格基础样式 */
+    /* 6. 日期单元格 */
     .dark .react-datepicker__day {
-        color: #e5e7eb; /* gray-200 */
+        @apply text-gray-200;
     }
 
-    /* 6. 日期单元格 Hover 状态 */
+    /* 7. 日期单元格 Hover 状态 */
     .dark .react-datepicker__day:hover,
     .dark .react-datepicker__month-text:hover,
-    .dark .react-datepicker__quarter-text:hover,
     .dark .react-datepicker__year-text:hover {
-        background-color: #4b5563; /* gray-600 */
-        color: #ffffff;
-        border-radius: 0.375rem;
+        @apply bg-gray-600 text-white rounded-md;
     }
 
-    /* 7. 选中日期的样式 */
+    /* 8. 禁用日期 */
+    .dark .react-datepicker__day--disabled {
+        @apply text-gray-500 cursor-default hover:bg-transparent;
+    }
+
+    /* 9. 选中日期 */
     .dark .react-datepicker__day--selected,
     .dark .react-datepicker__day--keyboard-selected {
-        background-color: #2563eb; /* blue-600 */
-        color: #ffffff;
+        @apply bg-blue-600 text-white hover:bg-blue-700 rounded-md;
     }
 
-    /* 8. 选中日期的 Hover 状态（防止被 hover 覆盖） */
-    .dark .react-datepicker__day--selected:hover,
-    .dark .react-datepicker__day--keyboard-selected:hover {
-        background-color: #1d4ed8; /* blue-700 */
-    }
-
-    /* 9. 禁用日期（不在当前月份或被禁用的日期） */
-    .dark .react-datepicker__day--disabled,
-    .dark .react-datepicker__month-text--disabled,
-    .dark .react-datepicker__quarter-text--disabled,
-    .dark .react-datepicker__year-text--disabled {
-        color: #6b7280; /* gray-500 */
-        cursor: default;
-    }
-
-    /* 10. 今日日期的高亮 */
+    /* 10. 今日日期高亮 */
     .dark .react-datepicker__day--today {
-        font-weight: bold;
-        color: #60a5fa; /* blue-400 */
+        @apply font-bold text-blue-400;
     }
 
-    /* 11. 输入框样式（确保在暗黑模式下背景正确） */
-    /* 注意：这里使用了 !important 来确保优先级高于 react-datepicker 的默认内联样式 */
-    .dark .react-datepicker-wrapper input.input-field {
-        background-color: #1f2937 !important; /* gray-800 */
-        color: #f3f4f6 !important; /* gray-100 */
-        border-color: #4b5563 !important; /* gray-600 */
-    }
-
-    /* 12. 月份/年份下拉框样式 */
-    .dark .react-datepicker__month-select,
-    .dark .react-datepicker__year-select {
-        background-color: #1f2937;
-        color: #f3f4f6;
-        border-color: #4b5563;
-    }
-
-    /* 13. 时间选择器样式（如果使用） */
-    .dark .react-datepicker__time-container {
-        border-left-color: #4b5563;
-        background-color: #1f2937;
-    }
-
-    .dark .react-datepicker__time {
-        background-color: #1f2937;
-    }
-
-    .dark .react-datepicker__time-list-item {
-        color: #e5e7eb;
-    }
-
-    .dark .react-datepicker__time-list-item:hover {
-        background-color: #4b5563;
-        color: #ffffff;
-    }
-
-    .dark .react-datepicker__time-list-item--selected {
-        background-color: #2563eb;
-        color: #ffffff;
-    }
-
-    /* 14. 箭头导航按钮 */
-    .dark .react-datepicker__navigation {
+    /* 11. 导航箭头 */
+    .dark .react-datepicker__navigation-icon::before {
         border-color: #d1d5db; /* gray-300 */
+        border-width: 2px 2px 0 0;
     }
 
-    .dark .react-datepicker__navigation:hover {
+    .dark .react-datepicker__navigation:hover .react-datepicker__navigation-icon::before {
         border-color: #ffffff;
     }
 
-    /* 15. 三角形箭头（小三角） */
-    .dark .react-datepicker-popper[data-placement^="bottom"] .react-datepicker__triangle::before,
-    .dark .react-datepicker-popper[data-placement^="bottom"] .react-datepicker__triangle::after {
-        border-bottom-color: #374151; /* 匹配 header 颜色 */
+    /* 12. 【关键修复】年月下拉框 */
+    .dark .react-datepicker__year-select,
+    .dark .react-datepicker__month-select {
+        @apply bg-gray-800 text-gray-100 border-gray-600 rounded-md;
+    }
+
+    /* 13. 【关键修复】确保 DatePicker 的输入框在暗黑模式下样式正确 */
+    /*
+       DatePicker 的 input 是被一个 div.react-datepicker-wrapper 包裹的，
+       我们需要确保我们的暗黑模式样式能够正确应用到这个 input 上。
+       这里的选择器确保了高优先级。
+    */
+    .dark .react-datepicker-wrapper .input-field {
+        @apply bg-gray-800 text-gray-100 border-gray-600;
+    }
+
+    .dark .react-datepicker-wrapper .input-field:focus {
+        @apply ring-blue-500 border-blue-500;
     }
 
 

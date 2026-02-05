@@ -2,7 +2,7 @@
 import pathlib
 import subprocess
 
-from flask import Flask, jsonify, request
+from flask import Flask, request
 from flask.json.provider import DefaultJSONProvider
 from flask_apscheduler import APScheduler
 from flask_babel import Babel

@@ -37,7 +37,7 @@
 
   "start_date": "开始日期",
   "end_date": "结束日期",
-  "last_nav_date": "最后净值日",
+  "last_market_date": "最近交易日",
   "yesterday": "昨天",
   "tr_type_buy": "买入",
   "tr_type_sell": "卖出",
@@ -228,5 +228,16 @@
   "th_created_at": "创建时间",
   "th_updated_at": "更新时间",
   "th_retries": "重试次数",
-  "th_error_message": "错误信息"
+  "th_error_message": "错误信息",
+
+  "title_delete_confirmation": "确认删除",
+  "msg_delete_confirmation_simple": "确定要删除 {{name}} 吗？",
+  "msg_delete_confirmation_cascade": "确定要删除 {{name}} 吗？此操作还将永久删除以下内容：{{details}}。",
+  "cascade_item_trades": "交易记录",
+  "cascade_item_alert_rules": "预警规则",
+  "cascade_item_fund_nav_histories": "单位净值（NAV）历史记录",
+  "cascade_item_holding_snapshots": "持仓快照记录",
+
+  "msg_fetch_holding_failed": "获取基金详情失败"
+
 }

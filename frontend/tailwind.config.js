@@ -16,6 +16,11 @@ module.exports = {
             },
             animation: {
                 'fade-in': 'fade-in 0.3s ease-out'
+            },
+            zIndex: {
+                'modal': '50',
+                'modal-backdrop': '40',
+                'popover': '60', // for datepicker, dropdowns etc.
             }
         }
     },

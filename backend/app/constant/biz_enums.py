@@ -146,6 +146,7 @@ class ErrorMessageEnum(str, Enum):
     NOT_TRADE_DAY = "不是交易日期"
     OPERATION_FAILED = "操作失败"
     NO_FILE_UPLOAD = "没有上传文件"
+    CRAWL_NO_INFO = "未爬取到相关信息"
 
     @property
     def view(self):
@@ -165,6 +166,8 @@ class ErrorMessageEnum(str, Enum):
             return lazy_gettext('OPERATION_FAILED')
         elif self == ErrorMessageEnum.NO_FILE_UPLOAD:
             return lazy_gettext('NO_FILE_UPLOAD')
+        elif self == ErrorMessageEnum.CRAWL_NO_INFO:
+            return lazy_gettext('CRAWL_NO_INFO')
         return self.name
 
 

@@ -54,7 +54,6 @@ export default function useHoldingList(options = {}) {
     // 搜索函数 - 业务层设置数据
     const listHolding = useCallback(async (body) => {
         const result = await post(urlPrefix + '/list_ho', body);
-        setData(result);  // 业务逻辑设置 data
         return result;
     }, [get]);
 
@@ -66,14 +65,28 @@ export default function useHoldingList(options = {}) {
         return result;
     }, [post, searchPage, keyword, page, perPage]);
 
-    // 删除基金
-    const remove = useCallback(async (id) => {
-        const result = await post(urlPrefix + '/del_ho', {id});
-        // 删除成功后重新搜索当前页面
-        await searchPage(keyword, page, perPage);
-        return result;
-    }, [post, searchPage, keyword, page, perPage]);
+    /**
+     * 检查级联删除信息。
+     * @param {number} id - The ID of the holding to check.
+     * @returns {Promise<object>} - A promise that resolves to the cascade info object.
+     */
+    const checkCascadeDelete = useCallback(async (id) => {
+        // 调用 del_ho 接口，但附带 dry_run=true 参数
+        return await post(urlPrefix + '/del_ho', {id, dry_run: true});
+    }, [post]);
 
+    /**
+     * 执行删除操作。
+     * @param {number} id - The ID of the holding to remove.
+     * @returns {Promise<any>}
+     */
+    const remove = useCallback(async (id) => {
+        // 调用 del_ho 接口，不带 dry_run 参数
+        const result = await post(urlPrefix + '/del_ho', {id});
+        // 删除成功后，建议由调用方（Page组件）决定何时刷新，而不是在这里自动刷新
+        // 这样可以让 Page 组件处理分页逻辑（如删除最后一项后返回上一页）
+        return result;
+    }, [post]);
     // 更新基金
     const update = useCallback(async (body) => {
         const result = await post(urlPrefix + '/update_ho', body);
@@ -102,8 +115,6 @@ export default function useHoldingList(options = {}) {
         const result = await post(urlPrefix + '/import', formData, {
             headers: {'Content-Type': 'multipart/form-data'},
         });
-        // 导入成功后重新搜索
-        await searchPage(keyword, page, perPage);
         return result;
     }, [post, searchPage, keyword, page, perPage]);
 
@@ -138,5 +149,6 @@ export default function useHoldingList(options = {}) {
         importData,
         getById,
         crawlFundInfo,
+        checkCascadeDelete,
     };
 }

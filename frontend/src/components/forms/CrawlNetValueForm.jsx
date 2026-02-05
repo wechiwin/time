@@ -5,6 +5,7 @@ import useHoldingList from '../../hooks/api/useHoldingList';
 import useNavHistoryList from '../../hooks/api/useNavHistoryList';
 import {useToast} from "../context/ToastContext";
 import {useTranslation} from "react-i18next";
+import MyDate from "../common/MyDate";
 
 /**
  * 4. 辅助函数：获取昨天的日期（YYYY-MM-DD 格式）
@@ -26,7 +27,7 @@ export default function CrawlNetValueForm({onSubmit, onClose, initialValues}) {
     const [quickStartDate, setQuickStartDate] = useState({creation: '', lastNav: ''});
 
     // 用于获取基金的创建日期
-    const {getByCode} = useHoldingList({autoLoad: false});
+    const {getById} = useHoldingList({autoLoad: false});
 
     // 用于触发单个基金的净值历史搜索
     const [navSearchCode, setNavSearchCode] = useState(initialValues.ho_code || '');
@@ -80,7 +81,7 @@ export default function CrawlNetValueForm({onSubmit, onClose, initialValues}) {
 
             // b. 异步获取基金信息（用于获取创建日期）
             try {
-                const holding = await getByCode(code);
+                const holding = await getById(ho.id);
                 if (holding && holding.created_at) {
                     const creationDate = holding.establishment_date;
                     setQuickStartDate(prev => ({...prev, creation: creationDate}));
@@ -89,15 +90,18 @@ export default function CrawlNetValueForm({onSubmit, onClose, initialValues}) {
                 }
                 handleChange('ho_id', holding.id);
             } catch (err) {
-                console.error("获取基金信息失败:", err);
+                console.error("fetch_holding_failed:", err);
+                showErrorToast(t('msg_fetch_holding_failed'));
+                handleChange('ho_id', '');
                 setQuickStartDate(prev => ({...prev, creation: ''}));
             }
         } else {
             // 如果清空了基金选择，则重置所有状态
             setNavSearchCode('');
             setQuickStartDate({creation: '', lastNav: ''});
+            handleChange('ho_id', ''); // 确保清空 ID
         }
-    }, [handleChange, getByCode]); // 依赖 handleChange 和 getByCode
+    }, [handleChange, getById, showErrorToast, t]);
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6 p-1">
@@ -117,17 +121,16 @@ export default function CrawlNetValueForm({onSubmit, onClose, initialValues}) {
                     {t('start_date')}
                 </label>
                 <div className="flex items-center gap-2">
-                    <input
-                        type="date"
+                    <MyDate
                         value={formData.start_date}
                         onChange={(e) => handleChange('start_date', e.target.value)}
-                        className="input w-42"
+                        className="input-field py-1.5 w-42"
                     />
                     {/* 开始日期的快速选项 */}
                     {quickStartDate.creation && (
                         <button
                             type="button"
-                            className="btn-link text-sm px-3 py-1.5 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+                            className="btn-subtle"
                             onClick={() => handleChange('start_date', quickStartDate.creation)}
                         >
                             {t('th_ho_establish_date')} ({quickStartDate.creation})
@@ -136,10 +139,10 @@ export default function CrawlNetValueForm({onSubmit, onClose, initialValues}) {
                     {quickStartDate.lastNav && (
                         <button
                             type="button"
-                            className="btn-link text-sm px-3 py-1.5 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+                            className="btn-subtle"
                             onClick={() => handleChange('start_date', quickStartDate.lastNav)}
                         >
-                            {t('last_nav_date')} ({quickStartDate.lastNav})
+                            {t('last_market_date')} ({quickStartDate.lastNav})
                         </button>
                     )}
                 </div>
@@ -150,16 +153,15 @@ export default function CrawlNetValueForm({onSubmit, onClose, initialValues}) {
                     {t('end_date')}
                 </label>
                 <div className="flex flex-wrap gap-3">
-                    <input
-                        type="date"
+                    <MyDate
                         value={formData.end_date}
                         onChange={(e) => handleChange('end_date', e.target.value)}
-                        className="input w-42"
+                        className="input-field py-1.5 w-42"
                     />
                     {/* 结束日期的快速选项 */}
                     <button
                         type="button"
-                        className="btn-link text-sm px-3 py-1.5 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+                        className="btn-subtle"
                         onClick={() => handleChange('end_date', getYesterdayDate())}
                     >
                         {t('yesterday')} ({getYesterdayDate()})

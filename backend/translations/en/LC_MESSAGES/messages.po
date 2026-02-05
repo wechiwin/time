@@ -197,3 +197,6 @@ msgstr "Operation failed"
 
 msgid "NO_UPLOAD_FILE"
 msgstr "No file uploaded"
+
+msgid "CRAWL_NO_INFO"
+msgstr "No data crawled"

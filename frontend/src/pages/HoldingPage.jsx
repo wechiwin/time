@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useTranslation} from "react-i18next";
 import HoldingForm from '../components/forms/HoldingForm';
 import HoldingTable from '../components/tables/HoldingTable';
@@ -12,6 +12,7 @@ import {ArrowDownTrayIcon, DocumentArrowDownIcon, PlusIcon} from "@heroicons/rea
 import SearchArea from "../components/search/SearchArea";
 import {useIsMobile} from "../hooks/useIsMobile";
 import HoldingFormMobile from "../components/forms/HoldingFormMobile";
+import ConfirmationModal from "../components/common/ConfirmationModal";
 
 export default function HoldingPage() {
     const isMobile = useIsMobile();
@@ -23,7 +24,16 @@ export default function HoldingPage() {
     const [refreshKey, setRefreshKey] = useState(0);
     const [searchParams, setSearchParams] = useState({ho_status: [], ho_type: []});
 
-    const {data, add, remove, update, importData, downloadTemplate, crawlFundInfo} = useHoldingList({
+    const {
+        data,
+        add,
+        remove,
+        checkCascadeDelete,
+        update,
+        importData,
+        downloadTemplate,
+        crawlFundInfo
+    } = useHoldingList({
         page,
         perPage,
         keyword: queryKeyword,
@@ -38,6 +48,13 @@ export default function HoldingPage() {
 
     const [hoTypeOptions, setHoTypeOptions] = useState([]);
     const [hoStatusOptions, setHoStatusOptions] = useState([]);
+    const [confirmState, setConfirmState] = useState({
+        isOpen: false,
+        holdingId: null,
+        holdingName: '',
+        cascadeInfo: null, // 存储级联信息
+        isLoading: false,
+    });
 
     useEffect(() => {
         const loadEnumValues = async () => {
@@ -119,23 +136,60 @@ export default function HoldingPage() {
         handlePageChange(1);
     }, [handlePageChange]);
 
-    const handleDelete = async (id) => {
+    // 1. 用户点击删除按钮时，触发此函数
+    const handleDeleteRequest = useCallback(async (holding) => {
+        setConfirmState({
+            isOpen: true,
+            holdingId: holding.id,
+            holdingName: `${holding.ho_code} - ${holding.ho_short_name}`,
+            cascadeInfo: null,
+            isLoading: true,
+        });
         try {
-            await remove(id);
-            showSuccessToast();
-
-            // 检查当前页数据情况，决定是否需要调整分页
+            const cascadeData = await checkCascadeDelete(holding.id);
+            setConfirmState(prev => ({ ...prev, cascadeInfo: cascadeData, isLoading: false }));
+        } catch (err) {
+            showErrorToast(err.message);
+            setConfirmState({ isOpen: false, holdingId: null, holdingName: '', cascadeInfo: null, isLoading: false });
+        }
+    }, [checkCascadeDelete, showErrorToast]);
+    // 2. 用户在模态框中点击“确认”时，触发此函数
+    const handleConfirmDelete = async () => {
+        if (!confirmState.holdingId) return;
+        setConfirmState(prev => ({ ...prev, isLoading: true }));
+        try {
+            await remove(confirmState.holdingId);
+            showSuccessToast(t('msg_delete_success'));
+            // 刷新逻辑
             if (data?.items?.length === 1 && page > 1) {
-                // 如果删除的是当前页的最后一条数据且不在第一页，则跳转到前一页
                 handlePageChange(page - 1);
             } else {
-                // 否则保持当前页并刷新数据
                 setRefreshKey(p => p + 1);
             }
         } catch (err) {
             showErrorToast(err.message);
+        } finally {
+            // 关闭并重置模态框状态
+            setConfirmState({ isOpen: false, holdingId: null, holdingName: '', cascadeInfo: null, isLoading: false });
         }
     };
+    // 3. 关闭模态框
+    const handleCancelDelete = () => {
+        setConfirmState({ isOpen: false, holdingId: null, holdingName: '', cascadeInfo: null, isLoading: false });
+    };
+    // 动态生成模态框的描述信息
+    const confirmationDescription = useMemo(() => {
+        if (!confirmState.cascadeInfo) {
+            return t('msg_delete_confirmation_simple', { name: confirmState.holdingName });
+        }
+        const details = Object.entries(confirmState.cascadeInfo)
+            .map(([key, value]) => `${value} ${t(`cascade_item_${key}`)}`) // e.g., "5 trade records"
+            .join(', ');
+        if (!details) {
+            return t('msg_delete_confirmation_simple', { name: confirmState.holdingName });
+        }
+        return t('msg_delete_confirmation_cascade', { name: confirmState.holdingName, details });
+    }, [confirmState.cascadeInfo, confirmState.holdingName, t]);
 
     const [modalConfig, setModalConfig] = useState({show: false, title: "", submitAction: null, initialValues: {}});
     const openModal = (type, values = {}) => {
@@ -204,7 +258,7 @@ export default function HoldingPage() {
                 }
             />
 
-            <HoldingTable data={data?.items || []} onDelete={handleDelete} onEdit={(item) => openModal('edit', item)}/>
+            <HoldingTable data={data?.items || []} onDelete={handleDeleteRequest} onEdit={(item) => openModal('edit', item)}/>
 
             {data?.pagination && (
                 <Pagination
@@ -222,6 +276,15 @@ export default function HoldingPage() {
                 FormComponent={isMobile ? HoldingFormMobile : HoldingForm}
                 initialValues={modalConfig.initialValues}
                 modalProps={{onCrawl: handleCrawl}}
+            />
+
+            <ConfirmationModal
+                isOpen={confirmState.isOpen}
+                onClose={handleCancelDelete}
+                onConfirm={handleConfirmDelete}
+                title={t('title_delete_confirmation')}
+                description={confirmationDescription}
+                isLoading={confirmState.isLoading}
             />
         </div>
     );

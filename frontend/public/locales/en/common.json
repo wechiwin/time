@@ -35,7 +35,7 @@
 
   "start_date": "Start Date",
   "end_date": "End Date",
-  "last_nav_date": "Last NAV Date",
+  "last_market_date": "Last Trade Date",
   "yesterday": "Yesterday",
   "tr_type_buy": "Buy",
   "tr_type_sell": "Sell",
@@ -225,6 +225,16 @@
   "th_created_at": "Create Datetime",
   "th_updated_at": "Update Datetime",
   "th_retries": "Retry Times",
-  "th_error_message": "Error Message"
+  "th_error_message": "Error Message",
+
+  "title_delete_confirmation": "Confirm Deletion",
+  "msg_delete_confirmation_simple": "Are you sure you want to delete {{name}}?",
+  "msg_delete_confirmation_cascade": "Are you sure you want to delete {{name}}? This will also permanently delete: {{details}}.",
+  "cascade_item_trades": "trade records",
+  "cascade_item_alert_rules": "alert rules",
+  "cascade_item_fund_nav_histories": "NAV history records",
+  "cascade_item_holding_snapshots": "snapshot records",
+
+  "msg_fetch_holding_failed": "Failed to fetch fund holding details."
 
 }

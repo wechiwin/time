@@ -126,13 +126,13 @@ class Holding(TimestampMixin, BaseModel):
     # industry = db.Column(db.String(100))  # 行业分类 (对股票和行业基金有用)
 
     # Relationships
-    fund_detail = db.relationship('FundDetail', back_populates='holding', uselist=False)
-    alert_rules = db.relationship('AlertRule', back_populates='holding')
-    alert_histories = db.relationship('AlertHistory', back_populates='holding')
-    holding_snapshots = db.relationship('HoldingSnapshot', back_populates='holding')
-    holding_analytics_snapshots = db.relationship('HoldingAnalyticsSnapshot', back_populates='holding')
-    fund_nav_history_list = db.relationship('FundNavHistory', back_populates='holding')
-    trades = db.relationship('Trade', back_populates='holding')
+    fund_detail = db.relationship('FundDetail', back_populates='holding', uselist=False, cascade="all, delete-orphan")
+    alert_rules = db.relationship('AlertRule', back_populates='holding', cascade="all, delete-orphan")
+    alert_histories = db.relationship('AlertHistory', back_populates='holding', cascade="all, delete-orphan")
+    holding_snapshots = db.relationship('HoldingSnapshot', back_populates='holding', cascade="all, delete-orphan")
+    holding_analytics_snapshots = db.relationship('HoldingAnalyticsSnapshot', back_populates='holding', cascade="all, delete-orphan")
+    fund_nav_history_list = db.relationship('FundNavHistory', back_populates='holding', cascade="all, delete-orphan")
+    trades = db.relationship('Trade', back_populates='holding', cascade="all, delete-orphan")
 
     # stock_detail = db.relationship('StockDetail', back_populates='holding', uselist=False)
 

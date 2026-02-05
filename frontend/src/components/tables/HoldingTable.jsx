@@ -52,10 +52,12 @@ export default function HoldingTable({data = [], onDelete, onEdit}) {
                                 >
                                     {t('button_edit')}
                                 </button>
-                                <DeleteButton
-                                    onConfirm={() => onDelete(f.ho_id)}
-                                    description={`${t('msg_delete_confirmation')} ${f.ho_code} - ${f.ho_short_name} ?`}
-                                />
+                                <button
+                                    className="btn-danger" // 建议为删除按钮使用危险色
+                                    onClick={() => onDelete(f)}
+                                >
+                                    {t('button_delete')}
+                                </button>
                             </div>
                         </td>
                     </tr>
