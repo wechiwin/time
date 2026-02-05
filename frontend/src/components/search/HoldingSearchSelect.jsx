@@ -3,6 +3,7 @@ import {useEffect, useRef, useState} from 'react';
 import SearchBox from './SearchBox';
 import useHoldingList from "../../hooks/api/useHoldingList";
 import useDebounce from "../../hooks/useDebounce";
+import {useTranslation} from "react-i18next";
 
 export default function HoldingSearchSelect({
                                                 value,
@@ -11,6 +12,7 @@ export default function HoldingSearchSelect({
                                                 disabled = false,
                                                 className = ''
                                             }) {
+    const {t} = useTranslation()
     const [list, setList] = useState([]);
     const [open, setOpen] = useState(false);
     const {data, searchPage} = useHoldingList({autoLoad: false});
@@ -129,11 +131,11 @@ export default function HoldingSearchSelect({
                         ))
                     ) : inputValue ? (
                         <div className="px-3 py-2 text-sm text-gray-400 dark:text-gray-200">
-                            无匹配基金
+                            {t('tl_no_records')}
                         </div>
                     ) : (
                         <div className="px-3 py-2 text-sm text-gray-400 dark:text-gray-200">
-                            输入基金代码或名称搜索
+                            {t('msg_search_placeholder')}
                         </div>
                     )}
                 </div>

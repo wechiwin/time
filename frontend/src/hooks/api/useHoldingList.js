@@ -54,7 +54,6 @@ export default function useHoldingList(options = {}) {
     // 搜索函数 - 业务层设置数据
     const listHolding = useCallback(async (body) => {
         const result = await post(urlPrefix + '/list_ho', body);
-        setData(result);  // 业务逻辑设置 data
         return result;
     }, [get]);
 

@@ -25,3 +25,12 @@ export function toDate(str) {
 export function toString(date) {
     return date ? date.toISOString().slice(0, 10) : '';
 }
+
+/**
+ * 4. 辅助函数：获取昨天的日期（YYYY-MM-DD 格式）
+ */
+export function getYesterdayDateString() {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday.toISOString().split('T')[0];
+};

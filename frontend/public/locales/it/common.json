@@ -35,7 +35,7 @@
 
   "start_date": "Data di inizio",
   "end_date": "Data di fine",
-  "last_nav_date": "Ultima data del valore netto",
+  "last_market_date": "Ultima data di negoziazione",
   "yesterday": "Ieri",
   "tr_type_buy": "Acquisto",
   "tr_type_sell": "Vendita",
@@ -233,6 +233,8 @@
   "cascade_item_trades": "registrazioni delle operazioni",
   "cascade_item_alert_rules": "regole di allerta",
   "cascade_item_fund_nav_histories": "cronologia del valore patrimoniale netto (NAV)",
-  "cascade_item_holding_snapshots": "registrazioni degli istantanei di portafoglio"
+  "cascade_item_holding_snapshots": "registrazioni degli istantanei di portafoglio",
+
+  "msg_fetch_holding_failed": "Impossibile recuperare i dettagli della posizione nel fondo."
 
 }

@@ -122,6 +122,7 @@ class TestingConfig(Config):
 class ProductionConfig(Config):
     JWT_AUTH_REQUIRED = True
     JWT_COOKIE_SECURE = True
+    SQLALCHEMY_ECHO = False
 
     SCHEDULER_ENABLED = True
     SCHEDULER_API_ENABLED = False

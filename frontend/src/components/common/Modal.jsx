@@ -10,7 +10,7 @@ export default function Modal({title, show, onClose, children, width}) {
 
     return (
         <Transition appear show={show} as={Fragment}>
-            <Dialog as="div" className="relative z-50" onClose={onClose}>
+            <Dialog as="div" className="relative z-modal" onClose={onClose}>
                 {/* 背景遮罩层 */}
                 <Transition.Child
                     as={Fragment}

@@ -35,7 +35,7 @@
 
   "start_date": "Start Date",
   "end_date": "End Date",
-  "last_nav_date": "Last NAV Date",
+  "last_market_date": "Last Trade Date",
   "yesterday": "Yesterday",
   "tr_type_buy": "Buy",
   "tr_type_sell": "Sell",
@@ -233,6 +233,8 @@
   "cascade_item_trades": "trade records",
   "cascade_item_alert_rules": "alert rules",
   "cascade_item_fund_nav_histories": "NAV history records",
-  "cascade_item_holding_snapshots": "snapshot records"
+  "cascade_item_holding_snapshots": "snapshot records",
+
+  "msg_fetch_holding_failed": "Failed to fetch fund holding details."
 
 }
