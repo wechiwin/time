@@ -235,6 +235,11 @@
   "cascade_item_fund_nav_histories": "NAV history records",
   "cascade_item_holding_snapshots": "snapshot records",
 
-  "msg_fetch_holding_failed": "Failed to fetch fund holding details."
-
+  "msg_fetch_holding_failed": "Failed to fetch fund holding details.",
+  "calculation_value": "Calculated value",
+  "value_mismatch_error": "Does not match input value",
+  "apply": "Apply",
+  "code_required_prompt": "Please enter a code first",
+  "field_cannot_be_empty": "Cannot be empty",
+  "end_date_cannot_be_earlier_than_start_date": "End date cannot be earlier than start date"
 }

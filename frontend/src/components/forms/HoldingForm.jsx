@@ -5,6 +5,8 @@ import {useTranslation} from "react-i18next";
 import MyDate from "../common/MyDate";
 import useCommon from "../../hooks/api/useCommon";
 import MySelect from "../common/MySelect";
+import FormField from "../common/FormField";
+import {validateForm} from "../../utils/formValidation";
 
 export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl}) {
     const [form, setForm] = useState({
@@ -43,6 +45,8 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
     const [currencyOptions, setCurrencyOptions] = useState([]);
     const [dividendOptions, setDividendOptions] = useState([]);
 
+    const [errors, setErrors] = useState({});
+
     useEffect(() => {
         const loadEnumValues = async () => {
             try {
@@ -68,49 +72,60 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
         loadEnumValues();
     }, [fetchMultipleEnumValues, showErrorToast]);
 
-    // 处理基金选择
-    const handleHoldingSelect = (holding) => {
-        if (holding) {
+    // 2. 辅助函数：处理字段变更并清除错误
+    const handleFieldChange = (field, value) => {
+        // 更新表单数据
+        if (field.includes('.')) {
+            const [parent, child] = field.split('.');
             setForm(prev => ({
                 ...prev,
-                id: holding.id || '',
-                ho_code: holding.ho_code || '',
-                ho_name: holding.ho_name || '',
-                ho_short_name: holding.ho_short_name || '',
-                ho_type: holding.ho_type || '',
-                establishment_date: holding.establishment_date || '',
-                currency: holding.currency || '',
-                fund_detail: {
-                    fund_type: holding.fund_detail?.fund_type || '',
-                    risk_level: holding.fund_detail?.risk_level || '',
-                    trade_market: holding.fund_detail?.trade_market || '',
-                    manage_exp_rate: holding.fund_detail?.manage_exp_rate || '',
-                    trustee_exp_rate: holding.fund_detail?.trustee_exp_rate || '',
-                    sales_exp_rate: holding.fund_detail?.sales_exp_rate || '',
-                    company_id: holding.fund_detail?.company_id || '',
-                    company_name: holding.fund_detail?.company_name || '',
-                    fund_manager: holding.fund_detail?.fund_manager || '',
-                    dividend_method: holding.fund_detail?.dividend_method || '',
-                    index_code: holding.fund_detail?.index_code || '',
-                    index_name: holding.fund_detail?.index_name || '',
-                    feature: holding.fund_detail?.feature || '',
-                },
+                [parent]: {...prev[parent], [child]: value}
             }));
+        } else {
+            setForm(prev => ({...prev, [field]: value}));
+        }
+
+        // 关键：用户一旦输入，就清除该字段的红色错误提示
+        if (errors[field]) {
+            setErrors(prev => {
+                const newErrors = {...prev};
+                delete newErrors[field];
+                return newErrors;
+            });
         }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // 定义必填字段
+        const requiredFields = [
+            'ho_code',
+            'ho_name',
+            'ho_short_name',
+            'fund_detail.manage_exp_rate',
+            'fund_detail.trustee_exp_rate',
+            'fund_detail.sales_exp_rate'
+        ];
+        // 3. 执行验证
+        const {isValid, errors: newErrors} = validateForm(form, requiredFields, t);
+
+        if (!isValid) {
+            setErrors(newErrors); // 设置错误状态，触发红框
+            // showErrorToast(t('validation_failed_msg')); // 可选：弹一个总的提示
+            return;
+        }
+
         try {
-            // 验证必填字段
-            if (!form.ho_code) {
-                showErrorToast('基金代码不能为空');
-                return;
-            }
-            if (!form.ho_name) {
-                showErrorToast('基金名称不能为空');
-                return;
-            }
+            // // 验证必填字段
+            // if (!form.ho_code) {
+            //     showErrorToast('基金代码不能为空');
+            //     return;
+            // }
+            // if (!form.ho_name) {
+            //     showErrorToast('基金名称不能为空');
+            //     return;
+            // }
 
             await onSubmit(form);
             // 重置表单
@@ -148,7 +163,7 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
     };
 
     const handleCrawl = () => {
-        if (!form.ho_code) return showErrorToast('请先输入基金代码');
+        if (!form.ho_code) return showErrorToast(t('code_required_prompt'));
         console.log(form)
         // 把当前表单 setForm 传进去，方便回调里直接 setState
         onCrawl(form.ho_code, (patch) =>
@@ -192,280 +207,216 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
         <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* 基金搜索选择器 - 只在新增时显示 */}
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_ho_code')}</label>
+                <FormField label={t('th_ho_code')} error={errors['ho_code']} required>
                     <input
                         placeholder={t('th_ho_code')}
                         value={form.ho_code}
-                        onChange={(e) => setForm({...form, ho_code: e.target.value})}
-                        required
+                        onChange={(e) => handleFieldChange('ho_code', e.target.value)}
                         className={`input-field ${initialValues?.id ? 'read-only-input' : ''}`}
                         readOnly={!!initialValues?.id}
                     />
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_ho_name')}</label>
+                </FormField>
+
+                <FormField
+                    label={t('th_ho_name')}
+                    error={errors['ho_name']}
+                    required
+                >
                     <input
                         placeholder={t('th_ho_name')}
                         value={form.ho_name}
-                        onChange={(e) => setForm({...form, ho_name: e.target.value})}
-                        required
+                        onChange={(e) => handleFieldChange('ho_name', e.target.value)}
                         className="input-field"
                     />
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_ho_short_name')}</label>
+                </FormField>
+
+                <FormField
+                    label={t('th_ho_short_name')}
+                    error={errors['ho_short_name']}
+                    required
+                >
                     <input
                         placeholder={t('th_ho_short_name')}
                         value={form.ho_short_name}
-                        onChange={(e) => setForm({...form, ho_short_name: e.target.value})}
-                        required
+                        onChange={(e) => handleFieldChange('ho_short_name', e.target.value)}
                         className="input-field"
                     />
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_ho_nickname')}</label>
+                </FormField>
+
+                {/* 非必填项，不传 error 和 required 即可 */}
+                <FormField label={t('th_ho_nickname')}>
                     <input
                         placeholder={t('th_ho_nickname')}
                         value={form.ho_nickname}
-                        onChange={(e) => setForm({...form, ho_nickname: e.target.value})}
+                        onChange={(e) => handleFieldChange('ho_nickname', e.target.value)}
                         className="input-field"
                     />
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_ho_type')}</label>
+                </FormField>
+
+                <FormField label={t('th_ho_type')}>
                     <MySelect
                         options={hoTypeOptions}
                         value={form.ho_type}
-                        onChange={(val) => setForm({...form, ho_type: val})}
+                        onChange={(val) => handleFieldChange('ho_type', val)}
                         className="input-field"
                     />
-                    {/* <select */}
-                    {/*     value={form.ho_type} */}
-                    {/*     onChange={(e) => setForm({...form, ho_type: e.target.value})} */}
-                    {/*     className="input-field" */}
-                    {/* > */}
-                    {/*     {hoTypeOptions.map((o) => ( */}
-                    {/*         <option key={o.value} value={o.value}>{o.label}</option> */}
-                    {/*     ))} */}
-                    {/* </select> */}
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">
-                        {t('th_ho_establish_date')}
-                    </label>
+                </FormField>
+
+                <FormField label={t('th_ho_establish_date')}>
                     <MyDate
                         value={form.establishment_date}
-                        onChange={(dateStr) => setForm({...form, establishment_date: dateStr})}
+                        onChange={(dateStr) => handleFieldChange('establishment_date', dateStr)}
                         className="input-field"
                     />
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_ho_manage_exp_rate')}</label>
+                </FormField>
+
+                {/* 嵌套字段示例 */}
+                <FormField
+                    label={t('th_ho_manage_exp_rate')}
+                    error={errors['fund_detail.manage_exp_rate']}
+                    required
+                >
                     <input
                         type="number"
                         step="0.0001"
                         placeholder={t('th_ho_manage_exp_rate')}
-                        required
                         value={form.fund_detail.manage_exp_rate}
-                        onChange={(e) => setForm({
-                            ...form,
-                            fund_detail: {...form.fund_detail, manage_exp_rate: e.target.value}
-                        })}
+                        onChange={(e) => handleFieldChange('fund_detail.manage_exp_rate', e.target.value)}
                         className="input-field"
                     />
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_ho_trustee_exp_rate')}</label>
+                </FormField>
+
+                <FormField
+                    label={t('th_ho_trustee_exp_rate')}
+                    error={errors['fund_detail.trustee_exp_rate']}
+                    required
+                >
                     <input
                         type="number"
                         step="0.0001"
                         placeholder={t('th_ho_trustee_exp_rate')}
-                        required
                         value={form.fund_detail.trustee_exp_rate}
-                        onChange={(e) => setForm({
-                            ...form,
-                            fund_detail: {...form.fund_detail, trustee_exp_rate: e.target.value}
-                        })}
+                        onChange={(e) => handleFieldChange('fund_detail.trustee_exp_rate', e.target.value)}
                         className="input-field"
                     />
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_ho_sales_exp_rate')}</label>
+                </FormField>
+
+                <FormField
+                    label={t('th_ho_sales_exp_rate')}
+                    error={errors['fund_detail.sales_exp_rate']}
+                    required
+                >
                     <input
                         type="number"
                         step="0.0001"
                         placeholder={t('th_ho_sales_exp_rate')}
-                        required
                         value={form.fund_detail.sales_exp_rate}
-                        onChange={(e) => setForm({
-                            ...form,
-                            fund_detail: {...form.fund_detail, sales_exp_rate: e.target.value}
-                        })}
+                        onChange={(e) => handleFieldChange('fund_detail.sales_exp_rate', e.target.value)}
                         className="input-field"
                     />
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_currency')}</label>
+                </FormField>
+
+                <FormField label={t('th_currency')}>
                     <MySelect
                         options={currencyOptions}
                         value={form.currency}
                         onChange={(val) => setForm({...form, currency: val})}
                         className="input-field"
                     />
-                    {/* <select */}
-                    {/*     value={form.currency} */}
-                    {/*     onChange={(e) => setForm({...form, currency: e.target.value})} */}
-                    {/*     className="input-field" */}
-                    {/* > */}
-                    {/*     {currencyOptions.map((o) => ( */}
-                    {/*         <option key={o.value} value={o.value}>{o.label}</option> */}
-                    {/*     ))} */}
-                    {/* </select> */}
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_risk_level')}</label>
+                </FormField>
+
+                <FormField label={t('th_risk_level')}>
                     <input
                         type="number"
                         min="1"
                         max="5"
                         placeholder={t('th_risk_level')}
                         value={form.fund_detail.risk_level}
-                        onChange={(e) => setForm({
-                            ...form,
-                            fund_detail: {...form.fund_detail, risk_level: e.target.value}
-                        })}
+                        onChange={(e) => handleFieldChange('fund_detail.risk_level', e.target.value)}
                         className="input-field"
                     />
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_fund_type')}</label>
+                </FormField>
+
+                <FormField label={t('th_fund_type')}>
                     <input
                         placeholder={t('th_fund_type')}
                         value={form.fund_detail.fund_type}
-                        onChange={(e) => setForm({
-                            ...form,
-                            fund_detail: {...form.fund_detail, fund_type: e.target.value}
-                        })}
+                        onChange={(e) => handleFieldChange('fund_detail.fund_type', e.target.value)}
                         className="input-field"
                     />
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_trade_market')}</label>
+                </FormField>
+
+                <FormField label={t('th_trade_market')}>
                     <MySelect
                         options={tradeMarketOptions}
                         value={form.fund_detail.trade_market}
-                        onChange={(val) => setForm({
-                            ...form,
-                            fund_detail: {...form.fund_detail, trade_market: val}
-                        })}
+                        onChange={(val) => handleFieldChange('fund_detail.trade_market', val)}
                         className="input-field"
                     />
-                    {/* <select */}
-                    {/*     value={form.trade_market} */}
-                    {/*     onChange={(e) => setForm({...form, trade_market: e.target.value})} */}
-                    {/*     className="input-field" */}
-                    {/* > */}
-                    {/*     {tradeMarketOptions.map((o) => ( */}
-                    {/*         <option key={o.value} value={o.value}>{o.label}</option> */}
-                    {/*     ))} */}
-                    {/* </select> */}
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_dividend_method')}</label>
+                </FormField>
+
+                <FormField label={t('th_dividend_method')}>
                     <MySelect
                         options={dividendOptions}
                         value={form.fund_detail.dividend_method}
-                        onChange={(val) => setForm({
-                            ...form,
-                            fund_detail: {...form.fund_detail, dividend_method: val}
-                        })}
+                        onChange={(val) => handleFieldChange('fund_detail.dividend_method', val)}
                         className="input-field"
                     />
-                    {/* <select */}
-                    {/*     value={form.trade_market} */}
-                    {/*     onChange={(e) => setForm({...form, trade_market: e.target.value})} */}
-                    {/*     className="input-field" */}
-                    {/* > */}
-                    {/*     {tradeMarketOptions.map((o) => ( */}
-                    {/*         <option key={o.value} value={o.value}>{o.label}</option> */}
-                    {/*     ))} */}
-                    {/* </select> */}
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_company_id')}</label>
+                </FormField>
+
+                <FormField label={t('th_company_id')}>
                     <input
                         placeholder={t('th_company_id')}
                         value={form.fund_detail.company_id}
-                        onChange={(e) => setForm({
-                            ...form,
-                            fund_detail: {...form.fund_detail, company_id: e.target.value}
-                        })}
+                        onChange={(e) => handleFieldChange('fund_detail.company_id', e.target.value)}
                         className="input-field"
                     />
-                </div>
+                </FormField>
 
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_company_name')}</label>
+                <FormField label={t('th_company_name')}>
                     <input
                         placeholder={t('th_company_name')}
                         value={form.fund_detail.company_name}
-                        onChange={(e) => setForm({
-                            ...form,
-                            fund_detail: {...form.fund_detail, company_name: e.target.value}
-                        })}
+                        onChange={(e) => handleFieldChange('fund_detail.company_name', e.target.value)}
                         className="input-field"
                     />
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_fund_manager')}</label>
+                </FormField>
+
+                <FormField label={t('th_fund_manager')}>
                     <input
                         placeholder={t('th_fund_manager')}
                         value={form.fund_detail.fund_manager}
-                        onChange={(e) => setForm({
-                            ...form,
-                            fund_detail: {...form.fund_detail, fund_manager: e.target.value}
-                        })}
+                        onChange={(e) => handleFieldChange('fund_detail.fund_manager', e.target.value)}
                         className="input-field"
                     />
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_index_code')}</label>
+                </FormField>
+
+                <FormField label={t('th_index_code')}>
                     <input
                         placeholder={t('th_index_code')}
                         value={form.fund_detail.index_code}
-                        onChange={(e) => setForm({
-                            ...form,
-                            fund_detail: {...form.fund_detail, index_code: e.target.value}
-                        })}
+                        onChange={(e) => handleFieldChange('fund_detail.index_code', e.target.value)}
                         className="input-field"
                     />
-                </div>
+                </FormField>
 
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_index_name')}</label>
+                <FormField label={t('th_index_name')}>
                     <input
                         placeholder={t('th_index_name')}
                         value={form.fund_detail.index_name}
-                        onChange={(e) => setForm({
-                            ...form,
-                            fund_detail: {...form.fund_detail, index_name: e.target.value}
-                        })}
+                        onChange={(e) => handleFieldChange('fund_detail.index_name', e.target.value)}
                         className="input-field"
                     />
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_feature')}</label>
+                </FormField>
+
+                <FormField label={t('th_feature')}>
                     <input
                         placeholder={t('th_feature')}
                         value={form.fund_detail.feature}
-                        onChange={(e) => setForm({
-                            ...form,
-                            fund_detail: {...form.fund_detail, feature: e.target.value}
-                        })}
+                        onChange={(e) => handleFieldChange('fund_detail.feature', e.target.value)}
                         className="input-field"
                     />
-                </div>
+                </FormField>
             </div>
             <div className="flex justify-end space-x-2 pt-2">
                 <p className="text-s text-gray-500 mt-1">

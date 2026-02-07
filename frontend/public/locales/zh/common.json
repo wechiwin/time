@@ -238,6 +238,11 @@
   "cascade_item_fund_nav_histories": "单位净值（NAV）历史记录",
   "cascade_item_holding_snapshots": "持仓快照记录",
 
-  "msg_fetch_holding_failed": "获取基金详情失败"
-
+  "msg_fetch_holding_failed": "获取基金详情失败",
+  "calculation_value": "计算值",
+  "value_mismatch_error": "与输入值不符",
+  "apply": "应用",
+  "code_required_prompt": "请先输入代码",
+  "field_cannot_be_empty": "不能为空",
+  "end_date_cannot_be_earlier_than_start_date": "结束日期不能早于开始日期"
 }

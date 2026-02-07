@@ -235,6 +235,11 @@
   "cascade_item_fund_nav_histories": "cronologia del valore patrimoniale netto (NAV)",
   "cascade_item_holding_snapshots": "registrazioni degli istantanei di portafoglio",
 
-  "msg_fetch_holding_failed": "Impossibile recuperare i dettagli della posizione nel fondo."
-
+  "msg_fetch_holding_failed": "Impossibile recuperare i dettagli della posizione nel fondo.",
+  "calculation_value": "Valore calcolato",
+  "value_mismatch_error": "Non corrisponde al valore inserito",
+  "apply": "Applica",
+  "code_required_prompt": "Inserisci prima un codice",
+  "field_cannot_be_empty": "Non può essere vuoto",
+  "end_date_cannot_be_earlier_than_start_date": "La data di fine non può essere anteriore alla data di inizio"
 }

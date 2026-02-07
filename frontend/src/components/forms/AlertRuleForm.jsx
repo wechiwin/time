@@ -4,6 +4,8 @@ import {useTranslation} from "react-i18next";
 import HoldingSearchSelect from "../search/HoldingSearchSelect";
 import useCommon from "../../hooks/api/useCommon";
 import MySelect from "../common/MySelect";
+import FormField from "../common/FormField";
+import {validateForm} from "../../utils/formValidation";
 
 export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
     const [form, setForm] = useState({
@@ -22,6 +24,7 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
 
     const {fetchMultipleEnumValues} = useCommon();
     const [actionOptions, setActionOptions] = useState([]);
+    const [errors, setErrors] = useState({});
 
     useEffect(() => {
         const loadEnumValues = async () => {
@@ -69,8 +72,34 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
         }
     }, [form.ho_short_name, form.action, form.target_price, t, isEditMode]);
 
+    // 2. 辅助函数：清除指定字段的错误
+    const clearError = (field) => {
+        if (errors[field]) {
+            setErrors(prev => {
+                const newErrors = {...prev};
+                delete newErrors[field];
+                return newErrors;
+            });
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // 定义必填字段
+        const requiredFields = [
+            'ho_code',
+            'target_price',
+        ];
+        // 3. 执行验证
+        const {isValid, errors: newErrors} = validateForm(form, requiredFields, t);
+
+        if (!isValid) {
+            setErrors(newErrors); // 设置错误状态，触发红框
+            // showErrorToast(t('validation_failed_msg')); // 可选：弹一个总的提示
+            return;
+        }
+
         try {
             await onSubmit(form);
             showSuccessToast();
@@ -100,6 +129,7 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
         : form.ho_code;
 
     const handleFundSelectChange = (fund) => {
+        clearError('ho_code');
         if (fund) {
             setForm(prev => ({
                 ...prev,
@@ -119,8 +149,7 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_ho_code')}</label>
+                <FormField label={t('th_ho_code')} error={errors['ho_code']} required>
                     {isEditMode ? (
                         // 编辑模式下显示只读输入框
                         <input
@@ -138,7 +167,7 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
                             placeholder={t('th_ho_code')}
                         />
                     )}
-                </div>
+                </FormField>
                 {/* 基金名称只读输入框 */}
                 <div className="flex flex-col">
                     <label className="text-sm font-medium mb-1">{t('th_ho_short_name')}</label>
@@ -150,8 +179,8 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
                         className="input-field bg-gray-100 cursor-not-allowed dark:bg-gray-700"
                     />
                 </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_ar_name')}</label>
+
+                <FormField label={t('th_ar_name')}>
                     <input
                         placeholder={t('th_ar_name')}
                         value={form.ar_name}
@@ -160,7 +189,8 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
                         readOnly
                         className="input-field bg-gray-100 cursor-not-allowed dark:bg-gray-700"
                     />
-                </div>
+                </FormField>
+
                 <div className="flex flex-col">
                     <label className="text-sm font-medium mb-1">{t('alert_type')}</label>
                     <MySelect
@@ -170,18 +200,22 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
                         className="input-field"
                     />
                 </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('alert_target_price')}</label>
+
+                <FormField label={t('alert_target_price')} error={errors['target_price']} required>
                     <input
                         type="number"
                         step="0.0001"
                         placeholder={t('alert_target_price')}
                         value={form.target_price}
-                        onChange={(e) => setForm({...form, target_price: parseFloat(e.target.value)})}
-                        required
+                        onChange={(e) => {
+                            // 5. 输入时清除错误
+                            clearError('target_price');
+                            setForm({...form, target_price: parseFloat(e.target.value)})
+                        }}
                         className="input-field"
                     />
-                </div>
+                </FormField>
+
                 <div className="flex flex-col">
                     <label className="text-sm font-medium mb-1">{t('alert_status')}</label>
                     <select

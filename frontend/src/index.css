@@ -494,6 +494,70 @@
         @apply ring-blue-500 border-blue-500;
     }
 
+    /* =========================================
+   自定义滚动条样式 - 适配暗黑模式
+   ========================================= */
+    /* Firefox 滚动条样式 */
+    .table-container,
+    main {
+        scrollbar-width: thin;
+        scrollbar-color: rgb(209 213 219) rgb(243 244 246); /* gray-300 gray-100 */
+    }
+
+    .dark .table-container,
+    .dark main {
+        scrollbar-color: rgb(75 85 99) rgb(31 41 55); /* gray-600 gray-800 */
+    }
+
+    /* Webkit 浏览器滚动条样式 (Chrome, Safari, Edge) */
+    .table-container::-webkit-scrollbar,
+    main::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    .table-container::-webkit-scrollbar-track,
+    main::-webkit-scrollbar-track {
+        background: rgb(243 244 246); /* gray-100 */
+        border-radius: 4px;
+    }
+
+    .dark .table-container::-webkit-scrollbar-track,
+    .dark main::-webkit-scrollbar-track {
+        background: rgb(31 41 55); /* gray-800 */
+        border-radius: 4px;
+    }
+
+    .table-container::-webkit-scrollbar-thumb,
+    main::-webkit-scrollbar-thumb {
+        background: rgb(209 213 219); /* gray-300 */
+        border-radius: 4px;
+    }
+
+    .dark .table-container::-webkit-scrollbar-thumb,
+    .dark main::-webkit-scrollbar-thumb {
+        background: rgb(75 85 99); /* gray-600 */
+        border-radius: 4px;
+    }
+
+    .table-container::-webkit-scrollbar-thumb:hover,
+    main::-webkit-scrollbar-thumb:hover {
+        background: rgb(156 163 175); /* gray-400 */
+    }
+
+    .dark .table-container::-webkit-scrollbar-thumb:hover,
+    .dark main::-webkit-scrollbar-thumb:hover {
+        background: rgb(107 114 128); /* gray-500 */
+    }
+
+    /* 确保滚动条在需要时显示 */
+    .table-container {
+        overflow-x: auto;
+    }
+
+    main {
+        overflow-y: auto;
+    }
 
     /* 移动端优化 */
     @media (max-width: 768px) {

@@ -10,6 +10,9 @@ import HoldingSearchSelect from "../search/HoldingSearchSelect";
 import {roundNumber} from "../../utils/numberFormatters";
 import {ExclamationTriangleIcon, CheckCircleIcon} from "@heroicons/react/24/outline";
 import {EventSourcePolyfill} from 'event-source-polyfill';
+import FormField from "../common/FormField";
+import WarningBubble from "../common/WarningBubble";
+import {validateForm} from "../../utils/formValidation";
 
 const init = {
     id: '',
@@ -24,42 +27,6 @@ const init = {
     tr_fee: '',
     cash_amount: '',
     dividend_type: null,
-};
-
-// 气泡提示组件
-const WarningBubble = ({warning, onApply}) => {
-    if (!warning) return null;
-
-    // 解构 warning 对象，兼容旧逻辑（如果只是字符串）
-    const message = typeof warning === 'string' ? warning : warning.message;
-    const suggestedValue = typeof warning === 'object' ? warning.suggestedValue : null;
-
-    return (
-        <div className="absolute z-20 left-0 -bottom-1 translate-y-full w-full">
-            <div
-                className="relative bg-orange-50 border border-orange-200 text-orange-800 text-xs rounded-md p-2 shadow-lg flex flex-col gap-1">
-                {/* 小三角箭头 */}
-                <div
-                    className="absolute -top-1.5 left-4 w-3 h-3 bg-orange-50 border-t border-l border-orange-200 transform rotate-45"></div>
-                <div className="flex items-start gap-1.5">
-                    <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0 mt-0.5 text-orange-600"/>
-                    <span className="leading-tight">{message}</span>
-                </div>
-
-                {/* 应用按钮：只有存在建议值时才显示 */}
-                {suggestedValue !== null && suggestedValue !== undefined && (
-                    <button
-                        type="button"
-                        onClick={() => onApply(suggestedValue)}
-                        className="mt-1 flex items-center justify-center gap-1 w-full bg-orange-100 hover:bg-orange-200 text-orange-700 py-1 px-2 rounded transition-colors text-xs font-medium border border-orange-200"
-                    >
-                        <CheckCircleIcon className="w-3.5 h-3.5"/>
-                        应用 {suggestedValue}
-                    </button>
-                )}
-            </div>
-        </div>
-    );
 };
 
 export default function TradeForm({onSubmit, onClose, initialValues}) {
@@ -77,6 +44,8 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
     const {fetchEnum} = useCommon();
     const [typeOptions, setTypeOptions] = useState([]);
     const [dividendTypeOptions, setDividendTypeOptions] = useState([]); // 新增：分红类型选项
+
+    const [errors, setErrors] = useState({});
 
     useEffect(() => {
         const loadEnumValues = async () => {
@@ -119,7 +88,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
             const calcAmount = roundNumber(nav * shares, 2);
             if (Math.abs(calcAmount - amount) > 0.05) {
                 newWarnings.tr_amount = {
-                    message: `计算值 (${calcAmount}) 与输入值不符`,
+                    message: `${t('calculation_value')} (${calcAmount}) ${t('value_mismatch_error')}`,
                     suggestedValue: calcAmount
                 };
             }
@@ -140,7 +109,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
 
             if (expectedCash !== null && Math.abs(expectedCash - cash) > 0.05) {
                 newWarnings.cash_amount = {
-                    message: `计算值 (${expectedCash}) 与输入值不符`,
+                    message: `${t('calculation_value')} (${expectedCash}) ${t('value_mismatch_error')}`,
                     suggestedValue: expectedCash
                 };
             }
@@ -339,6 +308,27 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
         // 禁用按钮防止重复提交
         setUploading(true);
 
+        // 定义必填字段
+        const requiredFields = [
+            'ho_code',
+            'tr_type',
+            'tr_date',
+            'dividend_type',
+            'tr_nav_per_unit',
+            'tr_shares',
+            'tr_amount',
+            'tr_fee',
+            'cash_amount',
+        ];
+        // 3. 执行验证
+        const {isValid, errors: newErrors} = validateForm(form, requiredFields, t);
+
+        if (!isValid) {
+            setErrors(newErrors); // 设置错误状态，触发红框
+            // showErrorToast(t('validation_failed_msg')); // 可选：弹一个总的提示
+            return;
+        }
+
         try {
             await onSubmit(form);
         } catch (err) {
@@ -386,16 +376,10 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
 
     return (
         <form onSubmit={submit} className="p-3 sm:p-4 page-bg rounded-lg">
-            {/*
-               --- 改进点 1: 紧凑布局 ---
-               手机端使用 grid-cols-2，gap-3
-               通过 col-span-2 控制全宽字段
-            */}
             <div className="grid grid-cols-2 gap-3 sm:gap-4">
 
                 {/* 基金代码 - 全宽 */}
-                <div className="col-span-2 flex flex-col">
-                    <label className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_ho_code')}</label>
+                <FormField label={t('th_ho_code')} error={errors['ho_code']} required>
                     <HoldingSearchSelect
                         value={holdingSelectValue}
                         onChange={handleFundSelectChange}
@@ -403,79 +387,67 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                         disabled={isEditMode}
                         className="w-full text-sm"
                     />
-                </div>
+                </FormField>
 
                 {/* 交易类型 - 半宽 */}
-                <div className="col-span-1 flex flex-col">
-                    <label className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_tr_type')}</label>
+                <FormField label={t('th_tr_type')}>
                     <MySelect
                         options={typeOptions}
                         value={form.tr_type}
                         onChange={(val) => handleFieldChange('tr_type', val)}
                         className="input-field text-sm py-1.5" // 稍微减小内边距
                     />
-                </div>
+                </FormField>
 
                 {/* 交易日期 - 半宽 */}
-                <div className="col-span-1 flex flex-col">
-                    <label className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_nav_date')}</label>
+                <FormField label={t('th_nav_date')} error={errors['ho_code']} required>
                     <MyDate
                         value={form.tr_date}
                         onChange={(dateStr) => setForm({...form, tr_date: dateStr})}
                         className="input-field text-sm py-1.5"
                     />
-                </div>
+                </FormField>
+
                 {/* 分红类型 - 条件显示 */}
                 {isDividend && (
-                    <div className="col-span-2">
-                        <label
-                            className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_dividend_type', 'Dividend Type')}</label>
+                    <FormField label={t('th_dividend_type')}>
                         <MySelect options={dividendTypeOptions} value={form.dividend_type}
                                   onChange={(val) => handleFieldChange('dividend_type', val)}
                                   className="input-field text-sm py-1.5"/>
-                    </div>
+                    </FormField>
                 )}
                 {showReinvestFields && (
                     <>
                         {/* 净值 - 半宽 */}
-                        <div className="col-span-1 flex flex-col">
-                            <label
-                                className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_tr_nav_per_unit')}</label>
+                        <FormField label={t('th_tr_nav_per_unit')} error={errors['tr_nav_per_unit']} required>
                             <input
                                 type="number"
                                 step="0.0001"
                                 placeholder="0.0000"
-                                required
                                 value={form.tr_nav_per_unit}
                                 onChange={(e) => setForm({...form, tr_nav_per_unit: e.target.value})}
                                 className="input-field text-sm py-1.5"
                             />
-                        </div>
+                        </FormField>
 
                         {/* 份额 - 半宽 */}
-                        <div className="col-span-1 flex flex-col">
-                            <label
-                                className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_tr_shares')}</label>
+                        <FormField label={t('th_tr_shares')} error={errors['tr_shares']} required>
                             <input
                                 type="number"
                                 step="0.0001"
                                 placeholder="0.00"
-                                required
                                 value={form.tr_shares}
                                 onChange={(e) => setForm({...form, tr_shares: e.target.value})}
                                 className="input-field text-sm py-1.5"
                             />
-                        </div>
+                        </FormField>
 
                         {/* 交易金额 - 半宽 (带校验) */}
-                        <div className="col-span-1 flex flex-col relative">
-                            <label
-                                className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_tr_amount')}</label>
+                        <FormField label={t('th_tr_amount')} error={errors['tr_amount']} required>
                             <input
                                 type="number"
                                 step="0.0001"
                                 placeholder="0.00"
-                                required
                                 value={form.tr_amount}
                                 onChange={(e) => handleFieldChange('tr_amount', e.target.value)}
                                 className={`input-field text-sm py-1.5 ${warnings.tr_amount ? 'border-orange-500 focus:ring-orange-500 focus:border-orange-500' : ''}`}
@@ -484,34 +456,28 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                                 warning={warnings.tr_amount}
                                 onApply={(val) => handleApplyFix('tr_amount', val)}
                             />
-                        </div>
+                        </FormField>
 
                         {/* 费用 - 半宽 */}
-                        <div className="col-span-1 flex flex-col">
-                            <label
-                                className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_tr_fee')}</label>
+                        <FormField label={t('th_tr_fee')} error={errors['tr_fee']} required>
                             <input
                                 type="number"
                                 step="0.0001"
                                 placeholder="0.00"
-                                required
                                 value={form.tr_fee}
                                 onChange={(e) => handleFieldChange('tr_fee', e.target.value)}
                                 className="input-field text-sm py-1.5"
                             />
-                        </div>
+                        </FormField>
                     </>
                 )}
                 {/* 结算金额 - 全宽 (带校验) */}
                 {showCashAmountField && (
-                    <div className="col-span-2 flex flex-col relative">
-                        <label
-                            className="text-xs sm:text-sm font-medium mb-1 text-gray-700">{t('th_cash_amount')}</label>
+                    <FormField label={t('th_cash_amount')} error={errors['cash_amount']} required>
                         <input
                             type="number"
                             step="0.0001"
                             placeholder="0.00"
-                            required
                             value={form.cash_amount}
                             onChange={(e) => setForm({...form, cash_amount: e.target.value})}
                             className={`input-field text-sm py-1.5 font-semibold bg-gray-50 ${warnings.cash_amount ? 'border-orange-500 focus:ring-orange-500 focus:border-orange-500' : ''}`}
@@ -520,7 +486,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                             warning={warnings.cash_amount}
                             onApply={(val) => handleApplyFix('cash_amount', val)}
                         />
-                    </div>
+                    </FormField>
                 )}
             </div>
             <div className="flex flex-col sm:flex-row sm:justify-end space-y-2 sm:space-y-0 sm:space-x-2 pt-2">

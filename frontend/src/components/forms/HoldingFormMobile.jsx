@@ -110,7 +110,7 @@ export default function HoldingFormMobile({onSubmit, onClose, initialValues, onC
     };
 
     const handleCrawl = () => {
-        if (!form.ho_code) return showErrorToast('请先输入基金代码');
+        if (!form.ho_code) return showErrorToast(t('code_required_prompt'));
         onCrawl(form.ho_code, (patch) => setForm((prev) => ({...prev, ...patch})));
     };
 
