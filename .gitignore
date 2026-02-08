@@ -10,4 +10,4 @@ logs
 .env.local
 .python-version
 .flaskenv
-.mo
+*.mo

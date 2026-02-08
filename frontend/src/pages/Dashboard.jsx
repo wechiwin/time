@@ -58,14 +58,42 @@ export default function Dashboard() {
     const allocation = summaryData?.allocation ?? [];
     const alerts = summaryData?.alerts ?? [];
 
+    // 辅助函数：处理持仓数据聚合（如果超过10个）
+    const processedAllocation = useMemo(() => {
+        if (!allocation || allocation.length === 0) return [];
+        // A. 先按权重降序排序 (解决之前显示 - 的问题)
+        const sorted = [...allocation].sort((a, b) => {
+            const ratioA = parseFloat(a.has_position_ratio) || 0;
+            const ratioB = parseFloat(b.has_position_ratio) || 0;
+            return ratioB - ratioA;
+        });
+        // B. 如果超过 10 个，聚合为 Others
+        if (sorted.length <= 10) return sorted;
+        const topHoldings = sorted.slice(0, 9);
+        const others = sorted.slice(9);
+        // C. 计算聚合值
+        const otherTotalRatio = others.reduce((sum, item) => sum + (parseFloat(item.has_position_ratio) || 0), 0);
+        const otherTotalPnl = others.reduce((sum, item) => sum + (parseFloat(item.has_cumulative_pnl) || 0), 0);
+        const otherContribution = others.reduce((sum, item) => sum + (parseFloat(item.has_portfolio_contribution) || 0), 0);
+        topHoldings.push({
+            ho_code: 'OTHERS',
+            ho_short_name: t('others'), // 确保 i18n 中有 'others' 翻译
+            has_position_ratio: otherTotalRatio,
+            has_cumulative_pnl: otherTotalPnl,
+            has_portfolio_contribution: otherContribution,
+            isOthers: true
+        });
+        return topHoldings;
+    }, [allocation, t]);
+
     // Memoized chart options
     const lineOption = useMemo(() =>
             getLineOption(trend, isDarkMode, t('msg_no_records')),
         [trend, isDarkMode, t]
     );
     const pieOption = useMemo(() =>
-            getPieOption(allocation, isDarkMode, t('msg_no_records'), highlightedIndex),
-        [allocation, isDarkMode, highlightedIndex, t]
+            getPieOption(processedAllocation, isDarkMode, t('msg_no_records'), highlightedIndex),
+        [processedAllocation, isDarkMode, highlightedIndex, t]
     );
 
     // 联动高亮效果
@@ -119,6 +147,7 @@ export default function Dashboard() {
         const {win, days} = TIME_RANGE_CONFIG[timeRange] || DEFAULT_RANGE_PARAMS;
         refetch(days, win);
     };
+
 
     const windowName = t(TIME_RANGE_CONFIG[timeRange]?.i18nKey || DEFAULT_RANGE_PARAMS.i18nKey);
 
@@ -294,47 +323,59 @@ export default function Dashboard() {
                             {/* 列表容器 */}
                             <div className="mt-4 flex flex-col">
                                 {/* 列表项 */}
-                                <div className="space-y-1 max-h-48 overflow-y-auto pr-1 custom-scrollbar mt-2">
-                                    {allocation.map((item, index) => (
-                                        <div
+                                <div className="space-y-1 max-h-64 overflow-y-auto pr-1 custom-scrollbar mt-2">
+                                    {processedAllocation.map((item, index) => (
+                                        <AllocationListItem
                                             key={item.ho_code}
-                                            className={`flex justify-between items-center text-sm p-2 rounded-md transition-colors duration-200 ${
-                                                highlightedIndex === index ? 'bg-gray-100 dark:bg-gray-700/50' : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'
-                                            }`}
-                                            onMouseEnter={() => setHighlightedIndex(index)}
-                                            onMouseLeave={() => setHighlightedIndex(null)}
-                                        >
-                                            {/* 左栏: 占比 */}
-                                            <div
-                                                className="w-14 text-left text-gray-800 dark:text-gray-200">
-                                                {/* 使用不带符号的百分比格式化 */}
-                                                {formatPercentNeutral(item.has_position_ratio)}
-                                            </div>
-
-                                            {/* 中栏: 名称/代码 */}
-                                            <div className="flex-1 min-w-0 mx-2">
-                                                <p className="text-gray-800 dark:text-gray-200 font-medium truncate"
-                                                   title={item.ho_short_name}>
-                                                    {item.ho_short_name}
-                                                </p>
-                                                <p className="text-xs text-gray-400">{item.ho_code}</p>
-                                            </div>
-
-                                            {/* 右栏: 盈亏/贡献 */}
-                                            <div className="w-24 text-right flex-shrink-0">
-                                                <div
-                                                    className={`font-semibold font-mono ${getColor(item.has_cumulative_pnl)}`}>
-                                                    {formatCurrency(item.has_cumulative_pnl)}
-                                                </div>
-                                                <div
-                                                    className={`text-xs font-mono ${getColor(item.has_portfolio_contribution)}`}>
-                                                    {/* 贡献度是带符号的百分比 */}
-                                                    {formatRatioAsPercent(item.has_portfolio_contribution)}
-                                                </div>
-                                            </div>
-                                        </div>
+                                            item={item}
+                                            index={index}
+                                            isHighlighted={highlightedIndex === index}
+                                            onHover={setHighlightedIndex}
+                                            t={t}
+                                        />
                                     ))}
                                 </div>
+                                {/* <div className="space-y-1 max-h-48 overflow-y-auto pr-1 custom-scrollbar mt-2"> */}
+                                {/*     {allocation.map((item, index) => ( */}
+                                {/*         <div */}
+                                {/*             key={item.ho_code} */}
+                                {/*             className={`flex justify-between items-center text-sm p-2 rounded-md transition-colors duration-200 ${ */}
+                                {/*                 highlightedIndex === index ? 'bg-gray-100 dark:bg-gray-700/50' : 'hover:bg-gray-50 dark:hover:bg-gray-700/30' */}
+                                {/*             }`} */}
+                                {/*             onMouseEnter={() => setHighlightedIndex(index)} */}
+                                {/*             onMouseLeave={() => setHighlightedIndex(null)} */}
+                                {/*         > */}
+                                {/*             /!* 左栏: 占比 *!/ */}
+                                {/*             <div */}
+                                {/*                 className="w-14 text-left text-gray-800 dark:text-gray-200"> */}
+                                {/*                 /!* 使用不带符号的百分比格式化 *!/ */}
+                                {/*                 {formatPercentNeutral(item.has_position_ratio)} */}
+                                {/*             </div> */}
+
+                                {/*             /!* 中栏: 名称/代码 *!/ */}
+                                {/*             <div className="flex-1 min-w-0 mx-2"> */}
+                                {/*                 <p className="text-gray-800 dark:text-gray-200 font-medium truncate" */}
+                                {/*                    title={item.ho_short_name}> */}
+                                {/*                     {item.ho_short_name} */}
+                                {/*                 </p> */}
+                                {/*                 <p className="text-xs text-gray-400">{item.ho_code}</p> */}
+                                {/*             </div> */}
+
+                                {/*             /!* 右栏: 盈亏/贡献 *!/ */}
+                                {/*             <div className="w-24 text-right flex-shrink-0"> */}
+                                {/*                 <div */}
+                                {/*                     className={`font-semibold font-mono ${getColor(item.has_cumulative_pnl)}`}> */}
+                                {/*                     {formatCurrency(item.has_cumulative_pnl)} */}
+                                {/*                 </div> */}
+                                {/*                 <div */}
+                                {/*                     className={`text-xs font-mono ${getColor(item.has_portfolio_contribution)}`}> */}
+                                {/*                     /!* 贡献度是带符号的百分比 *!/ */}
+                                {/*                     {formatRatioAsPercent(item.has_portfolio_contribution)} */}
+                                {/*                 </div> */}
+                                {/*             </div> */}
+                                {/*         </div> */}
+                                {/*     ))} */}
+                                {/* </div> */}
                             </div>
                         </>
                     ) : (
@@ -495,3 +536,59 @@ const ChartSkeleton = () => (
         <div className="h-80 bg-gray-100 dark:bg-gray-700 rounded animate-pulse"></div>
     </div>
 );
+
+// --- 抽离的子组件：增强型列表项 ---
+function AllocationListItem({item, index, isHighlighted, onHover, t}) {
+    const color = getColor(item.has_cumulative_pnl);
+    // 计算进度条宽度，假设最大比例为100%，或者是当前最大项的比例
+    const widthPercent = Math.max(0, (item.has_position_ratio || 0) * 100);
+    return (
+        <div
+            className={`relative flex justify-between items-center text-sm p-2 rounded-md transition-colors duration-200 cursor-pointer group ${
+                isHighlighted
+                    ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700/30 border border-transparent'
+            }`}
+            onMouseEnter={() => onHover(index)}
+            onMouseLeave={() => onHover(null)}
+        >
+            {/* 背景进度条 - 视觉化权重 */}
+            <div
+                className="absolute left-0 top-0 h-full bg-blue-500/10 dark:bg-blue-400/10 rounded-l-md transition-all duration-300"
+                style={{width: `${widthPercent}%`}}
+            />
+            {/* 内容层 */}
+            <div className="relative flex justify-between w-full z-10">
+                {/* 左栏: 名称/代码 */}
+                <div className="flex-1 min-w-0 mr-2">
+                    <div className="flex items-center gap-2">
+                        <span className="font-medium text-gray-800 dark:text-gray-100 truncate">
+                            {item.ho_short_name}
+                        </span>
+                        {/* 如果是聚合项，不显示代码 */}
+                        {!item.isOthers && (
+                            <span className="text-xs text-gray-400 dark:text-gray-500 font-mono">
+                                {item.ho_code}
+                            </span>
+                        )}
+                    </div>
+                    {/* 第二行：占比 */}
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        {formatPercentNeutral(item.has_position_ratio)}
+                    </div>
+                </div>
+                {/* 右栏: 盈亏/贡献 */}
+                <div className="text-right flex-shrink-0 w-28">
+                    <div className={`font-semibold font-mono text-sm ${color}`}>
+                        {formatCurrency(item.has_cumulative_pnl)}
+                    </div>
+                    <div className={`text-xs font-mono ${color} opacity-80`}>
+                        {/* 贡献度: 对组合的影响 */}
+                        {item.has_portfolio_contribution > 0 ? '+' : ''}
+                        {formatRatioAsPercent(item.has_portfolio_contribution)}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
