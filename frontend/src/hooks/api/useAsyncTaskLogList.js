@@ -53,26 +53,15 @@ export default function useAsyncTaskLogList({
         }
     }, [fetchData, autoLoad, refreshKey]);
 
-    const redo_hs = useCallback(async () => {
-        const result = await get('/holding_snapshot/generate_all_snapshots', {});
+    const redo_all_snapshot = useCallback(async () => {
+        const result = await get('/task_log/redo_all_snapshot_job', {});
         return result;
     }, [get]);
-    const redo_has = useCallback(async () => {
-        const result = await get('/holding_analytics_snapshot/generate_analysis', {});
+
+    const redo_yesterday_snapshot = useCallback(async () => {
+        const result = await get('/task_log/redo_yesterday_snapshot_job', {});
         return result;
     }, [get]);
-    const redo_ias = useCallback(async () => {
-        const result = await get('/invested_asset_snapshot/remake_all', {});
-        return result;
-    }, [get]);
-    const redo_iaas = useCallback(async () => {
-        const result = await get('/invested_asset_analytics_snapshot/remake_all', {});
-        return result;
-    }, [get]);
-    const update_ratios = useCallback(async () => {
-        const result = await get('/holding_analytics_snapshot/update_ratios', {});
-        return result;
-    }, [get]);
-    // 只返回数据和加载状态，因为这是只读页面
-    return {data, isLoading, error, redo_hs, redo_has, redo_ias, redo_iaas,update_ratios};
+
+    return {data, isLoading, error, redo_all_snapshot, redo_yesterday_snapshot};
 }

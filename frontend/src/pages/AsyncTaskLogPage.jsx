@@ -6,7 +6,7 @@ import useCommon from '../hooks/api/useCommon';
 import useAsyncTaskLogList from '../hooks/api/useAsyncTaskLogList';
 import SearchArea from '../components/search/SearchArea';
 import AsyncTaskLogTable from '../components/tables/AsyncTaskLogTable';
-import Pagination from '../components/common/Pagination';
+import Pagination from '../components/common/pagination/Pagination';
 import EmptyState from "../components/common/EmptyState";
 import {ArrowPathIcon} from '@heroicons/react/16/solid';
 
@@ -20,7 +20,7 @@ export default function AsyncTaskLogPage() {
     const [searchParams, setSearchParams] = useState({keyword: '', status: [], created_at: null});
 
     // API Hook 调用更简洁，直接传入 searchParams
-    const {data, isLoading, redo_hs, redo_has, redo_ias, redo_iaas, update_ratios} = useAsyncTaskLogList({
+    const {data, isLoading, redo_all_snapshot, redo_yesterday_snapshot} = useAsyncTaskLogList({
         page,
         perPage,
         autoLoad: true,
@@ -60,11 +60,11 @@ export default function AsyncTaskLogPage() {
         setRefreshKey(p => p + 1);
     };
 
-    const searchFields = useMemo(() => [
+    const searchFields = [
         {
             name: 'keyword',
             type: 'text',
-            label: t('label_keyword'),
+            label: t('search_keyword'),
             className: 'md:col-span-3',
         },
         {
@@ -81,34 +81,18 @@ export default function AsyncTaskLogPage() {
             placeholder: t('select_all'),
             className: 'md:col-span-3',
         },
-    ], [t, taskStatusOptions]);
+    ];
 
     const actionButtons = useMemo(() => (
         <>
-            {/* <button onClick={handleRefresh} className="btn-secondary inline-flex items-center gap-2"> */}
+            <button onClick={redo_all_snapshot} className="btn-secondary inline-flex items-center gap-2">
+                <ArrowPathIcon className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}/>
+                {t('redo_all_snapshots')}
+            </button>
+            {/* <button onClick={redo_yesterday_snapshot} className="btn-secondary inline-flex items-center gap-2"> */}
             {/*     <ArrowPathIcon className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}/> */}
-            {/*     {t('button_refresh')} */}
+            {/*     redo_yesterday_snapshot */}
             {/* </button> */}
-            <button onClick={redo_hs} className="btn-secondary inline-flex items-center gap-2">
-                <ArrowPathIcon className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}/>
-                redo hs
-            </button>
-            <button onClick={redo_has} className="btn-secondary inline-flex items-center gap-2">
-                <ArrowPathIcon className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}/>
-                redo has
-            </button>
-            <button onClick={redo_ias} className="btn-secondary inline-flex items-center gap-2">
-                <ArrowPathIcon className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}/>
-                redo ias
-            </button>
-            <button onClick={redo_iaas} className="btn-secondary inline-flex items-center gap-2">
-                <ArrowPathIcon className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}/>
-                redo iaas
-            </button>
-            <button onClick={update_ratios} className="btn-secondary inline-flex items-center gap-2">
-                <ArrowPathIcon className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}/>
-                update_ratios
-            </button>
         </>
     ), [isLoading, t]);
 
