@@ -29,7 +29,7 @@ function AuthWatcher() {
             if (hasRedirected) return; // 👈 防重
             setHasRedirected(true);
             SecureTokenStorage.clearTokens();
-            showErrorToast('登录已过期，请重新登录');
+            // showErrorToast('登录已过期，请重新登录');
             navigate('/login', {replace: true});
         };
         window.addEventListener(AUTH_EXPIRED_EVENT, handleExpired);

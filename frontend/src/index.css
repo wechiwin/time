@@ -2,6 +2,57 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes grid-scroll {
+    0% {
+        background-position: 0 0;
+    }
+    100% {
+        background-position: 0 100%;
+    }
+}
+
+/* 基础页面背景样式 */
+.page-bg {
+    @apply bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100;
+    /* 添加微弱的网格纹理 */
+    background-image: linear-gradient(to right, #e2e8f0 1px, transparent 1px),
+    linear-gradient(to bottom, #e2e8f0 1px, transparent 1px);
+    background-size: 40px 40px;
+}
+
+.dark .page-bg {
+    background-image: linear-gradient(to right, rgba(30, 41, 59, 0.5) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(30, 41, 59, 0.5) 1px, transparent 1px);
+}
+
+/* === 新增：Blob 动画 (用于背景装饰) === */
+@keyframes blob {
+    0% {
+        transform: translate(0px, 0px) scale(1);
+    }
+    33% {
+        transform: translate(30px, -50px) scale(1.1);
+    }
+    66% {
+        transform: translate(-20px, 20px) scale(0.9);
+    }
+    100% {
+        transform: translate(0px, 0px) scale(1);
+    }
+}
+
+.animate-blob {
+    animation: blob 7s infinite;
+}
+
+.animation-delay-2000 {
+    animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+    animation-delay: 4s;
+}
+
 /* 全局表单控件样式 */
 .input-field {
     @apply w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all;
@@ -38,8 +89,9 @@
 
     /* 卡片 */
     .card {
-        @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700
-        rounded-lg shadow-sm hover:shadow-md transition-shadow;
+        @apply bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/50
+        rounded-xl shadow-sm backdrop-blur-sm;
+        /* 加一点模糊效果 */
     }
 
     /* 表单输入框 */
@@ -67,9 +119,11 @@
 
     /* 主按钮 */
     .btn-primary {
-        @apply px-4 py-2 bg-blue-600 text-white rounded-md
+        @apply px-4 py-2 bg-blue-600 text-white rounded-lg /* 圆角稍微加大 */
         hover:bg-blue-700
-        focus:outline-none focus:ring-2 focus:ring-blue-500;
+        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900
+        transition-all duration-150 shadow-sm hover:shadow-md;
+        /* 增加过渡 */
     }
 
     .btn-secondary {
@@ -102,19 +156,19 @@
 
     /* 表头 */
     .table-header {
-        @apply px-3 py-3 md:px-6 text-xs md:text-sm font-semibold /* 字体加粗 */
-        text-gray-600 dark:text-gray-300 /* 增强文字对比度 */
-        tracking-wider text-left /* 确保文本左对齐 */
-        bg-gray-100 dark:bg-slate-800 /* 核心：更换背景色，与页面/卡片背景形成对比 */
-        border-b-2 border-gray-200 dark:border-slate-700;
-        /* 添加更明确的底部分割线 */
+        @apply px-3 py-3 md:px-6 text-xs md:text-sm font-semibold
+        text-slate-600 dark:text-slate-300
+        tracking-wider text-left
+        bg-slate-100 dark:bg-slate-800/50 /* 调整表头背景 */
+        border-b border-slate-200 dark:border-slate-700;
     }
 
     /* 单元格 */
     .table-cell {
         @apply px-3 py-2 md:px-6 md:py-4 whitespace-nowrap
-        text-xs md:text-sm text-gray-900 dark:text-gray-100
-        border-b border-gray-200 dark:border-gray-700;
+        text-xs md:text-sm text-slate-700 dark:text-slate-300
+        border-b border-slate-100 dark:border-slate-700/50;
+        /* 调整边框颜色 */
     }
 
     /* 搜索区容器：flex 布局、间距、右端按钮组自动靠右 */

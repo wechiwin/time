@@ -1,4 +1,4 @@
-import {useState, useRef} from 'react';
+import {useRef, useState} from 'react';
 import {Outlet, useLocation, useNavigate} from 'react-router-dom';
 import Sidebar from './Sidebar';
 
@@ -49,7 +49,13 @@ export default function Layout() {
     };
 
     return (
-        <div className="flex h-screen page-bg bg-white dark:bg-gray-900 dark:text-gray-100 overflow-hidden">
+        <div className="flex h-screen page-bg overflow-hidden relative">
+            {/* 背景装饰光斑 - 仅在桌面端显示，避免影响移动端性能 */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none hidden md:block">
+                <div className="absolute top-0 -left-4 w-96 h-96 bg-purple-300 dark:bg-purple-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-20 animate-blob"/>
+                <div className="absolute top-0 -right-4 w-96 h-96 bg-blue-300 dark:bg-blue-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-20 animate-blob animation-delay-2000"/>
+                <div className="absolute -bottom-8 left-20 w-96 h-96 bg-indigo-300 dark:bg-indigo-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-20 animate-blob animation-delay-4000"/>
+            </div>
             {/* 侧边栏 */}
             <Sidebar
                 onSelect={handleSelectMenu}
@@ -73,7 +79,10 @@ export default function Layout() {
                     className="flex-1 overflow-y-auto p-3 md:p-6 bg-gray-50 dark:bg-gray-800 scroll-smooth"
                     onScroll={handleMainScroll}
                 >
-                    <Outlet/>
+                    {/* 内容容器：添加玻璃态卡片效果 */}
+                    <div className="max-w-7xl mx-auto">
+                        <Outlet/>
+                    </div>
                 </main>
             </div>
         </div>
