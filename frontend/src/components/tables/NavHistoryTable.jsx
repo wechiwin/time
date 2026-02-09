@@ -14,7 +14,7 @@ export default function NavHistoryTable({data = [], onDelete, onEdit}) {
             <table className="min-w-full">
                 <thead>
                 <tr>
-                    <th scope="col" className="table-header">{t('th_ho_name')}</th>
+                    <th scope="col" className="table-header">{t('th_ho_code')}</th>
                     <th scope="col" className="table-header">{t('th_ho_short_name')}</th>
                     <th scope="col" className="table-header">{t('th_market_date')}</th>
                     <th scope="col" className="table-header">{t('th_price_per_unit')}</th>

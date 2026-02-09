@@ -6,7 +6,7 @@ import TradeTable from '../components/tables/TradeTable';
 import useTradeList from '../hooks/api/useTradeList';
 import FormModal from "../components/common/FormModal";
 import {useToast} from "../components/context/ToastContext";
-import Pagination from "../components/common/Pagination";
+import Pagination from "../components/common/pagination/Pagination";
 import {usePaginationState} from "../hooks/usePaginationState";
 import SearchArea from "../components/search/SearchArea";
 import {ArrowDownTrayIcon, DocumentArrowDownIcon, PlusIcon} from "@heroicons/react/16/solid";

@@ -362,6 +362,10 @@
     }
 
     /* 在 index.css 的 dark .react-multi-select 部分添加 */
+    .dark .react-multi-select .select__indicator-separator {
+        background-color: #374151;
+    }
+
     .dark .react-multi-select .select__multi-value {
         background-color: #1e3a8a; /* 更深的蓝色背景 */
     }
@@ -654,6 +658,41 @@
         body {
             font-size: 14px;
         }
+
+        .pagination-container {
+            @apply gap-4 p-4;
+        }
+
+        /* 移动端分页按钮更大 */
+        .pagination-button {
+            @apply p-3;
+        }
+
+        /* 移动端当前页信息更大 */
+        .pagination-current {
+            @apply text-base px-4 py-3;
+        }
+
+        /* 移动端输入框更大 */
+        .pagination-input {
+            @apply w-20 py-3 text-base;
+        }
+
+        /* 移动端下拉菜单更大 */
+        .pagination-select {
+            @apply py-3 text-base;
+        }
+    }
+
+    /* 移动端触摸目标样式 */
+    .touch-target {
+        min-height: 48px; /* 确保触摸目标至少48px高 */
+        min-width: 48px; /* 确保触摸目标至少48px宽 */
+    }
+
+    /* 移动端输入框样式 */
+    .touch-input {
+        min-height: 48px; /* 确保输入框至少48px高 */
     }
 
     /* 表单输入框图标适配 */

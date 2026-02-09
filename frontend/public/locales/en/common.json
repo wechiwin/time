@@ -222,7 +222,7 @@
 
   "menu_task_logs": "Task Execution",
   "search_keyword": "Search Keyword",
-  "th_task_name ": "Task Name",
+  "th_task_name": "Task Name",
   "th_status": "Task Status",
   "th_result_summary": "Result Summary",
   "th_created_at": "Create Date",
@@ -250,5 +250,6 @@
   "total_cost": "Total Cost",
   "position_distribution": "Position Distribution",
   "position_percentage": "Position",
-  "portfolio_contribution": "Portfolio Contribution"
+  "portfolio_contribution": "Portfolio Contribution",
+  "items_per_page": "items per page"
 }

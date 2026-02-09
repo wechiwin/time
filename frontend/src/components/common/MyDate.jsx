@@ -19,12 +19,12 @@ const localeMap = {zh: zhCN, en: enUS, it}
 export default function MyDate({
                                    value,          // "YYYY-MM-DD" 字符串
                                    onChange,       // (dateStr: string) => void
-                                   label,          // 不传就默认用 t('th_nav_date')
+                                   label,
                                    placeholder,
                                    ...rest         // 其余原生属性 min/max/disabled/className 等
                                }) {
     const {i18n, t} = useTranslation()
-    const {isDarkMode } = useDarkMode(); // 获取当前暗黑模式状态
+    const {isDarkMode} = useDarkMode(); // 获取当前暗黑模式状态
     const handleChange = (date) => {
         // 如果 date 为 null (用户清空输入)，则传递 null
         // 如果是有效日期，则转换为 "YYYY-MM-DD" 字符串
@@ -39,7 +39,7 @@ export default function MyDate({
                 locale={localeMap[i18n.language] || enUS}
                 placeholderText={placeholder || t('msg_mydate_select_date')}
                 className={`input-field ${rest.className || ''}`}
-                calendarClassName={isDarkMode  ? "dark" : ""}
+                calendarClassName={isDarkMode ? "dark" : ""}
                 showYearDropdown
                 showMonthDropdown
                 dropdownMode="select"

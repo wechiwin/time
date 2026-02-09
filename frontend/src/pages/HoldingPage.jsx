@@ -5,7 +5,7 @@ import HoldingTable from '../components/tables/HoldingTable';
 import useHoldingList from '../hooks/api/useHoldingList';
 import FormModal from "../components/common/FormModal";
 import {useToast} from "../components/context/ToastContext";
-import Pagination from "../components/common/Pagination";
+import Pagination from "../components/common/pagination/Pagination";
 import {usePaginationState} from "../hooks/usePaginationState";
 import useCommon from "../hooks/api/useCommon";
 import {ArrowDownTrayIcon, DocumentArrowDownIcon, PlusIcon} from "@heroicons/react/16/solid";

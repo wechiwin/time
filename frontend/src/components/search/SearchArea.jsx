@@ -81,7 +81,7 @@ export default function SearchArea({
             placeholder: field.placeholder || '',
         };
 
-        const label = field.labelKey ? t(field.labelKey) : (field.label || field.name);
+        const label = field.label || t(`label_${field.name}`) || field.name;
 
         switch (field.type) {
             case 'select':
@@ -143,7 +143,7 @@ export default function SearchArea({
             default:
                 return (
                     <div className="flex flex-col gap-1" key={field.name}>
-                        <label className="search-area-label">{t(label)}</label>
+                        <label className="search-area-label">{label}</label>
                         <input
                             key={field.name}
                             {...commonProps}

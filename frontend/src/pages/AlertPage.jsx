@@ -8,7 +8,7 @@ import AlertRuleForm from '../components/forms/AlertRuleForm';
 import useAlertList from '../hooks/api/useAlertList';
 import FormModal from "../components/common/FormModal";
 import {useToast} from "../components/context/ToastContext";
-import Pagination from "../components/common/Pagination";
+import Pagination from "../components/common/pagination/Pagination";
 import {usePaginationState} from "../hooks/usePaginationState";
 import SearchArea from "../components/search/SearchArea";
 import useCommon from "../hooks/api/useCommon";

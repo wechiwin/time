@@ -253,5 +253,6 @@
   "position_percentage": "持仓占比",
   "portfolio_contribution": "组合贡献",
   "total_cost": "总成本",
-  "position_distribution": "持仓分布"
+  "position_distribution": "持仓分布",
+  "items_per_page": "条/页"
 }

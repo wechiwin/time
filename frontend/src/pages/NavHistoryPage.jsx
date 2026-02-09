@@ -4,7 +4,7 @@ import NavHistoryTable from '../components/tables/NavHistoryTable';
 import useNavHistoryList from '../hooks/api/useNavHistoryList';
 import FormModal from "../components/common/FormModal";
 import {useCallback, useState} from "react";
-import Pagination from "../components/common/Pagination";
+import Pagination from "../components/common/pagination/Pagination";
 import CrawlNetValueForm from "../components/forms/CrawlNetValueForm";
 import {usePaginationState} from "../hooks/usePaginationState";
 import {useToast} from "../components/context/ToastContext";
