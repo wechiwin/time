@@ -1,12 +1,10 @@
-import logging
-
 from flask import Blueprint, request, g
+from loguru import logger
 
 from app.framework.auth import auth_required
 from app.framework.res import Res
 from app.service.dashboard_service import DashboardService
 
-logger = logging.getLogger(__name__)
 dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/dashboard')
 
 

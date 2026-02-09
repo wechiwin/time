@@ -1,19 +1,17 @@
 # app/services/auth_service.py
-import logging
 import uuid
 from datetime import datetime
 
 from flask_jwt_extended import create_access_token, create_refresh_token
+from loguru import logger
 
-from app import Config
+from app.config import Config
 from app.constant.sys_enums import GlobalYesOrNo, LoginStatus
 from app.framework.exceptions import BizException
 from app.models import UserSetting, db, LoginHistory, UserSession, TokenBlacklist
 from app.schemas_marshall import UserSettingSchema
 from app.utils.device_parser import DeviceParser
 from app.utils.user_util import generate_device_fingerprint, calculate_risk_score
-
-logger = logging.getLogger(__name__)
 
 user_setting_schema = UserSettingSchema()  # 实例化 Schema
 
@@ -113,7 +111,7 @@ class UserService:
             db.session.commit()
         except Exception as e:
             db.session.rollback()
-            logger.error(e, exc_info=True)
+            logger.exception(e, exc_info=True)
 
         # 8. 返回结果
         return {
@@ -183,6 +181,6 @@ class UserService:
             db.session.commit()
         except Exception as e:
             db.session.rollback()
-            logger.error(e, exc_info=True)
+            logger.exception(e, exc_info=True)
 
         return login_history

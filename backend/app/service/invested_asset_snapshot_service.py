@@ -1,18 +1,15 @@
-import logging
 import time
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import Optional
 
+from loguru import logger
 from sqlalchemy import func, Date
 
-from app.calendars.trade_calendar import TradeCalendar
-from app.database import db
+from app.calendars.trade_calendar import trade_calendar
+from app.extension import db
 from app.framework.async_task_manager import create_task
 from app.models import HoldingSnapshot, InvestedAssetSnapshot
-
-logger = logging.getLogger(__name__)
-trade_calendar = TradeCalendar()
 
 ZERO = Decimal('0')
 
@@ -24,7 +21,7 @@ class InvestedAssetSnapshotService:
     """
 
     @classmethod
-    def generate_by_day(cls, target_date: Date = None, user_id: str = None):
+    def generate_by_day(cls, target_date: Date = None, user_id: int = None):
         """
         【增量任务入口】
         通常由定时任务调用，生成 T-1 日的快照
@@ -41,10 +38,10 @@ class InvestedAssetSnapshotService:
         try:
             # 1. 获取前一交易日数据 (单日模式下必须查库)
             prev_date = trade_calendar.prev_trade_day(target_date)
-            prev_snapshot = InvestedAssetSnapshot.query.filter_by(snapshot_date=prev_date).first()
+            prev_snapshot = InvestedAssetSnapshot.query.filter_by(snapshot_date=prev_date, user_id=user_id).first()
 
             # 2. 计算
-            snapshot = cls._calculate_snapshot(target_date, prev_snapshot)
+            snapshot = cls._calculate_snapshot(target_date, prev_snapshot, user_id)
             if not snapshot:
                 return None
 
@@ -58,7 +55,7 @@ class InvestedAssetSnapshotService:
         except Exception as e:
             db.session.rollback()
             error_msg = f"Error generating InvestedAssetSnapshot for {target_date}: {str(e)}"
-            logger.error(error_msg, exc_info=True)
+            logger.exception(error_msg, exc_info=True)
             # 触发重试
             create_task(
                 user_id=user_id,
@@ -72,7 +69,7 @@ class InvestedAssetSnapshotService:
             return None
 
     @classmethod
-    def regenerate_all(cls, user_id: str):
+    def regenerate_all(cls, user_id: int):
         """
         【全量重刷入口】
         清除所有历史数据，从最早的持仓记录开始重新生成。
@@ -84,7 +81,9 @@ class InvestedAssetSnapshotService:
         errors = []
 
         # 1. 找出最早的持仓日期
-        min_date = db.session.query(func.min(HoldingSnapshot.snapshot_date)).scalar()
+        min_date = db.session.query(func.min(HoldingSnapshot.snapshot_date)).filter_by(
+            user_id=user_id
+        ).scalar()
         if not min_date:
             msg = "No HoldingSnapshot data found. Aborting regeneration."
             logger.warning(msg)
@@ -107,7 +106,7 @@ class InvestedAssetSnapshotService:
                     continue
 
                 # 直接传入内存中的 cached_prev_snapshot，无需查库
-                snapshot = cls._calculate_snapshot(current_date, cached_prev_snapshot)
+                snapshot = cls._calculate_snapshot(user_id=user_id, target_date=current_date, prev_snapshot=cached_prev_snapshot)
                 if not snapshot:
                     logger.warning(f"No InvestedAssetSnapshot generated for: {current_date}")
                     current_date += timedelta(days=1)
@@ -128,7 +127,7 @@ class InvestedAssetSnapshotService:
         except Exception as e:
             db.session.rollback()
             error_msg = f"Error generating InvestedAssetSnapshot for {current_date}: {str(e)}"
-            logger.error(error_msg, exc_info=True)
+            logger.exception(error_msg, exc_info=True)
             errors.append(error_msg)
             # 触发重试
             create_task(
@@ -149,7 +148,7 @@ class InvestedAssetSnapshotService:
     def _calculate_snapshot(cls,
                             target_date: date,
                             prev_snapshot: Optional[InvestedAssetSnapshot],
-                            user_id: str
+                            user_id: int
                             ) -> Optional[InvestedAssetSnapshot]:
         """
         【内部方法】纯计算逻辑

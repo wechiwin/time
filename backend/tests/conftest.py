@@ -1,9 +1,11 @@
 import os
+
 import pytest
 from flask import Flask
+
 from app import create_app
-from app.database import db as _db
-from app.models import UserSetting, Holding, FundDetail
+from app.extension import db as _db
+from app.models import UserSetting
 
 # 强制使用测试环境
 os.environ['FLASK_ENV'] = 'testing'

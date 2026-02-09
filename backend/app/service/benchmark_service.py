@@ -1,18 +1,15 @@
-import logging
 from datetime import date, datetime
 from typing import Optional, Dict, Tuple, List
 
 import akshare as ak
 import numpy as np
 import pandas as pd
+from loguru import logger
 from sqlalchemy import select, func, and_
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.database import db
+from app.extension import db
 from app.models import Benchmark, BenchmarkHistory, InvestedAssetAnalyticsSnapshot, InvestedAssetSnapshot
-
-# 配置日志
-logger = logging.getLogger(__name__)
 
 
 class BenchmarkService:
@@ -45,7 +42,7 @@ class BenchmarkService:
             return benchmark
         except SQLAlchemyError as e:
             db.session.rollback()
-            logger.error(f"Error ensuring benchmark exists: {str(e)}")
+            logger.exception(f"Error ensuring benchmark exists: {str(e)}")
             raise
 
     @staticmethod
@@ -119,7 +116,7 @@ class BenchmarkService:
 
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Failed to sync benchmark data: {str(e)}", exc_info=True)
+            logger.exception(f"Failed to sync benchmark data: {str(e)}", exc_info=True)
             raise
 
     @staticmethod
@@ -170,8 +167,8 @@ class BenchmarkService:
                 df['close'] = pd.to_numeric(df['close'])
                 return df
         except Exception as e:
-            logger.error(f"Sina source also failed: {str(e)}")
-        logger.error(f"All data sources failed for benchmark: {code}")
+            logger.exception(f"Sina source also failed: {str(e)}")
+        logger.exception(f"All data sources failed for benchmark: {code}")
         return pd.DataFrame()
 
     @staticmethod
@@ -279,7 +276,7 @@ class BenchmarkService:
             return metrics
 
         except Exception as e:
-            logger.error(f"Error calculating benchmark metrics: {str(e)}", exc_info=True)
+            logger.exception(f"Error calculating benchmark metrics: {str(e)}", exc_info=True)
             raise
 
     @staticmethod
@@ -322,7 +319,7 @@ class BenchmarkService:
             return None
 
         except Exception as e:
-            logger.error(f"Error getting window start date: {str(e)}")
+            logger.exception(f"Error getting window start date: {str(e)}")
             return None
 
     @staticmethod
@@ -367,7 +364,7 @@ class BenchmarkService:
             return returns_map
 
         except Exception as e:
-            logger.error(f"Error getting portfolio returns: {str(e)}")
+            logger.exception(f"Error getting portfolio returns: {str(e)}")
             return {}
 
     @staticmethod
@@ -454,7 +451,7 @@ class BenchmarkService:
             }
 
         except Exception as e:
-            logger.error(f"Error calculating metrics: {str(e)}")
+            logger.exception(f"Error calculating metrics: {str(e)}")
             return {
                 'benchmark_cumulative_return': 0.0,
                 'excess_return': 0.0,
@@ -499,7 +496,7 @@ class BenchmarkService:
 
         except SQLAlchemyError as e:
             db.session.rollback()
-            logger.error(f"Error updating snapshot metrics: {str(e)}")
+            logger.exception(f"Error updating snapshot metrics: {str(e)}")
             return False
 
     @classmethod
@@ -573,7 +570,7 @@ class BenchmarkService:
 
                 except Exception as e:
                     error_count += 1
-                    logger.error(f"Error processing {snapshot_date}, {window_key}: {str(e)}")
+                    logger.exception(f"Error processing {snapshot_date}, {window_key}: {str(e)}")
 
             logger.info(f"Batch update completed: {success_count}成功, {error_count}失败")
 
@@ -584,5 +581,5 @@ class BenchmarkService:
             }
 
         except Exception as e:
-            logger.error(f"Error in batch update: {str(e)}", exc_info=True)
+            logger.exception(f"Error in batch update: {str(e)}", exc_info=True)
             raise

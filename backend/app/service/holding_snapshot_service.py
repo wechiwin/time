@@ -1,5 +1,4 @@
 # app/service/holding_snapshot_service.py
-import logging
 import time
 from collections import defaultdict
 from dataclasses import dataclass
@@ -7,15 +6,14 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import List, Tuple
 
-from app.calendars.trade_calendar import TradeCalendar
+from loguru import logger
+
+from app.calendars.trade_calendar import trade_calendar
 from app.constant.biz_enums import TradeTypeEnum, DividendTypeEnum, HoldingStatusEnum
 from app.framework.async_task_manager import create_task
 from app.framework.exceptions import AsyncTaskException
 from app.models import db, HoldingSnapshot, Holding, FundNavHistory, Trade
 from app.utils.date_util import date_to_str
-
-logger = logging.getLogger(__name__)
-trade_calendar = TradeCalendar()
 
 ZERO = Decimal('0')
 
@@ -35,11 +33,17 @@ class PositionState:
         """累计分红总额"""
         return self.total_cash_dividend + self.total_reinvest_amount
 
+    def get_avg_cost(self) -> Decimal:
+        """安全获取平均成本"""
+        if self.shares <= ZERO:
+            return ZERO
+        return self.hos_holding_cost / self.shares
+
 
 class HoldingSnapshotService:
 
     @classmethod
-    def generate_all_holding_snapshots(cls, ids: list[str] | None = None, user_id: str = None):
+    def generate_all_holding_snapshots(cls, ids: list[str] | None = None, user_id: int = None):
         """
         批量覆盖式生成所有快照。
         """
@@ -50,9 +54,9 @@ class HoldingSnapshotService:
         errors = []
 
         if ids:
-            holdings = Holding.query.filter(Holding.id.in_(ids)).all()
+            holdings = Holding.query.filter(Holding.id.in_(ids), Holding.user_id == user_id).all()
         else:
-            holdings = Holding.query.all()
+            holdings = Holding.query.filter(Holding.user_id == user_id).all()
 
         if not holdings:
             return {"total_generated": 0, "errors": [], "duration": 0}
@@ -73,7 +77,7 @@ class HoldingSnapshotService:
                 db.session.commit()
                 logger.info(f"Generated {len(to_add_snapshots)} holding snapshots for {holding.ho_code}")
             except AsyncTaskException as e:
-                logger.error(e, exc_info=True)
+                logger.exception(exc_info=True)
                 errors.append(e.async_task_log.error_message)
             except Exception as e:
                 error_msg = f"Error processing holding {holding.ho_code}: {str(e)}"
@@ -85,7 +89,7 @@ class HoldingSnapshotService:
                     kwargs={"ids": [holding.id]},
                     error_message=error_msg
                 )
-                logger.error(e, exc_info=True)
+                logger.exception(e, exc_info=True)
                 errors.append(error_msg)
 
         end_time = time.time()
@@ -94,6 +98,7 @@ class HoldingSnapshotService:
             "errors": errors,
             "duration": round(end_time - start_time, 2)
         }
+        logger.info(result)
         return result
 
     @classmethod
@@ -173,7 +178,7 @@ class HoldingSnapshotService:
         return snapshots
 
     @classmethod
-    def generate_yesterday_snapshots(cls, user_id: str):
+    def generate_yesterday_snapshots(cls, user_id: int):
         """
         每日增量任务：为所有持仓生成昨天的快照（如果有净值），利用前天的快照来提高效率
         """
@@ -195,13 +200,13 @@ class HoldingSnapshotService:
 
         # 上个交易日有交易的(新买入的，上上个交易日没有快照)
         current_traded_ho_ids = db.session.query(Trade.ho_id).filter(
-            Trade.tr_date == current_date
+            Trade.tr_date == current_date, Trade.user_id == user_id
         ).distinct().all()
         current_traded_ho_ids = [id_tuple[0] for id_tuple in current_traded_ho_ids]
 
         # 上上个交易日有快照的所有持仓
         prev_ho_ids_from_snapshots = db.session.query(HoldingSnapshot.ho_id).filter(
-            HoldingSnapshot.snapshot_date == prev_date
+            HoldingSnapshot.snapshot_date == prev_date, HoldingSnapshot.user_id == user_id
         ).distinct().all()
         prev_ho_ids_from_snapshots = [id_tuple[0] for id_tuple in prev_ho_ids_from_snapshots]
 
@@ -327,7 +332,7 @@ class HoldingSnapshotService:
 
             return result
         except AsyncTaskException as e:
-            logger.error(e, exc_info=True)
+            logger.exception(e, exc_info=True)
             errors.append(e.async_task_log.error_message)
         except Exception as e:
             db.session.rollback()
@@ -340,13 +345,13 @@ class HoldingSnapshotService:
                 error_message=error_msg
             )
             errors.append(error_msg)
-            logger.error(error_msg, exc_info=True)
+            logger.exception(error_msg, exc_info=True)
             return result
 
     @staticmethod
     def _apply_trades(state: PositionState,
                       trades: List[Trade],
-                      user_id: str,
+                      user_id: int,
                       ) -> Tuple[PositionState, Decimal, Decimal, Decimal, Decimal, Decimal]:
         """
         处理当日的所有交易，包括分红。

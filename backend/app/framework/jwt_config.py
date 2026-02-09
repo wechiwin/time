@@ -1,7 +1,6 @@
 from flask import jsonify
 
-from app.database import db
-from app.framework.exceptions import BizException
+from app.extension import db
 from app.models import TokenBlacklist, UserSetting
 
 

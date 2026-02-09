@@ -1,33 +1,26 @@
 import base64
 import json
-import logging
 from collections import defaultdict
 from decimal import Decimal
 from typing import List, Tuple, Dict, Any
 
-from openai import OpenAI
+from loguru import logger
 from sqlalchemy import desc, or_
 
-from app import Config
-from app.calendars.trade_calendar import TradeCalendar
+from app.calendars.trade_calendar import trade_calendar
+from app.config import Config
 from app.constant.biz_enums import HoldingStatusEnum, TradeTypeEnum, ErrorMessageEnum, DividendTypeEnum
 from app.constant.sys_enums import GlobalYesOrNo
+from app.extension import openai_client
 from app.framework.exceptions import BizException
-from app.models import db, Holding, Trade, FundNavHistory
+from app.models import db, Holding, Trade
 from app.utils.common_util import is_not_blank
 from app.utils.date_util import str_to_date, date_to_str
 
-logger = logging.getLogger(__name__)
 ZERO = Decimal(0)
 
-# 初始化 OpenAI 客户端 支持所有兼容 OpenAI 协议的模型（如 DeepSeek, Moonshot, 阿里通义千问等）
-client = OpenAI(
-    api_key=Config.API_KEY,
-    base_url=Config.BASE_URL
-)
 # 指定模型名称，建议使用支持视觉的模型，如 gpt-4o, qwen-vl-max 等 如果使用不支持视觉的模型（如 deepseek-v3），则仍需保留 OCR 步骤
 MODEL_NAME = Config.MODEL_NAME
-trade_calendar = TradeCalendar()
 
 
 class TradeService:
@@ -64,7 +57,7 @@ class TradeService:
 """
 
             # 3. 调用大模型 API
-            response = client.chat.completions.create(
+            response = openai_client.client.chat.completions.create(
                 model=MODEL_NAME,
                 messages=[
                     {
@@ -112,7 +105,7 @@ class TradeService:
             }
 
         except Exception as e:
-            logger.error("图片解析失败", exc_info=True)
+            logger.exception("图片解析失败", exc_info=True)
             return {"error": f"解析失败: {str(e)}", "parsed_json": {}}
 
     @staticmethod
@@ -125,7 +118,7 @@ class TradeService:
             cleaned_text = text.replace("```json", "").replace("```", "").strip()
             return json.loads(cleaned_text)
         except json.JSONDecodeError:
-            logger.error(f"JSON 解析失败，原始文本: {text}")
+            logger.exception(f"JSON 解析失败，原始文本: {text}")
             return {}
 
     @classmethod
@@ -180,7 +173,7 @@ class TradeService:
             return True
         except Exception as e:
             db.session.rollback()
-            logger.error(e, exc_info=True)
+            logger.exception(e, exc_info=True)
             if isinstance(e, BizException):
                 raise e
             return False
@@ -210,7 +203,7 @@ class TradeService:
             return True
         except Exception as e:
             db.session.rollback()
-            logger.error(e, exc_info=True)
+            logger.exception(e, exc_info=True)
             raise e
 
     @classmethod
@@ -311,7 +304,7 @@ class TradeService:
 
         except Exception as e:
             db.session.rollback()
-            logger.error(e, exc_info=True)
+            logger.exception(e, exc_info=True)
             if isinstance(e, BizException):
                 raise e
             raise BizException("导入过程中发生未知错误")

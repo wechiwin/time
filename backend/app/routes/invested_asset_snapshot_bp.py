@@ -1,12 +1,8 @@
-import logging
-
 from flask import Blueprint, g
 
 from app.framework.auth import auth_required
 from app.framework.res import Res
 from app.service.invested_asset_snapshot_service import InvestedAssetSnapshotService
-
-logger = logging.getLogger(__name__)
 
 invested_asset_snapshot_bp = Blueprint('invested_asset_snapshot', __name__, url_prefix='/invested_asset_snapshot')
 

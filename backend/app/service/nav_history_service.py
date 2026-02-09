@@ -1,17 +1,15 @@
-import logging
 import time
 from datetime import datetime, timedelta
 from decimal import Decimal
 
 import requests
+from loguru import logger
 from sqlalchemy import func, desc
 from sqlalchemy.orm import selectinload
 
 from app.framework.exceptions import BizException
 from app.models import db, FundNavHistory, Holding
 from app.utils.date_util import str_to_date
-
-logger = logging.getLogger(__name__)
 
 
 class FundNavHistoryService:
@@ -101,7 +99,7 @@ class FundNavHistoryService:
                 except Exception as e:
                     msg = f"Failed to crawl/save for {ho_code} in range [{start_date}, {end_date}]: {e}"
                     # 使用 logger 记录完整错误堆栈，便于排查
-                    logger.error(msg, exc_info=True)
+                    logger.exception(msg, exc_info=True)
         return True
 
     @classmethod
@@ -171,7 +169,7 @@ class FundNavHistoryService:
                 page += 1
                 time.sleep(0.5)  # 防爬，避免请求过快
             except Exception as e:
-                logger.error(e, exc_info=True)
+                logger.exception(e, exc_info=True)
                 raise BizException(f"{holding.ho_code}爬取第 {page} 页出错")
 
         # 储存数据
@@ -190,7 +188,7 @@ class FundNavHistoryService:
             return len(all_data)
         except Exception as e:
             db.session.rollback()
-            logger.error(e, exc_info=True)
+            logger.exception(e, exc_info=True)
             raise BizException(f"{holding.ho_code}数据保存失败")
 
     @staticmethod

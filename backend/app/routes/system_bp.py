@@ -1,12 +1,8 @@
-import logging
-
 from flask import Blueprint
 from sqlalchemy import text
 
-from app import db
+from app.extension import db
 from app.framework.res import Res
-
-logger = logging.getLogger(__name__)
 
 system_bp = Blueprint('system_bp', __name__)
 

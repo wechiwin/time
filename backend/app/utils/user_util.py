@@ -2,13 +2,11 @@ import hashlib
 
 from flask import request, g
 from flask_limiter.util import get_remote_address
-import logging
+from loguru import logger
 
 from app.constant.biz_enums import ErrorMessageEnum
 from app.framework.exceptions import BizException
 from app.utils.device_parser import DeviceParser
-
-logger = logging.getLogger(__name__)
 
 
 def generate_device_fingerprint() -> str:

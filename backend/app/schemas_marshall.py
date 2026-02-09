@@ -1,12 +1,8 @@
-import logging
-
 from marshmallow import fields, EXCLUDE, post_dump
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 
 from app.constant.biz_enums import *
 from app.models import *
-
-logger = logging.getLogger(__name__)
 
 
 class BaseSchema(SQLAlchemyAutoSchema):
@@ -69,7 +65,7 @@ class EnumViewMixin:
                 if hasattr(enum_member, 'view'):
                     data[f"{field_name}$view"] = str(enum_member.view)
             except Exception as e:
-                logger.error(e, exc_info=True)
+                logger.exception(e, exc_info=True)
 
         return data
 

@@ -1,5 +1,4 @@
 # app/service/holding_analytics_snapshot_service.py
-import logging
 import time
 from collections import defaultdict
 from datetime import date, timedelta
@@ -9,18 +8,17 @@ from typing import List, Dict, Optional
 import numpy as np
 import pandas as pd
 from flask import g
+from loguru import logger
 from scipy import optimize
 from sqlalchemy import or_
 
-from app.calendars.trade_calendar import TradeCalendar
-from app.database import db
+from app.calendars.trade_calendar import trade_calendar
+from app.extension import db
 from app.framework.async_task_manager import create_task
 from app.models import (
     Holding, HoldingSnapshot, AnalyticsWindow, HoldingAnalyticsSnapshot, InvestedAssetSnapshot
 )
 
-logger = logging.getLogger(__name__)
-trade_calendar = TradeCalendar()
 ZERO = Decimal('0')
 
 # 配置化常量
@@ -36,7 +34,7 @@ class HoldingAnalyticsSnapshotService:
     #  再计算 Alpha。目前的实现暂未包含此部分，如果需要可以后续添加。
 
     @classmethod
-    def generate_yesterday_analytics(cls):
+    def generate_yesterday_analytics(cls, ho_ids: List[int] = None, user_id: int = None):
         """
         增量生成：仅生成“昨天”（最近一个交易日）的分析快照
         """
@@ -49,10 +47,19 @@ class HoldingAnalyticsSnapshotService:
             logger.info(f"{target_date} is not a trading day. Skipping.")
             return {"generated": 0}
 
+        query = HoldingSnapshot.query(HoldingSnapshot.ho_id)
+        # 分别判断并添加过滤条件
+        if ho_ids:
+            query = query.filter(HoldingSnapshot.ho_id.in_(ho_ids))
+        if user_id:
+            query = query.filter(HoldingSnapshot.user_id == user_id)
+        # 执行查询
+        target_ho_ids = query.distinct().all()
         # 3. 找出昨天有 HoldingSnapshot 的持仓 ID, 只有昨天生成了基础快照，才能生成分析快照
-        target_ho_ids = db.session.query(HoldingSnapshot.ho_id).filter(
-            HoldingSnapshot.snapshot_date == target_date
-        ).distinct().all()
+        # target_ho_ids = db.session.query(HoldingSnapshot.ho_id).filter(
+        #     HoldingSnapshot.snapshot_date == target_date,
+        #     HoldingSnapshot.user_id == user_id
+        # ).distinct().all()
         target_ho_ids = [t[0] for t in target_ho_ids]
         if not target_ho_ids:
             logger.info("No holding snapshots found for yesterday.")
@@ -64,6 +71,7 @@ class HoldingAnalyticsSnapshotService:
         try:
             # 生成指定日期的分析快照
             snapshots = cls.generate_analytics(
+                user_id=user_id,
                 start_date=target_date,
                 end_date=target_date,
                 ho_ids=target_ho_ids
@@ -83,7 +91,7 @@ class HoldingAnalyticsSnapshotService:
         except Exception as e:
             db.session.rollback()
             err_msg = f"Error generating yesterday analytics: {str(e)}"
-            logger.error(err_msg)
+            logger.exception(err_msg)
             errors.append(err_msg)
             create_task(
                 user_id=g.user.id,
@@ -99,18 +107,27 @@ class HoldingAnalyticsSnapshotService:
         return {"generated": total_count, "duration": duration, "errors": errors}
 
     @classmethod
-    def generate_all_analytics(cls, ho_ids: List[int] = None):
+    def generate_all_holding_snapshot_analytics(cls, ho_ids: List[int] = None, user_id: int = None):
         """
         全量生成：为指定持仓（或所有持仓）生成历史所有日期的分析快照
         """
         logger.info("Starting generate_all_analytics...")
         start_time = time.time()
 
-        # 2. 确定要处理的持仓
         query = db.session.query(Holding.id, Holding.ho_code)
+        # 分别判断并添加过滤条件
         if ho_ids:
             query = query.filter(Holding.id.in_(ho_ids))
+        if user_id:
+            query = query.filter(Holding.user_id == user_id)
+        # 执行查询
         holdings = query.all()
+
+        # # 2. 确定要处理的持仓
+        # if ho_ids:
+        #     holdings = Holding.query.filter(Holding.id.in_(ho_ids), Holding.user_id == user_id).all()
+        # else:
+        #     holdings = Holding.query.filter(Holding.user_id == user_id).all()
 
         total_count = 0
         errors = []
@@ -118,7 +135,7 @@ class HoldingAnalyticsSnapshotService:
         for ho_id, ho_code in holdings:
             try:
                 # 为单个持仓生成所有历史分析数据
-                snapshots = cls.generate_analytics(start_date=None, end_date=None, ho_ids=[ho_id])
+                snapshots = cls.generate_analytics(user_id=user_id, start_date=None, end_date=None, ho_ids=[ho_id])
 
                 if snapshots:
                     # cls._save_snapshots(ho_id, snapshots, mode='full')
@@ -137,10 +154,10 @@ class HoldingAnalyticsSnapshotService:
             except Exception as e:
                 db.session.rollback()
                 msg = f"Error processing holding {ho_code}: {str(e)}"
-                logger.error(msg, exc_info=True)
+                logger.exception(msg, exc_info=True)
                 errors.append(msg)
                 create_task(
-                    user_id=g.user.id,
+                    user_id=user_id,
                     task_name=f"retry_holding_analytics_full_{ho_id}",
                     module_path="app.service.holding_analytics_snapshot_service",
                     class_name="HoldingAnalyticsSnapshotService",
@@ -150,10 +167,13 @@ class HoldingAnalyticsSnapshotService:
                 )
 
         duration = time.time() - start_time
-        return {"total_generated": total_count, "duration": duration, "errors": errors}
+        result = {"total_generated": total_count, "duration": duration, "errors": errors}
+        logger.info(result)
+        return result
 
     @classmethod
     def generate_analytics(cls,
+                           user_id: int,
                            start_date: Optional[date],
                            end_date: Optional[date],
                            ho_ids: List[int] = None
@@ -182,6 +202,7 @@ class HoldingAnalyticsSnapshotService:
         for ho_id, ho_code in holdings:
             # 为单个持仓生成分析数据
             holding_snapshots = cls._process_single_holding_analytics(
+                user_id=user_id,
                 ho_id=ho_id,
                 ho_code=ho_code,
                 windows=windows,
@@ -194,7 +215,9 @@ class HoldingAnalyticsSnapshotService:
         return all_snapshots
 
     @classmethod
-    def _process_single_holding_analytics(cls, ho_id: int,
+    def _process_single_holding_analytics(cls,
+                                          user_id: int,
+                                          ho_id: int,
                                           ho_code: str,
                                           windows: List[AnalyticsWindow],
                                           start_date: Optional[date],
@@ -236,7 +259,7 @@ class HoldingAnalyticsSnapshotService:
                 metrics = cls._calculate_metrics(df_window, window.annualization_factor)
                 # 构建对象
                 snapshot = HoldingAnalyticsSnapshot()
-                snapshot.user_id = g.user.id
+                snapshot.user_id = user_id
                 snapshot.ho_id = ho_id
                 snapshot.snapshot_date = current_date_obj
                 snapshot.window_key = window.window_key
@@ -594,10 +617,10 @@ class HoldingAnalyticsSnapshotService:
                 )
                 return root
             except Exception as e_bisect:
-                logger.error(f"XIRR Bisection method also failed: {e_bisect}")
+                logger.exception(f"XIRR Bisection method also failed: {e_bisect}")
                 return None
         except Exception as e:
-            logger.error(f"Unexpected error during XIRR calculation: {e}")
+            logger.exception(f"Unexpected error during XIRR calculation: {e}")
             return None
 
     @staticmethod
@@ -655,7 +678,7 @@ class HoldingAnalyticsSnapshotService:
         return Decimal(f"{max_runup:.6f}")
 
     @classmethod
-    def update_position_ratios_and_contributions(cls):
+    def update_position_ratios_and_contributions(cls, user_id: int = None):
         """
         定时任务：计算并更新指定日期的 has_position_ratio 和 has_portfolio_contribution。
         计算逻辑：
@@ -667,6 +690,7 @@ class HoldingAnalyticsSnapshotService:
 
         # 获取需要更新字段的列表
         to_update_has_list = HoldingAnalyticsSnapshot.query.filter(
+            HoldingAnalyticsSnapshot.user_id == user_id,
             or_(
                 HoldingAnalyticsSnapshot.has_position_ratio.is_(None),
                 HoldingAnalyticsSnapshot.has_portfolio_contribution.is_(None)
@@ -769,7 +793,7 @@ class HoldingAnalyticsSnapshotService:
                 logger.info(f"Successfully updated {updated_count} HoldingAnalyticsSnapshot records.")
             except Exception as e:
                 db.session.rollback()
-                logger.error(f"Error committing updates for HoldingAnalyticsSnapshot: {e}", exc_info=True)
+                logger.exception(f"Error committing updates for HoldingAnalyticsSnapshot: {e}", exc_info=True)
                 raise  # 重新抛出异常，以便上层调用者处理
         else:
             logger.info("No HoldingAnalyticsSnapshot records were updated in this run after processing.")

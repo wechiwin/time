@@ -1,5 +1,6 @@
 # app/scheduler/__init__.py
-from app.scheduler.net_value_jobs import crawl_all_fund_net_values
+from .daily_snapshot_consume_job import consume_async_tasks
+from .net_value_jobs import crawl_all_fund_net_values
 
 
 def _context_wrapper(app, func):
@@ -15,6 +16,7 @@ def _context_wrapper(app, func):
 # 把调度器初始化逻辑集中到这里
 def init_scheduler(app, scheduler):
     """注册所有定时任务"""
+    # 初始化调度器
     scheduler.init_app(app)
 
     # 统一加任务
@@ -28,7 +30,16 @@ def init_scheduler(app, scheduler):
         replace_existing=True
     )
 
+    scheduler.add_job(
+        id='consume_async_tasks',
+        func=_context_wrapper(app, consume_async_tasks),
+        trigger='interval',
+        minutes=1,
+        replace_existing=True
+    )
+
     scheduler.start()
+    app.logger.info("APScheduler started with jobs: crawl_all_fund_net_values, consume_async_tasks")
 
     #     scheduler.add_job(
 #         id='test_job',

@@ -4,12 +4,13 @@ from datetime import datetime, date, time
 from decimal import Decimal
 
 from flask import current_app as app, g
+from loguru import logger
 from passlib.exc import InvalidHashError
 from passlib.hash import pbkdf2_sha256
 from sqlalchemy import inspect
 
 from app.constant.sys_enums import GlobalYesOrNo
-from app.database import db
+from app.extension import db
 
 
 class BaseModel(db.Model):
@@ -793,22 +794,22 @@ class UserSetting(TimestampMixin, BaseModel):
         try:
             # 检查哈希值是否有效
             if not hashed or not isinstance(hashed, str):
-                app.logger.warning("Empty or invalid hash provided")
+                logger.warning("Empty or invalid hash provided")
                 return False
 
             # 检查哈希格式是否正确
             if not hashed.startswith('$pbkdf2-sha256$'):
-                app.logger.warning(f"Unexpected hash format: {hashed}")
+                logger.warning(f"Unexpected hash format: {hashed}")
                 return False
 
             return pbkdf2_sha256.verify(raw_password, hashed)
 
         except InvalidHashError:
-            app.logger.error(f"Invalid hash format for password verification")
+            logger.exception(f"Invalid hash format for password verification")
             return False
 
         except Exception as e:
-            app.logger.error(f"Unexpected error in password verification: {str(e)}")
+            logger.exception(f"Unexpected error in password verification: {str(e)}")
             return False
 
 

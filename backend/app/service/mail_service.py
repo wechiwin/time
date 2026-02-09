@@ -2,9 +2,8 @@ import threading
 
 from flask import current_app, render_template
 from flask_mail import Message
-import logging
+from loguru import logger
 
-logger = logging.getLogger(__name__)
 
 def send_async_email(app, msg):
     """异步发送邮件"""
@@ -25,7 +24,7 @@ def send_async_email(app, msg):
             mail.send(msg)
             current_app.logger.info(f"邮件发送成功: {msg.subject}")
         except Exception as e:
-            current_app.logger.error(f"邮件发送失败: {str(e)}", exc_info=True)
+            current_app.logger.exception(f"邮件发送失败: {str(e)}", exc_info=True)
 
 def send_email(to, subject, template=None, **kwargs):
     """

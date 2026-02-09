@@ -1,5 +1,4 @@
 import json
-import logging
 import threading
 import uuid
 from io import BytesIO
@@ -9,6 +8,7 @@ import pandas as pd
 from flask import Blueprint, request, Response, stream_with_context, current_app, g
 from flask import send_file
 from flask_babel import gettext
+from loguru import logger
 from sqlalchemy import desc, or_
 from sqlalchemy.orm import joinedload
 
@@ -24,7 +24,7 @@ from app.utils.user_util import get_or_raise
 trade_bp = Blueprint('trade', __name__, url_prefix='/trade')
 
 task_queues = {}
-logger = logging.getLogger(__name__)
+
 
 
 @trade_bp.route('/tr_page', methods=['POST'])
@@ -348,7 +348,7 @@ def background_worker(task_id, file_bytes, app):
                 task_queues[task_id].put({"status": "success", "data": result})
 
         except Exception as e:
-            logger.error(f"Task {task_id} Error: {e}")
+            logger.exception(f"Task {task_id} Error: {e}")
             if task_id in task_queues:
                 task_queues[task_id].put({"status": "error", "message": str(e)})
 

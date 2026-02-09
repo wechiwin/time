@@ -1,4 +1,3 @@
-import logging
 import time
 from datetime import date, timedelta
 from decimal import Decimal
@@ -6,17 +5,15 @@ from typing import Dict, Optional, List
 
 import numpy as np
 import pandas as pd
+from loguru import logger
 from scipy import optimize
 
-from app.calendars.trade_calendar import TradeCalendar
-from app.database import db
+from app.calendars.trade_calendar import trade_calendar
+from app.extension import db
 from app.framework.async_task_manager import create_task
 from app.models import (
     InvestedAssetSnapshot, AnalyticsWindow, InvestedAssetAnalyticsSnapshot, UserSetting
 )
-
-logger = logging.getLogger(__name__)
-trade_calendar = TradeCalendar()
 
 # 配置化常量
 RISK_FREE_RATE = 0.02  # TODO 目前硬编码为 0.02 (2%)。建议放入系统配置表或常量类中。
@@ -53,7 +50,7 @@ class InvestedAssetAnalyticsSnapshotService:
             except Exception as e:
                 # 隔离用户错误，防止一个用户的失败影响其他用户
                 error_msg = f"Failed to generate analytics for user {user.id} on {target_date}: {e}"
-                logger.error(error_msg, exc_info=True)
+                logger.exception(error_msg, exc_info=True)
                 # 可以选择为失败的用户创建重试任务
                 create_task(
                     task_name=f"retry_analytics_user_{user.id}_{target_date}",
@@ -102,7 +99,7 @@ class InvestedAssetAnalyticsSnapshotService:
         except Exception as e:
             db.session.rollback()
             error_msg = f"Error generating InvestedAssetAnalyticsSnapshot  for {target_date}: {str(e)}"
-            logger.error(error_msg, exc_info=True)
+            logger.exception(error_msg, exc_info=True)
             # 触发重试
             create_task(
                 task_name=f"retry_invested_asset_analytics_{target_date}",
@@ -128,7 +125,10 @@ class InvestedAssetAnalyticsSnapshotService:
         errors = []
 
         # 查找最早的投资资产快照日期
-        min_date_result = db.session.query(db.func.min(InvestedAssetSnapshot.snapshot_date)).scalar()
+        min_date_result = db.session.query(
+            db.func.min(InvestedAssetSnapshot.snapshot_date)).filter_by(
+            user_id=user_id
+        ).scalar()
         if not min_date_result:
             msg = "No InvestedAssetSnapshot data found. Aborting regeneration."
             logger.warning(msg)
@@ -163,15 +163,16 @@ class InvestedAssetAnalyticsSnapshotService:
         except Exception as e:
             db.session.rollback()
             error_msg = f"Error generating InvestedAssetSnapshot for {current_date}: {str(e)}"
-            logger.error(error_msg, exc_info=True)
+            logger.exception(error_msg, exc_info=True)
             errors.append(error_msg)
             # 触发重试
             create_task(
-                task_name=f"retry_invested_asset_snapshot_{current_date}",
-                module_path="app.service.invested_asset_snapshot_service",
-                class_name="InvestedAssetSnapshotService",
-                method_name="regenerate_all",
-                kwargs={},
+                user_id=user_id,
+                task_name=f"retry_invested_asset_analytics_snapshot_{user_id}",
+                module_path="app.service.invested_asset_analytics_snapshot_service",
+                class_name="InvestedAssetAnalyticsSnapshotService",
+                method_name="regenerate_for_user",
+                kwargs={"user_id": user_id},
                 error_message=error_msg
             )
 

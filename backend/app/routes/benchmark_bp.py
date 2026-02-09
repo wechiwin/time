@@ -1,11 +1,7 @@
-import logging
-
 from flask import Blueprint
 
 from app.framework.res import Res
 from app.service.benchmark_service import BenchmarkService
-
-logger = logging.getLogger(__name__)
 
 benchmark_bp = Blueprint('benchmark', __name__, url_prefix='/benchmark')
 

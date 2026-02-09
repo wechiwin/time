@@ -2,16 +2,18 @@
 import hashlib
 import importlib
 import json
-import logging
 import time
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import List, Any, Dict, Optional
 
-from app.constant.biz_enums import TaskStatusEnum
-from app.models import db, AsyncTaskLog
+from loguru import logger
+from sqlalchemy import update
 
-logger = logging.getLogger(__name__)
+from app.constant.biz_enums import TaskStatusEnum
+from app.extension import db
+from app.framework.exceptions import BizException
+from app.models import AsyncTaskLog
 
 
 class AsyncTaskExecutionError(Exception):
@@ -33,11 +35,146 @@ class AsyncTaskManager:
     """
 
     @staticmethod
+    def fetch_and_execute_tasks(batch_size: int = 10):
+        """
+        【消费者入口】
+        由 APScheduler 每隔几分钟调用。
+        获取待执行的任务并执行。支持并发安全。
+        """
+        # 1. 获取当前时间点需要执行的任务 ID 列表
+        # 这样做是为了减少数据库行锁的时间
+        now = datetime.utcnow()
+
+        # 查询符合条件的状态
+        # 注意：这里需要确保你的数据库支持 SKIP LOCKED (PostgreSQL, MySQL 8.0+)
+        # Neon (Postgres) 是支持的。
+
+        # 由于 SQLAlchemy Core/ORM 的 for_update 在不同版本写法不同，
+        # 这里演示一种兼容性较好的逻辑：先查 ID，再逐个抢锁
+        candidate_ids = db.session.query(AsyncTaskLog.id).filter(
+            AsyncTaskLog.status.in_([TaskStatusEnum.PENDING, TaskStatusEnum.RETRYING]),
+            AsyncTaskLog.next_retry_at <= now
+        ).limit(batch_size).all()
+
+        candidate_ids = [r[0] for r in candidate_ids]
+
+        if not candidate_ids:
+            return
+
+        for task_id in candidate_ids:
+            # 2. 尝试抢占任务
+            # 使用原子更新来抢占，避免双写
+            # 只有当状态仍为 PENDING/RETRYING 时才更新为 RUNNING
+            updated = db.session.execute(
+                update(AsyncTaskLog)
+                .where(AsyncTaskLog.id == task_id)
+                .where(AsyncTaskLog.status.in_([TaskStatusEnum.PENDING, TaskStatusEnum.RETRYING]))
+                .values(status=TaskStatusEnum.RUNNING, updated_at=datetime.utcnow())
+            )
+
+            if updated.rowcount == 1:
+                db.session.commit()
+                # 抢占成功，开始执行
+                AsyncTaskManager._execute_task_safe(task_id)
+            else:
+                # 任务已被其他进程抢占，跳过
+                db.session.rollback()
+
+    @staticmethod
+    def _execute_task_safe(task_log_id: int):
+        """
+        执行具体的任务逻辑，包含完整的异常捕获和状态流转
+        """
+        # 重新查询任务详情，此时状态已经是 RUNNING
+        task_log = db.session.get(AsyncTaskLog, task_log_id)
+        if not task_log:
+            return
+
+        params = task_log.params
+        module_path = params['module_path']
+        class_name = params.get('class_name')
+        method_name = params['method_name']
+        args = params.get('args', [])
+        kwargs = params.get('kwargs', {})
+
+        try:
+            # --- 反射调用 ---
+            module = importlib.import_module(module_path)
+            target = None
+
+            if class_name:
+                cls = getattr(module, class_name)
+                # 警告：这里假设类实例化不需要参数。
+                # 最佳实践是 Service 类通过 current_app 获取依赖，而不是构造函数注入
+                instance = cls()
+                target = getattr(instance, method_name)
+            else:
+                target = getattr(module, method_name)
+
+            # 执行
+            start_time = time.time()
+
+            # 关键：业务逻辑执行
+            # 如果业务逻辑包含 DB 操作，它们应该在业务内部 commit，
+            # 或者由这里统一 commit (取决于你的业务复杂度)。
+            result = target(*args, **kwargs)
+
+            duration = round(time.time() - start_time, 2)
+
+            # 3. 成功处理
+            AsyncTaskManager._update_task_status(
+                task_log.id,
+                TaskStatusEnum.SUCCESS,
+                result_summary=json.dumps(result, default=str) if result else None
+            )
+            logger.info(f"Task {task_log.id} succeeded in {duration}s.")
+
+        except Exception as e:
+            # 4. 失败处理
+            logger.exception(f"Task {task_log.id} failed: {str(e)}", exc_info=True)
+
+            # 回滚业务逻辑可能产生的脏数据
+            db.session.rollback()
+
+            # 计算重试
+            task_log.retry_count += 1
+            if task_log.retry_count > task_log.max_retries:
+                AsyncTaskManager._update_task_status(
+                    task_log.id,
+                    TaskStatusEnum.FAILED,
+                    error_message=f"Max retries exceeded. Last error: {str(e)}"
+                )
+            else:
+                # 指数退避
+                delay = min(10 * (2 ** (task_log.retry_count - 1)), 600)
+                next_retry = datetime.utcnow() + timedelta(seconds=delay)
+
+                AsyncTaskManager._update_task_status(
+                    task_log.id,
+                    TaskStatusEnum.RETRYING,
+                    error_message=str(e),
+                    next_retry_at=next_retry
+                )
+
+    @staticmethod
+    def _update_task_status(task_id, status, **kwargs):
+        try:
+            db.session.execute(
+                update(AsyncTaskLog)
+                .where(AsyncTaskLog.id == task_id)
+                .values(status=status, **kwargs, updated_at=datetime.utcnow())
+            )
+            db.session.commit()
+        except Exception as e:
+            logger.exception(f"CRITICAL: Failed to update task log {task_id}: {e}")
+            db.session.rollback()
+
+    @staticmethod
     def run_by_log_id(task_log_id: int):
         """通过日志ID执行任务，这是重试的入口"""
         task_log = AsyncTaskLog.query.get(task_log_id)
         if not task_log:
-            logger.error(f"TaskLog with id {task_log_id} not found.")
+            logger.exception(f"TaskLog with id {task_log_id} not found.")
             return
 
         if task_log.status not in [TaskStatusEnum.PENDING, TaskStatusEnum.RETRYING]:
@@ -84,11 +221,11 @@ class AsyncTaskManager:
             # 4. 失败，处理重试逻辑
             task_log.retry_count += 1
             error_message = f"Attempt {task_log.retry_count}/{task_log.max_retries + 1} failed: {str(e)}"
-            logger.error(error_message, exc_info=True)
+            logger.exception(error_message, exc_info=True)
 
             if task_log.retry_count > task_log.max_retries:
                 AsyncTaskManager._update_status(task_log, TaskStatusEnum.FAILED, error_message=error_message)
-                logger.error(f"Task {task_log.id} failed permanently.")
+                logger.exception(f"Task {task_log.id} failed permanently.")
                 raise AsyncTaskExecutionError(f"Task failed after {task_log.max_retries} retries.") from e
             else:
                 retry_delay = AsyncTaskManager._get_retry_delay(task_log.retry_count)
@@ -114,7 +251,7 @@ class AsyncTaskManager:
             task_log.next_retry_at = next_retry_at
             db.session.commit()
         except Exception as e:
-            logger.error(f"CRITICAL: Failed to update task log {task_log.id}: {e}")
+            logger.exception(f"CRITICAL: Failed to update task log {task_log.id}: {e}")
             db.session.rollback()
             raise AsyncTaskExecutionError("Failed to update task log status.") from e
 
@@ -127,7 +264,7 @@ class AsyncTaskManager:
 
     @staticmethod
     def _generate_task_fingerprint(
-            user_id: str,
+            user_id: int,
             task_name: str,
             module_path: str,
             method_name: str,
@@ -194,7 +331,7 @@ class AsyncTaskManager:
 
 
 def create_task(
-        user_id: str,
+        user_id: int,
         task_name: str,
         module_path: str,
         method_name: str,
@@ -207,7 +344,7 @@ def create_task(
         deduplication_window_minutes: int = 30,
         business_key: str = None,
         force_create: bool = False
-) -> AsyncTaskLog:
+):
     """
     手动创建一个异步任务记录，支持去重机制。
     Args:
@@ -291,8 +428,12 @@ def create_task(
         status=TaskStatusEnum.PENDING,
         error_message=error_message,
     )
-    db.session.add(task_log)
-    db.session.commit()
-
-    logger.info(f"Manually created task '{task_name}' with log ID: {task_log.id}")
-    return task_log
+    try:
+        db.session.add(task_log)
+        db.session.commit()
+        logger.info(f"Task created success: {task_name}' with log ID: {task_log.id}")
+        return task_log
+    except Exception as e:
+        db.session.rollback()
+        logger.info(f"Task created failed: {task_name}' with log ID: {task_log.id}")
+        raise BizException(str(e))

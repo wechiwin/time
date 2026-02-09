@@ -1,8 +1,8 @@
-import logging
 from datetime import datetime
 
 from flask import current_app
 from flask_babel import gettext
+from loguru import logger
 from sqlalchemy import func, desc, or_
 
 from app.constant.biz_enums import AlertRuleActionEnum, AlertEmailStatusEnum
@@ -11,8 +11,6 @@ from app.models import db, AlertRule, AlertHistory, Holding, UserSetting, FundNa
 from app.service.mail_service import send_email
 from app.service.nav_history_service import FundNavHistoryService
 from app.utils.date_util import get_yesterday_date_str
-
-logger = logging.getLogger(__name__)
 
 
 class AlertService:
@@ -190,5 +188,5 @@ class AlertService:
                     error_msg = f"发送提醒邮件失败: {str(e)}"
                     history.remark = error_msg
                     # db.session.commit()
-                    current_app.logger.error(error_msg, exc_info=True)
+                    current_app.logger.exception(error_msg, exc_info=True)
                 db.session.commit()

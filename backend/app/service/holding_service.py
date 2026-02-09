@@ -1,10 +1,9 @@
-import logging
 import time
 from decimal import Decimal
 from typing import Optional, Any
 
-import akshare as ak
 import requests
+from loguru import logger
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.constant.biz_enums import (
@@ -14,10 +13,8 @@ from app.constant.biz_enums import (
     ErrorMessageEnum
 )
 from app.framework.exceptions import BizException
-from app.models import db, Holding, FundDetail, AlertRule
+from app.models import db, Holding, FundDetail
 from app.utils.date_util import str_to_date
-
-logger = logging.getLogger(__name__)
 
 
 class HoldingService:
@@ -82,7 +79,7 @@ class HoldingService:
             return HoldingService._normalize_fund_data(result)
 
         except requests.exceptions.RequestException as e:
-            logger.error(f"爬取基金信息失败: {str(e)}")
+            logger.exception(f"爬取基金信息失败: {str(e)}")
             raise BizException(ErrorMessageEnum.OPERATION_FAILED.view)
 
     @staticmethod
@@ -185,11 +182,11 @@ class HoldingService:
 
         except SQLAlchemyError as e:
             db.session.rollback()
-            logger.error(f"创建持仓数据库错误: {str(e)}")
+            logger.exception(f"创建持仓数据库错误: {str(e)}")
             raise BizException(msg=f"{data.get('ho_code')}:{ErrorMessageEnum.OPERATION_FAILED.view}")
         except Exception as e:
             db.session.rollback()
-            logger.error(f"创建持仓未知错误: {str(e)}")
+            logger.exception(f"创建持仓未知错误: {str(e)}")
             raise BizException(msg=f"{data.get('ho_code')}:{ErrorMessageEnum.OPERATION_FAILED.view}")
 
     @staticmethod
@@ -230,7 +227,7 @@ class HoldingService:
                 results["failed"] += 1
                 results["errors"].append(f"{code}: {be.msg}")
             except Exception as e:
-                logger.error(f"导入 {code} 未知异常: {str(e)}")
+                logger.exception(f"导入 {code} 未知异常: {str(e)}")
                 results["failed"] += 1
                 results["errors"].append(f"{code}: 系统错误")
         return results
@@ -267,5 +264,5 @@ class HoldingService:
             db.session.commit()
         except SQLAlchemyError as e:
             db.session.rollback()
-            logger.error(f"删除持仓 {holding.ho_code} 失败: {e}", exc_info=True)
+            logger.exception(f"删除持仓 {holding.ho_code} 失败: {e}", exc_info=True)
             raise BizException(ErrorMessageEnum.OPERATION_FAILED.view)

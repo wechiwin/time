@@ -1,12 +1,13 @@
-import logging
-
 from flask import Blueprint
 
 from app.framework.auth import auth_required
 from app.framework.res import Res
 from app.service.holding_analytics_snapshot_service import HoldingAnalyticsSnapshotService
+from flask import Blueprint
 
-logger = logging.getLogger(__name__)
+from app.framework.auth import auth_required
+from app.framework.res import Res
+from app.service.holding_analytics_snapshot_service import HoldingAnalyticsSnapshotService
 
 holding_analytics_snapshot_bp = Blueprint('holding_analytics_snapshot', __name__, url_prefix='/holding_analytics_snapshot')
 
@@ -14,7 +15,7 @@ holding_analytics_snapshot_bp = Blueprint('holding_analytics_snapshot', __name__
 @holding_analytics_snapshot_bp.route('/generate_analysis', methods=['GET'])
 @auth_required
 def remake_all():
-    data = HoldingAnalyticsSnapshotService.generate_all_analytics()
+    data = HoldingAnalyticsSnapshotService.generate_all_holding_snapshot_analytics()
     return Res.success(data)
 
 

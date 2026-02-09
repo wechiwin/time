@@ -1,15 +1,13 @@
 # calendars.py
-import logging
 import os
 from datetime import date, datetime
 from threading import Lock
 from typing import Optional, Union, List
 
 import pandas as pd
+from loguru import logger
 
 from app.utils.date_util import str_to_date
-
-logger = logging.getLogger(__name__)
 
 
 class TradeCalendar:
@@ -84,8 +82,12 @@ class TradeCalendar:
         logger.warning("Trade calendar reloaded")
 
     @staticmethod
-    def _normalize_date(date_input: Union[str, date, datetime]) -> date:
+    def _normalize_date(date_input: Optional[Union[str, date, datetime]] = None) -> date:
         """将多种日期输入统一转换为 date 对象。"""
+        if date_input is None:
+            # 生产环境建议：考虑是否需要显式指定时区（如 Asia/Shanghai）
+            return date.today()
+
         if isinstance(date_input, str):
             return str_to_date(date_input)
         elif isinstance(date_input, datetime):
@@ -95,7 +97,7 @@ class TradeCalendar:
         else:
             raise ValueError(f"Unsupported date type: {type(date_input)}")
 
-    def is_trade_day(self, date_input: Union[str, date, datetime]) -> bool:
+    def is_trade_day(self, date_input: Optional[Union[str, date, datetime]] = None) -> bool:
         """
         判断日期是否为交易日
         :param date_input: 支持字符串('2024-06-05')、date、datetime 对象
@@ -117,8 +119,8 @@ class TradeCalendar:
 
     def get_nearby_trade_days(
             self,
-            date_input: Union[str, date, datetime],
-            n: int,
+            date_input: Optional[Union[str, date, datetime]] = None,
+            n: int = 0,
             inclusive: bool = False
     ) -> List[date]:
         """
@@ -172,7 +174,7 @@ class TradeCalendar:
         # 将 Pandas Timestamps 转换为 Python date 对象
         return [ts.date() for ts in result_slice]
 
-    def prev_trade_day(self, date_input: Union[str, date, datetime]) -> Optional[date]:
+    def prev_trade_day(self, date_input: Optional[Union[str, date, datetime]] = None) -> Optional[date]:
         """
         返回前一个交易日（返回 date 对象，更通用）
         如果 date_input 本身是最早一天，则返回 None。
@@ -195,7 +197,7 @@ class TradeCalendar:
             logger.warning(f"Invalid date input: {date_input}")
             return None
 
-    def next_trade_day(self, date_input: Union[str, date, datetime]) -> Optional[date]:
+    def next_trade_day(self, date_input: Optional[Union[str, date, datetime]] = None) -> Optional[date]:
         """
         新增：返回下一个交易日
         """
@@ -260,6 +262,8 @@ class TradeCalendar:
 
         return max(0, right_idx - left_idx)
 
+
+trade_calendar = TradeCalendar()
 
 if __name__ == '__main__':
     calendar = TradeCalendar()

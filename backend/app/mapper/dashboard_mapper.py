@@ -7,7 +7,7 @@ from typing import List
 
 from sqlalchemy import text
 
-from app.database import db
+from app.extension import db
 
 _SQL_DIR = Path(__file__).with_suffix('').parent / "sql"
 

@@ -1,4 +1,3 @@
-import logging
 import uuid
 from datetime import datetime
 
@@ -9,6 +8,7 @@ from flask_jwt_extended import (
 )
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from loguru import logger
 
 from app.constant.sys_enums import GlobalYesOrNo
 from app.framework.auth import auth_required, auth_refresh_required
@@ -19,8 +19,6 @@ from app.schemas_marshall import UserSettingSchema
 from app.service.user_service import UserService
 from app.utils.device_parser import DeviceParser
 from app.utils.user_util import generate_device_fingerprint
-
-logger = logging.getLogger(__name__)
 
 user_setting_bp = Blueprint('user_setting', __name__, url_prefix='/user_setting')
 limiter = Limiter(key_func=get_remote_address)
@@ -57,7 +55,7 @@ def register():
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        logger.error(e, exc_info=True)
+        logger.exception(e, exc_info=True)
         raise BizException("注册失败，请稍后再试", code=500)
 
     # 记录注册登录历史
@@ -237,7 +235,7 @@ def refresh():
         raise
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Refresh token failed: {e}", exc_info=True)
+        logger.exception(f"Refresh token failed: {e}", exc_info=True)
         raise BizException("Refresh token failed", code=401)
 
 
@@ -358,7 +356,7 @@ def edit_password():
         db.session.rollback()
         raise
     except Exception as e:
-        logger.error(e, exc_info=True)
+        logger.exception(e, exc_info=True)
         db.session.rollback()
         raise BizException("密码修改失败", code=500)
 
@@ -420,5 +418,5 @@ def logout():
         raise
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Logout failed: {e}", exc_info=True)
+        logger.exception(f"Logout failed: {e}", exc_info=True)
         raise BizException("登出失败", code=500)

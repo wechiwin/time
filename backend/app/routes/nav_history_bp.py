@@ -1,9 +1,7 @@
-import logging
 import threading
 
 from flask import Blueprint, request, current_app, g
 from sqlalchemy import or_
-from sqlalchemy.orm import joinedload
 
 from app.constant.biz_enums import ErrorMessageEnum
 from app.framework.auth import auth_required
@@ -15,7 +13,6 @@ from app.service.nav_history_service import FundNavHistoryService
 from app.utils.user_util import get_or_raise
 
 nav_history_bp = Blueprint('nav_history', __name__, url_prefix='/nav_history')
-logger = logging.getLogger(__name__)
 
 
 @nav_history_bp.route('/page_history', methods=['POST'])

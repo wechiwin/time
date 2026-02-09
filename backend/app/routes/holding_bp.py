@@ -1,9 +1,9 @@
-import logging
 from io import BytesIO
 
 import pandas as pd
 from flask import Blueprint, request, send_file, g
 from flask_babel import gettext
+from loguru import logger
 from sqlalchemy import or_
 
 from app.constant.biz_enums import ErrorMessageEnum, HoldingStatusEnum
@@ -17,7 +17,7 @@ from app.service.holding_service import HoldingService
 from app.utils.user_util import get_or_raise
 
 holding_bp = Blueprint('holding', __name__, url_prefix='/holding')
-logger = logging.getLogger(__name__)
+
 
 
 @holding_bp.route('/list_ho', methods=['POST'])
@@ -121,7 +121,7 @@ def add_ho():
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        logger.error(e, exc_info=True)
+        logger.exception(e, exc_info=True)
         raise BizException(msg=str(e))
     return Res.success()
 
@@ -170,7 +170,7 @@ def update_holding():
         db.session.commit()
     except Exception as e:
         db.session.rollback()  # 发生错误时回滚事务
-        logger.error(f"Error updating holding {id}: {e}", exc_info=True)
+        logger.exception(f"Error updating holding {id}: {e}", exc_info=True)
         # 可以根据异常类型返回更具体的错误信息
         raise BizException(msg=ErrorMessageEnum.OPERATION_FAILED.view)
     return Res.success()
@@ -278,7 +278,7 @@ def import_holdings():
         success_count = HoldingService.import_holdings(ho_codes, g.user.id)
         return Res.success(success_count)
     except Exception as e:
-        logger.error(e, exc_info=True)
+        logger.exception(e, exc_info=True)
         raise BizException(msg=ErrorMessageEnum.OPERATION_FAILED.view)
 
 

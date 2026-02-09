@@ -1,12 +1,12 @@
-import logging
 from datetime import datetime, timedelta
 from typing import Dict, List
 
+from loguru import logger
 from sqlalchemy import desc, func
 
 from app.cache import cache
 from app.constant.biz_enums import AnalyticsWindowEnum
-from app.database import db
+from app.extension import db
 from app.mapper.dashboard_mapper import DashboardMapper
 from app.models import (
     InvestedAssetSnapshot, InvestedAssetAnalyticsSnapshot,
@@ -14,8 +14,6 @@ from app.models import (
 )
 from app.schemas_marshall import AlertHistorySchema
 from app.utils.date_util import date_to_str
-
-logger = logging.getLogger(__name__)
 
 
 class DashboardService:

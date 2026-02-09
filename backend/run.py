@@ -1,8 +1,8 @@
 # backend/run.py
-from app import create_app
-from app.database import db  # Assuming db is initialized here or in create_app
+from app.extension import db
+from app.factory import build_app
 
-app = create_app()
+app = build_app()
 
 # You might need to initialize db with the app if it's not done in create_app
 # For example, if you're using Flask-SQLAlchemy:
