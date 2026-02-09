@@ -38,9 +38,9 @@ export default function AsyncTaskLogTable({data = [] /*, onShowDetails */}) {
                     <th scope="col" className="table-header">{t('th_status')}</th>
                     <th scope="col" className="table-header">{t('th_error_message')}</th>
                     <th scope="col" className="table-header">{t('th_result_summary')}</th>
-                    <th scope="col" className="table-header">{t('th_created_at')}</th>
-                    <th scope="col" className="table-header">{t('th_updated_at')}</th>
                     <th scope="col" className="table-header">{t('th_retries')}</th>
+                    <th scope="col" className="table-header">{t('th_updated_at')}</th>
+                    <th scope="col" className="table-header">{t('th_created_at')}</th>
                 </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -50,9 +50,9 @@ export default function AsyncTaskLogTable({data = [] /*, onShowDetails */}) {
                         <td className="table-cell">{renderStatusBadge(log.status, log.status$view)}</td>
                         <td className="table-cell max-w-xs truncate" title={log.error_message}>{log.error_message}</td>
                         <td className="table-cell max-w-xs truncate" title={log.result_summary}>{log.result_summary}</td>
-                        <td className="table-cell">{log.created_at}</td>
-                        <td className="table-cell">{log.updated_at}</td>
                         <td className="table-cell">{`${log.retry_count} / ${log.max_retries}`}</td>
+                        <td className="table-cell">{log.updated_at}</td>
+                        <td className="table-cell">{log.created_at}</td>
                     </tr>
                 ))}
                 </tbody>

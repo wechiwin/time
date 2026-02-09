@@ -66,7 +66,7 @@ export default function NavHistoryForm({onSubmit, onClose, initialValues}) {
                 </div>
                 <div className="flex flex-col">
                     <label className="text-sm font-medium mb-1">
-                        {t('th_nav_date')}
+                        {t('th_market_date')}
                     </label>
                     <input
                         type="date"

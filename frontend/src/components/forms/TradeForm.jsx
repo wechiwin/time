@@ -8,7 +8,6 @@ import MySelect from "../common/MySelect";
 import useCommon from "../../hooks/api/useCommon";
 import HoldingSearchSelect from "../search/HoldingSearchSelect";
 import {roundNumber} from "../../utils/numberFormatters";
-import {ExclamationTriangleIcon, CheckCircleIcon} from "@heroicons/react/24/outline";
 import {EventSourcePolyfill} from 'event-source-polyfill';
 import FormField from "../common/FormField";
 import WarningBubble from "../common/WarningBubble";
@@ -400,7 +399,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                 </FormField>
 
                 {/* 交易日期 - 半宽 */}
-                <FormField label={t('th_nav_date')} error={errors['ho_code']} required>
+                <FormField label={t('th_market_date')} error={errors['ho_code']} required>
                     <MyDate
                         value={form.tr_date}
                         onChange={(dateStr) => setForm({...form, tr_date: dateStr})}

@@ -10,21 +10,21 @@ export default function NavHistoryTable({data = [], onDelete, onEdit}) {
         navigate(`/historical_trend/${n.ho_id}`);
     };
     return (
-        <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-                <thead className="page-bg">
+        <div className="table-container">
+            <table className="min-w-full">
+                <thead>
                 <tr>
-                    <th className="table-header">{t('th_ho_name')}</th>
-                    <th className="table-header">{t('th_ho_short_name')}</th>
-                    <th className="table-header">{t('th_nav_date')}</th>
-                    <th className="table-header">{t('th_nav_per_unit')}</th>
-                    <th className="table-header">{t('th_nav_accumulated_per_unit')}</th>
-                    <th className="table-header text-right">{t('th_actions')}</th>
+                    <th scope="col" className="table-header">{t('th_ho_name')}</th>
+                    <th scope="col" className="table-header">{t('th_ho_short_name')}</th>
+                    <th scope="col" className="table-header">{t('th_market_date')}</th>
+                    <th scope="col" className="table-header">{t('th_price_per_unit')}</th>
+                    <th scope="col" className="table-header">{t('th_adj_ref_price')}</th>
+                    <th scope="col" className="table-header">{t('th_actions')}</th>
                 </tr>
                 </thead>
-                <tbody className="card divide-y divide-gray-200">
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {data.map((n) => (
-                    <tr key={n.id} className="hover:page-bg">
+                    <tr key={n.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
                         <td className="table-cell font-medium">
                             <button
                                 className="text-blue-600 hover:text-blue-800 underline cursor-pointer"
@@ -37,7 +37,7 @@ export default function NavHistoryTable({data = [], onDelete, onEdit}) {
                         <td className="table-cell">{n.nav_date}</td>
                         <td className="table-cell">{n.nav_per_unit}</td>
                         <td className="table-cell">{n.nav_accumulated_per_unit}</td>
-                        <td className="table-cell text-right">
+                        <td className="table-cell">
                             <div className="flex items-center space-x-2">
                                 <button
                                     className="btn-secondary"

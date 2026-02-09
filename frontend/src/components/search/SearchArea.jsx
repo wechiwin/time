@@ -1,7 +1,7 @@
 // src/components/search/SearchArea.jsx
-import React, {useCallback, useMemo, useState} from 'react';
+import React, {useCallback, useState} from 'react';
 import {useTranslation} from 'react-i18next';
-import {FunnelIcon, MagnifyingGlassIcon} from '@heroicons/react/20/solid';
+import {MagnifyingGlassIcon} from '@heroicons/react/20/solid';
 import DateRangePicker from "../common/DateRangePicker";
 import MyDate from "../common/MyDate";
 import ReactMultiSelect from "../common/ReactMultiSelect";
@@ -81,7 +81,7 @@ export default function SearchArea({
             placeholder: field.placeholder || '',
         };
 
-        const label = field.label || t(`label_${field.name}`) || field.name;
+        const label = field.labelKey ? t(field.labelKey) : (field.label || field.name);
 
         switch (field.type) {
             case 'select':
@@ -143,7 +143,7 @@ export default function SearchArea({
             default:
                 return (
                     <div className="flex flex-col gap-1" key={field.name}>
-                        <label className="search-area-label">{label}</label>
+                        <label className="search-area-label">{t(label)}</label>
                         <input
                             key={field.name}
                             {...commonProps}

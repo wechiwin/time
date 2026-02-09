@@ -80,14 +80,14 @@ export default function HoldingPage() {
         {
             name: 'keyword',
             type: 'text',
-            label: t('label_fund_name_or_code'),
+            label: t('label_name_or_code'),
             placeholder: t('msg_search_placeholder'),
             className: 'md:col-span-3',
         },
         // {
         //     name: 'nav_date',
         //     type: 'daterange',
-        //     label: t('th_nav_date'),
+        //     label: t('th_market_date'),
         //     className: 'md:col-span-3',
         // },
         {

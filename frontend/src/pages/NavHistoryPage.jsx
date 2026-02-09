@@ -10,7 +10,7 @@ import {usePaginationState} from "../hooks/usePaginationState";
 import {useToast} from "../components/context/ToastContext";
 import {useTranslation} from "react-i18next";
 import SearchArea from "../components/search/SearchArea";
-import {ArrowDownTrayIcon, DocumentArrowDownIcon, PlusIcon} from "@heroicons/react/16/solid";
+import {ArrowDownTrayIcon, DocumentArrowDownIcon} from "@heroicons/react/16/solid";
 
 export default function NavHistoryPage() {
     const {t} = useTranslation();
@@ -38,14 +38,14 @@ export default function NavHistoryPage() {
         {
             name: 'keyword',
             type: 'text',
-            label: t('label_fund_name_or_code'),
+            label: t('label_name_or_code'),
             placeholder: t('msg_search_placeholder'),
             className: 'md:col-span-3',
         },
         {
             name: 'dateRange',
             type: 'daterange',
-            label: t('th_nav_date'),
+            label: t('th_market_date'),
             className: 'md:col-span-3',
         },
     ];

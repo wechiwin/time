@@ -12,7 +12,7 @@ const getEmptyOption = (isDark, text) => ({
 });
 
 // 折线图配置
-export const getLineOption = (data, isDark, emptyMsg) => {
+export const getLineOption = (data, isDark, emptyMsg, t) => {
     if (!Array.isArray(data) || data.length === 0) {
         return getEmptyOption(isDark, emptyMsg);
     }
@@ -43,11 +43,11 @@ export const getLineOption = (data, isDark, emptyMsg) => {
             }
         },
         legend: {
-            data: ['总资产', '总成本'],
+            data: [t('total_asset'), t('total_cost')],
             textStyle: {color: isDark ? '#9ca3af' : '#4b5563', fontSize: 11},
             itemWidth: 12, itemHeight: 8, bottom: 0
         },
-        grid: {left: '1%', right: '3%', bottom: '8%', top: '8%', containLabel: true},
+        grid: {left: '1%', right: '3%', bottom: '12%', top: '10%', containLabel: true},
         xAxis: {
             type: 'category',
             data: data.map(i => i.date),
@@ -62,7 +62,7 @@ export const getLineOption = (data, isDark, emptyMsg) => {
         },
         series: [
             {
-                name: '总资产',
+                name: t('total_asset'),
                 type: 'line',
                 data: data.map(i => i.value),
                 smooth: true,
@@ -72,7 +72,7 @@ export const getLineOption = (data, isDark, emptyMsg) => {
                         type: 'linear',
                         x: 0, y: 0, x2: 0, y2: 1,
                         colorStops: [
-                            {offset: 0, color: 'rgba(59, 130, 246, 0.4)'},
+                            {offset: 0, color: 'rgba(59, 130, 246, 0.3)'},
                             {offset: 1, color: 'rgba(59, 130, 246, 0.0)'}
                         ]
                     }
@@ -81,7 +81,7 @@ export const getLineOption = (data, isDark, emptyMsg) => {
                 z: 2
             },
             {
-                name: '总成本',
+                name: t('total_cost'),
                 type: 'line',
                 data: data.map(i => i.cost),
                 smooth: true,
@@ -93,6 +93,7 @@ export const getLineOption = (data, isDark, emptyMsg) => {
         ]
     };
 };
+
 /**
  * 生成从深到浅的协调蓝色调色板
  * @param {number} count - 颜色数量，默认10
@@ -168,8 +169,9 @@ const hslToHex = (h, s, l) => {
 
     return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
 };
+
 // 饼图配置
-export const getPieOption = (data, isDark, emptyMsg, highlightedIndex = null) => {
+export const getPieOption = (data, isDark, emptyMsg, highlightedIndex = null, t) => {
     if (!Array.isArray(data) || data.length === 0) {
         return getEmptyOption(isDark, emptyMsg);
     }
@@ -179,13 +181,14 @@ export const getPieOption = (data, isDark, emptyMsg, highlightedIndex = null) =>
         // 将原始 item 数据附加到 ECharts 数据项上，方便 tooltip 使用
         rawData: item
     }));
+
     return {
         backgroundColor: 'transparent',
         // color: PIE_CHART_COLORS, // 应用专业调色盘
         color: generateBluePalette(data.length),
         tooltip: {
             trigger: 'item',
-            // [优化] 使用 formatter 函数提供更丰富的信息
+            // 使用 formatter 函数提供更丰富的信息
             formatter: (params) => {
                 const {name, value, data, color} = params;
                 const {rawData} = data;
@@ -200,12 +203,12 @@ export const getPieOption = (data, isDark, emptyMsg, highlightedIndex = null) =>
                         ${name}
                     </div>
                     <div style="font-size: 12px; display: grid; grid-template-columns: auto auto; gap: 4px 16px;">
-                        <span>持仓占比:</span><span style="font-weight: 600; text-align: right;">${(value * 100).toFixed(2)}%</span>
-                        <span>累计盈亏:</span><span style="font-weight: 600; color: ${pnlColor}; text-align: right;">${rawData.has_cumulative_pnl.toLocaleString('zh-CN', {
+                        <span>${t('position_percentage')}:</span><span style="font-weight: 600; text-align: right;">${(value * 100).toFixed(2)}%</span>
+                        <span>${t('cumulative_profit_loss')}:</span><span style="font-weight: 600; color: ${pnlColor}; text-align: right;">${rawData.has_cumulative_pnl.toLocaleString('zh-CN', {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2
                 })}</span>
-                        <span>组合贡献:</span><span style="font-weight: 600; color: ${contributionColor}; text-align: right;">${(rawData.has_portfolio_contribution * 100).toFixed(2)}%</span>
+                        <span>${t('portfolio_contribution')}:</span><span style="font-weight: 600; color: ${contributionColor}; text-align: right;">${(rawData.has_portfolio_contribution * 100).toFixed(2)}%</span>
                     </div>
                 `;
             },
@@ -219,17 +222,16 @@ export const getPieOption = (data, isDark, emptyMsg, highlightedIndex = null) =>
             show: false
         },
         series: [{
-            name: '持仓分布',
+            name: t('label_position_allocation'),
             type: 'pie',
-            radius: ['75%', '90%'],
+            radius: ['50%', '75%'],
             center: ['50%', '50%'],
             avoidLabelOverlap: false,
             itemStyle: {
-                borderRadius: 1,
-                // 使用背景色作为边框色，从而制造出 "间距" 的效果
-                // borderColor: isDark ? '#1f2937' : '#fff',
-                // 增加边框宽度，使间距更明显
-                borderWidth: 1
+                borderRadius: 4,
+                borderColor: isDark ? '#1f2937' : '#ffffff',
+                borderWidth: 2,
+                shadowBlur: 0, // 默认无阴影
             },
             // [优化] 标签用于在中心显示高亮项信息
             label: {
@@ -255,9 +257,15 @@ export const getPieOption = (data, isDark, emptyMsg, highlightedIndex = null) =>
                 }
             },
             emphasis: {
-                // 启用放大效果
                 scale: true,
-                scaleSize: 8, // 放大尺寸
+                scaleSize: 10,
+                itemStyle: {
+                    // 【优化 3】：Hover 时的阴影效果
+                    shadowBlur: 20,
+                    shadowOffsetX: 0,
+                    shadowOffsetY: 5,
+                    shadowColor: 'rgba(0, 0, 0, 0.2)'
+                }
             },
             data: chartData
         }]

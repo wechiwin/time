@@ -3,7 +3,6 @@ import {useTranslation} from 'react-i18next';
 import useDashboard from '../hooks/api/useDashboard';
 import ReactECharts from 'echarts-for-react';
 import {
-    ArrowPathIcon,
     ChartPieIcon,
     ClockIcon,
     CurrencyDollarIcon,
@@ -12,12 +11,7 @@ import {
     ScaleIcon
 } from '@heroicons/react/24/outline';
 import useDarkMode from "../hooks/useDarkMode";
-import {
-    formatCurrency,
-    formatPercent,
-    formatPercentNeutral,
-    formatRatioAsPercent,
-} from '../utils/numberFormatters';
+import {formatCurrency, formatPercent, formatPercentNeutral, formatRatioAsPercent,} from '../utils/numberFormatters';
 import {getLineOption, getPieOption} from '../utils/chartOptions';
 import {getBadgeStyle, getColor} from "../utils/colorFormatters";
 
@@ -35,7 +29,7 @@ const DEFAULT_RANGE_PARAMS = TIME_RANGE_CONFIG[DEFAULT_TIME_RANGE_KEY];
 export default function Dashboard() {
     const {t} = useTranslation();
     const [timeRange, setTimeRange] = useState('1y');
-    const isDarkMode = useDarkMode();
+    const {dark: isDarkMode} = useDarkMode();
     const [highlightedIndex, setHighlightedIndex] = useState(null);
     const chartRef = useRef(null);
     // 获取账户整体状况
@@ -88,11 +82,11 @@ export default function Dashboard() {
 
     // Memoized chart options
     const lineOption = useMemo(() =>
-            getLineOption(trend, isDarkMode, t('msg_no_records')),
+            getLineOption(trend, isDarkMode, t('msg_no_records'), t),
         [trend, isDarkMode, t]
     );
     const pieOption = useMemo(() =>
-            getPieOption(processedAllocation, isDarkMode, t('msg_no_records'), highlightedIndex),
+            getPieOption(processedAllocation, isDarkMode, t('msg_no_records'), highlightedIndex, t),
         [processedAllocation, isDarkMode, highlightedIndex, t]
     );
 
@@ -285,31 +279,89 @@ export default function Dashboard() {
 
             {/* 图表区域 */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* 资产走势 */}
-                <div
-                    className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700">
-                    <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
-                        {t('asset_trend')} <span className="text-sm font-normal text-gray-500">({windowName})</span>
-                    </h3>
-                    <div className="h-80">
-                        <ReactECharts
-                            option={lineOption}
-                            style={{height: '100%', width: '100%'}}
-                            theme={isDarkMode ? 'dark' : 'light'}
-                            notMerge={true}
-                        />
+                {/* 左侧栏 (占 2/3 宽度)：垂直堆叠走势图与风险分析 */}
+                <div className="lg:col-span-2 flex flex-col gap-6">
+
+                    {/* 1. 资产走势 (降低高度：h-80 -> h-60) */}
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700">
+                        <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
+                            {t('asset_trend')} <span className="text-sm font-normal text-gray-500">({windowName})</span>
+                        </h3>
+                        {/* 高度优化：从 h-80 降低到 h-60 (240px)，更适合趋势展示 */}
+                        <div className="h-60">
+                            <ReactECharts
+                                option={lineOption}
+                                style={{height: '100%', width: '100%'}}
+                                theme={isDarkMode ? 'dark' : 'light'}
+                                notMerge={true}
+                            />
+                        </div>
+                    </div>
+
+                    {/* 2. 风险与预警 (移入左侧栏下方，利用空间) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* 风险指标 */}
+                        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700">
+                            <h3 className="text-md font-semibold mb-3 text-gray-900 dark:text-white">
+                                {t('risk_analysis')}
+                                <span className="text-xs font-normal text-gray-500">({windowName})</span>
+                            </h3>
+                            {performance ? (
+                                <div className="grid grid-cols-2 gap-3">
+                                    <RiskMetric label={t('label_sharpe_ratio')} value={performance.sharpe_ratio?.toFixed(2)} desc={t('hint_sharpe_ratio_optimal')}/>
+                                    <RiskMetric label={t('label_max_drawdown')} value={formatPercent(performance.max_drawdown)} color={getColor(performance.max_drawdown)} desc={t('smaller_is_better')}/>
+                                    <RiskMetric label={t('label_annualized_volatility')} value={formatPercent(performance.volatility)} desc={t('label_risk_level')}/>
+                                    <RiskMetric label={t('label_win_rate')} value={formatPercent(performance.win_rate)} desc={t('label_profitable_days_ratio')}/>
+                                </div>
+                            ) : (
+                                <div className="text-center py-4 text-gray-400 text-sm">{t('msg_no_risk_analysis_data')}</div>
+                            )}
+                        </div>
+
+                        {/* 预警列表 */}
+                        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700">
+                            <h3 className="text-md font-semibold mb-3 text-gray-900 dark:text-white">{t('msg_recent_signals')}</h3>
+                            <div className="overflow-x-auto">
+                                {/* 表格稍微紧凑一点 */}
+                                <table className="w-full text-xs text-left">
+                                    <thead className="text-xs text-gray-500 uppercase bg-gray-50 dark:bg-gray-700/50">
+                                    <tr>
+                                        <th className="px-2 py-2 rounded-l-lg">{t('th_ar_name')}</th>
+                                        <th className="px-2 py-2">{t('th_actions')}</th>
+                                        <th className="px-2 py-2 rounded-r-lg">{t('alert_trigger_time')}</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                                    {alerts && alerts.length > 0 ? alerts.map(alert => (
+                                        <tr key={alert.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                                            <td className="px-2 py-2 font-medium text-gray-900 dark:text-white">{alert.ar_name}</td>
+                                            <td className="px-2 py-2">
+                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${getBadgeStyle(alert.action)}`}>
+                                                    {alert.action$view}
+                                                </span>
+                                            </td>
+                                            <td className="px-2 py-2 text-gray-500 dark:text-gray-400">{alert.trigger_nav_date}</td>
+                                        </tr>
+                                    )) : (
+                                        <tr>
+                                            <td colSpan="3" className="text-center py-6 text-gray-500 text-xs">{t('msg_no_alert_signals')}</td>
+                                        </tr>
+                                    )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                {/* 资产配置 */}
-                <div
-                    className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700 flex flex-col">
+                {/* 右侧栏 (占 1/3 宽度)：持仓分布 (保持全高) */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700 flex flex-col">
                     <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">{t('label_position_allocation')}</h3>
 
                     {allocation && allocation.length > 0 ? (
                         <>
-                            {/* ECharts 图表容器 */}
-                            <div className="flex-1 min-h-[180px] md:min-h-[200px] -mt-4 -mb-2">
+                            {/* 饼图区域：增加弹性，利用空间 */}
+                            <div className="flex-1 min-h-[240px] md:min-h-[260px] -mt-4 -mb-2">
                                 <ReactECharts
                                     ref={chartRef}
                                     option={pieOption}
@@ -322,8 +374,7 @@ export default function Dashboard() {
 
                             {/* 列表容器 */}
                             <div className="mt-4 flex flex-col">
-                                {/* 列表项 */}
-                                <div className="space-y-1 max-h-64 overflow-y-auto pr-1 custom-scrollbar mt-2">
+                                <div className="space-y-1 max-h-72 overflow-y-auto pr-1 custom-scrollbar mt-2">
                                     {processedAllocation.map((item, index) => (
                                         <AllocationListItem
                                             key={item.ho_code}
@@ -335,129 +386,20 @@ export default function Dashboard() {
                                         />
                                     ))}
                                 </div>
-                                {/* <div className="space-y-1 max-h-48 overflow-y-auto pr-1 custom-scrollbar mt-2"> */}
-                                {/*     {allocation.map((item, index) => ( */}
-                                {/*         <div */}
-                                {/*             key={item.ho_code} */}
-                                {/*             className={`flex justify-between items-center text-sm p-2 rounded-md transition-colors duration-200 ${ */}
-                                {/*                 highlightedIndex === index ? 'bg-gray-100 dark:bg-gray-700/50' : 'hover:bg-gray-50 dark:hover:bg-gray-700/30' */}
-                                {/*             }`} */}
-                                {/*             onMouseEnter={() => setHighlightedIndex(index)} */}
-                                {/*             onMouseLeave={() => setHighlightedIndex(null)} */}
-                                {/*         > */}
-                                {/*             /!* 左栏: 占比 *!/ */}
-                                {/*             <div */}
-                                {/*                 className="w-14 text-left text-gray-800 dark:text-gray-200"> */}
-                                {/*                 /!* 使用不带符号的百分比格式化 *!/ */}
-                                {/*                 {formatPercentNeutral(item.has_position_ratio)} */}
-                                {/*             </div> */}
-
-                                {/*             /!* 中栏: 名称/代码 *!/ */}
-                                {/*             <div className="flex-1 min-w-0 mx-2"> */}
-                                {/*                 <p className="text-gray-800 dark:text-gray-200 font-medium truncate" */}
-                                {/*                    title={item.ho_short_name}> */}
-                                {/*                     {item.ho_short_name} */}
-                                {/*                 </p> */}
-                                {/*                 <p className="text-xs text-gray-400">{item.ho_code}</p> */}
-                                {/*             </div> */}
-
-                                {/*             /!* 右栏: 盈亏/贡献 *!/ */}
-                                {/*             <div className="w-24 text-right flex-shrink-0"> */}
-                                {/*                 <div */}
-                                {/*                     className={`font-semibold font-mono ${getColor(item.has_cumulative_pnl)}`}> */}
-                                {/*                     {formatCurrency(item.has_cumulative_pnl)} */}
-                                {/*                 </div> */}
-                                {/*                 <div */}
-                                {/*                     className={`text-xs font-mono ${getColor(item.has_portfolio_contribution)}`}> */}
-                                {/*                     /!* 贡献度是带符号的百分比 *!/ */}
-                                {/*                     {formatRatioAsPercent(item.has_portfolio_contribution)} */}
-                                {/*                 </div> */}
-                                {/*             </div> */}
-                                {/*         </div> */}
-                                {/*     ))} */}
-                                {/* </div> */}
                             </div>
                         </>
                     ) : (
                         // 空状态展示
-                        <div className="flex-1 flex flex-col items-center justify-center text-gray-400 min-h-[240px]">
+                        <div className="flex-1 flex flex-col items-center justify-center text-gray-400 min-h-[300px]">
                             <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-full mb-3">
                                 <ChartPieIcon className="w-8 h-8 text-gray-300 dark:text-gray-500"/>
                             </div>
                             <p className="text-sm">{t('msg_no_current_positions')}</p>
-                            <p className="text-xs text-gray-400 mt-1">{t('msg_add_trades_or_wait')}</p>
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* 风险与预警 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* 风险指标 */}
-                <div
-                    className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700">
-                    <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
-                        {t('risk_analysis')} <span className="text-sm font-normal text-gray-500">({windowName})</span>
-                    </h3>
-                    {performance ? (
-                        <div className="grid grid-cols-2 gap-4">
-                            <RiskMetric label={t('label_sharpe_ratio')} value={performance.sharpe_ratio?.toFixed(2)}
-                                        desc={t('hint_sharpe_ratio_optimal')}/>
-                            <RiskMetric label={t('label_max_drawdown')} value={formatPercent(performance.max_drawdown)}
-                                        color={getColor(performance.max_drawdown)} desc={t('smaller_is_better')}/>
-                            <RiskMetric label={t('label_annualized_volatility')}
-                                        value={formatPercent(performance.volatility)}
-                                        desc={t('label_risk_level')}/>
-                            <RiskMetric label={t('label_win_rate')} value={formatPercent(performance.win_rate)}
-                                        desc={t('label_profitable_days_ratio')}/>
-                        </div>
-                    ) : (
-                        <div className="text-center py-8 text-gray-400 text-sm">{t('msg_no_risk_analysis_data')}</div>
-                    )}
-                </div>
-
-                {/* 预警列表 */}
-                <div
-                    className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700">
-                    <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">{t('msg_recent_signals')}</h3>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left">
-                            <thead className="text-xs text-gray-500 uppercase bg-gray-50 dark:bg-gray-700/50">
-                            <tr>
-                                <th className="px-3 py-2 rounded-l-lg">{t('th_ar_name')}</th>
-                                <th className="px-3 py-2">{t('th_actions')}</th>
-                                <th className="px-3 py-2">{t('alert_trigger_price')}</th>
-                                <th className="px-3 py-2 rounded-r-lg">{t('alert_trigger_time')}</th>
-                            </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                            {alerts && alerts.length > 0 ? alerts.map(alert => (
-                                <tr key={alert.id}
-                                    className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                                    <td className="px-3 py-3 font-medium text-gray-900 dark:text-white"
-                                        title={alert.ar_name}>
-                                        {alert.ar_name}
-                                    </td>
-                                    <td className="px-3 py-3">
-                                            <span
-                                                className={`px-2 py-1 rounded text-xs font-medium ${getBadgeStyle(alert.action)}`}>
-                                                {alert.action$view}
-                                            </span>
-                                    </td>
-                                    <td className="px-3 py-3 text-gray-700 dark:text-gray-300">{alert.trigger_price}</td>
-                                    <td className="px-3 py-3 text-gray-500 dark:text-gray-400">{alert.trigger_nav_date}</td>
-                                </tr>
-                            )) : (
-                                <tr>
-                                    <td colSpan="4"
-                                        className="text-center py-8 text-gray-500">{t('msg_no_alert_signals')}</td>
-                                </tr>
-                            )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
         </div>
     );
 }

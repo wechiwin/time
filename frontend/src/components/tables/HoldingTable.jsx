@@ -2,6 +2,7 @@
 import DeleteButton from '../common/DeleteButton';
 import {useNavigate} from 'react-router-dom';
 import {useTranslation} from 'react-i18next'
+import React from "react";
 
 export default function HoldingTable({data = [], onDelete, onEdit}) {
 
@@ -13,22 +14,22 @@ export default function HoldingTable({data = [], onDelete, onEdit}) {
     // };
 
     return (
-        <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-                <thead className="page-bg">
+        <div className="table-container">
+            <table className="min-w-full">
+                <thead>
                 <tr>
                     <th className="table-header">{t('th_ho_code')}</th>
                     <th className="table-header">{t('th_ho_name')}</th>
-                    {/* <th className="table-header">{t('th_ho_short_name')}</th> */}
                     <th className="table-header">{t('th_ho_type')}</th>
                     <th className="table-header">{t('th_ho_establish_date')}</th>
                     <th className="table-header">{t('info_hold_status')}</th>
                     {/* <th className="table-header">{t('th_currency')}</th> */}
+                    <th scope="col" className="table-header">{t('th_actions')}</th>
                 </tr>
                 </thead>
-                <tbody className="card divide-y divide-gray-200">
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {data.map((f) => (
-                    <tr key={f.id} className="hover:page-bg">
+                    <tr key={f.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
                         <td className="table-cell">
                             {/* <button */}
                             {/*     className="text-blue-600 hover:text-blue-800 underline cursor-pointer" */}
@@ -52,12 +53,10 @@ export default function HoldingTable({data = [], onDelete, onEdit}) {
                                 >
                                     {t('button_edit')}
                                 </button>
-                                <button
-                                    className="btn-danger" // 建议为删除按钮使用危险色
-                                    onClick={() => onDelete(f)}
-                                >
-                                    {t('button_delete')}
-                                </button>
+                                <DeleteButton
+                                    onConfirm={() => onDelete(f)}
+                                    description={`${t('msg_delete_confirmation')} ${f.ho_short_name} ?`}
+                                />
                             </div>
                         </td>
                     </tr>

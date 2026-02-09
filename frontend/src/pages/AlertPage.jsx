@@ -79,7 +79,7 @@ export default function AlertPage() {
         const keywordField = {
             name: 'keyword',
             type: 'text',
-            label: t('label_fund_name_or_code'),
+            label: t('label_name_or_code'),
             placeholder: t('msg_search_placeholder'),
             className: 'md:col-span-3',
         };

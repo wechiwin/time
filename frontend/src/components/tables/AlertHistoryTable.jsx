@@ -27,9 +27,9 @@ export default function AlertHistoryTable({data = []}) {
     }, [fetchMultipleEnumValues, showErrorToast]);
 
     return (
-        <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-                <thead className="page-bg">
+        <div className="table-container">
+            <table className="min-w-full">
+                <thead>
                 <tr>
                     <th className="table-header">{t('th_ho_code')}</th>
                     <th className="table-header">{t('th_ar_name')}</th>

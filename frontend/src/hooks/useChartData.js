@@ -112,7 +112,7 @@ export default function useChartData({
                 data: buyPoints,
                 zlevel: 10, // 确保在最上层
                 tooltip: {
-                    formatter: p => `${t('tr_type_buy', '买入')}<br/>${t('th_nav_date', '日期')}: ${p.value[0]}<br/>${t('th_tr_nav_per_unit', '净值')}: ${p.value[1]}`,
+                    formatter: p => `${t('tr_type_buy', '买入')}<br/>${t('th_market_date', '日期')}: ${p.value[0]}<br/>${t('th_tr_nav_per_unit', '净值')}: ${p.value[1]}`,
                 },
             });
             series.push({
@@ -121,7 +121,7 @@ export default function useChartData({
                 data: sellPoints,
                 zlevel: 10,
                 tooltip: {
-                    formatter: p => `${t('tr_type_sell', '卖出')}<br/>${t('th_nav_date', '日期')}: ${p.value[0]}<br/>${t('th_tr_nav_per_unit', '净值')}: ${p.value[1]}`,
+                    formatter: p => `${t('tr_type_sell', '卖出')}<br/>${t('th_market_date', '日期')}: ${p.value[0]}<br/>${t('th_tr_nav_per_unit', '净值')}: ${p.value[1]}`,
                 },
             });
         }

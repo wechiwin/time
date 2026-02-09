@@ -34,6 +34,10 @@
   "th_currency": "计价货币",
   "th_fund_type": "基金类型",
   "th_dividend_type": "分红类型",
+  "th_market_date": "市场日期",
+  "th_price_per_unit": "单价",
+  "th_adj_ref_price": "权益调整基准价",
+  "th_tr_price": "交易价格",
 
   "start_date": "开始日期",
   "end_date": "结束日期",
@@ -176,9 +180,8 @@
   "status_inactive": "未激活",
   "alert_trigger_price": "触发单价",
   "remark": "备注",
-
-  "login_title": "登录 TIME",
-  "register_title": "注册 TIME",
+  "login_title": "登录",
+  "register_title": "注册",
   "register_subtitle": "创建您的个人账户",
   "username": "用户名",
   "password": "密码",
@@ -216,12 +219,12 @@
   "current_month": "本月",
   "past_month": "上个月",
   "msg_select_date_range": "选择日期范围",
-  "label_fund_name_or_code": "持仓名称或代码",
+  "label_name_or_code": "持仓名称或代码",
 
   "select_all": "全选",
 
   "menu_task_logs": "任务运行",
-  "label_keyword": "搜索关键词",
+  "search_keyword": "搜索关键词",
   "th_task_name": "任务名称",
   "th_status": "任务状态",
   "th_result_summary": "结果摘要",
@@ -244,5 +247,11 @@
   "apply": "应用",
   "code_required_prompt": "请先输入代码",
   "field_cannot_be_empty": "不能为空",
-  "end_date_cannot_be_earlier_than_start_date": "结束日期不能早于开始日期"
+  "end_date_cannot_be_earlier_than_start_date": "结束日期不能早于开始日期",
+  "others": "其他",
+  "redo_all_snapshots": "重新生成所有分析数据",
+  "position_percentage": "持仓占比",
+  "portfolio_contribution": "组合贡献",
+  "total_cost": "总成本",
+  "position_distribution": "持仓分布"
 }

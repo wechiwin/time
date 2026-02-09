@@ -271,17 +271,10 @@ export default function HoldingFormMobile({onSubmit, onClose, initialValues, onC
                     </div>
                 </div>
 
-                {/*
-               底部按钮区域
-               1. 移除了 absolute，改为正常流布局，使其跟随滚动
-               2. -mx-4: 抵消 Modal 内容区域的 padding (p-4)，使背景延伸到边缘
-               3. -mb-4: 抵消 Modal 内容区域的底部 padding，使按钮贴合 Modal 底部圆角
-               4. px-4: 恢复按钮内容的左右内边距，保持美观
-            */}
                 <div className="mt-4 -mx-4 -mb-4 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 p-4 z-20 rounded-b-xl">
                     <div className="max-w-md mx-auto space-y-3">
                         <p className="text-[10px] text-center text-gray-500 dark:text-gray-400">
-                            输入代码后，点击爬取可自动填充信息
+                            {t('crawl_hint')}
                         </p>
                         <button type="button" className="w-full py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg shadow-sm transition-colors" onClick={handleCrawl}>
                             {t('button_crawl_info')}
