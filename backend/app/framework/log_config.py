@@ -70,7 +70,7 @@ def setup_logging(app):
     if app.debug:
         logger.add(
             sys.stderr,
-            level="DEBUG",
+            level=log_level_str,
             format=LOG_FORMAT,
             colorize=True,
             enqueue=True  # 异步写入，防止阻塞主线程
