@@ -5,9 +5,9 @@ frontend/node_modules
 test.py
 logs
 .env
-.env.*
-.env.*.local
 .env.local
+.env.test
+.env.prod
 .python-version
 .flaskenv
 *.mo

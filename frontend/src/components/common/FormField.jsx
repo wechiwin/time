@@ -1,11 +1,11 @@
 // src/components/common/FormField.jsx
 import React from 'react';
 
-export default function FormField({ label, error, required, children, className = "" }) {
+export default function FormField({ label, error, required, children, className = "", labelClassName = "" }) {
     return (
         <div className={`flex flex-col ${className}`}>
             {label && (
-                <label className="text-sm font-medium mb-1">
+                <label className={`text-sm font-medium mb-1 ${labelClassName}`}>
                     {label}
                     {required && <span className="text-red-500 ml-1">*</span>}
                 </label>
@@ -24,16 +24,13 @@ export default function FormField({ label, error, required, children, className 
                     // 我们就不给它注入 input 的边框样式。
                     // 注意：生产环境 child.type.name 可能会被混淆，所以用 props 判断更稳妥。
                     const isWarningBubble = child.props.hasOwnProperty('warning') && child.props.hasOwnProperty('onApply');
+                    if (isWarningBubble) return child;
 
-                    if (isWarningBubble) {
-                        return child;
-                    }
-
-                    // 对于 Input/Select 等控件，注入错误样式
+                    // 注入错误样式
                     const existingClass = child.props.className || '';
                     // 只有当 error 存在时才添加红色边框
                     const errorClass = error
-                        ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                        ? 'border-red-500 focus:border-red-500 focus:ring-red-500 dark:border-red-400'
                         : '';
 
                     return React.cloneElement(child, {
@@ -44,7 +41,7 @@ export default function FormField({ label, error, required, children, className 
 
             {/* 错误提示语 (Validation Errors) */}
             {error && (
-                <span className="text-xs text-red-500 mt-1 animate-pulse">
+                <span className="text-xs text-red-500 dark:text-red-400 mt-1 animate-pulse">
                     {error}
                 </span>
             )}

@@ -174,28 +174,82 @@ This project implements a **production-grade portfolio analytics engine** consis
 - Robust handling of partial liquidations and full clearance scenarios.
 
 ---
+## 8. Deployment and Execution
 
-## 8. Deployment & Execution
+A live version of the application is deployed and accessible at:
+**URL:** `https://app.wechiwin.com`
 
-A live demonstration of the system is available at https://app.wechiwin.com
+A demonstration account is available for testing purposes:
+*   **Username:** `presentusr`
+*   **Password:** `presentpwd`
 
-For local development or testing, adhere to the following setup procedures:
+### Local Development Setup
 
-### Backend
+To run the project on a local machine, please ensure the following prerequisites are met and follow the setup instructions.
 
-```bash
-cd backend
-pip install -r requirements.txt
-flask run
-```
+#### **Prerequisites**
+*   Python 3.11 or later
+*   Node.js v18.x or later
+*   Git
 
-### Frontend
+#### **Backend**
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+1.  **Navigate to the backend directory:**
+    ```bash
+    cd backend
+    ```
+
+2.  **Create and activate a virtual environment.** The following example uses Python's built-in `venv` module:
+    ```bash
+    # Create the virtual environment
+    python -m venv venv
+
+    # Activate on macOS/Linux
+    source venv/bin/activate
+
+    # Activate on Windows
+    .\venv\Scripts\activate
+    ```
+
+3.  **Install the required packages:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4.  **Configure environment variables:
+    ```bash
+    # cp .env.example .env
+    # Then, modify the .env file with your local configuration.
+    ```
+
+5.  **Run the development server:**
+    ```bash
+    flask run
+    ```
+    The backend API will be running at `http://127.0.0.1:5000`.
+
+#### **Frontend**
+
+1.  **Navigate to the frontend directory:**
+    ```bash
+    cd frontend
+    ```
+
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
+3.  **Configure environment variables:
+    ```bash
+    # cp .env.example .env.local
+    # Then, modify the .env.local file with your local configuration.
+    ```
+    
+4.  **Start the development server:**
+    ```bash
+    npm run dev
+    ```
+    The frontend application will be accessible at `http://localhost:5173` (or a similar address indicated in the terminal).
 
 ---
 

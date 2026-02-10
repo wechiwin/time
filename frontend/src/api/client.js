@@ -65,8 +65,8 @@ apiClient.interceptors.response.use(
 
         // 如果是网络错误，直接提示
         if (!error.response) {
-            toastInstance.showErrorToast('网络连接失败，请检查网络');
-            return Promise.reject(new Error('网络错误'));
+            toastInstance.showErrorToast(i18n.t('errors_request_failed'));
+            return Promise.reject(new Error('Network error'));
         }
 
         const {status} = error.response;
@@ -129,10 +129,10 @@ apiClient.interceptors.response.use(
 
         // 其他错误按原逻辑处理
         if (status >= 500) {
-            const msg = error.response.data?.msg || '服务器内部错误';
+            const msg = error.response.data?.msg || i18n.t('errors_server_error');
             return Promise.reject(new Error(msg));
         }
-        const msg = error.response.data?.msg || `请求失败 (${status})`;
+        const msg = error.response.data?.msg || i18n.t('errors_request_failed', { status });
         return Promise.reject(new Error(msg));
     }
 );
