@@ -11,3 +11,4 @@ logs
 .python-version
 .flaskenv
 *.mo
+__pycache__

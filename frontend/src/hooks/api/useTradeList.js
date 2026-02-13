@@ -81,6 +81,19 @@ export default function useTradeList(options = {}) {
         });
     }, [post]);
 
+    // 导出数据
+    const exportData = useCallback(async () => {
+        const url = urlPrefix + '/export';
+        const filename = 'tradeLog.xlsx';
+
+        try {
+            await download(url, filename);
+        } catch (error) {
+            console.error('Export data failed:', error);
+            throw error;
+        }
+    }, [download]);
+
     const listByHoId = useCallback(async (ho_id = '') => {
         const result = await post(urlPrefix + '/list_by_ho_id', {ho_id});
         setData(result);  // 业务逻辑设置 data
@@ -117,6 +130,7 @@ export default function useTradeList(options = {}) {
         search,
         downloadTemplate,
         importData,
+        exportData,
         listByHoId,
         uploadTradeImg,
         upload_sse

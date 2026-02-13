@@ -9,7 +9,7 @@ import {useToast} from "../components/context/ToastContext";
 import Pagination from "../components/common/pagination/Pagination";
 import {usePaginationState} from "../hooks/usePaginationState";
 import SearchArea from "../components/search/SearchArea";
-import {ArrowDownTrayIcon, DocumentArrowDownIcon, PlusIcon} from "@heroicons/react/16/solid";
+import {ArrowDownTrayIcon, ArrowUpTrayIcon, DocumentArrowDownIcon, PlusIcon} from "@heroicons/react/16/solid";
 import useCommon from "../hooks/api/useCommon";
 
 export default function TradePage() {
@@ -25,7 +25,7 @@ export default function TradePage() {
     });
 
     const {
-        data, add, remove, update, importData, downloadTemplate, search
+        data, add, remove, update, importData, exportData, downloadTemplate, search
     } = useTradeList({
         page,
         perPage,
@@ -181,6 +181,10 @@ export default function TradePage() {
                         <button onClick={handleImport} className="btn-secondary inline-flex items-center gap-2">
                             <ArrowDownTrayIcon className="h-4 w-4"/>
                             {t('button_import_data')}
+                        </button>
+                        <button onClick={exportData} className="btn-secondary inline-flex items-center gap-2">
+                            <ArrowUpTrayIcon className="h-4 w-4"/>
+                            {t('button_export_data')}
                         </button>
                     </>
                 }
