@@ -35,7 +35,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
     const {showSuccessToast, showErrorToast} = useToast();
     const {t} = useTranslation()
     const [uploading, setUploading] = useState(false);
-    const {uploadTradeImg, upload_sse} = useTradeList({autoLoad: true,});
+    const {upload_sse} = useTradeList({autoLoad: true,});
 
     const [processingStatus, setProcessingStatus] = useState(''); // 显示 "上传中" 或 "AI分析中"
     // 用于管理 EventSource 连接，以便随时关闭
@@ -154,8 +154,6 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
             // 3. 联动计算逻辑
             const nav = parseFloat(nextForm.tr_nav_per_unit);
             const shares = parseFloat(nextForm.tr_shares);
-            const amount = parseFloat(nextForm.tr_amount);
-            const fee = parseFloat(nextForm.tr_fee);
             const type = nextForm.tr_type;
 
             // 3.1 自动计算 tr_amount (适用于买卖和分红再投资)
@@ -377,8 +375,8 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
     const showCashAmountField = !isDividend || isCashDividend;
 
     return (
-        <form onSubmit={submit} className="p-3 sm:p-4 page-bg rounded-lg">
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+        <form onSubmit={submit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                 {/* 基金代码 - 全宽 */}
                 <FormField label={t('th_ho_code')} error={errors['ho_code']} required>
@@ -387,7 +385,6 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                         onChange={handleFundSelectChange}
                         placeholder={t('th_ho_code')}
                         disabled={isEditMode}
-                        className="w-full text-sm"
                     />
                 </FormField>
 
@@ -397,7 +394,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                         options={typeOptions}
                         value={form.tr_type}
                         onChange={(val) => handleFieldChange('tr_type', val)}
-                        className="input-field text-sm py-1.5" // 稍微减小内边距
+                        className="input-field"
                     />
                 </FormField>
 
@@ -406,7 +403,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                     <MyDate
                         value={form.tr_date}
                         onChange={(dateStr) => setForm({...form, tr_date: dateStr})}
-                        className="input-field text-sm py-1.5"
+                        className="input-field"
                     />
                 </FormField>
 
@@ -415,7 +412,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                     <FormField label={t('th_dividend_type')}>
                         <MySelect options={dividendTypeOptions} value={form.dividend_type}
                                   onChange={(val) => handleFieldChange('dividend_type', val)}
-                                  className="input-field text-sm py-1.5"/>
+                                  className="input-field"/>
                     </FormField>
                 )}
                 {showReinvestFields && (
@@ -428,7 +425,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                                 placeholder={t('placeholder_nav_per_unit')}
                                 value={form.tr_nav_per_unit}
                                 onChange={(e) => setForm({...form, tr_nav_per_unit: e.target.value})}
-                                className="input-field text-sm py-1.5"
+                                className={`input-field ${warnings.tr_amount ? 'border-orange-500 focus:ring-orange-500 focus:border-orange-500' : ''}`}
                             />
                         </FormField>
 
@@ -440,7 +437,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                                 placeholder={t('placeholder_shares')}
                                 value={form.tr_shares}
                                 onChange={(e) => setForm({...form, tr_shares: e.target.value})}
-                                className="input-field text-sm py-1.5"
+                                className="input-field"
                             />
                         </FormField>
 
@@ -452,7 +449,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                                 placeholder={t('placeholder_amount')}
                                 value={form.tr_amount}
                                 onChange={(e) => handleFieldChange('tr_amount', e.target.value)}
-                                className={`input-field text-sm py-1.5 ${warnings.tr_amount ? 'border-orange-500 focus:ring-orange-500 focus:border-orange-500' : ''}`}
+                                className={`input-field ${warnings.tr_amount ? 'border-orange-500 focus:ring-orange-500 focus:border-orange-500' : ''}`}
                             />
                             <WarningBubble
                                 warning={warnings.tr_amount}
@@ -468,7 +465,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                                 placeholder={t('placeholder_fee')}
                                 value={form.tr_fee}
                                 onChange={(e) => handleFieldChange('tr_fee', e.target.value)}
-                                className="input-field text-sm py-1.5"
+                                className="input-field"
                             />
                         </FormField>
                     </>
@@ -482,7 +479,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                             placeholder={t('placeholder_cash_amount')}
                             value={form.cash_amount}
                             onChange={(e) => setForm({...form, cash_amount: e.target.value})}
-                            className={`input-field text-sm py-1.5 font-semibold bg-gray-50 ${warnings.cash_amount ? 'border-orange-500 focus:ring-orange-500 focus:border-orange-500' : ''}`}
+                            className={`input-field font-semibold bg-gray-50 ${warnings.cash_amount ? 'border-orange-500 focus:ring-orange-500 focus:border-orange-500' : ''}`}
                         />
                         <WarningBubble
                             warning={warnings.cash_amount}
@@ -491,56 +488,44 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                     </FormField>
                 )}
             </div>
-            <div className="flex flex-col sm:flex-row sm:justify-end space-y-2 sm:space-y-0 sm:space-x-2 pt-2">
-                {/* 状态提示 */}
-                {uploading && (
-                    <div className="sm:hidden text-xs text-blue-600 animate-pulse text-center mb-2">
-                        {processingStatus}
-                    </div>
-                )}
 
-                <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:gap-2">
-                    {/* 上传按钮 - 手机端占一半宽度 */}
-                    <div className="col-span-2 sm:w-auto">
-                        <input
-                            id="trade-upload"
-                            type="file"
-                            accept="image/*"
-                            disabled={uploading}
-                            onChange={handleUpload}
-                            className="hidden"
-                        />
-                        <label
-                            htmlFor="trade-upload"
-                            className={`btn-secondary flex items-center justify-center gap-2 w-full sm:w-auto text-sm py-2 ${uploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                        >
-                            {t('button_upload_image')}
-                        </label>
-                    </div>
-
-                    <button
-                        type="button"
-                        className="btn-secondary w-full sm:w-auto text-sm py-2"
-                        onClick={onClose}
-                        disabled={uploading}
-                    >
-                        {t('button_cancel')}
-                    </button>
-                    <button
-                        type="submit"
-                        className="btn-primary w-full sm:w-auto text-sm py-2"
-                        disabled={isSubmitting || uploading}
-                    >
-                        {t('button_confirm')}
-                    </button>
+            {/* 状态提示 */}
+            {uploading && (
+                <div className="text-sm text-blue-600 animate-pulse text-center">
+                    {processingStatus}
                 </div>
+            )}
 
-                {/* 桌面端状态提示 */}
-                {uploading && (
-                    <div className="hidden sm:block text-sm text-blue-600 animate-pulse ml-2 self-center">
-                        {processingStatus}
-                    </div>
-                )}
+            <div className="flex justify-end space-x-2 pt-2">
+                <input
+                    id="trade-upload"
+                    type="file"
+                    accept="image/*"
+                    disabled={uploading}
+                    onChange={handleUpload}
+                    className="hidden"
+                />
+                <label
+                    htmlFor="trade-upload"
+                    className={`btn-secondary ${uploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                    {t('button_upload_image')}
+                </label>
+                <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={onClose}
+                    disabled={uploading}
+                >
+                    {t('button_cancel')}
+                </button>
+                <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={isSubmitting || uploading}
+                >
+                    {t('button_confirm')}
+                </button>
             </div>
         </form>
     );

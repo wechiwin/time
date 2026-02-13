@@ -174,8 +174,7 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
                     )}
                 </FormField>
                 {/* 基金名称只读输入框 */}
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_ho_short_name')}</label>
+                <FormField label={t('th_ho_short_name')}>
                     <input
                         value={form.ho_short_name}
                         disabled
@@ -183,7 +182,7 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
                         placeholder={t('th_ho_short_name')}
                         className="input-field bg-gray-100 cursor-not-allowed dark:bg-gray-700"
                     />
-                </div>
+                </FormField>
 
                 <FormField label={t('th_ar_name')}>
                     <input
@@ -196,15 +195,14 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
                     />
                 </FormField>
 
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('alert_type')}</label>
+                <FormField label={t('alert_type')}>
                     <MySelect
                         options={actionOptions}
                         value={form.action}
                         onChange={(val) => setForm({...form, action: val})}
                         className="input-field"
                     />
-                </div>
+                </FormField>
 
                 <FormField label={t('alert_target_price')} error={errors['target_price']} required>
                     <input
@@ -221,8 +219,7 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
                     />
                 </FormField>
 
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('alert_status')}</label>
+                <FormField label={t('alert_status')}>
                     <select
                         value={form.ar_is_active}
                         onChange={(e) => setForm({...form, ar_is_active: parseInt(e.target.value)})}
@@ -231,7 +228,7 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
                         <option value="1">{t('status_active')}</option>
                         <option value="0">{t('status_inactive')}</option>
                     </select>
-                </div>
+                </FormField>
             </div>
             <div className="flex justify-end space-x-2 pt-2">
                 <button type="button" className="btn-secondary" onClick={onClose}>

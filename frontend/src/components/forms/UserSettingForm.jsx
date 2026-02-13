@@ -3,6 +3,7 @@ import {useEffect, useState} from 'react';
 import {useToast} from '../context/ToastContext';
 import {useTranslation} from "react-i18next";
 import {LANGUAGES} from "../../constants/sysConst";
+import FormField from "../common/FormField";
 
 export default function UserSettingForm({onSubmit, onClose, initialValues}) {
     const [form, setForm] = useState({
@@ -46,8 +47,7 @@ export default function UserSettingForm({onSubmit, onClose, initialValues}) {
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 gap-4">
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_username')}</label>
+                <FormField label={t('th_username')} required>
                     <input
                         placeholder={t('th_username')}
                         value={form.username}
@@ -55,25 +55,23 @@ export default function UserSettingForm({onSubmit, onClose, initialValues}) {
                         required
                         className="input-field"
                     />
-                </div>
+                </FormField>
 
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_default_language')}</label>
+                <FormField label={t('th_default_language')}>
                     <select
                         value={form.default_lang}
                         onChange={(e) => setForm({...form, default_lang: e.target.value})}
                         className="input-field"
                     >
                         {LANGUAGES.map((option) => (
-                            <option key={option.code} value={name.value}>
+                            <option key={option.code} value={option.value}>
                                 {option.name}
                             </option>
                         ))}
                     </select>
-                </div>
+                </FormField>
 
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">{t('th_email_address')}</label>
+                <FormField label={t('th_email_address')}>
                     <input
                         type="email"
                         placeholder={t('th_email_address')}
@@ -81,7 +79,7 @@ export default function UserSettingForm({onSubmit, onClose, initialValues}) {
                         onChange={(e) => setForm({...form, email_address: e.target.value})}
                         className="input-field"
                     />
-                </div>
+                </FormField>
             </div>
 
             <div className="flex justify-end space-x-2 pt-2">
