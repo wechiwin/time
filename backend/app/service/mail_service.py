@@ -24,7 +24,7 @@ def send_async_email(app, msg):
             mail.send(msg)
             current_app.logger.info(f"邮件发送成功: {msg.subject}")
         except Exception as e:
-            current_app.logger.exception(f"邮件发送失败: {str(e)}", exc_info=True)
+            current_app.logger.exception(f"邮件发送失败: {str(e)}")
 
 def send_email(to, subject, template=None, **kwargs):
     """

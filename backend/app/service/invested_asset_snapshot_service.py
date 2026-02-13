@@ -55,7 +55,7 @@ class InvestedAssetSnapshotService:
         except Exception as e:
             db.session.rollback()
             error_msg = f"Error generating InvestedAssetSnapshot for {target_date}: {str(e)}"
-            logger.exception(error_msg, exc_info=True)
+            logger.exception(error_msg)
             # 触发重试
             create_task(
                 user_id=user_id,
@@ -127,7 +127,7 @@ class InvestedAssetSnapshotService:
         except Exception as e:
             db.session.rollback()
             error_msg = f"Error generating InvestedAssetSnapshot for {current_date}: {str(e)}"
-            logger.exception(error_msg, exc_info=True)
+            logger.exception(error_msg)
             errors.append(error_msg)
             # 触发重试
             create_task(

@@ -112,7 +112,7 @@ class UserService:
             db.session.commit()
         except Exception as e:
             db.session.rollback()
-            logger.exception(e, exc_info=True)
+            logger.exception()
 
         # 8. 返回结果
         return {
@@ -182,6 +182,6 @@ class UserService:
             db.session.commit()
         except Exception as e:
             db.session.rollback()
-            logger.exception(e, exc_info=True)
+            logger.exception()
 
         return login_history

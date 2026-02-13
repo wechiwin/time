@@ -116,7 +116,7 @@ class BenchmarkService:
 
         except Exception as e:
             db.session.rollback()
-            logger.exception(f"Failed to sync benchmark data: {str(e)}", exc_info=True)
+            logger.exception(f"Failed to sync benchmark data: {str(e)}")
             raise
 
     @staticmethod
@@ -276,7 +276,7 @@ class BenchmarkService:
             return metrics
 
         except Exception as e:
-            logger.exception(f"Error calculating benchmark metrics: {str(e)}", exc_info=True)
+            logger.exception(f"Error calculating benchmark metrics: {str(e)}")
             raise
 
     @staticmethod
@@ -581,5 +581,5 @@ class BenchmarkService:
             }
 
         except Exception as e:
-            logger.exception(f"Error in batch update: {str(e)}", exc_info=True)
+            logger.exception(f"Error in batch update: {str(e)}")
             raise

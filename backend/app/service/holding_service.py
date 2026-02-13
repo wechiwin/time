@@ -264,5 +264,5 @@ class HoldingService:
             db.session.commit()
         except SQLAlchemyError as e:
             db.session.rollback()
-            logger.exception(f"删除持仓 {holding.ho_code} 失败: {e}", exc_info=True)
+            logger.exception(f"删除持仓 {holding.ho_code} 失败: {e}")
             raise BizException(ErrorMessageEnum.OPERATION_FAILED.view)

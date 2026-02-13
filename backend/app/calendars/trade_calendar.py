@@ -62,7 +62,7 @@ class TradeCalendar:
                             csv_path, len(self._dt_index))
 
             except Exception as e:
-                logger.exception(f"Failed to load trade calendar, {str(e)}.", exc_info=True)
+                logger.exception(f"Failed to load trade calendar, {str(e)}.")
                 # 加载失败，重置状态，以便下次可以重试
                 self._initialized = False
                 self._dt_index = None

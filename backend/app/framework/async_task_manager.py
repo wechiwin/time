@@ -131,7 +131,7 @@ class AsyncTaskManager:
 
         except Exception as e:
             # 4. 失败处理
-            logger.exception(f"Task {task_log.id} failed: {str(e)}", exc_info=True)
+            logger.exception(f"Task {task_log.id} failed: {str(e)}")
 
             # 回滚业务逻辑可能产生的脏数据
             db.session.rollback()
@@ -174,7 +174,7 @@ class AsyncTaskManager:
         """通过日志ID执行任务，这是重试的入口"""
         task_log = AsyncTaskLog.query.get(task_log_id)
         if not task_log:
-            logger.exception(f"TaskLog with id {task_log_id} not found.")
+            logger.error(f"TaskLog with id {task_log_id} not found.")
             return
 
         if task_log.status not in [TaskStatusEnum.PENDING, TaskStatusEnum.RETRYING]:
@@ -221,7 +221,7 @@ class AsyncTaskManager:
             # 4. 失败，处理重试逻辑
             task_log.retry_count += 1
             error_message = f"Attempt {task_log.retry_count}/{task_log.max_retries + 1} failed: {str(e)}"
-            logger.exception(error_message, exc_info=True)
+            logger.exception(error_message)
 
             if task_log.retry_count > task_log.max_retries:
                 AsyncTaskManager._update_status(task_log, TaskStatusEnum.FAILED, error_message=error_message)

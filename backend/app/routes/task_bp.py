@@ -89,7 +89,7 @@ def async_redo_all_snapshot_job():
                 TaskService.redo_all_snapshot(user_id)
                 app.logger.info(f"用户 {user_id} 的快照任务重跑完成。")
             except Exception as e:
-                app.logger.exception(f"后台任务执行失败: {str(e)}", exc_info=True)
+                app.logger.exception(f"后台任务执行失败: {str(e)}")
 
     thread = threading.Thread(target=background_task, args=(user_id,))
     thread.daemon = True
@@ -117,7 +117,7 @@ def async_redo_yesterday_snapshot_job():
                 TaskService.generate_yesterday_snapshot(user_id)
                 app.logger.info(f"done: redo_yesterday_snapshot_job for user {username} ...")
             except Exception as e:
-                app.logger.exception(f"failed: redo_yesterday_snapshot_job for user {username} ...", str(e))
+                app.logger.exception(f"failed: redo_yesterday_snapshot_job for user {username} ...: {str(e)}")
 
     thread = threading.Thread(target=background_task, args=(user_id, username))
     thread.daemon = True

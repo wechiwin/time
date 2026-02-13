@@ -35,7 +35,7 @@ class TaskService:
 
         except Exception as e:
             db.session.rollback()
-            logger.exception(f"执行快照任务失败: {str(e)}", exc_info=True)
+            logger.exception(f"执行快照任务失败: {str(e)}")
 
     @classmethod
     def generate_yesterday_snapshot(cls, user_id: int):
@@ -51,4 +51,4 @@ class TaskService:
             InvestedAssetAnalyticsSnapshotService.generate_by_day(user_id=user_id)
         except Exception as e:
             db.session.rollback()
-            logger.exception(f"执行快照任务失败: {str(e)}", exc_info=True)
+            logger.exception(f"执行快照任务失败: {str(e)}")

@@ -100,7 +100,7 @@ class FundNavHistoryService:
                 except Exception as e:
                     msg = f"Failed to crawl/save for {ho_code} in range [{start_date}, {end_date}]: {e}"
                     # 使用 logger 记录完整错误堆栈，便于排查
-                    logger.exception(msg, exc_info=True)
+                    logger.exception(msg)
         return True
 
     @classmethod
@@ -170,7 +170,7 @@ class FundNavHistoryService:
                 page += 1
                 time.sleep(0.5)  # 防爬，避免请求过快
             except Exception as e:
-                logger.exception(e, exc_info=True)
+                logger.exception()
                 raise BizException(_("CRAWL_PAGE_ERROR") % {"ho_code": holding.ho_code, "page": page})
 
         # 储存数据
@@ -189,7 +189,7 @@ class FundNavHistoryService:
             return len(all_data)
         except Exception as e:
             db.session.rollback()
-            logger.exception(e, exc_info=True)
+            logger.exception()
             raise BizException(_("DATA_SAVE_FAILED") % {"ho_code": holding.ho_code})
 
     @staticmethod
