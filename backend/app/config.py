@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-load_dotenv('.flaskenv')
 load_dotenv('.env')
 
 
@@ -90,12 +89,12 @@ class Config:
     @classmethod
     def get_config(cls):
         env = os.getenv('FLASK_ENV', 'development').lower()
-        if env == 'production':
-            return ProductionConfig
+        if env == 'development':
+            return DevelopmentConfig
         elif env == 'testing':
             return TestingConfig
         else:
-            return DevelopmentConfig
+            return ProductionConfig
 
 
 class DevelopmentConfig(Config):
