@@ -20,6 +20,7 @@ const getYesterdayDate = () => {
 
 export default function CrawlNetValueForm({onSubmit, onClose, initialValues}) {
     const [errors, setErrors] = useState({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
         ho_id: initialValues.ho_id || '',
         ho_code: initialValues.ho_code || '',
@@ -60,6 +61,7 @@ export default function CrawlNetValueForm({onSubmit, onClose, initialValues}) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        if (isSubmitting) return;
 
         // 定义必填字段
         const requiredFields = [
@@ -88,8 +90,10 @@ export default function CrawlNetValueForm({onSubmit, onClose, initialValues}) {
             setErrors(allErrors); // 设置合并后的错误状态
             return;
         }
+        setIsSubmitting(true);
         onSubmit(formData);
         showSuccessToast(t('msg_after_crawl'))
+        setIsSubmitting(false);
     };
 
     const handleChange = useCallback((field, value) => {
@@ -217,6 +221,7 @@ export default function CrawlNetValueForm({onSubmit, onClose, initialValues}) {
                 <button
                     type="submit"
                     className="btn-primary"
+                    disabled={isSubmitting}
                 >
                     {t('button_confirm')}
                 </button>

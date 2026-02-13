@@ -7,6 +7,7 @@ import useCommon from "../../hooks/api/useCommon";
 import MySelect from "../common/MySelect";
 import FormField from "../common/FormField";
 import {validateForm} from "../../utils/formValidation";
+import sleep from "../../utils/sleep";
 
 export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl}) {
     const [form, setForm] = useState({
@@ -35,6 +36,7 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
             feature: '',
         }
     });
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const {showSuccessToast, showErrorToast} = useToast();
     const {t} = useTranslation()
@@ -97,6 +99,7 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (isSubmitting) return;
 
         // 定义必填字段
         const requiredFields = [
@@ -116,17 +119,8 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
             return;
         }
 
+        setIsSubmitting(true);
         try {
-            // // 验证必填字段
-            // if (!form.ho_code) {
-            //     showErrorToast('基金代码不能为空');
-            //     return;
-            // }
-            // if (!form.ho_name) {
-            //     showErrorToast('基金名称不能为空');
-            //     return;
-            // }
-
             await onSubmit(form);
             // 重置表单
             setForm({
@@ -159,6 +153,8 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
             onClose();
         } catch (err) {
             showErrorToast(err.message);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -428,7 +424,7 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
                 <button type="button" className="btn-secondary" onClick={onClose}>
                     {t('button_cancel')}
                 </button>
-                <button type="submit" className="btn-primary">
+                <button type="submit" className="btn-primary" disabled={isSubmitting}>
                     {t('button_confirm')}
                 </button>
             </div>

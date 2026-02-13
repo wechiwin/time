@@ -33,6 +33,7 @@ export default function HoldingFormMobile({onSubmit, onClose, initialValues, onC
             feature: '',
         }
     });
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const {showSuccessToast, showErrorToast} = useToast();
     const {t} = useTranslation();
@@ -97,15 +98,21 @@ export default function HoldingFormMobile({onSubmit, onClose, initialValues, onC
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (isSubmitting) return;
+
         if (!form.ho_code || !form.ho_name) {
             showErrorToast('基金代码和名称不能为空');
             return;
         }
+
+        setIsSubmitting(true);
         try {
             await onSubmit(form);
             showSuccessToast();
         } catch (err) {
             showErrorToast(err.message);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -283,7 +290,7 @@ export default function HoldingFormMobile({onSubmit, onClose, initialValues, onC
                             <button type="button" className="flex-1 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors" onClick={onClose}>
                                 {t('button_cancel')}
                             </button>
-                            <button type="submit" className="flex-1 py-2.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 active:bg-green-800 rounded-lg shadow-sm transition-colors">
+                            <button type="submit" className="flex-1 py-2.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 active:bg-green-800 rounded-lg shadow-sm transition-colors" disabled={isSubmitting}>
                                 {t('button_confirm')}
                             </button>
                         </div>

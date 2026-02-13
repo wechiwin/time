@@ -11,17 +11,23 @@ export default function UserSettingForm({onSubmit, onClose, initialValues}) {
         default_lang: 'zh-CN',
         email_address: '',
     });
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const {showSuccessToast, showErrorToast} = useToast();
     const {t} = useTranslation();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (isSubmitting) return;
+
+        setIsSubmitting(true);
         try {
             await onSubmit(form);
             showSuccessToast();
         } catch (err) {
             showErrorToast(err.message);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -82,7 +88,7 @@ export default function UserSettingForm({onSubmit, onClose, initialValues}) {
                 <button type="button" className="btn-secondary" onClick={onClose}>
                     {t('button_cancel')}
                 </button>
-                <button type="submit" className="btn-primary">
+                <button type="submit" className="btn-primary" disabled={isSubmitting}>
                     {t('button_confirm')}
                 </button>
             </div>

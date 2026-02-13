@@ -18,6 +18,7 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
         ho_short_name: '',
         ar_name: '',
     });
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const {showSuccessToast, showErrorToast} = useToast();
     const {t} = useTranslation()
     const isEditMode = !!initialValues?.id;
@@ -85,6 +86,7 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (isSubmitting) return;
 
         // 定义必填字段
         const requiredFields = [
@@ -100,12 +102,15 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
             return;
         }
 
+        setIsSubmitting(true);
         try {
             await onSubmit(form);
             showSuccessToast();
             onClose();
         } catch (err) {
             showErrorToast(err.message);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -232,7 +237,7 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
                 <button type="button" className="btn-secondary" onClick={onClose}>
                     {t('button_cancel')}
                 </button>
-                <button type="submit" className="btn-primary">
+                <button type="submit" className="btn-primary" disabled={isSubmitting}>
                     {t('button_confirm')}
                 </button>
             </div>

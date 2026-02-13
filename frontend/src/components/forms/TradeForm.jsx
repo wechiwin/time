@@ -31,6 +31,7 @@ const init = {
 export default function TradeForm({onSubmit, onClose, initialValues}) {
     const [form, setForm] = useState(init);
     const [warnings, setWarnings] = useState({}); // 存储校验警告信息
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const {showSuccessToast, showErrorToast} = useToast();
     const {t} = useTranslation()
     const [uploading, setUploading] = useState(false);
@@ -304,8 +305,9 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
 
     const submit = async (e) => {
         e.preventDefault();
-        // 禁用按钮防止重复提交
-        setUploading(true);
+        if (isSubmitting || uploading) return;
+
+        setIsSubmitting(true);
 
         // 定义必填字段
         const requiredFields = [
@@ -325,6 +327,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
         if (!isValid) {
             setErrors(newErrors); // 设置错误状态，触发红框
             // showErrorToast(t('validation_failed_msg')); // 可选：弹一个总的提示
+            setIsSubmitting(false);
             return;
         }
 
@@ -333,7 +336,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
         } catch (err) {
             console.error('Form submission error:', err);
         } finally {
-            setUploading(false);
+            setIsSubmitting(false);
         }
     };
 
@@ -526,7 +529,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                     <button
                         type="submit"
                         className="btn-primary w-full sm:w-auto text-sm py-2"
-                        disabled={uploading}
+                        disabled={isSubmitting || uploading}
                     >
                         {t('button_confirm')}
                     </button>

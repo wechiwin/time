@@ -58,15 +58,6 @@
     @apply w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all;
 }
 
-/* 全局按钮样式 */
-.btn-primary {
-    @apply px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors;
-}
-
-.btn-danger {
-    @apply px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors;
-}
-
 /* 表格样式 */
 .table-container {
     @apply overflow-x-auto border border-gray-200 rounded-lg
@@ -126,6 +117,15 @@
         /* 增加过渡 */
     }
 
+    .btn-primary:disabled,
+    .btn-primary[disabled] {
+        background-color: #9ca3af !important;
+        color: #e5e7eb !important;
+        cursor: not-allowed !important;
+        opacity: 0.5 !important;
+        box-shadow: none !important;
+    }
+
     .btn-secondary {
         @apply px-4 py-2 bg-gray-200 dark:bg-gray-700
         text-gray-800 dark:text-gray-200
@@ -133,11 +133,34 @@
         focus:outline-none focus:ring-2 focus:ring-gray-400;
     }
 
+    .btn-secondary:disabled,
+    .btn-secondary[disabled] {
+        background-color: #d1d5db !important;
+        color: #9ca3af !important;
+        cursor: not-allowed !important;
+        opacity: 0.5 !important;
+    }
+
+    .dark .btn-secondary:disabled,
+    .dark .btn-secondary[disabled] {
+        background-color: #4b5563 !important;
+        color: #6b7280 !important;
+    }
+
     /* 危险按钮 */
     .btn-danger {
         @apply px-4 py-2 bg-red-600 text-white rounded-md
         hover:bg-red-700
         focus:outline-none focus:ring-2 focus:ring-red-500;
+    }
+
+    .btn-danger:disabled,
+    .btn-danger[disabled] {
+        background-color: #9ca3af !important;
+        color: #e5e7eb !important;
+        cursor: not-allowed !important;
+        opacity: 0.5 !important;
+        box-shadow: none !important;
     }
 
     /* 用于次要或提示性操作的按钮 */
