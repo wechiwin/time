@@ -200,3 +200,93 @@ msgstr "No file uploaded"
 
 msgid "CRAWL_NO_INFO"
 msgstr "No data crawled"
+
+msgid "USERNAME_PASSWORD_REQUIRED"
+msgstr "Username and password are required"
+
+msgid "USERNAME_MIN_PASSWORD_MIN"
+msgstr "Username must be at least 3 characters, password must be at least 6 characters"
+
+msgid "USERNAME_ALREADY_EXISTS"
+msgstr "Username already exists"
+
+msgid "REGISTRATION_FAILED"
+msgstr "Registration failed, please try again later"
+
+msgid "INVALID_REQUEST_MISSING_SECURITY_HEADER"
+msgstr "Invalid request: missing security identifier"
+
+msgid "TOKEN_EXPIRED"
+msgstr "Token has expired"
+
+msgid "TOKEN_INVALID"
+msgstr "Token is invalid"
+
+msgid "REFRESH_TOKEN_FAILED"
+msgstr "Refresh token failed"
+
+msgid "USER_NOT_FOUND"
+msgstr "User not found"
+
+msgid "OLD_NEW_PASSWORD_REQUIRED"
+msgstr "Old password and new password are required"
+
+msgid "NEW_PASSWORD_SAME_AS_OLD"
+msgstr "New password cannot be the same as old password"
+
+msgid "NEW_PASSWORD_MIN_LENGTH"
+msgstr "New password must be at least 6 characters"
+
+msgid "OLD_PASSWORD_INCORRECT"
+msgstr "Old password is incorrect"
+
+msgid "PASSWORD_CHANGE_FAILED"
+msgstr "Failed to change password"
+
+msgid "LOGOUT_FAILED"
+msgstr "Logout failed"
+
+msgid "MISSING_DATE_RANGE"
+msgstr "Missing date range"
+
+msgid "NO_FILE_UPLOADED"
+msgstr "No file uploaded"
+
+msgid "NO_FILE_SELECTED"
+msgstr "No file selected"
+
+msgid "EXCEL_MISSING_REQUIRED_COLUMNS"
+msgstr "Excel is missing required columns"
+
+msgid "TRADE_TYPE_NOT_RECOGNIZED"
+msgstr "Trade type \"%(value)s\" is not recognized, please use the dropdown options provided in the template."
+
+msgid "ALERT_RECORD_CREATE_FAILED"
+msgstr "Failed to create alert record"
+
+msgid "USER_EMAIL_NOT_EXISTS"
+msgstr "User email does not exist"
+
+msgid "SEND_EMAIL_FAILED"
+msgstr "Failed to send email: %(error)s"
+
+msgid "FUND_CODE_NOT_IN_HOLDINGS"
+msgstr "The following fund codes do not exist in the holdings table, please add them first: %(codes)s"
+
+msgid "FUND_IMPORT_FAILED_OVERSOLD"
+msgstr "Fund %(ho_code)s import failed: attempted to sell %(trade_shares)s shares on %(trade_tr_date)s, but only had %(current_shares)s shares at that time."
+
+msgid "IMPORT_PROCESS_ERROR"
+msgstr "An unknown error occurred during import"
+
+msgid "HOLDING_NOT_EXISTS"
+msgstr "Holding does not exist"
+
+msgid "OPERATION_OVERSOLD"
+msgstr "Operation caused inventory shortage: after selling on %(trade_tr_date)s, holding shares became %(current_shares)s, which violates business rules."
+
+msgid "CRAWL_PAGE_ERROR"
+msgstr "%(ho_code)s error crawling page %(page)s"
+
+msgid "DATA_SAVE_FAILED"
+msgstr "%(ho_code)s data save failed"

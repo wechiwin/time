@@ -130,7 +130,7 @@ def export_trade():
     trade = Trade.query.all()
     df = pd.DataFrame([{
         gettext('COL_HO_CODE'): t.ho_code,
-        gettext('COL_TR_TYPE'): t.tr_type,
+        gettext('COL_TR_TYPE'): reverse_map_trade_type(t.tr_type),
         gettext('COL_TR_DATE'): t.tr_date,
         gettext('COL_TR_NAV_PER_UNIT'): t.tr_nav_per_unit,
         gettext('COL_TR_SHARES'): t.tr_shares,
@@ -218,11 +218,11 @@ def download_template():
 @auth_required
 def import_trade():
     if 'file' not in request.files:
-        raise BizException(msg="没有上传文件")
+        raise BizException(msg=gettext("NO_FILE_UPLOADED"))
 
     file = request.files['file']
     if file.filename == '':
-        raise BizException(msg="没有选择文件")
+        raise BizException(msg=gettext("NO_FILE_SELECTED"))
 
     df = pd.read_excel(file, dtype={gettext('COL_HO_CODE'): str})
     required_columns = [
@@ -244,7 +244,7 @@ def import_trade():
         gettext('COL_CASH_AMOUNT'),
     ]
     if not all(col in df.columns for col in required_columns):
-        raise BizException(msg="Excel缺少必要列")
+        raise BizException(msg=gettext("EXCEL_MISSING_REQUIRED_COLUMNS"))
 
     # 转换日期列为字符串格式
     df[gettext('COL_TR_DATE')] = pd.to_datetime(df[gettext('COL_TR_DATE')], errors='coerce')
@@ -295,9 +295,22 @@ def map_trade_type(value):
     value = str(value).strip()
     if value not in ALL_TR_TYPE_TEXTS:
         raise BizException(
-            msg=f"交易类型“{value}”无法识别，请使用模板提供的下拉选项。"
+            msg=gettext("TRADE_TYPE_NOT_RECOGNIZED") % {"value": value}
         )
     return ALL_TR_TYPE_TEXTS[value]
+
+
+def reverse_map_trade_type(db_value):
+    """Reverse map database values (BUY/SELL) to localized text for export"""
+    # Map database values to translation keys, then use gettext for localization
+    tr_type_key_map = {
+        'BUY': 'TR_BUY',
+        'SELL': 'TR_SELL',
+    }
+    if db_value not in tr_type_key_map:
+        # Fallback to raw value if not found
+        return db_value
+    return gettext(tr_type_key_map[db_value])
 
 
 @trade_bp.route('/list_by_ho_id', methods=['POST'])

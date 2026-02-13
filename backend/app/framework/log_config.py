@@ -66,7 +66,8 @@ def setup_logging(app):
     # 我们将根据环境重新添加
     logger.remove()
 
-    # 4. 配置控制台日志 (仅开发环境)
+    # 4. 配置控制台日志 (所有环境，确保 Docker 日志可见)
+    # 生产环境使用 JSON 格式便于解析，开发环境使用彩色格式
     if app.debug:
         logger.add(
             sys.stderr,
@@ -74,6 +75,16 @@ def setup_logging(app):
             format=LOG_FORMAT,
             colorize=True,
             enqueue=True  # 异步写入，防止阻塞主线程
+        )
+    else:
+        # 生产环境也输出到控制台，确保 Docker 日志可见
+        logger.add(
+            sys.stderr,
+            level=log_level_str,
+            format=LOG_FORMAT,
+            colorize=False,
+            serialize=False,
+            enqueue=True,
         )
 
     # 5. 配置文件日志 (生产级配置)

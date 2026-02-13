@@ -17,6 +17,7 @@ import {useEffect, useState} from "react";
 import {AuthProvider} from "./components/context/AuthContext";
 import {AUTH_EXPIRED_EVENT} from "./api/client";
 import AsyncTaskLogPage from "./pages/AsyncTaskLogPage";
+import {EnumProvider} from "./contexts/EnumContext";
 
 // === 新增：全局认证监听组件 ===
 // 必须放在 Router 和 ToastProvider 内部才能使用 hooks
@@ -43,9 +44,10 @@ export default function App() {
         <DarkModeProvider>
             <ToastProvider>
                 <AuthProvider>
-                    <AuthWatcher/>
+                    <EnumProvider>
+                        <AuthWatcher/>
 
-                    <Routes>
+                        <Routes>
                         {/* 登录路由 (公开) */}
                         <Route path="/login" element={<LoginPage/>}/>
                         <Route path="/register" element={<RegisterPage/>}/>
@@ -67,6 +69,7 @@ export default function App() {
                         {/* 任何其他未匹配的路径重定向到 Dashboard 或 404 */}
                         <Route path="*" element={<Navigate to="/dashboard" replace/>}/>
                     </Routes>
+                    </EnumProvider>
                 </AuthProvider>
             </ToastProvider>
         </DarkModeProvider>

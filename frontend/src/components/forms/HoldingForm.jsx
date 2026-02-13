@@ -1,4 +1,3 @@
-// src/components/forms/HoldingForm.jsx
 import {useEffect, useState} from 'react';
 import {useToast} from '../context/ToastContext';
 import {useTranslation} from "react-i18next";
@@ -7,76 +6,82 @@ import useCommon from "../../hooks/api/useCommon";
 import MySelect from "../common/MySelect";
 import FormField from "../common/FormField";
 import {validateForm} from "../../utils/formValidation";
-import sleep from "../../utils/sleep";
+
+const INITIAL_FORM_STATE = {
+    id: '',
+    ho_code: '',
+    ho_name: '',
+    ho_short_name: '',
+    ho_nickname: '',
+    ho_type: '',
+    establishment_date: '',
+    ho_status: '',
+    currency: '',
+    fund_detail: {
+        fund_type: '',
+        risk_level: '',
+        trade_market: '',
+        manage_exp_rate: '',
+        trustee_exp_rate: '',
+        sales_exp_rate: '',
+        company_id: '',
+        company_name: '',
+        fund_manager: '',
+        dividend_method: '',
+        index_code: '',
+        index_name: '',
+        feature: '',
+    }
+};
+
+const REQUIRED_FIELDS = [
+    'ho_code',
+    'ho_name',
+    'ho_short_name',
+    'fund_detail.manage_exp_rate',
+    'fund_detail.trustee_exp_rate',
+    'fund_detail.sales_exp_rate'
+];
+
+const ENUM_TYPES = [
+    'HoldingTypeEnum',
+    'FundTradeMarketEnum',
+    'CurrencyEnum',
+    'FundDividendMethodEnum',
+];
 
 export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl}) {
-    const [form, setForm] = useState({
-        id: '',
-        ho_code: '',
-        ho_name: '',
-        ho_short_name: '',
-        ho_nickname: '',
-        ho_type: '',
-        establishment_date: '',
-        ho_status: '',
-        currency: '',
-        fund_detail: {
-            fund_type: '',
-            risk_level: '',
-            trade_market: '',
-            manage_exp_rate: '',
-            trustee_exp_rate: '',
-            sales_exp_rate: '',
-            company_id: '',
-            company_name: '',
-            fund_manager: '',
-            dividend_method: '',
-            index_code: '',
-            index_name: '',
-            feature: '',
-        }
-    });
+    const [form, setForm] = useState(INITIAL_FORM_STATE);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errors, setErrors] = useState({});
 
     const {showSuccessToast, showErrorToast} = useToast();
-    const {t} = useTranslation()
-
+    const {t} = useTranslation();
     const {fetchMultipleEnumValues} = useCommon();
+
     const [hoTypeOptions, setHoTypeOptions] = useState([]);
     const [tradeMarketOptions, setTradeMarketOptions] = useState([]);
     const [currencyOptions, setCurrencyOptions] = useState([]);
     const [dividendOptions, setDividendOptions] = useState([]);
 
-    const [errors, setErrors] = useState({});
-
     useEffect(() => {
         const loadEnumValues = async () => {
             try {
-                const [typeOptions,
-                    marketOptions,
-                    currencyOptions,
-                    dividendOptions
-                ] = await fetchMultipleEnumValues([
-                    'HoldingTypeEnum',
-                    'FundTradeMarketEnum',
-                    'CurrencyEnum',
-                    'FundDividendMethodEnum',
-                ]);
+                const [typeOptions, marketOptions, currencyOptions, dividendOptions] =
+                    await fetchMultipleEnumValues(ENUM_TYPES);
                 setHoTypeOptions(typeOptions);
                 setTradeMarketOptions(marketOptions);
                 setCurrencyOptions(currencyOptions);
                 setDividendOptions(dividendOptions);
             } catch (err) {
                 console.error('Failed to load enum values:', err);
-                showErrorToast('加载类型选项失败');
+                showErrorToast(t('msg_failed_to_load_enum'));
             }
         };
         loadEnumValues();
     }, [fetchMultipleEnumValues, showErrorToast]);
 
-    // 2. 辅助函数：处理字段变更并清除错误
     const handleFieldChange = (field, value) => {
-        // 更新表单数据
         if (field.includes('.')) {
             const [parent, child] = field.split('.');
             setForm(prev => ({
@@ -87,12 +92,10 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
             setForm(prev => ({...prev, [field]: value}));
         }
 
-        // 关键：用户一旦输入，就清除该字段的红色错误提示
         if (errors[field]) {
             setErrors(prev => {
-                const newErrors = {...prev};
-                delete newErrors[field];
-                return newErrors;
+                const {[field]: _, ...rest} = prev;
+                return rest;
             });
         }
     };
@@ -101,54 +104,17 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
         e.preventDefault();
         if (isSubmitting) return;
 
-        // 定义必填字段
-        const requiredFields = [
-            'ho_code',
-            'ho_name',
-            'ho_short_name',
-            'fund_detail.manage_exp_rate',
-            'fund_detail.trustee_exp_rate',
-            'fund_detail.sales_exp_rate'
-        ];
-        // 3. 执行验证
-        const {isValid, errors: newErrors} = validateForm(form, requiredFields, t);
+        const {isValid, errors: newErrors} = validateForm(form, REQUIRED_FIELDS, t);
 
         if (!isValid) {
-            setErrors(newErrors); // 设置错误状态，触发红框
-            // showErrorToast(t('validation_failed_msg')); // 可选：弹一个总的提示
+            setErrors(newErrors);
             return;
         }
 
         setIsSubmitting(true);
         try {
             await onSubmit(form);
-            // 重置表单
-            setForm({
-                id: '',
-                ho_code: '',
-                ho_name: '',
-                ho_short_name: '',
-                ho_nickname: '',
-                ho_type: '',
-                establishment_date: '',
-                ho_status: '',
-                currency: '',
-                fund_detail: {
-                    fund_type: '',
-                    risk_level: '',
-                    trade_market: '',
-                    manage_exp_rate: '',
-                    trustee_exp_rate: '',
-                    sales_exp_rate: '',
-                    company_id: '',
-                    company_name: '',
-                    fund_manager: '',
-                    dividend_method: '',
-                    index_code: '',
-                    index_name: '',
-                    feature: '',
-                }
-            });
+            setForm(INITIAL_FORM_STATE);
             showSuccessToast();
             onClose();
         } catch (err) {
@@ -160,14 +126,11 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
 
     const handleCrawl = () => {
         if (!form.ho_code) return showErrorToast(t('code_required_prompt'));
-        console.log(form)
-        // 把当前表单 setForm 传进去，方便回调里直接 setState
         onCrawl(form.ho_code, (patch) =>
-            setForm((prev) => ({...prev, ...patch}))
+            setForm(prev => ({...prev, ...patch}))
         );
     };
 
-    // 当 initialValues 变化时，回显到表单
     useEffect(() => {
         if (initialValues) {
             setForm({
@@ -316,7 +279,7 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
                     <MySelect
                         options={currencyOptions}
                         value={form.currency}
-                        onChange={(val) => setForm({...form, currency: val})}
+                        onChange={(val) => handleFieldChange('currency', val)}
                         className="input-field"
                     />
                 </FormField>

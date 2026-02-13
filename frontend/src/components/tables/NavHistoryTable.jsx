@@ -47,7 +47,7 @@ export default function NavHistoryTable({data = [], onDelete, onEdit}) {
                                 </button>
                                 <DeleteButton
                                     onConfirm={() => onDelete(n.id)}
-                                    description={`${t('msg_delete_confirmation')} ${n.ho_code} - ${n.nav_date} ?`}
+                                    description={`${n.ho_code} - ${n.nav_date} ?`}
                                 />
                             </div>
                         </td>

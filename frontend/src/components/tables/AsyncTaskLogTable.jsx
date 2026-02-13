@@ -1,6 +1,7 @@
 // AsyncTaskLogTable.jsx
 import React from 'react';
 import {useTranslation} from 'react-i18next';
+import {useEnumTranslation} from '../../contexts/EnumContext';
 
 // 状态到样式的映射。
 // 明确职责：此对象仅负责提供 Tailwind CSS 类名，用于控制状态徽章的视觉样式（如背景色、文字颜色）。
@@ -16,16 +17,16 @@ const statusStyles = {
 
 export default function AsyncTaskLogTable({data = [] /*, onShowDetails */}) {
     const {t} = useTranslation();
+    const {translateEnum} = useEnumTranslation();
 
     // 渲染状态徽章的辅助函数。
-    // 明确职责：此函数负责将状态的样式（来自 statusStyles）和国际化文本（来自 t()）结合，
+    // 明确职责：此函数负责将状态的样式（来自 statusStyles）和国际化文本（来自 translateEnum）结合，
     // 生成一个完整的、可显示的UI徽章。
-    const renderStatusBadge = (status, status$view) => (
+    const renderStatusBadge = (status) => (
         <span
             className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusStyles[status] || statusStyles.PENDING}`}>
-            {/* 状态的文字内容通过 i18n 翻译获取，与样式完全分离。
-                例如，对于 'PENDING' 状态，它会查找并显示 'task_status_PENDING' 对应的翻译文本。*/}
-            {status$view}
+            {/* 状态的文字内容通过 translateEnum 翻译获取，与样式完全分离。*/}
+            {translateEnum('TaskStatusEnum', status)}
         </span>
     );
 
@@ -47,7 +48,7 @@ export default function AsyncTaskLogTable({data = [] /*, onShowDetails */}) {
                 {data.map((log) => (
                     <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
                         <td className="table-cell">{log.task_name}</td>
-                        <td className="table-cell">{renderStatusBadge(log.status, log.status$view)}</td>
+                        <td className="table-cell">{renderStatusBadge(log.status)}</td>
                         <td className="table-cell max-w-xs truncate" title={log.error_message}>{log.error_message}</td>
                         <td className="table-cell max-w-xs truncate" title={log.result_summary}>{log.result_summary}</td>
                         <td className="table-cell">{`${log.retry_count} / ${log.max_retries}`}</td>

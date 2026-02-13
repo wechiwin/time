@@ -30,10 +30,10 @@ function PageButton({page, currentPage, onPageChange}) {
     );
 }
 
-function Ellipsis() {
+function Ellipsis({t}) {
     return (
         <span className="px-2 py-2 text-sm text-gray-500 select-none" aria-hidden="true">
-            ...
+            {t('pagination_ellipsis')}
         </span>
     );
 }
@@ -91,7 +91,7 @@ export default function PaginationPC({pagination, onPageChange, onPerPageChange}
 
         if (start > 1) {
             buttons.push(<PageButton key={1} page={1} currentPage={currentPage} onPageChange={onPageChange}/>);
-            if (start > 2) buttons.push(<Ellipsis key="start-ellipsis"/>);
+            if (start > 2) buttons.push(<Ellipsis key="start-ellipsis" t={t}/>);
         }
 
         for (let i = start; i <= end; i++) {
@@ -99,7 +99,7 @@ export default function PaginationPC({pagination, onPageChange, onPerPageChange}
         }
 
         if (end < pages) {
-            if (end < pages - 1) buttons.push(<Ellipsis key="end-ellipsis"/>);
+            if (end < pages - 1) buttons.push(<Ellipsis key="end-ellipsis" t={t}/>);
             buttons.push(<PageButton key={pages} page={pages} currentPage={currentPage} onPageChange={onPageChange}/>);
         }
 

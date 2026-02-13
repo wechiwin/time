@@ -15,9 +15,11 @@ import {
 import {formatCurrency, formatPercent, formatNumber} from '../../utils/numberFormatters';
 import NavChart from './NavChart';
 import {getColor} from "../../utils/colorFormatters"; // 新建图表组件
+import {useEnumTranslation} from "../../contexts/EnumContext";
 
 export default function TradeTimeline({rounds = [], loading = false}) {
     const {t} = useTranslation();
+    const {translateEnum} = useEnumTranslation();
     const [sortOrder, setSortOrder] = useState('desc');
 
     const sortedRounds = useMemo(() => {
@@ -175,9 +177,9 @@ export default function TradeTimeline({rounds = [], loading = false}) {
                                             scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent
                                             [&::-webkit-scrollbar]:w-1.5
                                             [&::-webkit-scrollbar-track]:bg-transparent
-                                            [&::-webkit-scrollbar-thumb]:bg-gray-200
+                                            [&::-webkit-scrollbar-thumb]:bg-gray-300
                                             [&::-webkit-scrollbar-thumb]:rounded-full
-                                            dark:[&::-webkit-scrollbar-thumb]:bg-gray-700">
+                                            dark:[&::-webkit-scrollbar-thumb]:bg-gray-600">
                                             <div
                                                 className="relative pl-4 border-l-2 border-gray-200 dark:border-gray-600 space-y-6">
                                                 {(sortOrder === 'asc' ? round.trades : [...round.trades].reverse()).map((trade) => {
@@ -197,7 +199,7 @@ export default function TradeTimeline({rounds = [], loading = false}) {
                                                                         </span>
                                                                         <span
                                                                             className={`text-xs px-1.5 py-0.5 rounded border ${style.bg} ${style.text} ${style.border}`}>
-                                                                            {trade.tr_type$view}
+                                                                            {translateEnum('TradeTypeEnum', trade.tr_type)}
                                                                         </span>
                                                                     </div>
                                                                     <div

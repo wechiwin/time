@@ -76,7 +76,7 @@ export default function Layout() {
                    注意：滚动发生在 main 标签上，而不是 window
                 */}
                 <main
-                    className="flex-1 overflow-y-auto p-3 md:p-6 bg-gray-50 dark:bg-gray-800 scroll-smooth"
+                    className="flex-1 overflow-y-auto p-3 md:p-6 bg-gray-50 dark:bg-gray-800 scroll-smooth custom-scrollbar"
                     onScroll={handleMainScroll}
                 >
                     {/* 内容容器：添加玻璃态卡片效果 */}

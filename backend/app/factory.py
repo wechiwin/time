@@ -56,6 +56,8 @@ def build_app() -> Flask:
     # 只有这样，app.debug, app.config['...'] 等才会生效。
     # -----------------------------------------------------------------
     app.config.from_object(Config.get_config())
+    # Configure JSON to not escape non-ASCII characters (e.g., Chinese)
+    app.json.ensure_ascii = False
     # -----------------------------------------------------------------
     # 步骤 3: 基于已加载的配置，初始化日志系统
     # -----------------------------------------------------------------

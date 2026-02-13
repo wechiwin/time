@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime
 
 from flask_jwt_extended import create_access_token, create_refresh_token
+from flask_babel import gettext as _
 from loguru import logger
 
 from app.config import Config
@@ -22,7 +23,7 @@ class UserService:
     @classmethod
     def execute_login(cls, username, password, ip, user_agent):
         if not username or not password:
-            raise BizException("用户名和密码不能为空", code=400)
+            raise BizException(_("USERNAME_PASSWORD_REQUIRED"), code=400)
 
         # 校验用户
         user = UserSetting.query.filter_by(username=username).first()
@@ -34,7 +35,7 @@ class UserService:
                 device_type=DeviceParser.parse(user_agent),
                 failure_reason="Invalid credentials"
             )
-            raise BizException("用户名或密码错误", code=401)
+            raise BizException(_("INVALID_CREDENTIALS"), code=401)
 
         # 检查账号是否被锁定
         if user.is_locked:
@@ -46,7 +47,7 @@ class UserService:
                 device_type=DeviceParser.parse(user_agent),
                 failure_reason="Account locked"
             )
-            raise BizException("账号已被锁定，请联系管理员", code=403)
+            raise BizException(_("ACCOUNT_LOCKED"), code=403)
 
         # 检查并清理旧会话
         active_sessions = UserSession.query.filter_by(

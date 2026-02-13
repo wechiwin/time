@@ -206,3 +206,93 @@ msgstr "未上传文件"
 
 msgid "CRAWL_NO_INFO"
 msgstr "爬取无结果"
+
+msgid "USERNAME_PASSWORD_REQUIRED"
+msgstr "用户名和密码不能为空"
+
+msgid "USERNAME_MIN_PASSWORD_MIN"
+msgstr "用户名至少3位，密码至少6位"
+
+msgid "USERNAME_ALREADY_EXISTS"
+msgstr "用户名已存在"
+
+msgid "REGISTRATION_FAILED"
+msgstr "注册失败，请稍后再试"
+
+msgid "INVALID_REQUEST_MISSING_SECURITY_HEADER"
+msgstr "非法请求：缺少安全标识"
+
+msgid "TOKEN_EXPIRED"
+msgstr "Token 已过期"
+
+msgid "TOKEN_INVALID"
+msgstr "Token 无效"
+
+msgid "REFRESH_TOKEN_FAILED"
+msgstr "刷新 token 失败"
+
+msgid "USER_NOT_FOUND"
+msgstr "用户不存在"
+
+msgid "OLD_NEW_PASSWORD_REQUIRED"
+msgstr "原密码和新密码都不能为空"
+
+msgid "NEW_PASSWORD_SAME_AS_OLD"
+msgstr "新密码不能与原密码相同"
+
+msgid "NEW_PASSWORD_MIN_LENGTH"
+msgstr "新密码至少6位"
+
+msgid "OLD_PASSWORD_INCORRECT"
+msgstr "原密码错误"
+
+msgid "PASSWORD_CHANGE_FAILED"
+msgstr "密码修改失败"
+
+msgid "LOGOUT_FAILED"
+msgstr "登出失败"
+
+msgid "MISSING_DATE_RANGE"
+msgstr "缺少时间限制"
+
+msgid "NO_FILE_UPLOADED"
+msgstr "没有上传文件"
+
+msgid "NO_FILE_SELECTED"
+msgstr "没有选择文件"
+
+msgid "EXCEL_MISSING_REQUIRED_COLUMNS"
+msgstr "Excel缺少必要列"
+
+msgid "TRADE_TYPE_NOT_RECOGNIZED"
+msgstr "交易类型"%(value)s"无法识别，请使用模板提供的下拉选项。"
+
+msgid "ALERT_RECORD_CREATE_FAILED"
+msgstr "提醒记录创建失败"
+
+msgid "USER_EMAIL_NOT_EXISTS"
+msgstr "用户邮箱不存在"
+
+msgid "SEND_EMAIL_FAILED"
+msgstr "发送提醒邮件失败: %(error)s"
+
+msgid "FUND_CODE_NOT_IN_HOLDINGS"
+msgstr "以下基金代码不存在于持仓表中，请先添加: %(codes)s"
+
+msgid "FUND_IMPORT_FAILED_OVERSOLD"
+msgstr "基金 %(ho_code)s 导入失败: 交易日 %(trade_tr_date)s 尝试卖出 %(trade_shares)s 份, 但当时仅持有 %(current_shares)s 份。"
+
+msgid "IMPORT_PROCESS_ERROR"
+msgstr "导入过程中发生未知错误"
+
+msgid "HOLDING_NOT_EXISTS"
+msgstr "持仓不存在"
+
+msgid "OPERATION_OVERSOLD"
+msgstr "操作导致库存不足：在 %(trade_tr_date)s 卖出后，持仓份额变为 %(current_shares)s，不符合业务规则。"
+
+msgid "CRAWL_PAGE_ERROR"
+msgstr "%(ho_code)s 爬取第 %(page)s 页出错"
+
+msgid "DATA_SAVE_FAILED"
+msgstr "%(ho_code)s 数据保存失败"

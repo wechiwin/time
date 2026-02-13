@@ -5,6 +5,7 @@ from decimal import Decimal
 from typing import List, Tuple, Dict, Any
 
 from loguru import logger
+from flask_babel import gettext as _
 from sqlalchemy import desc, or_
 
 from app.calendars.trade_calendar import trade_calendar
@@ -230,7 +231,7 @@ class TradeService:
         # 3. 检查是否存在未创建的持仓
         missing_codes = set(ho_codes) - set(holding_map.keys())
         if missing_codes and len(missing_codes) > 0 and missing_codes is not None:
-            raise BizException(f"以下基金代码不存在于持仓表中，请先添加: {', '.join(map(str, missing_codes))}")
+            raise BizException(_("FUND_CODE_NOT_IN_HOLDINGS") % {"codes": ', '.join(map(str, missing_codes))})
 
         try:
             # 4. 循环处理每个基金的交易列表
@@ -261,10 +262,7 @@ class TradeService:
 
                     if trade.tr_type == TradeTypeEnum.SELL.value and (
                             current_shares.is_zero() or trade_shares > current_shares):
-                        raise BizException(
-                            f"基金 {ho_code} 导入失败: 交易日 {trade.tr_date} 尝试卖出 {trade_shares} 份, "
-                            f"但当时仅持有 {current_shares} 份。"
-                        )
+                        raise BizException(_("FUND_IMPORT_FAILED_OVERSOLD") % {"ho_code": ho_code, "trade_tr_date": trade.tr_date, "trade_shares": trade_shares, "current_shares": current_shares})
 
                     # 为当前交易分配正确的轮次
                     trade.tr_cycle = current_tr_cycle
@@ -307,7 +305,7 @@ class TradeService:
             logger.exception(e, exc_info=True)
             if isinstance(e, BizException):
                 raise e
-            raise BizException("导入过程中发生未知错误")
+            raise BizException(_("IMPORT_PROCESS_ERROR"))
 
     @staticmethod
     def list_uncleared(holding) -> Tuple[List[Trade], int]:
@@ -373,7 +371,7 @@ class TradeService:
         # 1. 获取持仓信息
         holding = Holding.query.get(ho_id)
         if not holding:
-            raise BizException("持仓不存在")
+            raise BizException(_("HOLDING_NOT_EXISTS"))
 
         # 2. 获取该持仓下所有交易记录，严格按时间正序排列
         # secondary sort by id ensures deterministic order for same-day trades
@@ -410,8 +408,7 @@ class TradeService:
                 # 如果计算过程中份额小于0 (考虑到精度误差，使用 < -EPSILON)
                 if current_shares < -EPSILON:
                     raise BizException(
-                        f"操作导致库存不足：在 {trade.tr_date} 卖出后，"
-                        f"持仓份额变为 {current_shares}，不符合业务规则。"
+                        _("OPERATION_OVERSOLD") % {"trade_tr_date": trade.tr_date, "current_shares": current_shares}
                     )
 
                 # 判断是否清仓

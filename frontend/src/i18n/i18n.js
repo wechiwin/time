@@ -8,7 +8,6 @@ i18n
     .use(LanguageDetector)
     .use(initReactI18next)
     .init({
-        lng: 'en',
         fallbackLng: 'en',
         supportedLngs: ['zh', 'it', 'en'],
         debug: true,
@@ -30,23 +29,10 @@ i18n
         //     return key
         // }
         detection: {
-            // 检测顺序：先检查localStorage，然后是其他检测方式
-            order: ['localStorage', 'querystring', 'cookie', 'navigator'],
-            // 使用localStorage来缓存用户选择
+            // 仅使用localStorage来检测和存储用户选择
+            order: ['localStorage'],
             caches: ['localStorage'],
-
-            // localStorage的配置选项
             lookupLocalStorage: 'i18nextLng',
-
-            // 可选：当localStorage中未找到时是否检查cookie
-            lookupCookie: 'i18next',
-
-            // 可选：设置cookie过期时间（单位：天）
-            cookieMinutes: 10,
-            cookieDomain: window.location.hostname,
-
-            // 可选：设置html标签的lang属性
-            htmlTag: document.documentElement
         },
 
     })

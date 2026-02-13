@@ -7,17 +7,18 @@ import FormModal from "../components/common/FormModal";
 import {useToast} from "../components/context/ToastContext";
 import Pagination from "../components/common/pagination/Pagination";
 import {usePaginationState} from "../hooks/usePaginationState";
-import useCommon from "../hooks/api/useCommon";
 import {ArrowDownTrayIcon, DocumentArrowDownIcon, PlusIcon} from "@heroicons/react/16/solid";
 import SearchArea from "../components/search/SearchArea";
 import {useIsMobile} from "../hooks/useIsMobile";
 import HoldingFormMobile from "../components/forms/HoldingFormMobile";
 import ConfirmationModal from "../components/common/ConfirmationModal";
+import {useEnumTranslation} from "../contexts/EnumContext";
 
 export default function HoldingPage() {
     const isMobile = useIsMobile();
     const {t} = useTranslation();
     const {showSuccessToast, showErrorToast} = useToast();
+    const {getEnumOptions} = useEnumTranslation();
     const {page, perPage, handlePageChange, handlePerPageChange} = usePaginationState();
 
     const [queryKeyword, setQueryKeyword] = useState("");
@@ -44,8 +45,6 @@ export default function HoldingPage() {
         nav_date: searchParams.nav_date
     });
 
-    const {fetchMultipleEnumValues} = useCommon();
-
     const [hoTypeOptions, setHoTypeOptions] = useState([]);
     const [hoStatusOptions, setHoStatusOptions] = useState([]);
     const [confirmState, setConfirmState] = useState({
@@ -56,24 +55,11 @@ export default function HoldingPage() {
         isLoading: false,
     });
 
+    // Load enum options for search filters (automatically updates on language change)
     useEffect(() => {
-        const loadEnumValues = async () => {
-            try {
-                const [hoTypeOptions,
-                    hoStatusOptions,
-                ] = await fetchMultipleEnumValues([
-                    'HoldingTypeEnum',
-                    'HoldingStatusEnum',
-                ]);
-                setHoTypeOptions(hoTypeOptions);
-                setHoStatusOptions(hoStatusOptions);
-            } catch (err) {
-                console.error('Failed to load enum values:', err);
-                showErrorToast('加载类型选项失败');
-            }
-        };
-        loadEnumValues();
-    }, [fetchMultipleEnumValues, showErrorToast]);
+        setHoTypeOptions(getEnumOptions('HoldingTypeEnum'));
+        setHoStatusOptions(getEnumOptions('HoldingStatusEnum'));
+    }, [getEnumOptions]);
 
     // 搜索配置
     const searchFields = [
@@ -210,21 +196,21 @@ export default function HoldingPage() {
     }, [crawlFundInfo, showSuccessToast, showErrorToast]);
 
     const handleImport = async () => {
-        try {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.xlsx, .xls';
-            input.onchange = async (e) => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.xlsx, .xls';
+        input.onchange = async (e) => {
+            try {
                 if (e.target.files?.[0]) {
                     await importData(e.target.files[0]);
                     showSuccessToast();
                     setRefreshKey(p => p + 1);
                 }
-            };
-            input.click();
-        } catch (err) {
-            showErrorToast(err.message);
-        }
+            } catch (err) {
+                showErrorToast(err.message);
+            }
+        };
+        input.click();
     };
 
     return (
@@ -258,7 +244,11 @@ export default function HoldingPage() {
                 }
             />
 
-            <HoldingTable data={data?.items || []} onDelete={handleDeleteRequest} onEdit={(item) => openModal('edit', item)}/>
+            <HoldingTable
+                data={data?.items || []}
+                onDelete={handleDeleteRequest}
+                onEdit={(item) => openModal('edit', item)}
+            />
 
             {data?.pagination && (
                 <Pagination

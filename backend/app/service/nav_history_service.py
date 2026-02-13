@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 
 import requests
+from flask_babel import gettext as _
 from loguru import logger
 from sqlalchemy import func, desc
 from sqlalchemy.orm import selectinload
@@ -170,7 +171,7 @@ class FundNavHistoryService:
                 time.sleep(0.5)  # 防爬，避免请求过快
             except Exception as e:
                 logger.exception(e, exc_info=True)
-                raise BizException(f"{holding.ho_code}爬取第 {page} 页出错")
+                raise BizException(_("CRAWL_PAGE_ERROR") % {"ho_code": holding.ho_code, "page": page})
 
         # 储存数据
         try:
@@ -189,7 +190,7 @@ class FundNavHistoryService:
         except Exception as e:
             db.session.rollback()
             logger.exception(e, exc_info=True)
-            raise BizException(f"{holding.ho_code}数据保存失败")
+            raise BizException(_("DATA_SAVE_FAILED") % {"ho_code": holding.ho_code})
 
     @staticmethod
     def get_latest_by_ho_code(ho_code):

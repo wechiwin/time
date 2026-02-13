@@ -1,9 +1,10 @@
 import {MagnifyingGlassIcon, XMarkIcon} from "@heroicons/react/24/outline";
+import {useTranslation} from "react-i18next";
 
 export default function SearchBox({
                                       value,
                                       onChange,
-                                      placeholder = '搜索...',
+                                      placeholder,
                                       onSearchNow,
                                       rightIcon,
                                       onClear, // 新增：清空回调
@@ -12,6 +13,7 @@ export default function SearchBox({
                                       title,
                                       ...props
                                   }) {
+    const {t} = useTranslation();
     return (
         <div className={`relative ${className}`}>
             <MagnifyingGlassIcon
@@ -19,14 +21,14 @@ export default function SearchBox({
 
             <input
                 type="text"
-                placeholder={placeholder}
+                placeholder={placeholder || t('placeholder_search')}
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 disabled={disabled}
                 title={title}
                 className={`w-full pl-8 pr-8 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm
                  focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 
+                 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
                  ${disabled ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''}`}
                 {...props}
             />
@@ -38,7 +40,7 @@ export default function SearchBox({
                         type="button"
                         onClick={onClear}
                         className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-0.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                        title="清空"
+                        title={t('tooltip_clear')}
                     >
                         <XMarkIcon className="w-4 h-4"/>
                     </button>

@@ -53,7 +53,7 @@ export default function PaginationMobile({pagination, onPageChange}) {
                     "text-sm font-medium",
                     dark ? "text-gray-200" : "text-gray-900"
                 )}>
-                    {currentPage} / {pages}
+                    {currentPage} {t('pagination_separator')} {pages}
                 </span>
                 <span className={clsx(
                     "text-xs mt-0.5",

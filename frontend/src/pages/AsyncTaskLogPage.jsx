@@ -39,7 +39,7 @@ export default function AsyncTaskLogPage() {
                 setTaskStatusOptions(statusOptions);
             } catch (err) {
                 console.error('Failed to load enum values:', err);
-                showErrorToast('加载状态选项失败');
+                showErrorToast(t('msg_failed_to_load_enum'));
             }
         };
         loadEnumValues();

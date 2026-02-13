@@ -84,7 +84,7 @@ export default function NavChart({ hoId, startDate, endDate, trades = [], classN
                         // 从 data.extra 中获取我们在 useMemo 中存入的交易对象
                         const trade = param.data.extra;
                         const typeColor = trade.tr_type === 'BUY' ? 'text-red-500' : 'text-blue-500';
-                        const typeName = trade.tr_type === 'BUY' ? '买入' : '卖出'; // 建议使用 i18n: t('buy')
+                        const typeName = trade.tr_type === 'BUY' ? t('tr_type_buy') : t('tr_type_sell');
 
                         html += `
                             <div class="mt-2 pt-1 border-t border-dashed border-gray-200 text-xs">

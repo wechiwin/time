@@ -2,6 +2,7 @@ import threading
 
 from flask import Blueprint, request, current_app, g
 from sqlalchemy import or_
+from flask_babel import gettext as _
 
 from app.constant.biz_enums import ErrorMessageEnum
 from app.framework.auth import auth_required
@@ -125,7 +126,7 @@ def crawl_nav_history():
     if not ho_code or not ho_id:
         raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.view)
     if not start_date or not end_date:
-        raise BizException(msg="缺少时间限制")
+        raise BizException(msg=_("MISSING_DATE_RANGE"))
 
     holding = Holding.query.filter_by(id=ho_id).first()
     if not holding:

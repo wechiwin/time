@@ -58,7 +58,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                 setDividendTypeOptions(dividendTypes);
             } catch (err) {
                 console.error('Failed to load enum values:', err);
-                showErrorToast('加载类型选项失败');
+                showErrorToast(t('msg_failed_to_load_enum'));
             }
         };
         loadEnumValues();
@@ -219,7 +219,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
             // 捕获 API 层面的错误（包括 JSON 解析失败）
             console.error(err);
             // 这里 err.message 可能就是 "Unexpected end of JSON input"
-            showErrorToast(err.message || "Upload failed");
+            showErrorToast(err.message || t('msg_upload_failed'));
             setUploading(false);
             setProcessingStatus('');
         } finally {
@@ -280,7 +280,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                 }
             } catch (e) {
                 console.error("Parse Error", e);
-                showErrorToast("Data parsing failed");
+                showErrorToast(t('msg_data_parsing_failed'));
             } finally {
                 // 无论成功失败，收到消息后即关闭连接
                 eventSource.close();
@@ -294,7 +294,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
             console.error("SSE Connection Error", err);
             // 如果连接意外断开（不是我们主动 close 的），通常意味着出错
             if (eventSource.readyState !== EventSource.CLOSED) {
-                showErrorToast("Connection timeout or server error");
+                showErrorToast(t('msg_connection_timeout'));
             }
             eventSource.close();
             eventSourceRef.current = null;
@@ -425,7 +425,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                             <input
                                 type="number"
                                 step="0.0001"
-                                placeholder="0.0000"
+                                placeholder={t('placeholder_nav_per_unit')}
                                 value={form.tr_nav_per_unit}
                                 onChange={(e) => setForm({...form, tr_nav_per_unit: e.target.value})}
                                 className="input-field text-sm py-1.5"
@@ -437,7 +437,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                             <input
                                 type="number"
                                 step="0.0001"
-                                placeholder="0.00"
+                                placeholder={t('placeholder_shares')}
                                 value={form.tr_shares}
                                 onChange={(e) => setForm({...form, tr_shares: e.target.value})}
                                 className="input-field text-sm py-1.5"
@@ -449,7 +449,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                             <input
                                 type="number"
                                 step="0.0001"
-                                placeholder="0.00"
+                                placeholder={t('placeholder_amount')}
                                 value={form.tr_amount}
                                 onChange={(e) => handleFieldChange('tr_amount', e.target.value)}
                                 className={`input-field text-sm py-1.5 ${warnings.tr_amount ? 'border-orange-500 focus:ring-orange-500 focus:border-orange-500' : ''}`}
@@ -465,7 +465,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                             <input
                                 type="number"
                                 step="0.0001"
-                                placeholder="0.00"
+                                placeholder={t('placeholder_fee')}
                                 value={form.tr_fee}
                                 onChange={(e) => handleFieldChange('tr_fee', e.target.value)}
                                 className="input-field text-sm py-1.5"
@@ -479,7 +479,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                         <input
                             type="number"
                             step="0.0001"
-                            placeholder="0.00"
+                            placeholder={t('placeholder_cash_amount')}
                             value={form.cash_amount}
                             onChange={(e) => setForm({...form, cash_amount: e.target.value})}
                             className={`input-field text-sm py-1.5 font-semibold bg-gray-50 ${warnings.cash_amount ? 'border-orange-500 focus:ring-orange-500 focus:border-orange-500' : ''}`}

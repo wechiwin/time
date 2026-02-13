@@ -14,6 +14,7 @@ import useDarkMode from "../hooks/useDarkMode";
 import {formatCurrency, formatPercent, formatPercentNeutral, formatRatioAsPercent,} from '../utils/numberFormatters';
 import {getLineOption, getPieOption} from '../utils/chartOptions';
 import {getBadgeStyle, getColor} from "../utils/colorFormatters";
+import {useEnumTranslation} from "../contexts/EnumContext";
 
 const TIME_RANGE_CONFIG = {
     '1m': {window: 'R21', days: 30, i18nKey: 'period_last_30_days'},
@@ -28,6 +29,7 @@ const DEFAULT_RANGE_PARAMS = TIME_RANGE_CONFIG[DEFAULT_TIME_RANGE_KEY];
 
 export default function Dashboard() {
     const {t} = useTranslation();
+    const {translateEnum} = useEnumTranslation();
     const [timeRange, setTimeRange] = useState('1y');
     const {dark: isDarkMode} = useDarkMode();
     const [highlightedIndex, setHighlightedIndex] = useState(null);
@@ -337,7 +339,7 @@ export default function Dashboard() {
                                             <td className="px-2 py-2 font-medium text-gray-900 dark:text-white">{alert.ar_name}</td>
                                             <td className="px-2 py-2">
                                                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${getBadgeStyle(alert.action)}`}>
-                                                    {alert.action$view}
+                                                    {translateEnum('AlertRuleActionEnum', alert.action)}
                                                 </span>
                                             </td>
                                             <td className="px-2 py-2 text-gray-500 dark:text-gray-400">{alert.trigger_nav_date}</td>

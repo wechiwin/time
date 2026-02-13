@@ -63,7 +63,7 @@ export default function Modal({title, show, onClose, children, width}) {
                                 </div>
 
                                 {/* 内容区域 */}
-                                <div className="flex-1 overflow-y-auto p-4 md:p-6">
+                                <div className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
                                     {children}
                                 </div>
                             </Dialog.Panel>

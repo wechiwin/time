@@ -83,7 +83,7 @@ export default function NavHistoryChart({navHistory, snapshots, trades, fundInfo
             return {code: targetId, info, list};
         } catch (error) {
             console.error(`加载对比基金 ${targetId} 失败`, error);
-            return {info: {ho_short_name: '未知'}, list: []};
+            return {info: {ho_short_name: t('unknown_fund')}, list: []};
         }
     }, [dateParams.start_date, dateParams.end_date, getByCode, searchList]);
 
@@ -106,8 +106,7 @@ export default function NavHistoryChart({navHistory, snapshots, trades, fundInfo
     const addCompare = async (ho) => {
         if (!ho || !ho.ho_code || compareCodes.includes(ho.ho_code)) return;
         const targetCode = ho.ho_code;
-        // TODO 多语言
-        if (compareCodes.length > 5) return showErrorToast('最多只能选择 5 个对比基金');
+        if (compareCodes.length > 5) return showErrorToast(t('max_compare_funds'));
 
         setLoadingCompare(true);
         try {

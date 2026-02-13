@@ -11,7 +11,7 @@ export default function DeleteButton({onConfirm, description}) {
     // 避免在UI上直接显示 "null"
     const safeDescription = (description && !description.includes('null'))
         ? description
-        : t('msg_delete_confirmation', '您确定要删除此项目吗？') + ' ?'; // 提供一个通用的回退文本
+        : t('msg_delete_default') + ' ?'; // 提供一个通用的回退文本
 
     return (
         <>

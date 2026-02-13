@@ -47,7 +47,7 @@ export default function AlertPage() {
                 setEmailStatusOptions(emailStatusOptions);
             } catch (err) {
                 console.error('Failed to load enum values:', err);
-                showErrorToast('加载类型选项失败');
+                showErrorToast(t('msg_failed_to_load_enum'));
             }
         };
         loadEnumValues();

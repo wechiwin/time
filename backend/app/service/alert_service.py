@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from flask import current_app
-from flask_babel import gettext
+from flask_babel import gettext as _
 from loguru import logger
 from sqlalchemy import func, desc, or_
 
@@ -110,7 +110,7 @@ class AlertService:
         except Exception as e:
             db.session.rollback()
             logger.info(e)
-            raise BizException("提醒记录创建失败")
+            raise BizException(_("ALERT_RECORD_CREATE_FAILED"))
 
     @classmethod
     def trigger_alert_job(cls):
@@ -154,7 +154,7 @@ class AlertService:
                 for history in ah_list:
                     # 更新history状态
                     history.send_status = 'FAILED'
-                    history.remark = '用户邮箱不存在'
+                    history.remark = _("USER_EMAIL_NOT_EXISTS")
 
                 # db.session.add(ah_list)
                 # db.session.add(rule)
@@ -165,7 +165,7 @@ class AlertService:
                 try:
                     send_email(
                         to=user.email_address,
-                        subject=f"{gettext('EMAIL_SUBJECT_TRIGGER_ALERT')}: {history.ar_name}",
+                        subject=f"{_('EMAIL_SUBJECT_TRIGGER_ALERT')}: {history.ar_name}",
                         template='alert_notification.html',
                         user=user,
                         history=history,
@@ -185,7 +185,7 @@ class AlertService:
                     # db.session.rollback()
                     # 记录发送失败
                     history.send_status = AlertEmailStatusEnum.FAILED
-                    error_msg = f"发送提醒邮件失败: {str(e)}"
+                    error_msg = _("SEND_EMAIL_FAILED") % {"error": str(e)}
                     history.remark = error_msg
                     # db.session.commit()
                     current_app.logger.exception(error_msg, exc_info=True)

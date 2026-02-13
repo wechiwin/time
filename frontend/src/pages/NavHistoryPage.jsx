@@ -100,7 +100,7 @@ export default function NavHistoryPage() {
     const handleCrawlAll = async () => {
         try {
             await crawl_all();
-            showSuccessToast(t('msg_task_started') || "任务已后台启动");
+            showSuccessToast(t('msg_task_started'));
         } catch (err) {
             showErrorToast(err.message);
         }

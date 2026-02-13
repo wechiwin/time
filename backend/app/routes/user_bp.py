@@ -8,6 +8,7 @@ from flask_jwt_extended import (
 )
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_babel import gettext as _
 from loguru import logger
 
 from app.constant.sys_enums import GlobalYesOrNo
@@ -33,15 +34,15 @@ def register():
     password = data.get('password')
 
     if not username or not password:
-        raise BizException("用户名和密码不能为空")
+        raise BizException(_("USERNAME_PASSWORD_REQUIRED"))
 
     if len(username) < 3 or len(password) < 6:
-        raise BizException("用户名至少3位，密码至少6位")
+        raise BizException(_("USERNAME_MIN_PASSWORD_MIN"))
 
     # 检查用户名是否已存在
     existing_user = UserSetting.query.filter_by(username=username).first()
     if existing_user:
-        raise BizException("用户名已存在")
+        raise BizException(_("USERNAME_ALREADY_EXISTS"))
 
     # 创建新用户
     pwd_hash = UserSetting.hash_password(password)
@@ -56,7 +57,7 @@ def register():
     except Exception as e:
         db.session.rollback()
         logger.exception(e, exc_info=True)
-        raise BizException("注册失败，请稍后再试", code=500)
+        raise BizException(_("REGISTRATION_FAILED"), code=500)
 
     # 记录注册登录历史
     UserService.record_login_history(
@@ -91,7 +92,7 @@ def login():
     username = data.get('username')
     password = data.get('password')
     if not username or not password:
-        raise BizException("用户名和密码不能为空", code=400)
+        raise BizException(_("USERNAME_PASSWORD_REQUIRED"), code=400)
 
     # 获取客户端信息用于日志
     ip = get_remote_address()
@@ -118,7 +119,7 @@ def login():
 def refresh():
     # 强制要求自定义 Header，利用 CORS 机制防御 CSRF
     if request.headers.get('X-Requested-With') != 'XMLHttpRequest':
-        raise BizException("非法请求：缺少安全标识", code=400)
+        raise BizException(_("INVALID_REQUEST_MISSING_SECURITY_HEADER"), code=400)
     try:
         # 修改：get_jwt_identity() 现在返回 uuid
         current_user = g.user
@@ -130,7 +131,7 @@ def refresh():
         blacklisted = TokenBlacklist.query.filter_by(jti=old_jti).first()
         if blacklisted:
             logger.warning(f"refresh：Token {old_jti} was in TokenBlacklist")
-            raise BizException("Token was expired", code=401)
+            raise BizException(_("TOKEN_EXPIRED"), code=401)
 
         # 刷新时也检查活跃设备数
         active_sessions = UserSession.query.filter_by(
@@ -175,7 +176,7 @@ def refresh():
                 device_type=DeviceParser.parse(request.headers.get('User-Agent', '')),
                 failure_reason="Device fingerprint mismatch"
             )
-            raise BizException("Token is invalid.", code=401)
+            raise BizException(_("TOKEN_INVALID"), code=401)
 
         # 生成新的access_token
         # 修改：identity 使用 uuid
@@ -236,14 +237,14 @@ def refresh():
     except Exception as e:
         db.session.rollback()
         logger.exception(f"Refresh token failed: {e}", exc_info=True)
-        raise BizException("Refresh token failed", code=401)
+        raise BizException(_("REFRESH_TOKEN_FAILED"), code=401)
 
 
 @user_setting_bp.route('/user', methods=['GET'])
 @auth_required
 def get_user():
     if not g.user:
-        raise BizException("用户不存在")
+        raise BizException(_("USER_NOT_FOUND"))
 
     result = user_setting_schema.dump(g.user)
     return Res.success(result)
@@ -255,7 +256,7 @@ def update_user():
     """更新用户基本信息"""
     user = g.user
     if not user:
-        raise BizException("用户不存在")
+        raise BizException(_("USER_NOT_FOUND"))
 
     data = request.get_json()
     email_address = data.get('email_address')
@@ -276,22 +277,22 @@ def update_user():
 def edit_password():
     user = g.user
     if not user:
-        raise BizException("用户不存在")
+        raise BizException(_("USER_NOT_FOUND"))
 
     data = request.get_json()
     old_password = data.get('old_password')
     new_password = data.get('new_password')
 
     if not old_password or not new_password:
-        raise BizException("原密码和新密码都不能为空")
+        raise BizException(_("OLD_NEW_PASSWORD_REQUIRED"))
     if old_password == new_password:
-        raise BizException("新密码不能与原密码相同")
+        raise BizException(_("NEW_PASSWORD_SAME_AS_OLD"))
     if len(new_password) < 6:
-        raise BizException("新密码至少6位")
+        raise BizException(_("NEW_PASSWORD_MIN_LENGTH"))
 
     # 验证原密码
     if not UserSetting.verify_password(old_password, user.pwd_hash):
-        raise BizException("原密码错误")
+        raise BizException(_("OLD_PASSWORD_INCORRECT"))
 
     try:
         # 1. 获取当前 access token 的 JTI
@@ -358,7 +359,7 @@ def edit_password():
     except Exception as e:
         logger.exception(e, exc_info=True)
         db.session.rollback()
-        raise BizException("密码修改失败", code=500)
+        raise BizException(_("PASSWORD_CHANGE_FAILED"), code=500)
 
 
 @user_setting_bp.route('/logout', methods=['POST'])
@@ -419,4 +420,4 @@ def logout():
     except Exception as e:
         db.session.rollback()
         logger.exception(f"Logout failed: {e}", exc_info=True)
-        raise BizException("登出失败", code=500)
+        raise BizException(_("LOGOUT_FAILED"), code=500)

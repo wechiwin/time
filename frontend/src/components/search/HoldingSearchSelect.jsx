@@ -8,11 +8,11 @@ import {useTranslation} from "react-i18next";
 export default function HoldingSearchSelect({
                                                 value,
                                                 onChange,
-                                                placeholder = '搜索基金',
+                                                placeholder,
                                                 disabled = false,
                                                 className = ''
                                             }) {
-    const {t} = useTranslation()
+    const {t} = useTranslation();
     const [list, setList] = useState([]);
     const [open, setOpen] = useState(false);
     const {data, searchPage} = useHoldingList({autoLoad: false});
@@ -110,7 +110,7 @@ export default function HoldingSearchSelect({
                         handleClear();
                     }
                 }}
-                placeholder={placeholder}
+                placeholder={placeholder || t('placeholder_fund_search_select')}
                 onSearchNow={() => searchPage({ keyword: inputValue })}
                 disabled={disabled}
                 onClear={handleClear}

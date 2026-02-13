@@ -2,12 +2,14 @@
 import DeleteButton from '../common/DeleteButton';
 import {useNavigate} from 'react-router-dom';
 import {useTranslation} from 'react-i18next'
+import {useEnumTranslation} from '../../contexts/EnumContext';
 import React from "react";
 
 export default function HoldingTable({data = [], onDelete, onEdit}) {
 
     const navigate = useNavigate();
     const {t} = useTranslation()
+    const {translateEnum} = useEnumTranslation();
 
     // const handleRowClick = (fund) => {
     //     navigate(`/holding/${fund.ho_code}`);
@@ -41,9 +43,9 @@ export default function HoldingTable({data = [], onDelete, onEdit}) {
                         {/* <td className="table-cell font-medium">{f.ho_name}</td> */}
                         <td className="table-cell font-medium">{f.ho_short_name}</td>
                         {/* <td className="table-cell font-medium">{f.ho_nickname}</td> */}
-                        <td className="table-cell">{f.ho_type$view}</td>
+                        <td className="table-cell">{translateEnum('HoldingTypeEnum', f.ho_type)}</td>
                         <td className="table-cell">{f.establishment_date}</td>
-                        <td className="table-cell">{f.ho_status$view}</td>
+                        <td className="table-cell">{translateEnum('HoldingStatusEnum', f.ho_status)}</td>
                         {/* <td className="table-cell">{f.currency}</td> */}
                         <td className="table-cell">
                             <div className="flex items-center space-x-2">
@@ -55,7 +57,7 @@ export default function HoldingTable({data = [], onDelete, onEdit}) {
                                 </button>
                                 <DeleteButton
                                     onConfirm={() => onDelete(f)}
-                                    description={`${t('msg_delete_confirmation')} ${f.ho_short_name} ?`}
+                                    description={`${f.ho_short_name} ?`}
                                 />
                             </div>
                         </td>

@@ -3,6 +3,7 @@ import React from 'react';
 import DeleteButton from '../common/DeleteButton';
 import {useTranslation} from "react-i18next";
 import {useNavigate} from "react-router-dom";
+import {useEnumTranslation} from '../../contexts/EnumContext';
 
 // 交易类型到样式的映射
 const tradeTypeStyles = {
@@ -13,15 +14,16 @@ const tradeTypeStyles = {
 export default function TradeTable({data = [], onDelete, onEdit}) {
     const {t} = useTranslation()
     const navigate = useNavigate();
+    const {translateEnum} = useEnumTranslation();
     const handleRowClick = (tr) => {
         navigate(`/trade/${tr.ho_id}`);
     };
 
     // 渲染交易类型徽章的辅助函数
-    const renderTradeTypeBadge = (type, type$view) => (
+    const renderTradeTypeBadge = (type) => (
         <span
             className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${tradeTypeStyles[type] || ''}`}>
-            {type$view}
+            {translateEnum('TradeTypeEnum', type)}
         </span>
     );
 
@@ -43,7 +45,7 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
 
             <div className="grid grid-cols-2 gap-2 text-sm">
                 <div className="text-gray-600">{t('th_tr_type')}</div>
-                <div className="text-right font-medium">{renderTradeTypeBadge(tr.tr_type, tr.tr_type$view)}</div>
+                <div className="text-right font-medium">{renderTradeTypeBadge(tr.tr_type)}</div>
 
                 <div className="text-gray-600">{t('th_market_date')}</div>
                 <div className="text-right">{tr.tr_date}</div>
@@ -73,7 +75,7 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                 </button>
                 <DeleteButton
                     onConfirm={() => onDelete(tr.id)}
-                    description={`${t('msg_delete_confirmation')} ${tr.ho_short_name} - ${tr.tr_date} ?`}
+                    description={`${tr.ho_short_name} - ${tr.tr_date} ?`}
                     buttonSize="small"
                 />
             </div>
@@ -116,7 +118,7 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                             </td>
                             <td className="table-cell font-medium">{tr.ho_short_name}</td>
                             <td className="table-cell">
-                                {renderTradeTypeBadge(tr.tr_type, tr.tr_type$view)}
+                                {renderTradeTypeBadge(tr.tr_type)}
                             </td>
                             <td className="table-cell">{tr.tr_date}</td>
                             <td className="table-cell">{tr.tr_nav_per_unit}</td>
@@ -134,7 +136,7 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                                     </button>
                                     <DeleteButton
                                         onConfirm={() => onDelete(tr.id)}
-                                        description={`${t('msg_delete_confirmation')} ${tr.ho_short_name} - ${tr.tr_date} ?`}
+                                        description={`${tr.ho_short_name} - ${tr.tr_date} ?`}
                                     />
                                 </div>
                             </td>

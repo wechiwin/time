@@ -47,7 +47,7 @@ export default function TradePage() {
                 setTypeOptions(options);
             } catch (err) {
                 console.error('Failed to load enum values:', err);
-                showErrorToast('加载类型选项失败');
+                showErrorToast(t('msg_failed_to_load_enum'));
             }
         };
         loadEnumValues();
@@ -139,21 +139,21 @@ export default function TradePage() {
     };
 
     const handleImport = async () => {
-        try {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.xlsx, .xls';
-            input.onchange = async (e) => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.xlsx, .xls';
+        input.onchange = async (e) => {
+            try {
                 if (e.target.files?.[0]) {
                     await importData(e.target.files[0]);
                     showSuccessToast();
                     setRefreshKey(p => p + 1);
                 }
-            };
-            input.click();
-        } catch (err) {
-            showErrorToast(err.message);
-        }
+            } catch (err) {
+                showErrorToast(err.message);
+            }
+        };
+        input.click();
     };
 
     return (

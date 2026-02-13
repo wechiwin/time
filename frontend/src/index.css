@@ -227,36 +227,7 @@
         color: #d1d5db; /* gray-300 */
     }
 
-    /* 自定义滚动条样式，适配亮色/暗色模式 */
-    .custom-scrollbar::-webkit-scrollbar {
-        @apply w-1.5;
-        /* 滚动条宽度 */
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-track {
-        @apply bg-transparent;
-        /* 轨道背景透明 */
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-        @apply rounded-full bg-gray-300;
-        /* 亮色模式滑块 */
-    }
-
-    .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-        @apply bg-gray-600;
-        /* 暗色模式滑块 */
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        @apply bg-gray-400;
-        /* 亮色模式滑块 hover */
-    }
-
-    .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        @apply bg-gray-500;
-        /* 暗色模式滑块 hover */
-    }
+    /* 自定义滚动条样式已被全局样式统一，以下保留以便向后兼容 */
 
     /* React Select 样式 */
     .react-multi-select .select__control {
@@ -577,57 +548,61 @@
 
     /* =========================================
    自定义滚动条样式 - 适配暗黑模式
+   统一为细样式 (与 Dashboard 保持一致)
    ========================================= */
+
+    /* 全局滚动条样式 - 细样式 (6px 宽，轨道透明) */
     /* Firefox 滚动条样式 */
     .table-container,
-    main {
+    main,
+    .custom-scrollbar {
         scrollbar-width: thin;
-        scrollbar-color: rgb(209 213 219) rgb(243 244 246); /* gray-300 gray-100 */
+        scrollbar-color: rgb(209 213 219) transparent; /* gray-300 透明 */
     }
 
     .dark .table-container,
-    .dark main {
-        scrollbar-color: rgb(75 85 99) rgb(31 41 55); /* gray-600 gray-800 */
+    .dark main,
+    .dark .custom-scrollbar {
+        scrollbar-color: rgb(75 85 99) transparent; /* gray-600 透明 */
     }
 
     /* Webkit 浏览器滚动条样式 (Chrome, Safari, Edge) */
     .table-container::-webkit-scrollbar,
-    main::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+    main::-webkit-scrollbar,
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
     }
 
     .table-container::-webkit-scrollbar-track,
-    main::-webkit-scrollbar-track {
-        background: rgb(243 244 246); /* gray-100 */
-        border-radius: 4px;
-    }
-
-    .dark .table-container::-webkit-scrollbar-track,
-    .dark main::-webkit-scrollbar-track {
-        background: rgb(31 41 55); /* gray-800 */
-        border-radius: 4px;
+    main::-webkit-scrollbar-track,
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
     }
 
     .table-container::-webkit-scrollbar-thumb,
-    main::-webkit-scrollbar-thumb {
+    main::-webkit-scrollbar-thumb,
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        @apply rounded-full;
         background: rgb(209 213 219); /* gray-300 */
-        border-radius: 4px;
     }
 
     .dark .table-container::-webkit-scrollbar-thumb,
-    .dark main::-webkit-scrollbar-thumb {
+    .dark main::-webkit-scrollbar-thumb,
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+        @apply rounded-full;
         background: rgb(75 85 99); /* gray-600 */
-        border-radius: 4px;
     }
 
     .table-container::-webkit-scrollbar-thumb:hover,
-    main::-webkit-scrollbar-thumb:hover {
+    main::-webkit-scrollbar-thumb:hover,
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
         background: rgb(156 163 175); /* gray-400 */
     }
 
     .dark .table-container::-webkit-scrollbar-thumb:hover,
-    .dark main::-webkit-scrollbar-thumb:hover {
+    .dark main::-webkit-scrollbar-thumb:hover,
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
         background: rgb(107 114 128); /* gray-500 */
     }
 

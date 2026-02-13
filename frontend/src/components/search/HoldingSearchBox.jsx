@@ -1,8 +1,10 @@
 // src/components/search/HoldingSearchBox.jsx
 import {useState, useEffect} from 'react';
 import {MagnifyingGlassIcon} from '@heroicons/react/24/outline';
+import {useTranslation} from "react-i18next";
 
 export default function HoldingSearchBox({onSearch}) {
+    const {t} = useTranslation();
     const [keyword, setKeyword] = useState('');
 
     useEffect(() => {
@@ -16,7 +18,7 @@ export default function HoldingSearchBox({onSearch}) {
                 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-200"/>
             <input
                 type="text"
-                placeholder="搜索基金代码/名称"
+                placeholder={t('placeholder_fund_search')}
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm

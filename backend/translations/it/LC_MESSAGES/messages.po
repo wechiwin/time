@@ -200,3 +200,93 @@ msgstr "Nessun file caricato"
 
 msgid "CRAWL_NO_INFO"
 msgstr "Nessun dato estratto"
+
+msgid "USERNAME_PASSWORD_REQUIRED"
+msgstr "Nome utente e password sono obbligatori"
+
+msgid "USERNAME_MIN_PASSWORD_MIN"
+msgstr "Il nome utente deve contenere almeno 3 caratteri, la password almeno 6"
+
+msgid "USERNAME_ALREADY_EXISTS"
+msgstr "Il nome utente esiste già"
+
+msgid "REGISTRATION_FAILED"
+msgstr "Registrazione non riuscita, riprova più tardi"
+
+msgid "INVALID_REQUEST_MISSING_SECURITY_HEADER"
+msgstr "Richiesta non valida: identificativo di sicurezza mancante"
+
+msgid "TOKEN_EXPIRED"
+msgstr "Token scaduto"
+
+msgid "TOKEN_INVALID"
+msgstr "Token non valido"
+
+msgid "REFRESH_TOKEN_FAILED"
+msgstr "Refresh del token non riuscito"
+
+msgid "USER_NOT_FOUND"
+msgstr "Utente non trovato"
+
+msgid "OLD_NEW_PASSWORD_REQUIRED"
+msgstr "La vecchia password e la nuova password sono obbligatori"
+
+msgid "NEW_PASSWORD_SAME_AS_OLD"
+msgstr "La nuova password non può essere uguale alla vecchia"
+
+msgid "NEW_PASSWORD_MIN_LENGTH"
+msgstr "La nuova password deve contenere almeno 6 caratteri"
+
+msgid "OLD_PASSWORD_INCORRECT"
+msgstr "La vecchia password non è corretta"
+
+msgid "PASSWORD_CHANGE_FAILED"
+msgstr "Modifica della password non riuscita"
+
+msgid "LOGOUT_FAILED"
+msgstr "Logout non riuscito"
+
+msgid "MISSING_DATE_RANGE"
+msgstr "Intervallo di date mancante"
+
+msgid "NO_FILE_UPLOADED"
+msgstr "Nessun file caricato"
+
+msgid "NO_FILE_SELECTED"
+msgstr "Nessun file selezionato"
+
+msgid "EXCEL_MISSING_REQUIRED_COLUMNS"
+msgstr "Excel manca le colonne richieste"
+
+msgid "TRADE_TYPE_NOT_RECOGNIZED"
+msgstr "Tipo di transazione \"%(value)s\" non riconosciuto, per favore usa le opzioni del menu a tendina fornite nel modello."
+
+msgid "ALERT_RECORD_CREATE_FAILED"
+msgstr "Creazione del record di allarme non riuscita"
+
+msgid "USER_EMAIL_NOT_EXISTS"
+msgstr "Email dell'utente non esistente"
+
+msgid "SEND_EMAIL_FAILED"
+msgstr "Invio email non riuscito: %(error)s"
+
+msgid "FUND_CODE_NOT_IN_HOLDINGS"
+msgstr "I seguenti codici fondo non esistono nella tabella delle posizioni, si prega di aggiungerli prima: %(codes)s"
+
+msgid "FUND_IMPORT_FAILED_OVERSOLD"
+msgstr "Importazione fondo %(ho_code)s non riuscita: tentato di vendere %(trade_shares)s azioni il %(trade_tr_date)s, ma ne aveva solo %(current_shares)s in quel momento."
+
+msgid "IMPORT_PROCESS_ERROR"
+msgstr "Si è verificato un errore sconosciuto durante l'importazione"
+
+msgid "HOLDING_NOT_EXISTS"
+msgstr "Posizione non esistente"
+
+msgid "OPERATION_OVERSOLD"
+msgstr "Operazione ha causato carenza di inventario: dopo la vendita il %(trade_tr_date)s, le azioni di posizione sono diventate %(current_shares)s, che viola le regole aziendali."
+
+msgid "CRAWL_PAGE_ERROR"
+msgstr "%(ho_code)s errore durante l'estrazione della pagina %(page)s"
+
+msgid "DATA_SAVE_FAILED"
+msgstr "%(ho_code)s salvataggio dati non riuscito"
