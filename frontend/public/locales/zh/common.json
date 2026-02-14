@@ -275,5 +275,7 @@
   "pagination_separator": "/",
   "unknown_fund": "未知",
   "max_compare_funds": "最多只能选择 5 个对比基金",
-  "msg_delete_default": "您确定要删除此项目吗？"
+  "msg_delete_default": "您确定要删除此项目吗？",
+  "loading": "加载中...",
+  "please_select": "请选择"
 }

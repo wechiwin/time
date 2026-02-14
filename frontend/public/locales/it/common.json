@@ -272,5 +272,7 @@
   "pagination_separator": "/",
   "unknown_fund": "Sconosciuto",
   "max_compare_funds": "Massimo 5 fondi di confronto",
-  "msg_delete_default": "Sei sicuro di voler eliminare questo elemento?"
+  "msg_delete_default": "Sei sicuro di voler eliminare questo elemento?",
+  "loading": "Caricamento...",
+  "please_select": "Seleziona"
 }

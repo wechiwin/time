@@ -1,18 +1,21 @@
 // MySelect.jsx
 import React, {useEffect} from 'react';
 import PropTypes from 'prop-types';
+import {useTranslation} from 'react-i18next';
 
 const MySelect = ({
                       options = [],
                       value,
                       onChange,
-                      placeholder = '请选择',
+                      placeholder,
                       required = false,
                       className = '',
                       autoSelectFirst = true,
                       disabled = false,
                       ...rest
                   }) => {
+    const {t} = useTranslation();
+
     useEffect(() => {
         if (
             autoSelectFirst &&
@@ -35,7 +38,7 @@ const MySelect = ({
                 className={`${className} opacity-50 cursor-not-allowed`}
                 {...rest}
             >
-                <option value="">加载中...</option>
+                <option value="">{t('loading')}</option>
             </select>
         );
     }
