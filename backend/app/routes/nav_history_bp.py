@@ -8,7 +8,7 @@ from app.constant.biz_enums import ErrorMessageEnum
 from app.framework.auth import auth_required
 from app.framework.exceptions import BizException
 from app.framework.res import Res
-from app.models import db, FundNavHistory, Holding
+from app.models import db, FundNavHistory, Holding, UserHolding
 from app.schemas_marshall import FundNavHistorySchema, marshal_pagination
 from app.service.nav_history_service import FundNavHistoryService
 from app.utils.user_util import get_or_raise
@@ -28,10 +28,11 @@ def page_history():
     end_date = data.get('end_date')
 
     user_id = g.user.id
+    # 通过 UserHolding 查询用户有权访问的基金的净值历史
     query = FundNavHistory.query.join(
-        Holding, FundNavHistory.ho_id == Holding.id
+        UserHolding, FundNavHistory.ho_id == UserHolding.ho_id
     ).filter(
-        Holding.user_id == user_id
+        UserHolding.user_id == user_id
     )
 
     if ho_id:
@@ -127,6 +128,15 @@ def crawl_nav_history():
         raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.view)
     if not start_date or not end_date:
         raise BizException(msg=_("MISSING_DATE_RANGE"))
+
+    # 验证用户是否有权限访问该基金
+    user_holding = UserHolding.query.filter_by(
+        user_id=g.user.id,
+        ho_id=ho_id
+    ).first()
+
+    if not user_holding:
+        raise BizException(ErrorMessageEnum.DATA_NOT_FOUND.view)
 
     holding = Holding.query.filter_by(id=ho_id).first()
     if not holding:

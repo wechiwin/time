@@ -13,7 +13,7 @@ from app.constant.biz_enums import (
     ErrorMessageEnum
 )
 from app.framework.exceptions import BizException
-from app.models import db, Holding, FundDetail
+from app.models import db, Holding, FundDetail, UserHolding
 from app.utils.date_util import str_to_date
 
 
@@ -152,42 +152,84 @@ class HoldingService:
         if not data.get('ho_code'):
             raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.view)
 
-        # 检查是否已存在
-        if Holding.query.filter_by(ho_code=data['ho_code'], user_id=user_id).first():
+        # 检查用户是否已持有该基金
+        ho_code = data['ho_code']
+        existing_user_holding = db.session.query(UserHolding).join(
+            Holding, UserHolding.ho_id == Holding.id
+        ).filter(
+            Holding.ho_code == ho_code,
+            UserHolding.user_id == user_id
+        ).first()
+
+        if existing_user_holding:
             raise BizException(ErrorMessageEnum.DUPLICATE_DATA.view)
 
         try:
             # 分离 fund_detail 数据
             fund_detail_data = data.pop('fund_detail', None)
 
-            # 3. 创建 Holding 主对象
-            new_holding = Holding(**data)
-            new_holding.ho_status = HoldingStatusEnum.NOT_HELD.value
-            new_holding.ho_type = HoldingTypeEnum.FUND.value
-            # 日期转换处理
-            if isinstance(new_holding.establishment_date, str) and new_holding.establishment_date:
-                new_holding.establishment_date = str_to_date(new_holding.establishment_date)
+            # 检查 Holding 表中是否已存在该基金（通过 ho_code 查找）
+            holding = Holding.query.filter_by(ho_code=ho_code).first()
+
+            if holding:
+                # 基金已存在，更新信息
+                for key, value in data.items():
+                    if hasattr(holding, key):
+                        setattr(holding, key, value)
+
+                # 日期转换处理
+                if isinstance(holding.establishment_date, str) and holding.establishment_date:
+                    holding.establishment_date = str_to_date(holding.establishment_date)
+                else:
+                    holding.establishment_date = None
+
+                # 更新关联的 FundDetail
+                if fund_detail_data:
+                    if holding.fund_detail:
+                        # FundDetail 已存在，更新
+                        for key, value in fund_detail_data.items():
+                            if hasattr(holding.fund_detail, key):
+                                setattr(holding.fund_detail, key, value)
+                    else:
+                        # FundDetail 不存在，创建新的
+                        fund_detail = FundDetail(**fund_detail_data)
+                        holding.fund_detail = fund_detail
             else:
-                new_holding.establishment_date = None
-            # 4. 处理关联的 FundDetail
-            if fund_detail_data and new_holding.ho_type == HoldingTypeEnum.FUND.value:
-                # 利用 relationship 直接赋值，SQLAlchemy 会自动处理 ho_id 的回填
-                # 这样不需要先 flush 获取 id 再手动赋值
-                fund_detail = FundDetail(**fund_detail_data)
-                new_holding.fund_detail = fund_detail
-            # 5. 添加到会话
-            db.session.add(new_holding)
+                # 基金不存在，创建新的
+                holding = Holding(**data)
+                holding.ho_type = HoldingTypeEnum.FUND.value
+                # 日期转换处理
+                if isinstance(holding.establishment_date, str) and holding.establishment_date:
+                    holding.establishment_date = str_to_date(holding.establishment_date)
+                else:
+                    holding.establishment_date = None
+
+                # 处理关联的 FundDetail
+                if fund_detail_data:
+                    fund_detail = FundDetail(**fund_detail_data)
+                    holding.fund_detail = fund_detail
+
+                db.session.add(holding)
+                db.session.flush()  # 获取 holding.id
+
+            # 创建 UserHolding 记录
+            user_holding = UserHolding(
+                user_id=user_id,
+                ho_id=holding.id,
+                ho_status=HoldingStatusEnum.NOT_HELD.value
+            )
+            db.session.add(user_holding)
             db.session.commit()
-            return new_holding
+            return holding
 
         except SQLAlchemyError as e:
             db.session.rollback()
             logger.exception(f"创建持仓数据库错误: {str(e)}")
-            raise BizException(msg=f"{data.get('ho_code')}:{ErrorMessageEnum.OPERATION_FAILED.view}")
+            raise BizException(msg=f"{ho_code}:{ErrorMessageEnum.OPERATION_FAILED.view}")
         except Exception as e:
             db.session.rollback()
             logger.exception(f"创建持仓未知错误: {str(e)}")
-            raise BizException(msg=f"{data.get('ho_code')}:{ErrorMessageEnum.OPERATION_FAILED.view}")
+            raise BizException(msg=f"{ho_code}:{ErrorMessageEnum.OPERATION_FAILED.view}")
 
     @staticmethod
     def import_holdings(ho_codes: list, user_id: str) -> dict:
@@ -206,8 +248,13 @@ class HoldingService:
             code = str(code).strip()
             if not code:
                 continue
-            # 1. 检查是否存在 (避免不必要的爬虫请求)
-            if Holding.query.filter_by(ho_code=code, user_id=user_id).first():
+            # 1. 检查用户是否已持有 (避免不必要的爬虫请求)
+            if db.session.query(UserHolding).join(
+                Holding, UserHolding.ho_id == Holding.id
+            ).filter(
+                Holding.ho_code == code,
+                UserHolding.user_id == user_id
+            ).first():
                 results["skipped"] += 1
                 continue
             try:

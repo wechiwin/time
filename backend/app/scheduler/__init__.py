@@ -1,4 +1,5 @@
 # app/scheduler/__init__.py
+import os
 from .daily_snapshot_consume_job import consume_async_tasks
 from .net_value_jobs import crawl_all_fund_net_values
 
@@ -16,6 +17,11 @@ def _context_wrapper(app, func):
 # 把调度器初始化逻辑集中到这里
 def init_scheduler(app, scheduler):
     """注册所有定时任务"""
+    # 检查是否是迁移模式，如果是则跳过 scheduler 初始化
+    if os.environ.get('MIGRATION_MODE'):
+        app.logger.info("Migration mode detected, skipping scheduler initialization")
+        return
+
     # 初始化调度器
     scheduler.init_app(app)
 

@@ -13,7 +13,7 @@ from openai import OpenAI
 
 # 扩展实例化（未绑定 app）
 db = SQLAlchemy()
-migrate = Migrate()
+migrate = Migrate(compare_type=True)
 scheduler = APScheduler()
 babel = Babel()
 cors = CORS()

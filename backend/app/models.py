@@ -106,20 +106,37 @@ class TimestampMixin:
                            onupdate=db.func.current_timestamp(), nullable=False)
 
 
+class UserHolding(TimestampMixin, BaseModel):
+    """
+    用户和持仓的关系表
+    """
+    __tablename__ = 'user_holding'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False)
+    ho_id = db.Column(db.Integer, db.ForeignKey('holding.id'), nullable=False)
+    ho_status = db.Column(db.String(50), nullable=False)  # 持仓状态：0,未持仓;1,持仓中；2.已清仓
+    ho_nickname = db.Column(db.String(100))  # 用户自定义别称
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'ho_id', name='uq_user_holding'),
+        db.Index('idx_user_holding_status', 'user_id', 'ho_status'),
+    )
+
+    holding = db.relationship('Holding', backref='user_holdings')
+
+
 class Holding(TimestampMixin, BaseModel):
     """
-    持仓统一信息表
+    持仓统一信息表（去重，只存储基金基础信息）
     """
     __tablename__ = 'holding'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False)
-    ho_code = db.Column(db.String(50), nullable=False)  # 交易代码，如 AAPL, 000001
+    ho_code = db.Column(db.String(50), nullable=False, unique=True)  # 交易代码，如 AAPL, 000001（唯一）
     ho_name = db.Column(db.String(100), nullable=False)  # 名称
     ho_short_name = db.Column(db.String(100))  # 简称
-    ho_nickname = db.Column(db.String(100))  # 自定义别称
     ho_type = db.Column(db.String(50), nullable=False)  # 持仓类型枚举(目前只有场外基金) FUND STOCK
-    ho_status = db.Column(db.String(50), nullable=False)  # 持仓状态：0,未持仓;1,持仓中；2.已清仓
     # exchange = db.Column(db.String(100))  # 交易所，如 NASDAQ, SZSE。
     currency = db.Column(db.String(50))  # 计价货币枚举，如 USD, CNY。
     establishment_date = db.Column(db.Date)  # 成立日期
@@ -145,7 +162,6 @@ class FundDetail(TimestampMixin, BaseModel):
     __tablename__ = 'fund_detail'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False)
     ho_id = db.Column(db.Integer, db.ForeignKey('holding.id'), nullable=False, unique=True)
     fund_type = db.Column(db.String(50))  # 基金类型(股票型/债券型/混合型)
     risk_level = db.Column(db.Integer)  # 风险等级(1-5)
@@ -771,9 +787,8 @@ class UserSetting(TimestampMixin, BaseModel):
     last_login_at = db.Column(db.DateTime(timezone=True), nullable=True)
     is_locked = db.Column(db.Integer, nullable=False)
 
-    holdings = db.relationship('Holding', backref='user', lazy='dynamic')
+    user_holdings = db.relationship('UserHolding', backref='user', lazy='dynamic', cascade="all, delete-orphan")
     trades = db.relationship('Trade', backref='user', lazy='dynamic')
-    fund_details = db.relationship('FundDetail', backref='user', lazy='dynamic')
     alert_rules = db.relationship('AlertRule', backref='user', lazy='dynamic')
     alert_histories = db.relationship('AlertHistory', backref='user', lazy='dynamic')
     holding_snapshots = db.relationship('HoldingSnapshot', backref='user', lazy='dynamic')

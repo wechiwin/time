@@ -11,8 +11,8 @@ from app.framework.auth import auth_required
 from app.framework.exceptions import BizException
 from app.framework.res import Res
 from app.framework.sys_constant import DEFAULT_PAGE_SIZE
-from app.models import db, Holding
-from app.schemas_marshall import HoldingSchema, marshal_pagination, FundDetailSchema
+from app.models import db, Holding, UserHolding
+from app.schemas_marshall import HoldingSchema, UserHoldingSchema, marshal_pagination, FundDetailSchema
 from app.service.holding_service import HoldingService
 from app.utils.user_util import get_or_raise
 
@@ -32,8 +32,12 @@ def list_ho():
     from urllib.parse import unquote
     keyword = unquote(keyword)
 
-    query = Holding.query
-    query = query.filter_by(user_id=g.user.id)
+    # 通过 UserHolding 查询用户持有的基金
+    query = Holding.query.join(
+        UserHolding, Holding.id == UserHolding.ho_id
+    ).filter(
+        UserHolding.user_id == g.user.id
+    )
 
     # 执行模糊查询
     holdings = query.filter(
@@ -60,8 +64,12 @@ def page_holding():
     ho_type = data.get('ho_type')
     ho_status = data.get('ho_status')
 
-    query = Holding.query
-    query = query.filter_by(user_id=g.user.id)
+    # 通过 UserHolding 查询用户持有的基金
+    query = Holding.query.join(
+        UserHolding, Holding.id == UserHolding.ho_id
+    ).filter(
+        UserHolding.user_id == g.user.id
+    )
 
     if ho_code:
         query = query.filter_by(ho_code=ho_code)
@@ -76,7 +84,7 @@ def page_holding():
             query = query.filter_by(ho_type=ho_type)
     if ho_status:
         if isinstance(ho_status, list) and len(ho_status) > 0:
-            query = query.filter(Holding.ho_status.in_(ho_status))
+            query = query.filter(UserHolding.ho_status.in_(ho_status))
         elif isinstance(ho_status, str) and ho_status.strip():
             query = query.filter_by(ho_status=ho_status)
 
@@ -103,26 +111,8 @@ def add_ho():
     if not data.get('ho_name') or not data.get('ho_code'):
         raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.view)
 
-    # 检查基金代码是否已存在
-    if Holding.query.filter_by(ho_code=data['ho_code'], user_id=g.user.id).first():
-        raise BizException(msg=ErrorMessageEnum.DUPLICATE_DATA.view)
-
-    try:
-        fund_detail_data = data.pop('fund_detail', None)
-        new_fund_detail = FundDetailSchema().load(fund_detail_data, session=db.session)
-        new_fund_detail.user_id = g.user.id
-
-        new_holding = HoldingSchema().load(data)  # 注意：这里不传 instance，因为是新建
-        new_holding.ho_status = HoldingStatusEnum.NOT_HELD.value
-        new_holding.user_id = g.user.id
-
-        new_holding.fund_detail = new_fund_detail
-        db.session.add(new_holding)
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        logger.exception()
-        raise BizException(msg=str(e))
+    # 使用 Service 层创建基金
+    HoldingService.create_holding(data, g.user.id)
     return Res.success()
 
 
@@ -131,8 +121,17 @@ def add_ho():
 def get_ho():
     data = request.get_json()
     id = data.get('id')
-    h = get_or_raise(Holding, id)
 
+    # 验证用户是否有权限访问该 Holding
+    user_holding = UserHolding.query.filter_by(
+        user_id=g.user.id,
+        ho_id=id
+    ).first()
+
+    if not user_holding:
+        raise BizException(msg=ErrorMessageEnum.DATA_NOT_FOUND.view)
+
+    h = Holding.query.get(id)
     return Res.success(HoldingSchema().dump(h))
 
 
@@ -141,7 +140,17 @@ def get_ho():
 def update_holding():
     data = request.get_json()
     id = data.get('id')
-    h = get_or_raise(Holding, id)
+
+    # 验证用户是否有权限访问该 Holding
+    user_holding = UserHolding.query.filter_by(
+        user_id=g.user.id,
+        ho_id=id
+    ).first()
+
+    if not user_holding:
+        raise BizException(msg=ErrorMessageEnum.DATA_NOT_FOUND.view)
+
+    h = Holding.query.get(id)
 
     # 将嵌套数据从请求中分离出来
     fund_detail_data = data.pop('fund_detail', None)
@@ -183,8 +192,18 @@ def del_ho():
     holding_id = data.get('id')
     # dry_run 参数用于区分检查阶段和实际删除阶段
     is_dry_run = data.get('dry_run', False)
-    # 使用 get_or_raise 确保 holding 存在且属于当前用户
-    holding = get_or_raise(Holding, holding_id)
+
+    # 验证用户是否有权限访问该 Holding
+    user_holding = UserHolding.query.filter_by(
+        user_id=g.user.id,
+        ho_id=holding_id
+    ).first()
+
+    if not user_holding:
+        raise BizException(msg=ErrorMessageEnum.DATA_NOT_FOUND.view)
+
+    holding = Holding.query.get(holding_id)
+
     if is_dry_run:
         # 检查模式：返回将要被删除的关联数据信息
         cascade_info = HoldingService.get_cascade_delete_info(holding)

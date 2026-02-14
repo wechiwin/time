@@ -7,7 +7,7 @@ from loguru import logger
 
 from app.cache import cache
 from app.config import Config
-from app.extension import db, scheduler, babel, cors, jwt, mail, limiter, openai_client
+from app.extension import db, migrate, scheduler, babel, cors, jwt, mail, limiter, openai_client
 from app.framework.error_handler import register_error_handler
 from app.framework.interceptor import register_interceptors
 from app.framework.jwt_config import configure_jwt
@@ -86,8 +86,12 @@ def build_app() -> Flask:
     if not app.debug:
         limiter.init_app(app)
     db.init_app(app)
+    migrate.init_app(app, db)
     cache.init_app(app)
-    scheduler.init_app(app)
+    # 检查是否是迁移模式，如果是则跳过 scheduler 初始化
+    import os
+    if not os.environ.get('MIGRATION_MODE'):
+        scheduler.init_app(app)
     init_scheduler(app, scheduler)
     openai_client.init_app(app)
     # -----------------------------------------------------------------

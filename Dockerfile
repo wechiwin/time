@@ -5,10 +5,16 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONIOENCODING=utf-8
 
 WORKDIR /app
+
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ .
 
 EXPOSE 8080
+
+# Run database migrations before starting the app
+# Note: Ensure SQLALCHEMY_DATABASE_URI in .env.prod is correctly configured for Neon PostgreSQL
+RUN flask db upgrade
+
 CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:8080", "wsgi:app"]

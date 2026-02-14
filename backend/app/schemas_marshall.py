@@ -70,6 +70,16 @@ class EnumViewMixin:
         return data
 
 
+class UserHoldingSchema(BaseSchema, EnumViewMixin):
+    enum_map = {
+        'ho_status': HoldingStatusEnum,
+    }
+
+    class Meta(BaseSchema.Meta):
+        model = UserHolding
+        include_fk = True
+
+
 class FundDetailSchema(BaseSchema, EnumViewMixin):
     enum_map = {
         'trade_market': FundTradeMarketEnum,
@@ -78,20 +88,17 @@ class FundDetailSchema(BaseSchema, EnumViewMixin):
 
     class Meta(BaseSchema.Meta):
         model = FundDetail
-        exclude = ("user_id",)
 
 
 class HoldingSchema(BaseSchema, EnumViewMixin):
     enum_map = {
         'ho_type': HoldingTypeEnum,
-        'ho_status': HoldingStatusEnum,
         'currency': CurrencyEnum,
     }
     fund_detail = fields.Nested(FundDetailSchema, required=False, allow_none=True)
 
     class Meta(BaseSchema.Meta):
         model = Holding  # 对应 ORM 模型
-        exclude = ("user_id",)
 
 
 class TradeSchema(BaseSchema, EnumViewMixin):
