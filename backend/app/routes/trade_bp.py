@@ -127,7 +127,7 @@ def del_tr():
 @trade_bp.route('/export', methods=['GET'])
 @auth_required
 def export_trade():
-    trade = Trade.query.all()
+    trade = Trade.query.filter_by(user_id=g.user.id).all()
     df = pd.DataFrame([{
         gettext('COL_HO_CODE'): t.ho_code,
         gettext('COL_TR_TYPE'): reverse_map_trade_type(t.tr_type),
@@ -321,7 +321,12 @@ def list_by_ho_id():
     if not ho_id:
         return ''
 
-    result_list = Trade.query.filter_by(ho_id=ho_id).order_by(Trade.tr_date.asc()).all()
+    # Verify the holding belongs to the current user
+    holding = Holding.query.filter_by(id=ho_id, user_id=g.user.id).first()
+    if not holding:
+        raise BizException(msg=ErrorMessageEnum.DATA_NOT_FOUND.view)
+
+    result_list = Trade.query.filter_by(ho_id=ho_id, user_id=g.user.id).order_by(Trade.tr_date.asc()).all()
     return Res.success(TradeSchema(many=True).dump(result_list))
 
 
