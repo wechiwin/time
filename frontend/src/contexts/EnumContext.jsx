@@ -22,7 +22,7 @@ export function EnumProvider({children}) {
     // Fetch all enum values
     const fetchEnumValues = useCallback(async () => {
         try {
-            const allEnums = await fetchMultipleEnumValues([
+            const enumNames = [
                 'HoldingTypeEnum',
                 'HoldingStatusEnum',
                 'TradeTypeEnum',
@@ -32,16 +32,21 @@ export function EnumProvider({children}) {
                 'AlertRuleActionEnum',
                 'AlertEmailStatusEnum',
                 'TaskStatusEnum',
-            ]);
+            ];
+            const allEnums = await fetchMultipleEnumValues(enumNames);
 
             // Convert to a map for O(1) lookup
+            // allEnums is an array of options arrays, need to map each to its enum name
             const newEnumMap = {};
-            for (const [enumName, options] of Object.entries(allEnums)) {
-                newEnumMap[enumName] = options.reduce((acc, opt) => {
-                    acc[opt.value] = opt.label;
-                    return acc;
-                }, {});
-            }
+            enumNames.forEach((enumName, index) => {
+                const options = allEnums[index];
+                if (Array.isArray(options)) {
+                    newEnumMap[enumName] = options.reduce((acc, opt) => {
+                        acc[opt.value] = opt.label;
+                        return acc;
+                    }, {});
+                }
+            });
             setEnumMap(newEnumMap);
         } catch (err) {
             console.error('Failed to fetch enum values:', err);
