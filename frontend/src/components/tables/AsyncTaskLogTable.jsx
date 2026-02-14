@@ -1,7 +1,7 @@
 // AsyncTaskLogTable.jsx
-import React from 'react';
 import {useTranslation} from 'react-i18next';
 import {useEnumTranslation} from '../../contexts/EnumContext';
+import DeleteButton from '../common/DeleteButton';
 
 // 状态到样式的映射。
 // 明确职责：此对象仅负责提供 Tailwind CSS 类名，用于控制状态徽章的视觉样式（如背景色、文字颜色）。
@@ -15,7 +15,7 @@ const statusStyles = {
     // 未来如果增加新的状态，只需在此添加对应的样式类名
 };
 
-export default function AsyncTaskLogTable({data = [] /*, onShowDetails */}) {
+export default function AsyncTaskLogTable({data = [], onDelete}) {
     const {t} = useTranslation();
     const {translateEnum} = useEnumTranslation();
 
@@ -42,6 +42,7 @@ export default function AsyncTaskLogTable({data = [] /*, onShowDetails */}) {
                     <th scope="col" className="table-header">{t('th_retries')}</th>
                     <th scope="col" className="table-header">{t('th_updated_at')}</th>
                     <th scope="col" className="table-header">{t('th_created_at')}</th>
+                    <th scope="col" className="table-header">{t('th_actions')}</th>
                 </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -54,6 +55,14 @@ export default function AsyncTaskLogTable({data = [] /*, onShowDetails */}) {
                         <td className="table-cell">{`${log.retry_count} / ${log.max_retries}`}</td>
                         <td className="table-cell">{log.updated_at}</td>
                         <td className="table-cell">{log.created_at}</td>
+                        <td className="table-cell">
+                            {onDelete && (
+                                <DeleteButton
+                                    onConfirm={() => onDelete(log.id)}
+                                    description={`${log.task_name} (${translateEnum('TaskStatusEnum', log.status)}) ?`}
+                                />
+                            )}
+                        </td>
                     </tr>
                 ))}
                 </tbody>
