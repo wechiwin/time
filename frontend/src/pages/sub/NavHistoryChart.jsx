@@ -378,6 +378,13 @@ export default function NavHistoryChart({navHistory, snapshots, trades, fundInfo
                     style={{height: 450}}
                     // 合并 loading 状态
                     showLoading={isLoadingMore || loadingCompare}
+                    loadingOption={{
+                        text: t('msg_loading_data', '加载数据中...'),
+                        color: isDarkMode ? '#6366f1' : '#4f46e5',
+                        textColor: isDarkMode ? '#e5e7eb' : '#374151',
+                        maskColor: isDarkMode ? 'rgba(17, 24, 39, 0.7)' : 'rgba(255, 255, 255, 0.7)',
+                        zlevel: 0
+                    }}
                     notMerge={true}
                     lazyUpdate={false}
                 />
