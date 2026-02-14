@@ -53,6 +53,7 @@ const ENUM_TYPES = [
 export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl}) {
     const [form, setForm] = useState(INITIAL_FORM_STATE);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isCrawling, setIsCrawling] = useState(false);
     const [errors, setErrors] = useState({});
 
     const {showSuccessToast, showErrorToast} = useToast();
@@ -125,10 +126,12 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
     };
 
     const handleCrawl = () => {
+        if (isCrawling) return;
         if (!form.ho_code) return showErrorToast(t('code_required_prompt'));
+        setIsCrawling(true);
         onCrawl(form.ho_code, (patch) =>
             setForm(prev => ({...prev, ...patch}))
-        );
+        ).finally(() => setIsCrawling(false));
     };
 
     useEffect(() => {
@@ -381,7 +384,7 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
                 <p className="text-s text-gray-500 mt-1">
                     {t('crawl_hint')}
                 </p>
-                <button type="button" className="btn-primary" onClick={handleCrawl}>
+                <button type="button" className="btn-primary" onClick={handleCrawl} disabled={isCrawling}>
                     {t('button_crawl_info')}
                 </button>
                 <button type="button" className="btn-secondary" onClick={onClose}>

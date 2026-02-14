@@ -34,6 +34,7 @@ export default function HoldingFormMobile({onSubmit, onClose, initialValues, onC
         }
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isCrawling, setIsCrawling] = useState(false);
 
     const {showSuccessToast, showErrorToast} = useToast();
     const {t} = useTranslation();
@@ -117,8 +118,11 @@ export default function HoldingFormMobile({onSubmit, onClose, initialValues, onC
     };
 
     const handleCrawl = () => {
+        if (isCrawling) return;
         if (!form.ho_code) return showErrorToast(t('code_required_prompt'));
-        onCrawl(form.ho_code, (patch) => setForm((prev) => ({...prev, ...patch})));
+        setIsCrawling(true);
+        onCrawl(form.ho_code, (patch) => setForm((prev) => ({...prev, ...patch})))
+            .finally(() => setIsCrawling(false));
     };
 
     // 渲染单个字段的辅助函数
@@ -283,7 +287,7 @@ export default function HoldingFormMobile({onSubmit, onClose, initialValues, onC
                         <p className="text-[10px] text-center text-gray-500 dark:text-gray-400">
                             {t('crawl_hint')}
                         </p>
-                        <button type="button" className="w-full py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg shadow-sm transition-colors" onClick={handleCrawl}>
+                        <button type="button" className="w-full py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg shadow-sm transition-colors" onClick={handleCrawl} disabled={isCrawling}>
                             {t('button_crawl_info')}
                         </button>
                         <div className="flex gap-3">

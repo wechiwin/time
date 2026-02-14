@@ -147,6 +147,23 @@
         color: #6b7280 !important;
     }
 
+    /* AI功能按钮 - 蓝色，用于AI识别等功能 */
+    .btn-ai {
+        @apply px-4 py-2 bg-blue-600 text-white rounded-md
+        hover:bg-blue-700
+        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900
+        transition-all duration-150 shadow-sm hover:shadow-md flex items-center gap-2;
+    }
+
+    .btn-ai:disabled,
+    .btn-ai[disabled] {
+        background-color: #9ca3af !important;
+        color: #e5e7eb !important;
+        cursor: not-allowed !important;
+        opacity: 0.5 !important;
+        box-shadow: none !important;
+    }
+
     /* 危险按钮 */
     .btn-danger {
         @apply px-4 py-2 bg-red-600 text-white rounded-md

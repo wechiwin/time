@@ -12,6 +12,7 @@ import {EventSourcePolyfill} from 'event-source-polyfill';
 import FormField from "../common/FormField";
 import WarningBubble from "../common/WarningBubble";
 import {validateForm} from "../../utils/formValidation";
+import {CameraIcon} from "@heroicons/react/24/outline";
 
 const init = {
     id: '',
@@ -196,7 +197,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
     // SSE 上传逻辑
     const handleUpload = async (e) => {
         const file = e.target.files?.[0];
-        if (!file) return;
+        if (!file || uploading) return;
 
         // 1. 重置状态
         setUploading(true);
@@ -507,8 +508,9 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                 />
                 <label
                     htmlFor="trade-upload"
-                    className={`btn-secondary ${uploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    className={`btn-ai ${uploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                 >
+                    <CameraIcon className="w-4 h-4" />
                     {t('button_upload_image')}
                 </label>
                 <button
