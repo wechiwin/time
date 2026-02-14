@@ -63,5 +63,10 @@ export default function useAsyncTaskLogList({
         return result;
     }, [get]);
 
-    return {data, isLoading, error, redo_all_snapshot, redo_yesterday_snapshot};
+    const deleteLog = useCallback(async (id) => {
+        const result = await post('/task_log/del_log', {id});
+        return result;
+    }, [post]);
+
+    return {data, isLoading, error, redo_all_snapshot, redo_yesterday_snapshot, deleteLog};
 }

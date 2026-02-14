@@ -12,7 +12,7 @@ import {ArrowPathIcon} from '@heroicons/react/16/solid';
 
 export default function AsyncTaskLogPage() {
     const {t} = useTranslation();
-    const {showErrorToast} = useToast();
+    const {showErrorToast, showSuccessToast} = useToast();
     const {page, perPage, handlePageChange, handlePerPageChange} = usePaginationState();
 
     const [refreshKey, setRefreshKey] = useState(0);
@@ -20,7 +20,7 @@ export default function AsyncTaskLogPage() {
     const [searchParams, setSearchParams] = useState({keyword: '', status: [], created_at: null});
 
     // API Hook 调用更简洁，直接传入 searchParams
-    const {data, isLoading, redo_all_snapshot, redo_yesterday_snapshot} = useAsyncTaskLogList({
+    const {data, isLoading, redo_all_snapshot, redo_yesterday_snapshot, deleteLog} = useAsyncTaskLogList({
         page,
         perPage,
         autoLoad: true,
@@ -59,6 +59,17 @@ export default function AsyncTaskLogPage() {
     const handleRefresh = () => {
         setRefreshKey(p => p + 1);
     };
+
+    const handleDelete = useCallback(async (id) => {
+        try {
+            await deleteLog(id);
+            showSuccessToast();
+            setRefreshKey(p => p + 1);
+        } catch (err) {
+            console.error('Failed to delete task log:', err);
+            showErrorToast();
+        }
+    }, [deleteLog, showSuccessToast, showErrorToast, t]);
 
     const searchFields = [
         {
@@ -112,7 +123,7 @@ export default function AsyncTaskLogPage() {
             </div>
 
             {data?.items?.length > 0 ? (
-                <AsyncTaskLogTable data={data.items}/>
+                <AsyncTaskLogTable data={data.items} onDelete={handleDelete}/>
             ) : (
                 <EmptyState message={t('msg_no_records')}/>
             )}

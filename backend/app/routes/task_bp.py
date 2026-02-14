@@ -8,9 +8,10 @@ from sqlalchemy import desc, or_
 from app.framework.auth import auth_required
 from app.framework.res import Res
 from app.framework.sys_constant import DEFAULT_PAGE_SIZE
-from app.models import AsyncTaskLog
+from app.models import db, AsyncTaskLog
 from app.schemas_marshall import marshal_pagination, AsyncTaskLogSchema
 from app.service.task_service import TaskService
+from app.utils.user_util import get_or_raise
 
 task_log_bp = Blueprint('task', __name__, url_prefix='/task_log')
 
@@ -123,4 +124,18 @@ def async_redo_yesterday_snapshot_job():
     thread.daemon = True
     thread.start()
 
+    return Res.success()
+
+
+@task_log_bp.route('/del_log', methods=['POST'])
+@auth_required
+def del_log():
+    """
+    删除异步任务日志
+    """
+    data = request.get_json()
+    id = data.get('id')
+    log = get_or_raise(AsyncTaskLog, id)
+    db.session.delete(log)
+    db.session.commit()
     return Res.success()

@@ -21,7 +21,7 @@ export default function AlertRuleTable({data = [], onDelete, onEdit}) {
                     <th className="table-header">{t('alert_type')}</th>
                     <th className="table-header">{t('alert_target_price')}</th>
                     <th className="table-header">{t('alert_status')}</th>
-                    <th className="table-header text-right">{t('th_actions')}</th>
+                    <th className="table-header sticky right-0 !bg-white dark:!bg-gray-800 z-20 border-l border-slate-200 dark:border-slate-700">{t('th_actions')}</th>
                 </tr>
                 </thead>
                 <tbody className="card divide-y divide-gray-200">
@@ -33,7 +33,7 @@ export default function AlertRuleTable({data = [], onDelete, onEdit}) {
                         <td className="table-cell">{translateEnum('AlertRuleActionEnum', rule.action)}</td>
                         <td className="table-cell">{rule.target_price}</td>
                         <td className="table-cell">{getStatusText(rule.ar_is_active)}</td>
-                        <td className="table-cell">
+                        <td className="table-cell sticky right-0 !bg-white dark:!bg-gray-800 z-20 border-l border-slate-200 dark:border-slate-700/50">
                             <div className="flex items-center space-x-2">
                                 <button
                                     className="btn-secondary"
