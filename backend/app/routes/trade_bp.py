@@ -275,7 +275,7 @@ def import_trade():
         )
         transactions.append(transaction)
 
-    return Res.success(TradeService.import_trade(transactions))
+    return Res.success(TradeService.import_trade(transactions,g.user.id))
 
 
 ALL_TR_TYPE_TEXTS = {

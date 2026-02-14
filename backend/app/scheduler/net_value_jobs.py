@@ -9,6 +9,6 @@ def crawl_all_fund_net_values():
     current_app.logger.info('[crawl_all_fund_net_values] Job开始')
     result = FundNavHistoryService.crawl_all_nav_history()
     if result['errors']:
-        current_app.logger.exception('[Job] 出错: %s', result['errors'])
+        current_app.logger.error('[Job] 出错: %s', result['errors'])
     else:
         current_app.logger.info('[Job] 完成，共 %s 条', result['inserted'])

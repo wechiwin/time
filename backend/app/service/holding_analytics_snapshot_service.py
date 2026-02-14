@@ -154,7 +154,7 @@ class HoldingAnalyticsSnapshotService:
             except Exception as e:
                 db.session.rollback()
                 msg = f"Error processing holding {ho_code}: {str(e)}"
-                logger.exception(msg, exc_info=True)
+                logger.exception(msg)
                 errors.append(msg)
                 create_task(
                     user_id=user_id,
@@ -793,7 +793,7 @@ class HoldingAnalyticsSnapshotService:
                 logger.info(f"Successfully updated {updated_count} HoldingAnalyticsSnapshot records.")
             except Exception as e:
                 db.session.rollback()
-                logger.exception(f"Error committing updates for HoldingAnalyticsSnapshot: {e}", exc_info=True)
+                logger.exception(f"Error committing updates for HoldingAnalyticsSnapshot: {e}")
                 raise  # 重新抛出异常，以便上层调用者处理
         else:
             logger.info("No HoldingAnalyticsSnapshot records were updated in this run after processing.")

@@ -12,8 +12,7 @@ def register_error_handler(app: Flask):
         # 1. 如果是已知业务异常 (BizException)
         if isinstance(e, BizException):
             logger.warning(
-                f"Business exception: {e.msg} (code: {e.code})",
-                exc_info=True  # 关键：添加这个参数来记录stacktrace
+                f"Business exception: {e.msg} (code: {e.code})"
             )
             # 关键修改：HTTP状态码直接使用 e.code (如 401, 403)，而不是固定 200
             return jsonify({
@@ -25,8 +24,7 @@ def register_error_handler(app: Flask):
         # 2. 如果是 Flask/Werkzeug 的标准 HTTP 异常 (如 404, 405)
         if isinstance(e, HTTPException):
             logger.warning(
-                f"HTTP exception: {e.description} (code: {e.code})",
-                exc_info=True
+                f"HTTP exception: {e.description} (code: {e.code})"
             )
             return jsonify({
                 "code": e.code,

@@ -56,7 +56,7 @@ def register():
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        logger.exception(e, exc_info=True)
+        logger.exception()
         raise BizException(_("REGISTRATION_FAILED"), code=500)
 
     # 记录注册登录历史
@@ -236,7 +236,7 @@ def refresh():
         raise
     except Exception as e:
         db.session.rollback()
-        logger.exception(f"Refresh token failed: {e}", exc_info=True)
+        logger.exception(f"Refresh token failed: {e}")
         raise BizException(_("REFRESH_TOKEN_FAILED"), code=401)
 
 
@@ -325,7 +325,7 @@ def edit_password():
                 db.session.add(blacklisted_refresh)
                 logger.info(f"Blacklisted refresh token during password change for user {user.username}")
             except Exception as e:
-                logger.warning(f"Failed to blacklist refresh token during password change: {e}", exc_info=True)
+                logger.warning(f"Failed to blacklist refresh token during password change: {e}")
         else:
             logger.warning(f"No refresh token in cookie during password change for user {user.username}")
 
@@ -357,7 +357,7 @@ def edit_password():
         db.session.rollback()
         raise
     except Exception as e:
-        logger.exception(e, exc_info=True)
+        logger.exception()
         db.session.rollback()
         raise BizException(_("PASSWORD_CHANGE_FAILED"), code=500)
 
@@ -393,7 +393,7 @@ def logout():
                 db.session.add(blacklisted_refresh)
                 logger.info(f"Blacklisted refresh token for user {current_user_uuid}")
             except Exception as e:
-                logger.warning(f"Failed to process refresh token: {e}", exc_info=True)
+                logger.warning(f"Failed to process refresh token: {e}")
         else:
             logger.warning(f"No refresh token in cookie for user {current_user_uuid}")
 
@@ -419,5 +419,5 @@ def logout():
         raise
     except Exception as e:
         db.session.rollback()
-        logger.exception(f"Logout failed: {e}", exc_info=True)
+        logger.exception(f"Logout failed: {e}")
         raise BizException(_("LOGOUT_FAILED"), code=500)

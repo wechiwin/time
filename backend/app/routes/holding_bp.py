@@ -121,7 +121,7 @@ def add_ho():
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        logger.exception(e, exc_info=True)
+        logger.exception()
         raise BizException(msg=str(e))
     return Res.success()
 
@@ -170,7 +170,7 @@ def update_holding():
         db.session.commit()
     except Exception as e:
         db.session.rollback()  # 发生错误时回滚事务
-        logger.exception(f"Error updating holding {id}: {e}", exc_info=True)
+        logger.exception(f"Error updating holding {id}: {e}")
         # 可以根据异常类型返回更具体的错误信息
         raise BizException(msg=ErrorMessageEnum.OPERATION_FAILED.view)
     return Res.success()
@@ -278,7 +278,7 @@ def import_holdings():
         success_count = HoldingService.import_holdings(ho_codes, g.user.id)
         return Res.success(success_count)
     except Exception as e:
-        logger.exception(e, exc_info=True)
+        logger.exception()
         raise BizException(msg=ErrorMessageEnum.OPERATION_FAILED.view)
 
 

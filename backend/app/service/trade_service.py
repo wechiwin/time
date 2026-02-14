@@ -7,6 +7,7 @@ from typing import List, Tuple, Dict, Any
 from loguru import logger
 from flask_babel import gettext as _
 from sqlalchemy import desc, or_
+from sqlalchemy.exc import IntegrityError
 
 from app.calendars.trade_calendar import trade_calendar
 from app.config import Config
@@ -106,7 +107,7 @@ class TradeService:
             }
 
         except Exception as e:
-            logger.exception("图片解析失败", exc_info=True)
+            logger.exception(f"图片解析失败: {e}")
             return {"error": f"解析失败: {str(e)}", "parsed_json": {}}
 
     @staticmethod
@@ -174,7 +175,7 @@ class TradeService:
             return True
         except Exception as e:
             db.session.rollback()
-            logger.exception(e, exc_info=True)
+            logger.exception(f"创建交易记录失败: {e}")
             if isinstance(e, BizException):
                 raise e
             return False
@@ -204,11 +205,11 @@ class TradeService:
             return True
         except Exception as e:
             db.session.rollback()
-            logger.exception(e, exc_info=True)
+            logger.exception(f"更新交易记录失败: {e}")
             raise e
 
     @classmethod
-    def import_trade(cls, import_trades: List[Trade]):
+    def import_trade(cls, import_trades: List[Trade], user_id: str):
         """
         批量导入交易记录
         """
@@ -225,7 +226,7 @@ class TradeService:
         ho_codes = list(transactions_by_code.keys())
 
         # 2. 一次性查询所有相关的持仓记录
-        holdings = Holding.query.filter(Holding.ho_code.in_(ho_codes)).all()
+        holdings = Holding.query.filter(Holding.ho_code.in_(ho_codes), Holding.user_id == user_id).all()
         holding_map = {h.ho_code: h for h in holdings}
 
         # 3. 检查是否存在未创建的持仓
@@ -244,13 +245,7 @@ class TradeService:
                 to_iterate_trades = [*uncleared_trades_db, *new_trades]
                 to_iterate_trades.sort(key=lambda t: t.tr_date)
 
-                # 计算当前数据库中未清算的份额（作为内存中计算的起点）
-                # buy_shares_db = sum((Decimal(str(t.tr_shares)) for t in uncleared_trades_db if
-                #                      t.tr_type == TradeTypeEnum.BUY.value), start=Decimal('0'))
-                # sell_shares_db = sum((Decimal(str(t.tr_shares)) for t in uncleared_trades_db if
-                #                       t.tr_type == TradeTypeEnum.SELL.value), start=Decimal('0'))
                 # 初始化内存中的状态变量
-                # current_shares = buy_shares_db - sell_shares_db
                 current_shares = ZERO
                 current_tr_cycle = initial_tr_cycle
 
@@ -282,6 +277,7 @@ class TradeService:
                         # 新增
                         trade.ho_id = holding.id
                         trade.ho_code = holding.ho_code
+                        trade.user_id = user_id
                         db.session.add(trade)
                     else:
                         # 更新
@@ -300,9 +296,14 @@ class TradeService:
             db.session.commit()
             return True
 
+        except IntegrityError as e:
+            db.session.rollback()
+            # 针对数据库约束错误进行专门记录
+            logger.exception(f"数据库约束错误，导入失败: {e}")
+            raise BizException(_("IMPORT_PROCESS_ERROR"))
         except Exception as e:
             db.session.rollback()
-            logger.exception(e, exc_info=True)
+            logger.exception(f"导入交易处理异常: {e}")
             if isinstance(e, BizException):
                 raise e
             raise BizException(_("IMPORT_PROCESS_ERROR"))
@@ -314,7 +315,7 @@ class TradeService:
           holding: 持仓对象
         返回：
             一个元组 (trades, tr_cycle)，其中:
-            - trades: 未清仓的所有交易记录列表 (List[Trade])
+            - trades: 未清仓的所有交易记录列表
             - tr_cycle: 新建交易记录应使用的 tr_cycle (int)
         """
         # 获取最新一条记录
@@ -404,7 +405,7 @@ class TradeService:
             elif trade.tr_type == TradeTypeEnum.SELL.value:
                 current_shares -= trade_shares
 
-                # 校验：不允许卖空 (Over Sold)
+                # 校验：不允许卖空
                 # 如果计算过程中份额小于0 (考虑到精度误差，使用 < -EPSILON)
                 if current_shares < -EPSILON:
                     raise BizException(

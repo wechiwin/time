@@ -19,4 +19,4 @@ def consume_async_tasks():
 
     except Exception as e:
         # 这里的异常通常是数据库连接问题，记录日志即可，不要抛出，防止 APScheduler 停止该 Job
-        logger.exception(f"Error in consume_async_tasks job: {e}", exc_info=True)
+        logger.exception(f"Error in consume_async_tasks job: {e}")

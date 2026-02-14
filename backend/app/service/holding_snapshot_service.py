@@ -77,7 +77,7 @@ class HoldingSnapshotService:
                 db.session.commit()
                 logger.info(f"Generated {len(to_add_snapshots)} holding snapshots for {holding.ho_code}")
             except AsyncTaskException as e:
-                logger.exception(exc_info=True)
+                logger.exception()
                 errors.append(e.async_task_log.error_message)
             except Exception as e:
                 error_msg = f"Error processing holding {holding.ho_code}: {str(e)}"
@@ -89,7 +89,7 @@ class HoldingSnapshotService:
                     kwargs={"ids": [holding.id]},
                     error_message=error_msg
                 )
-                logger.exception(e, exc_info=True)
+                logger.exception()
                 errors.append(error_msg)
 
         end_time = time.time()
@@ -332,7 +332,7 @@ class HoldingSnapshotService:
 
             return result
         except AsyncTaskException as e:
-            logger.exception(e, exc_info=True)
+            logger.exception()
             errors.append(e.async_task_log.error_message)
         except Exception as e:
             db.session.rollback()
@@ -345,7 +345,7 @@ class HoldingSnapshotService:
                 error_message=error_msg
             )
             errors.append(error_msg)
-            logger.exception(error_msg, exc_info=True)
+            logger.exception(error_msg)
             return result
 
     @staticmethod

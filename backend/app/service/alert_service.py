@@ -188,5 +188,5 @@ class AlertService:
                     error_msg = _("SEND_EMAIL_FAILED") % {"error": str(e)}
                     history.remark = error_msg
                     # db.session.commit()
-                    current_app.logger.exception(error_msg, exc_info=True)
+                    current_app.logger.exception(error_msg)
                 db.session.commit()

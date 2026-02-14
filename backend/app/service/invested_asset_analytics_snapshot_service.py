@@ -50,7 +50,7 @@ class InvestedAssetAnalyticsSnapshotService:
             except Exception as e:
                 # 隔离用户错误，防止一个用户的失败影响其他用户
                 error_msg = f"Failed to generate analytics for user {user.id} on {target_date}: {e}"
-                logger.exception(error_msg, exc_info=True)
+                logger.exception(error_msg)
                 # 可以选择为失败的用户创建重试任务
                 create_task(
                     task_name=f"retry_analytics_user_{user.id}_{target_date}",
@@ -99,7 +99,7 @@ class InvestedAssetAnalyticsSnapshotService:
         except Exception as e:
             db.session.rollback()
             error_msg = f"Error generating InvestedAssetAnalyticsSnapshot  for {target_date}: {str(e)}"
-            logger.exception(error_msg, exc_info=True)
+            logger.exception(error_msg)
             # 触发重试
             create_task(
                 task_name=f"retry_invested_asset_analytics_{target_date}",
@@ -163,7 +163,7 @@ class InvestedAssetAnalyticsSnapshotService:
         except Exception as e:
             db.session.rollback()
             error_msg = f"Error generating InvestedAssetSnapshot for {current_date}: {str(e)}"
-            logger.exception(error_msg, exc_info=True)
+            logger.exception(error_msg)
             errors.append(error_msg)
             # 触发重试
             create_task(
