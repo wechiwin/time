@@ -1,16 +1,15 @@
 # app/routes/task_log_bp.py
-import threading
 from datetime import datetime
 
-from flask import Blueprint, request, g, current_app
+from flask import Blueprint, request, g
 from sqlalchemy import desc, or_
 
 from app.framework.auth import auth_required
 from app.framework.res import Res
 from app.framework.sys_constant import DEFAULT_PAGE_SIZE
+from app.framework.async_task_manager import create_task, DeduplicationStrategy
 from app.models import db, AsyncTaskLog
 from app.schemas_marshall import marshal_pagination, AsyncTaskLogSchema
-from app.service.task_service import TaskService
 from app.utils.user_util import get_or_raise
 
 task_log_bp = Blueprint('task', __name__, url_prefix='/task_log')
@@ -32,8 +31,13 @@ def page_task_log():
     statuses = data.get('status')  # 前端会传来一个数组
     created_at_range = data.get('created_at')  # 预期格式: ['YYYY-MM-DD', 'YYYY-MM-DD']
 
-    # 1. 基础查询，并强制关联用户ID，这是最重要的安全措施
-    query = AsyncTaskLog.query.filter_by(user_id=g.user.id)
+    # 1. 基础查询：用户自己的任务 + 系统任务 (user_id is NULL)
+    query = AsyncTaskLog.query.filter(
+        or_(
+            AsyncTaskLog.user_id == g.user.id,
+            AsyncTaskLog.user_id.is_(None)  # System tasks
+        )
+    )
 
     # 2. 应用筛选条件
     if statuses:  # 检查列表是否非空
@@ -77,54 +81,53 @@ def page_task_log():
 def async_redo_all_snapshot_job():
     """
     重新执行所有的快照任务
+    Creates an AsyncTaskLog record and lets the consumer execute it.
     """
     user_id = g.user.id
-    # TaskService.redo_all_snapshot(user_id)
-    # 启动后台线程 (Daemon=True 防止主进程退出时线程卡死)
-    app = current_app._get_current_object()
 
-    def background_task(user_id):
-        with app.app_context():
-            try:
-                app.logger.info(f"开始为用户 {user_id} 重跑所有快照任务...")
-                TaskService.redo_all_snapshot(user_id)
-                app.logger.info(f"用户 {user_id} 的快照任务重跑完成。")
-            except Exception as e:
-                app.logger.exception(f"后台任务执行失败: {str(e)}")
+    task_log = create_task(
+        user_id=user_id,
+        task_name="Redo all snapshots",
+        module_path="app.service.task_service",
+        class_name="TaskService",
+        method_name="redo_all_snapshot",
+        args=[user_id],
+        max_retries=1,
+        deduplication_strategy=DeduplicationStrategy.BUSINESS_KEY,
+        business_key=f"redo_all_snapshots:user_{user_id}"
+    )
 
-    thread = threading.Thread(target=background_task, args=(user_id,))
-    thread.daemon = True
-    thread.start()
-
-    return Res.success()
+    return Res.success({
+        "task_id": task_log.id,
+        "status": task_log.status
+    })
 
 
 @task_log_bp.route('/redo_yesterday_snapshot_job', methods=['GET'])
 @auth_required
 def async_redo_yesterday_snapshot_job():
     """
-    重新执行所有的快照任务
+    重新执行昨天的快照任务
+    Creates an AsyncTaskLog record and lets the consumer execute it.
     """
     user_id = g.user.id
-    username = g.user.username
-    # TaskService.redo_all_snapshot(user_id)
-    # 启动后台线程 (Daemon=True 防止主进程退出时线程卡死)
-    app = current_app._get_current_object()
 
-    def background_task(user_id, username):
-        with app.app_context():
-            try:
-                app.logger.info(f"start: do redo_yesterday_snapshot_job for user {username} ...")
-                TaskService.generate_yesterday_snapshot(user_id)
-                app.logger.info(f"done: redo_yesterday_snapshot_job for user {username} ...")
-            except Exception as e:
-                app.logger.exception(f"failed: redo_yesterday_snapshot_job for user {username} ...: {str(e)}")
+    task_log = create_task(
+        user_id=user_id,
+        task_name="Redo yesterday snapshots",
+        module_path="app.service.task_service",
+        class_name="TaskService",
+        method_name="generate_yesterday_snapshot",
+        args=[user_id],
+        max_retries=1,
+        deduplication_strategy=DeduplicationStrategy.BUSINESS_KEY,
+        business_key=f"redo_yesterday_snapshots:user_{user_id}"
+    )
 
-    thread = threading.Thread(target=background_task, args=(user_id, username))
-    thread.daemon = True
-    thread.start()
-
-    return Res.success()
+    return Res.success({
+        "task_id": task_log.id,
+        "status": task_log.status
+    })
 
 
 @task_log_bp.route('/del_log', methods=['POST'])

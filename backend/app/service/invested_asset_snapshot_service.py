@@ -45,8 +45,8 @@ class InvestedAssetSnapshotService:
             if not snapshot:
                 return None
 
-            # 删除旧数据（防重入）
-            InvestedAssetSnapshot.query.filter_by(snapshot_date=target_date).delete()
+            # 删除旧数据（防重入）- 必须同时过滤 user_id，避免误删其他用户数据
+            InvestedAssetSnapshot.query.filter_by(snapshot_date=target_date, user_id=user_id).delete()
             # 4. 保存入库
             db.session.add(snapshot)
             db.session.commit()
@@ -112,8 +112,8 @@ class InvestedAssetSnapshotService:
                     current_date += timedelta(days=1)
                     continue
 
-                # 删除旧数据（防重入）
-                InvestedAssetSnapshot.query.filter_by(snapshot_date=snapshot.snapshot_date).delete()
+                # 删除旧数据（防重入）- 必须同时过滤 user_id，避免误删其他用户数据
+                InvestedAssetSnapshot.query.filter_by(snapshot_date=snapshot.snapshot_date, user_id=user_id).delete()
 
                 # 保存入库
                 db.session.add(snapshot)

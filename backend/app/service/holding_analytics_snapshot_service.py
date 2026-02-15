@@ -16,7 +16,7 @@ from app.calendars.trade_calendar import trade_calendar
 from app.extension import db
 from app.framework.async_task_manager import create_task
 from app.models import (
-    Holding, HoldingSnapshot, AnalyticsWindow, HoldingAnalyticsSnapshot, InvestedAssetSnapshot
+    Holding, HoldingSnapshot, AnalyticsWindow, HoldingAnalyticsSnapshot, InvestedAssetSnapshot, UserHolding
 )
 
 ZERO = Decimal('0')
@@ -78,10 +78,11 @@ class HoldingAnalyticsSnapshotService:
             )
 
             if snapshots:
-                # 删除可能存在的当天重复数据（防重入）
+                # 删除可能存在的当天重复数据（防重入）- 必须同时过滤 user_id，避免误删其他用户数据
                 db.session.query(HoldingAnalyticsSnapshot).filter(
                     HoldingAnalyticsSnapshot.snapshot_date == target_date,
-                    HoldingAnalyticsSnapshot.ho_id.in_(target_ho_ids)
+                    HoldingAnalyticsSnapshot.ho_id.in_(target_ho_ids),
+                    HoldingAnalyticsSnapshot.user_id == user_id
                 ).delete(synchronize_session=False)
 
                 db.session.bulk_save_objects(snapshots)
@@ -110,18 +111,23 @@ class HoldingAnalyticsSnapshotService:
     def generate_all_holding_snapshot_analytics(cls, ho_ids: List[int] = None, user_id: int = None):
         """
         全量生成：为指定持仓（或所有持仓）生成历史所有日期的分析快照
+        注意：只处理有 HoldingSnapshot 数据的持仓，与 HoldingSnapshotService 保持一致
         """
         logger.info("Starting generate_all_analytics...")
         start_time = time.time()
 
-        query = db.session.query(Holding.id, Holding.ho_code)
+        # 查询有 HoldingSnapshot 数据的持仓，确保与 HoldingSnapshotService 的数据源一致
+        # 这样可以避免为没有 trade 记录（因此没有 holding_snapshot）的持仓生成分析快照
+        query = db.session.query(HoldingSnapshot.ho_id, Holding.ho_code).join(
+            Holding, Holding.id == HoldingSnapshot.ho_id
+        )
         # 分别判断并添加过滤条件
         if ho_ids:
-            query = query.filter(Holding.id.in_(ho_ids))
+            query = query.filter(HoldingSnapshot.ho_id.in_(ho_ids))
         if user_id:
-            query = query.filter(Holding.user_id == user_id)
-        # 执行查询
-        holdings = query.all()
+            query = query.filter(HoldingSnapshot.user_id == user_id)
+        # 执行查询，获取有 holding_snapshot 的持仓（去重）
+        holdings = query.distinct().all()
 
         # # 2. 确定要处理的持仓
         # if ho_ids:
@@ -139,9 +145,10 @@ class HoldingAnalyticsSnapshotService:
 
                 if snapshots:
                     # cls._save_snapshots(ho_id, snapshots, mode='full')
-                    # 批量删除旧数据 (覆盖模式)
+                    # 批量删除旧数据 (覆盖模式) - 必须同时过滤 user_id，避免误删其他用户数据
                     db.session.query(HoldingAnalyticsSnapshot).filter(
-                        HoldingAnalyticsSnapshot.ho_id == ho_id
+                        HoldingAnalyticsSnapshot.ho_id == ho_id,
+                        HoldingAnalyticsSnapshot.user_id == user_id
                     ).delete(synchronize_session=False)
 
                     # 批量插入新数据

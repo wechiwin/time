@@ -743,7 +743,7 @@ class BenchmarkHistory(TimestampMixin, BaseModel):
 class AsyncTaskLog(TimestampMixin, BaseModel):
     __tablename__ = 'async_task_log'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user_setting.id'), nullable=True)  # NULL for system tasks
     task_name = db.Column(db.String(150), nullable=False, index=True)  # 任务类型
     # params 现在存储用于反射调用的所有信息
     # {

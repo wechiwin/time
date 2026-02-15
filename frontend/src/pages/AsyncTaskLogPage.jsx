@@ -20,7 +20,7 @@ export default function AsyncTaskLogPage() {
     const [searchParams, setSearchParams] = useState({keyword: '', status: [], created_at: null});
 
     // API Hook 调用更简洁，直接传入 searchParams
-    const {data, isLoading, redo_all_snapshot, redo_yesterday_snapshot, deleteLog} = useAsyncTaskLogList({
+    const {data, isLoading, isDebounced, redo_all_snapshot, redo_yesterday_snapshot, deleteLog} = useAsyncTaskLogList({
         page,
         perPage,
         autoLoad: true,
@@ -64,12 +64,20 @@ export default function AsyncTaskLogPage() {
         try {
             await deleteLog(id);
             showSuccessToast();
-            setRefreshKey(p => p + 1);
+
+            // 检查当前页数据情况，决定是否需要调整分页
+            if (data?.items?.length === 1 && page > 1) {
+                // 如果删除的是当前页的最后一条数据且不在第一页，则跳转到前一页
+                handlePageChange(page - 1);
+            } else {
+                // 否则保持当前页并刷新数据
+                setRefreshKey(p => p + 1);
+            }
         } catch (err) {
             console.error('Failed to delete task log:', err);
             showErrorToast();
         }
-    }, [deleteLog, showSuccessToast, showErrorToast, t]);
+    }, [deleteLog, showSuccessToast, showErrorToast, t, data, page, handlePageChange]);
 
     const searchFields = [
         {
@@ -96,7 +104,11 @@ export default function AsyncTaskLogPage() {
 
     const actionButtons = useMemo(() => (
         <>
-            <button onClick={redo_all_snapshot} className="btn-secondary inline-flex items-center gap-2">
+            <button
+                onClick={redo_all_snapshot}
+                disabled={isDebounced}
+                className="btn-secondary inline-flex items-center gap-2"
+            >
                 <ArrowPathIcon className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}/>
                 {t('redo_all_snapshots')}
             </button>
@@ -105,7 +117,7 @@ export default function AsyncTaskLogPage() {
             {/*     redo_yesterday_snapshot */}
             {/* </button> */}
         </>
-    ), [isLoading, t]);
+    ), [isLoading, isDebounced, t]);
 
 
     return (

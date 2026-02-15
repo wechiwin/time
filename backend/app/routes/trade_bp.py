@@ -16,7 +16,7 @@ from app.constant.biz_enums import ErrorMessageEnum
 from app.framework.auth import auth_required
 from app.framework.exceptions import BizException
 from app.framework.res import Res
-from app.models import db, Trade, Holding
+from app.models import db, Trade, Holding, UserHolding
 from app.schemas_marshall import TradeSchema, marshal_pagination
 from app.service.trade_service import TradeService
 from app.utils.user_util import get_or_raise
@@ -103,7 +103,7 @@ def update_tr():
 
     db.session.add(updated_trade)
     db.session.flush()
-    TradeService.recalculate_holding_trades(updated_trade.ho_id)
+    TradeService.recalculate_holding_trades(updated_trade.ho_id, g.user.id)
     db.session.commit()
     return Res.success()
 
@@ -118,7 +118,7 @@ def del_tr():
 
     db.session.delete(t)
     db.session.flush()
-    TradeService.recalculate_holding_trades(ho_id)
+    TradeService.recalculate_holding_trades(ho_id, g.user.id)
 
     db.session.commit()
     return Res.success()
@@ -322,8 +322,11 @@ def list_by_ho_id():
         return ''
 
     # Verify the holding belongs to the current user
-    holding = Holding.query.filter_by(id=ho_id, user_id=g.user.id).first()
-    if not holding:
+    user_holding = UserHolding.query.filter_by(
+        user_id=g.user.id,
+        ho_id=ho_id
+    ).first()
+    if not user_holding:
         raise BizException(msg=ErrorMessageEnum.DATA_NOT_FOUND.view)
 
     result_list = Trade.query.filter_by(ho_id=ho_id, user_id=g.user.id).order_by(Trade.tr_date.asc()).all()

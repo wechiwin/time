@@ -28,6 +28,8 @@ export default function useChartData({
         const dateSet = new Set();
         // 主标的净值历史
         navHistory.forEach(i => dateSet.add(i.nav_date));
+        // 持仓快照（用于成本线）
+        snapshots.forEach(i => dateSet.add(i.snapshot_date));
         // 对比标的净值历史
         Object.values(compareDataMap).forEach(item => {
             (item.list || []).forEach(i => dateSet.add(i.nav_date));

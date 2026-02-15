@@ -1,5 +1,5 @@
 // src/hooks/api/useAsyncTaskLogList.js
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import useApi from "../useApi";
 
 /**
@@ -24,6 +24,8 @@ export default function useAsyncTaskLogList({
                                             }) {
     const [data, setData] = useState(null);
     const [isLoading, setIsLoading] = useState(autoLoad);
+    const [isDebounced, setIsDebounced] = useState(false);
+    const debounceTimeoutRef = useRef(null);
     const {loading, error, post, get} = useApi();
 
     const fetchData = useCallback(async () => {
@@ -54,19 +56,37 @@ export default function useAsyncTaskLogList({
     }, [fetchData, autoLoad, refreshKey]);
 
     const redo_all_snapshot = useCallback(async () => {
-        const result = await get('/task_log/redo_all_snapshot_job', {});
-        return result;
-    }, [get]);
+        if (isDebounced) return;
+        setIsDebounced(true);
+        debounceTimeoutRef.current = setTimeout(() => {
+            setIsDebounced(false);
+        }, 3000);
+
+        setIsLoading(true);
+        try {
+            const result = await get('/task_log/redo_all_snapshot_job', {});
+            await fetchData();  // Refresh task list to show the new task
+            return result;
+        } finally {
+            setIsLoading(false);
+        }
+    }, [get, fetchData, isDebounced]);
 
     const redo_yesterday_snapshot = useCallback(async () => {
-        const result = await get('/task_log/redo_yesterday_snapshot_job', {});
-        return result;
-    }, [get]);
+        setIsLoading(true);
+        try {
+            const result = await get('/task_log/redo_yesterday_snapshot_job', {});
+            await fetchData();  // Refresh task list to show the new task
+            return result;
+        } finally {
+            setIsLoading(false);
+        }
+    }, [get, fetchData]);
 
     const deleteLog = useCallback(async (id) => {
         const result = await post('/task_log/del_log', {id});
         return result;
     }, [post]);
 
-    return {data, isLoading, error, redo_all_snapshot, redo_yesterday_snapshot, deleteLog};
+    return {data, isLoading, isDebounced, error, redo_all_snapshot, redo_yesterday_snapshot, deleteLog};
 }

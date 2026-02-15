@@ -15,7 +15,7 @@ from app.constant.biz_enums import HoldingStatusEnum, TradeTypeEnum, ErrorMessag
 from app.constant.sys_enums import GlobalYesOrNo
 from app.extension import openai_client
 from app.framework.exceptions import BizException
-from app.models import db, Holding, Trade
+from app.models import db, Holding, Trade, UserHolding
 from app.utils.common_util import is_not_blank
 from app.utils.date_util import str_to_date, date_to_str
 
@@ -168,7 +168,7 @@ class TradeService:
             db.session.flush()
 
             # 3. 调用重算逻辑
-            cls.recalculate_holding_trades(new_trade.ho_id)
+            cls.recalculate_holding_trades(new_trade.ho_id, new_trade.user_id)
 
             # 4. 提交事务
             db.session.commit()
@@ -199,7 +199,7 @@ class TradeService:
             db.session.flush()
 
             # 重算
-            cls.recalculate_holding_trades(trade.ho_id)
+            cls.recalculate_holding_trades(trade.ho_id, trade.user_id)
 
             db.session.commit()
             return True
@@ -225,22 +225,28 @@ class TradeService:
 
         ho_codes = list(transactions_by_code.keys())
 
-        # 2. 一次性查询所有相关的持仓记录
-        holdings = Holding.query.filter(Holding.ho_code.in_(ho_codes), Holding.user_id == user_id).all()
-        holding_map = {h.ho_code: h for h in holdings}
+        # 2. 一次性查询所有相关的持仓记录（包含UserHolding关系）
+        user_holdings = db.session.query(UserHolding).join(
+            Holding, Holding.id == UserHolding.ho_id
+        ).filter(
+            Holding.ho_code.in_(ho_codes),
+            UserHolding.user_id == user_id
+        ).all()
+        user_holding_map = {uh.holding.ho_code: uh for uh in user_holdings}
 
         # 3. 检查是否存在未创建的持仓
-        missing_codes = set(ho_codes) - set(holding_map.keys())
+        missing_codes = set(ho_codes) - set(user_holding_map.keys())
         if missing_codes and len(missing_codes) > 0 and missing_codes is not None:
             raise BizException(_("FUND_CODE_NOT_IN_HOLDINGS") % {"codes": ', '.join(map(str, missing_codes))})
 
         try:
             # 4. 循环处理每个基金的交易列表
             for ho_code, new_trades in transactions_by_code.items():
-                holding = holding_map[ho_code]
+                user_holding = user_holding_map[ho_code]
+                holding = user_holding.holding
 
                 # 获取该基金在导入前数据库中的状态
-                uncleared_trades_db, initial_tr_cycle = cls.list_uncleared(holding)
+                uncleared_trades_db, initial_tr_cycle = cls.list_uncleared(holding, user_holding.ho_status)
                 # 生成新集合
                 to_iterate_trades = [*uncleared_trades_db, *new_trades]
                 to_iterate_trades.sort(key=lambda t: t.tr_date)
@@ -286,11 +292,11 @@ class TradeService:
                 # 6. 处理完一个基金的所有新交易后，根据最终份额更新持仓状态
                 # 使用一个小的阈值来判断是否为零，避免浮点精度问题
                 if current_shares < Decimal('0.0001'):
-                    holding.ho_status = HoldingStatusEnum.CLOSED.value
+                    user_holding.ho_status = HoldingStatusEnum.CLOSED.value
                 else:
-                    holding.ho_status = HoldingStatusEnum.HOLDING.value
+                    user_holding.ho_status = HoldingStatusEnum.HOLDING.value
 
-                db.session.add(holding)  # 添加到会话以更新状态
+                db.session.add(user_holding)  # 添加到会话以更新状态
 
             # 7. 所有基金都处理完毕后，统一提交事务
             db.session.commit()
@@ -309,10 +315,11 @@ class TradeService:
             raise BizException(_("IMPORT_PROCESS_ERROR"))
 
     @staticmethod
-    def list_uncleared(holding) -> Tuple[List[Trade], int]:
+    def list_uncleared(holding, ho_status: str) -> Tuple[List[Trade], int]:
         """
         参数:
           holding: 持仓对象
+          ho_status: 持仓状态
         返回：
             一个元组 (trades, tr_cycle)，其中:
             - trades: 未清仓的所有交易记录列表
@@ -325,7 +332,7 @@ class TradeService:
             # 如果没有任何交易记录，则为第一轮
             return [], 1
 
-        if HoldingStatusEnum.HOLDING.value == holding.ho_status:
+        if HoldingStatusEnum.HOLDING.value == ho_status:
             trades = Trade.query.filter_by(ho_id=holding.id, tr_cycle=latest_trade.tr_cycle).order_by(Trade.tr_date, Trade.id).all()
             return trades, latest_trade.tr_cycle
         else:
@@ -363,7 +370,7 @@ class TradeService:
         return total_shares, total_cost
 
     @classmethod
-    def recalculate_holding_trades(cls, ho_id: int):
+    def recalculate_holding_trades(cls, ho_id: int, user_id: int = None):
         """
         核心方法：重新计算指定持仓的所有交易记录的轮次(tr_cycle)和清仓状态(is_cleared)。
         适用于：新增、修改、删除交易记录后，修正后续数据。
@@ -380,7 +387,11 @@ class TradeService:
 
         if not trades:
             # 如果没有交易记录，重置持仓状态为 CLOSED (或者根据业务逻辑删除持仓)
-            holding.ho_status = HoldingStatusEnum.CLOSED.value
+            if user_id:
+                user_holding = UserHolding.query.filter_by(ho_id=ho_id, user_id=user_id).first()
+                if user_holding:
+                    user_holding.ho_status = HoldingStatusEnum.CLOSED.value
+                    db.session.add(user_holding)
             return
 
         # 3. 初始化状态变量
@@ -429,11 +440,13 @@ class TradeService:
             # 更新数据库对象（SQLAlchemy 会自动追踪变更）
             db.session.add(trade)
 
-        # 5. 更新 Holding 表的总状态
-        if current_shares > EPSILON:
-            holding.ho_status = HoldingStatusEnum.HOLDING.value
-        else:
-            holding.ho_status = HoldingStatusEnum.CLOSED.value
-
-        db.session.add(holding)
+        # 5. 更新 UserHolding 表的总状态
+        if user_id:
+            user_holding = UserHolding.query.filter_by(ho_id=ho_id, user_id=user_id).first()
+            if user_holding:
+                if current_shares > EPSILON:
+                    user_holding.ho_status = HoldingStatusEnum.HOLDING.value
+                else:
+                    user_holding.ho_status = HoldingStatusEnum.CLOSED.value
+                db.session.add(user_holding)
         # 注意：这里不执行 commit，交由调用方统一 commit，以便发生异常时回滚

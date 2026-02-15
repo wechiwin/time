@@ -12,7 +12,7 @@ from app.calendars.trade_calendar import trade_calendar
 from app.constant.biz_enums import TradeTypeEnum, DividendTypeEnum, HoldingStatusEnum
 from app.framework.async_task_manager import create_task
 from app.framework.exceptions import AsyncTaskException
-from app.models import db, HoldingSnapshot, Holding, FundNavHistory, Trade
+from app.models import db, HoldingSnapshot, Holding, FundNavHistory, Trade, UserHolding
 from app.utils.date_util import date_to_str
 
 ZERO = Decimal('0')
@@ -54,21 +54,26 @@ class HoldingSnapshotService:
         errors = []
 
         if ids:
-            holdings = Holding.query.filter(Holding.id.in_(ids), Holding.user_id == user_id).all()
+            user_holdings = UserHolding.query.filter(
+                UserHolding.user_id == user_id,
+                UserHolding.ho_id.in_(ids)
+            ).all()
         else:
-            holdings = Holding.query.filter(Holding.user_id == user_id).all()
+            user_holdings = UserHolding.query.filter(UserHolding.user_id == user_id).all()
 
-        if not holdings:
+        if not user_holdings:
             return {"total_generated": 0, "errors": [], "duration": 0}
 
-        for holding in holdings:
-            to_add_snapshots = cls._generate_for_holding(holding)
+        for user_holding in user_holdings:
+            holding = user_holding.holding
+            to_add_snapshots = cls._generate_for_holding(holding, user_holding.ho_status)
             try:
                 # 批量插入分析快照
                 if to_add_snapshots:
-                    # 删除旧记录
+                    # 删除旧记录 - 必须同时过滤 user_id，避免误删其他用户数据
                     deleted = HoldingSnapshot.query.filter(
-                        HoldingSnapshot.ho_id == holding.id
+                        HoldingSnapshot.ho_id == holding.id,
+                        HoldingSnapshot.user_id == user_id
                     ).delete(synchronize_session=False)
                     # 插入新记录
                     db.session.bulk_save_objects(to_add_snapshots)
@@ -84,7 +89,7 @@ class HoldingSnapshotService:
                 create_task(
                     user_id=user_id,
                     task_name=f"regenerate all holding snapshots for {holding.ho_code} - {holding.ho_short_name}",
-                    module_path="app.services.holding_snapshot_service",
+                    module_path="app.service.holding_snapshot_service",
                     method_name="generate_all_holding_snapshots",
                     kwargs={"ids": [holding.id]},
                     error_message=error_msg
@@ -102,13 +107,13 @@ class HoldingSnapshotService:
         return result
 
     @classmethod
-    def _generate_for_holding(cls, holding: Holding) -> List[HoldingSnapshot]:
+    def _generate_for_holding(cls, holding: Holding, ho_status: str) -> List[HoldingSnapshot]:
         """为单个持仓生成其生命周期内的所有快照（内部方法）"""
         logger.info(f"Processing holding: {holding.ho_code} ({holding.ho_name})")
         snapshots = []
 
         # 检查holding状态
-        if holding.ho_status == HoldingStatusEnum.NOT_HELD:
+        if ho_status == HoldingStatusEnum.NOT_HELD:
             return snapshots
 
         # 获取所有交易记录 时间升序
@@ -128,7 +133,7 @@ class HoldingSnapshotService:
             # 周期内第一次交易日期
             first_date = round_trades[0].tr_date
             # 周期内最后一次交易日期
-            if tr_cycle == max_tr_cycle and holding.ho_status == HoldingStatusEnum.HOLDING:
+            if tr_cycle == max_tr_cycle and ho_status == HoldingStatusEnum.HOLDING:
                 # 如果是最后一轮持仓周期 且 目前仍在持仓中
                 last_date = trade_calendar.prev_trade_day(date.today())
             else:
@@ -264,7 +269,7 @@ class HoldingSnapshotService:
                     create_task(
                         user_id=user_id,
                         task_name=f"regenerate yesterday holding snapshots for {holding.ho_code} - {holding.ho_short_name}",
-                        module_path="app.services.holding_snapshot_service",
+                        module_path="app.service.holding_snapshot_service",
                         method_name="generate_yesterday_snapshots",
                         kwargs={"ids": f"[{holding.id},]"},
                         error_message=error_msg
@@ -279,7 +284,7 @@ class HoldingSnapshotService:
                     create_task(
                         user_id=user_id,
                         task_name=f"regenerate all holding snapshots for {holding.ho_code} - {holding.ho_short_name}",
-                        module_path="app.services.holding_snapshot_service",
+                        module_path="app.service.holding_snapshot_service",
                         method_name="generate_all_holding_snapshots",
                         kwargs={"ids": f"[{holding.id},]"},
                         error_message=f"{current_date} no day_before_yesterday_snapshot from holding_snapshot_service: generate_yesterday_snapshots"
@@ -317,10 +322,11 @@ class HoldingSnapshotService:
                 snapshots_to_add.append(snapshot)
             # 4. 批量提交
             if snapshots_to_add:
-                # 删除旧记录
+                # 删除旧记录 - 必须同时过滤 user_id，避免误删其他用户数据
                 deleted = HoldingSnapshot.query.filter(
                     HoldingSnapshot.ho_id.in_(target_holding_ids),
-                    HoldingSnapshot.snapshot_date == current_date
+                    HoldingSnapshot.snapshot_date == current_date,
+                    HoldingSnapshot.user_id == user_id
                 ).delete(synchronize_session=False)
 
                 db.session.add_all(snapshots_to_add)
@@ -340,7 +346,7 @@ class HoldingSnapshotService:
             create_task(
                 user_id=user_id,
                 task_name=f"regenerate yesterday holding snapshots",
-                module_path="app.services.holding_snapshot_service",
+                module_path="app.service.holding_snapshot_service",
                 method_name="generate_yesterday_snapshots",
                 error_message=error_msg
             )
@@ -381,7 +387,7 @@ class HoldingSnapshotService:
                     async_task_log = create_task(
                         user_id=user_id,
                         task_name=f"regenerate all holding snapshots for {trade.ho_id} in _apply_trades",
-                        module_path="app.services.holding_snapshot_service",
+                        module_path="app.service.holding_snapshot_service",
                         method_name="generate_all_holding_snapshots",
                         kwargs={"ids": [trade.ho_id]},
                         error_message=(
@@ -488,7 +494,7 @@ class HoldingSnapshotService:
                 async_task_log = create_task(
                     user_id=user_id,
                     task_name=f"regenerate all holding snapshots for {holding.ho_code} - {holding.ho_short_name}",
-                    module_path="app.services.holding_snapshot_service",
+                    module_path="app.service.holding_snapshot_service",
                     method_name="generate_all_holding_snapshots",
                     kwargs={"ids": [holding.id]},
                     error_message=f"{holding.ho_code} - {nav_today.nav_date} - {holding.ho_short_name}: no prev_snapshot from holding_snapshot_service: _create_snapshot_from_state"

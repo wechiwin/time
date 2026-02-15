@@ -47,13 +47,13 @@ class AsyncTaskManager:
 
         # 查询符合条件的状态
         # 注意：这里需要确保你的数据库支持 SKIP LOCKED (PostgreSQL, MySQL 8.0+)
-        # Neon (Postgres) 是支持的。
-
         # 由于 SQLAlchemy Core/ORM 的 for_update 在不同版本写法不同，
         # 这里演示一种兼容性较好的逻辑：先查 ID，再逐个抢锁
+        from sqlalchemy import or_
+
         candidate_ids = db.session.query(AsyncTaskLog.id).filter(
             AsyncTaskLog.status.in_([TaskStatusEnum.PENDING, TaskStatusEnum.RETRYING]),
-            AsyncTaskLog.next_retry_at <= now
+            or_(AsyncTaskLog.next_retry_at <= now, AsyncTaskLog.next_retry_at.is_(None))
         ).limit(batch_size).all()
 
         candidate_ids = [r[0] for r in candidate_ids]

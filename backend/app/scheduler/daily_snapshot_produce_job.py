@@ -22,7 +22,7 @@ def produce_async_tasks():
             create_task(
                 user_id=user.id,
                 task_name=f"{prev_date} daily job: generating holding snapshots",
-                module_path="app.services.holding_snapshot_service_new",
+                module_path="app.service.holding_snapshot_service_new",
                 method_name="generate_snapshots",
                 kwargs={"start_date": prev_date, "end_date": prev_date},
             )
