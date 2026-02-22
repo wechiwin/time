@@ -8,6 +8,7 @@ import {
     ChevronLeftIcon,
     ChevronRightIcon,
     ClockIcon,
+    Cog6ToothIcon,
     HomeIcon,
     TableCellsIcon,
     XMarkIcon
@@ -206,13 +207,13 @@ export default function Sidebar({onSelect, isCollapsed, onToggleCollapse, showFl
                         ? 'flex-col space-y-2 items-center mt-2 w-full'
                         : 'space-x-1'}
                     `}>
-                        {/* <button */}
-                        {/*     onClick={handleOpenUserSetting} */}
-                        {/*     className="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors text-slate-500 dark:text-slate-400 hover:text-blue-600" */}
-                        {/*     title={t('user_settings')} */}
-                        {/* > */}
-                        {/*     <Cog6ToothIcon className="w-5 h-5"/> */}
-                        {/* </button> */}
+                        <button
+                            onClick={handleOpenUserSetting}
+                            className="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors text-slate-500 dark:text-slate-400 hover:text-blue-600"
+                            title={t('user_settings')}
+                        >
+                            <Cog6ToothIcon className="w-5 h-5"/>
+                        </button>
                         <button
                             onClick={handleLogout}
                             className="p-2 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-slate-500 dark:text-slate-400 hover:text-red-600"

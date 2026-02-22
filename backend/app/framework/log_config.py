@@ -124,7 +124,7 @@ def setup_logging(app):
     }
 
     if app.debug:
-        loggers_to_configure['sqlalchemy.engine'] = 'DEBUG'
+        loggers_to_configure['sqlalchemy.engine'] = 'INFO'  # debug显示row+sql，INFO只显示SQL语句
 
     for logger_name, level in loggers_to_configure.items():
         std_logger = logging.getLogger(logger_name)
