@@ -54,6 +54,15 @@ export default function Dashboard() {
     const allocation = summaryData?.allocation ?? [];
     const alerts = summaryData?.alerts ?? [];
 
+    // 辅助函数：检查是否所有持仓都已清仓（position_ratio 全为 0）
+    const isAllCleared = useMemo(() => {
+        if (!allocation || allocation.length === 0) return false;
+        return allocation.every(item => {
+            const ratio = parseFloat(item.has_position_ratio) || 0;
+            return ratio === 0;
+        });
+    }, [allocation]);
+
     // 辅助函数：处理持仓数据聚合（如果超过10个）
     const processedAllocation = useMemo(() => {
         if (!allocation || allocation.length === 0) return [];
@@ -364,17 +373,28 @@ export default function Dashboard() {
                         <>
                             {/* 饼图区域：增加弹性，利用空间 */}
                             <div className="flex-1 min-h-[240px] md:min-h-[260px] -mt-4 -mb-2">
-                                <ReactECharts
-                                    ref={chartRef}
-                                    option={pieOption}
-                                    style={{height: '100%', width: '100%'}}
-                                    theme={isDarkMode ? 'dark' : 'light'}
-                                    notMerge={true}
-                                    onEvents={handleChartEvents}
-                                />
+                                {isAllCleared ? (
+                                    // 全部清仓时显示特殊空状态
+                                    <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                                        <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-full mb-3">
+                                            <ChartPieIcon className="w-8 h-8 text-gray-300 dark:text-gray-500"/>
+                                        </div>
+                                        <p className="text-sm font-medium">{t('msg_all_positions_cleared')}</p>
+                                        <p className="text-xs text-gray-400 mt-1">{t('msg_position_allocation_unavailable')}</p>
+                                    </div>
+                                ) : (
+                                    <ReactECharts
+                                        ref={chartRef}
+                                        option={pieOption}
+                                        style={{height: '100%', width: '100%'}}
+                                        theme={isDarkMode ? 'dark' : 'light'}
+                                        notMerge={true}
+                                        onEvents={handleChartEvents}
+                                    />
+                                )}
                             </div>
 
-                            {/* 列表容器 */}
+                            {/* 列表容器 - 即使清仓也显示（因为有 P&L 数据） */}
                             <div className="mt-4 flex flex-col">
                                 <div className="space-y-1 max-h-72 overflow-y-auto pr-1 custom-scrollbar mt-2">
                                     {processedAllocation.map((item, index) => (

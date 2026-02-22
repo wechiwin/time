@@ -6,10 +6,9 @@ SELECT h.ho_code,
        has.has_position_ratio,
        has.has_portfolio_contribution
 FROM holding h
-         LEFT JOIN holding_analytics_snapshot has
-                   ON has.user_id = h.user_id
-                       AND has.ho_id = h.id
-WHERE h.ho_status = 'HOLDING'
-  AND has.snapshot_date = :snapshot_date
+         INNER JOIN holding_analytics_snapshot has
+                    ON has.ho_id = h.id
+                        AND has.user_id = :user_id
+WHERE has.snapshot_date = :snapshot_date
   AND has.window_key = :window_key
 ORDER BY has.has_position_ratio DESC;

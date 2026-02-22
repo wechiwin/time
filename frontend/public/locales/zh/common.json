@@ -80,6 +80,8 @@
   "label_profitable_days_ratio": "盈利天数占比",
   "label_position_allocation": "持仓分布",
   "msg_no_current_positions": "当前无持仓数据",
+  "msg_all_positions_cleared": "已清仓",
+  "msg_position_allocation_unavailable": "当前无持仓，无法显示仓位分布",
   "msg_add_trades_or_wait": "请添加交易记录或等待数据更新",
   "period_since_inception": "投资以来",
   "period_current_holding": "本轮持仓",
@@ -213,6 +215,7 @@
   "th_username": "用户名",
   "th_default_language": "默认语言",
   "th_email_address": "邮箱地址",
+  "th_risk_free_rate": "无风险利率",
 
   "today": "今天",
   "past": "过去",

@@ -21,6 +21,7 @@ class DashboardMapper:
     # ---------------- 查询封装 ---------------- #
     @classmethod
     def get_holdings_allocation(cls,
+                                user_id: int,
                                 snapshot_date: str,
                                 window_key: str,
                                 ) -> List[dict]:
@@ -30,6 +31,6 @@ class DashboardMapper:
         sql = text(cls._load_sql("get_holdings_allocation"))
         rows = db.session.execute(
             sql,
-            {"snapshot_date": snapshot_date, "window_key": window_key},
+            {"user_id": user_id, "snapshot_date": snapshot_date, "window_key": window_key},
         ).mappings().all()
         return [dict(row) for row in rows]

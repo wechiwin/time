@@ -121,7 +121,7 @@ class DashboardService:
         if not latest_date:
             return []
 
-        holding_ana_snaps = DashboardMapper.get_holdings_allocation(date_to_str(latest_date), window_key)
+        holding_ana_snaps = DashboardMapper.get_holdings_allocation(user_id, date_to_str(latest_date), window_key)
 
         return holding_ana_snaps
 

@@ -78,7 +78,9 @@
   "label_profitable_days_ratio": "Percentuale di giorni in profitto",
   "label_position_allocation": "Distribuzione delle posizioni",
   "msg_no_current_positions": "Nessun dato di posizione corrente disponibile",
-  "msg_add_trades_or_wait": "Aggiungi i record delle operazioni o attendi l’aggiornamento dati",
+  "msg_all_positions_cleared": "Tutte chiuse",
+  "msg_position_allocation_unavailable": "Nessuna posizione, impossibile mostrare l'allocazione",
+  "msg_add_trades_or_wait": "Aggiungi i record delle operazioni o attendi l'aggiornamento dati",
   "period_since_inception": "Dall’avvio dell’investimento",
   "period_current_holding": "Periodo di detenzione corrente",
   "period_last_30_days": "Ultimi 30 giorni",
@@ -210,6 +212,7 @@
   "th_username": "Nome Utente",
   "th_default_language": "Lingua Predefinita",
   "th_email_address": "Indirizzo Email",
+  "th_risk_free_rate": "Tasso Privo di Rischio",
 
   "today": "Oggi",
   "past": "Passati",

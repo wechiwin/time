@@ -78,6 +78,8 @@
   "label_profitable_days_ratio": "Percentage of Profitable Days",
   "label_position_allocation": "Position Allocation",
   "msg_no_current_positions": "No current position data",
+  "msg_all_positions_cleared": "All Cleared",
+  "msg_position_allocation_unavailable": "No holdings, unable to show allocation",
   "msg_add_trades_or_wait": "Please add trade records or wait for data update",
   "period_since_inception": "Since Inception",
   "period_current_holding": "Current Holding Period",
@@ -210,6 +212,7 @@
   "th_username": "Username",
   "th_default_language": "Default Language",
   "th_email_address": "Email Address",
+  "th_risk_free_rate": "Risk-Free Rate",
 
   "today": "Today",
   "past": "Past",
