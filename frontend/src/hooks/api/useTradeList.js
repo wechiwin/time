@@ -1,6 +1,7 @@
 // src/hooks/useTradeList.js
 import {useCallback, useEffect, useState} from 'react';
 import useApi from '../useApi';
+import {detectExcelLanguage} from '../../utils/excelLangDetector';
 
 export default function useTradeList(options = {}) {
     const {
@@ -71,10 +72,13 @@ export default function useTradeList(options = {}) {
     }, [download]);
 
     const importData = useCallback(async (file) => {
+        // Detect Excel template language
+        const lang = await detectExcelLanguage(file, 'trade');
+
         const formData = new FormData();
         formData.append('file', file);
 
-        return post(urlPrefix + '/import', formData, {
+        return post(urlPrefix + '/import?lang=' + lang, formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },

@@ -1,6 +1,7 @@
 // src/hooks/useHoldingList.js
 import {useCallback, useEffect, useState, useMemo} from 'react';
 import useApi from '../useApi';
+import {detectExcelLanguage} from '../../utils/excelLangDetector';
 
 export default function useHoldingList(options = {}) {
     const {
@@ -110,9 +111,12 @@ export default function useHoldingList(options = {}) {
     }, [download]);
 
     const importData = useCallback(async (file) => {
+        // Detect Excel template language
+        const lang = await detectExcelLanguage(file, 'holding');
+
         const formData = new FormData();
         formData.append('file', file);
-        const result = await post(urlPrefix + '/import', formData, {
+        const result = await post(urlPrefix + '/import?lang=' + lang, formData, {
             headers: {'Content-Type': 'multipart/form-data'},
         });
         return result;
