@@ -1,9 +1,11 @@
 # app/blueprints/holding_snapshot_bp.py
+from datetime import date
 from flask import Blueprint, request, g
 
+from app.calendars.trade_calendar import trade_calendar
 from app.framework.auth import auth_required
 from app.framework.res import Res
-from app.models import db, HoldingSnapshot, Holding
+from app.models import db, HoldingSnapshot, Holding, Trade
 from app.schemas_marshall import HoldingSnapshotSchema
 from app.service.holding_snapshot_service import HoldingSnapshotService
 
@@ -75,7 +77,25 @@ def list_hos():
 @holding_snapshot_bp.route('/generate_all_snapshots', methods=['GET'])
 @auth_required
 def generate_all_snapshots():
-    data = HoldingSnapshotService.generate_all_holding_snapshots(user_id=g.user.id)
+    # 计算日期范围：从最早的持仓快照日期到昨天
+    earliest = db.session.query(db.func.min(HoldingSnapshot.snapshot_date)).filter(
+        HoldingSnapshot.user_id == g.user.id
+    ).scalar()
+
+    if earliest:
+        start_date = earliest
+    else:
+        # 如果没有历史快照，从最早的交易日期开始
+        earliest_trade = Trade.query.filter(Trade.user_id == g.user.id).order_by(Trade.tr_date).first()
+        start_date = earliest_trade.tr_date if earliest_trade else date.today()
+
+    end_date = trade_calendar.prev_trade_day(date.today())
+
+    data = HoldingSnapshotService.generate_snapshots(
+        user_id=g.user.id,
+        start_date=start_date,
+        end_date=end_date
+    )
     return Res.success(data)
 
 
@@ -84,5 +104,20 @@ def generate_all_snapshots():
 def remake_by_ho_id():
     data = request.get_json()
     ho_id = data.get('ho_id')
-    data = HoldingSnapshotService.generate_all_holding_snapshots(ids=[ho_id, ], user_id=g.user.id)
+
+    # 获取该持仓的最早交易日期
+    earliest_trade = Trade.query.filter(Trade.ho_id == ho_id).order_by(Trade.tr_date).first()
+    if earliest_trade:
+        start_date = earliest_trade.tr_date
+    else:
+        start_date = date.today()
+
+    end_date = trade_calendar.prev_trade_day(date.today())
+
+    data = HoldingSnapshotService.generate_snapshots(
+        user_id=g.user.id,
+        start_date=start_date,
+        end_date=end_date,
+        ids=[ho_id]
+    )
     return Res.success(data)

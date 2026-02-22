@@ -16,288 +16,186 @@ from app.calendars.trade_calendar import trade_calendar
 from app.extension import db
 from app.framework.async_task_manager import create_task
 from app.models import (
-    Holding, HoldingSnapshot, AnalyticsWindow, HoldingAnalyticsSnapshot, InvestedAssetSnapshot, UserHolding
+    Holding, HoldingSnapshot, AnalyticsWindow, HoldingAnalyticsSnapshot, InvestedAssetSnapshot, UserSetting, UserHolding
 )
 
 ZERO = Decimal('0')
 
 # 配置化常量
-RISK_FREE_RATE = 0.02  # TODO 目前硬编码为 0.02 (2%)。建议放入系统配置表或常量类中。
 TRADING_DAYS_PER_YEAR = 252
-MIN_ANNUALIZATION_DAYS = 30  # 最小年化天数
-EPSILON = 1e-6  # 浮点精度阈值
+MIN_ANNUALIZATION_DAYS = 30
+EPSILON = 1e-6
+DEFAULT_RISK_FREE_RATE = 0.02
 
 
 class HoldingAnalyticsSnapshotService:
-    # TODO has_benchmark_return，has_alpha, has_beta，has_tracking_error，has_information_ratio
-    #  这需要引入 BenchmarkHistory 数据。逻辑是：将持仓的 df 与基准的 df 按日期 join，然后计算协方差（Covariance）得出 Beta，
-    #  再计算 Alpha。目前的实现暂未包含此部分，如果需要可以后续添加。
 
     @classmethod
-    def generate_yesterday_analytics(cls, ho_ids: List[int] = None, user_id: int = None):
+    def generate_analytics(
+            cls,
+            user_id: int,
+            start_date: date,
+            end_date: date,
+            ho_ids: Optional[List[int]] = None
+    ) -> Optional[List[HoldingAnalyticsSnapshot]]:
         """
-        增量生成：仅生成“昨天”（最近一个交易日）的分析快照
-        """
-        logger.info("Starting generate_yesterday_analytics...")
-        start_time = time.time()
+        统一的分析快照生成入口。
 
-        # 1. 确定日期
-        target_date = date.today() - timedelta(days=1)
-        if not trade_calendar.is_trade_day(target_date):
-            logger.info(f"{target_date} is not a trading day. Skipping.")
-            return {"generated": 0}
-
-        query = HoldingSnapshot.query(HoldingSnapshot.ho_id)
-        # 分别判断并添加过滤条件
-        if ho_ids:
-            query = query.filter(HoldingSnapshot.ho_id.in_(ho_ids))
-        if user_id:
-            query = query.filter(HoldingSnapshot.user_id == user_id)
-        # 执行查询
-        target_ho_ids = query.distinct().all()
-        # 3. 找出昨天有 HoldingSnapshot 的持仓 ID, 只有昨天生成了基础快照，才能生成分析快照
-        # target_ho_ids = db.session.query(HoldingSnapshot.ho_id).filter(
-        #     HoldingSnapshot.snapshot_date == target_date,
-        #     HoldingSnapshot.user_id == user_id
-        # ).distinct().all()
-        target_ho_ids = [t[0] for t in target_ho_ids]
-        if not target_ho_ids:
-            logger.info("No holding snapshots found for yesterday.")
-            return {"generated": 0, "duration": 0, "errors": []}
-
-        total_count = 0
-        errors = []
-
-        try:
-            # 生成指定日期的分析快照
-            snapshots = cls.generate_analytics(
-                user_id=user_id,
-                start_date=target_date,
-                end_date=target_date,
-                ho_ids=target_ho_ids
-            )
-
-            if snapshots:
-                # 删除可能存在的当天重复数据（防重入）- 必须同时过滤 user_id，避免误删其他用户数据
-                db.session.query(HoldingAnalyticsSnapshot).filter(
-                    HoldingAnalyticsSnapshot.snapshot_date == target_date,
-                    HoldingAnalyticsSnapshot.ho_id.in_(target_ho_ids),
-                    HoldingAnalyticsSnapshot.user_id == user_id
-                ).delete(synchronize_session=False)
-
-                db.session.bulk_save_objects(snapshots)
-                db.session.commit()
-                total_count += len(snapshots)
-                logger.info(f"Successfully generated {total_count} analytics records for {target_date}")
-        except Exception as e:
-            db.session.rollback()
-            err_msg = f"Error generating yesterday analytics: {str(e)}"
-            logger.exception(err_msg)
-            errors.append(err_msg)
-            create_task(
-                user_id=g.user.id,
-                task_name=f"retry_holding_analytics_{target_date}",
-                module_path="app.service.holding_analytics_snapshot_service",
-                class_name="HoldingAnalyticsSnapshotService",
-                method_name="generate_yesterday_analytics",
-                kwargs={},
-                error_message=err_msg
-            )
-
-        duration = time.time() - start_time
-        return {"generated": total_count, "duration": duration, "errors": errors}
-
-    @classmethod
-    def generate_all_holding_snapshot_analytics(cls, ho_ids: List[int] = None, user_id: int = None):
-        """
-        全量生成：为指定持仓（或所有持仓）生成历史所有日期的分析快照
-        注意：只处理有 HoldingSnapshot 数据的持仓，与 HoldingSnapshotService 保持一致
-        """
-        logger.info("Starting generate_all_analytics...")
-        start_time = time.time()
-
-        # 查询有 HoldingSnapshot 数据的持仓，确保与 HoldingSnapshotService 的数据源一致
-        # 这样可以避免为没有 trade 记录（因此没有 holding_snapshot）的持仓生成分析快照
-        query = db.session.query(HoldingSnapshot.ho_id, Holding.ho_code).join(
-            Holding, Holding.id == HoldingSnapshot.ho_id
-        )
-        # 分别判断并添加过滤条件
-        if ho_ids:
-            query = query.filter(HoldingSnapshot.ho_id.in_(ho_ids))
-        if user_id:
-            query = query.filter(HoldingSnapshot.user_id == user_id)
-        # 执行查询，获取有 holding_snapshot 的持仓（去重）
-        holdings = query.distinct().all()
-
-        # # 2. 确定要处理的持仓
-        # if ho_ids:
-        #     holdings = Holding.query.filter(Holding.id.in_(ho_ids), Holding.user_id == user_id).all()
-        # else:
-        #     holdings = Holding.query.filter(Holding.user_id == user_id).all()
-
-        total_count = 0
-        errors = []
-        # 这里改成取 ho_ids 一次性传进去即可
-        for ho_id, ho_code in holdings:
-            try:
-                # 为单个持仓生成所有历史分析数据
-                snapshots = cls.generate_analytics(user_id=user_id, start_date=None, end_date=None, ho_ids=[ho_id])
-
-                if snapshots:
-                    # cls._save_snapshots(ho_id, snapshots, mode='full')
-                    # 批量删除旧数据 (覆盖模式) - 必须同时过滤 user_id，避免误删其他用户数据
-                    db.session.query(HoldingAnalyticsSnapshot).filter(
-                        HoldingAnalyticsSnapshot.ho_id == ho_id,
-                        HoldingAnalyticsSnapshot.user_id == user_id
-                    ).delete(synchronize_session=False)
-
-                    # 批量插入新数据
-                    # 注意：如果数据量极大，建议分批 bulk_save_objects
-                    db.session.bulk_save_objects(snapshots)
-                    db.session.commit()
-                    total_count += len(snapshots)
-                    logger.info(f"Generated {len(snapshots)} analytics records for {ho_code}")
-
-            except Exception as e:
-                db.session.rollback()
-                msg = f"Error processing holding {ho_code}: {str(e)}"
-                logger.exception(msg)
-                errors.append(msg)
-                create_task(
-                    user_id=user_id,
-                    task_name=f"retry_holding_analytics_full_{ho_id}",
-                    module_path="app.service.holding_analytics_snapshot_service",
-                    class_name="HoldingAnalyticsSnapshotService",
-                    method_name="generate_all_analytics",
-                    kwargs={"ho_ids": [ho_id]},
-                    error_message=str(e)
-                )
-
-        duration = time.time() - start_time
-        result = {"total_generated": total_count, "duration": duration, "errors": errors}
-        logger.info(result)
-        return result
-
-    @classmethod
-    def generate_analytics(cls,
-                           user_id: int,
-                           start_date: Optional[date],
-                           end_date: Optional[date],
-                           ho_ids: List[int] = None
-                           ) -> Optional[List[HoldingAnalyticsSnapshot]]:
-        """
-        核心方法：按持仓、窗口和时间范围生成分析快照
-        :param start_date: 开始日期 (None表示从最早数据开始)
-        :param end_date: 结束日期 (None表示到最新数据结束)
-        :param ho_ids: 指定持仓ID列表
+        :param user_id: 用户ID
+        :param start_date: 目标开始日期 (包含)
+        :param end_date: 目标结束日期 (包含)
+        :param ho_ids: 指定的持仓ID列表，为空则处理该用户所有持仓
         :return: 生成的快照列表
         """
-        # 获取所有分析窗口定义
+        logger.info(f"Starting analytics generation: {start_date} to {end_date} for user {user_id}")
+        start_time = time.time()
+
+        # 1. 获取分析窗口配置 (全局共享)
         windows = AnalyticsWindow.query.all()
         if not windows:
-            logger.warning("No AnalyticsWindow defined.")
-            return None
+            logger.warning("No AnalyticsWindow defined. Aborting.")
+            return []
 
-        # 确定要处理的持仓
-        query = db.session.query(Holding.id, Holding.ho_code)
+        # 2. 获取用户的 risk_free_rate
+        user = UserSetting.query.get(user_id)
+        risk_free_rate = float(user.risk_free_rate) if user and user.risk_free_rate else DEFAULT_RISK_FREE_RATE
+
+        # 3. 获取目标持仓 (通过 UserHolding 关联表)
+        query = Holding.query.join(UserHolding, UserHolding.ho_id == Holding.id).filter(UserHolding.user_id == user_id)
         if ho_ids:
             query = query.filter(Holding.id.in_(ho_ids))
         holdings = query.all()
 
+        if not holdings:
+            return []
+
         all_snapshots = []
 
-        for ho_id, ho_code in holdings:
-            # 为单个持仓生成分析数据
-            holding_snapshots = cls._process_single_holding_analytics(
-                user_id=user_id,
-                ho_id=ho_id,
-                ho_code=ho_code,
-                windows=windows,
-                start_date=start_date,
-                end_date=end_date
-            )
+        # 4. 逐个持仓处理
+        for holding in holdings:
+            try:
+                # 生成该持仓在指定时间段的快照对象
+                snapshots = cls._process_single_holding(
+                    holding=holding,
+                    user_id=user_id,
+                    windows=windows,
+                    target_start=start_date,
+                    target_end=end_date,
+                    risk_free_rate=risk_free_rate
+                )
+                all_snapshots.extend(snapshots)
 
-            all_snapshots.extend(holding_snapshots)
+            except Exception as e:
+                err_msg = f"Error processing holding {holding.ho_code}: {str(e)}"
+                logger.exception(err_msg)
 
+                # 记录异步任务以便后续重试
+                create_task(
+                    user_id=user_id,
+                    task_name=f"Fix Analytics: {holding.ho_code}",
+                    module_path="app.service.holding_analytics_snapshot_service",
+                    method_name="generate_analytics",
+                    kwargs={
+                        "user_id": user_id,
+                        "start_date": str(start_date),
+                        "end_date": str(end_date),
+                        "ho_ids": [holding.id]
+                    },
+                    error_message=err_msg
+                )
+
+        logger.info(f"Generated {len(all_snapshots)} analytics snapshots in {round(time.time() - start_time, 2)}s")
         return all_snapshots
 
+    # ---------------------------------------------------------
+    # Internal Logic Methods
+    # ---------------------------------------------------------
+
     @classmethod
-    def _process_single_holding_analytics(cls,
-                                          user_id: int,
-                                          ho_id: int,
-                                          ho_code: str,
-                                          windows: List[AnalyticsWindow],
-                                          start_date: Optional[date],
-                                          end_date: Optional[date]
-                                          ) -> List[HoldingAnalyticsSnapshot]:
+    def _process_single_holding(
+            cls,
+            holding: Holding,
+            user_id: int,
+            windows: List[AnalyticsWindow],
+            target_start: date,
+            target_end: date,
+            risk_free_rate: float = DEFAULT_RISK_FREE_RATE
+    ) -> List[HoldingAnalyticsSnapshot]:
         """
-        处理单个持仓的分析数据生成
+        处理单个持仓：加载数据 -> 遍历日期 -> 计算指标 -> 生成对象
         """
-        # 加载持仓数据
-        df = cls._load_holding_data(ho_id, up_to_date=end_date)
+        # 1. 加载该持仓的基础快照数据 (DataFrame)
+        # 需要加载 target_end 之前的所有数据，因为计算窗口需要历史数据
+        df = cls._load_holding_data(ho_id=holding.id, up_to_date=target_end)
         if df.empty:
             return []
 
-        # 2. 确定需要计算的日期范围 (Target Range)
-        # 注意：df 包含历史数据用于计算 Rolling/Expanding，但我们只需要生成 target_range 内的快照
-        target_df = df
-        if start_date:
-            target_df = target_df[target_df.index.date >= start_date]
-        if end_date:
-            target_df = target_df[target_df.index.date <= end_date]
+        # 2. 筛选出需要生成快照的目标日期范围
+        mask = (df.index.date >= target_start) & (df.index.date <= target_end)
+        target_dates = df.loc[mask].index
+
+        if target_dates.empty:
+            return []
 
         results = []
 
-        # 2. 遍历日期进行计算
-        for current_ts in target_df.index:
+        # 3. 遍历目标日期
+        for current_ts in target_dates:
             current_date_obj = current_ts.date()
-            # 截止到当前日期的切片 (包含当前日期) 使用 loc 切片，效率尚可
-            df_upto_now = df.loc[:current_ts]
 
-            # 获取当前日期的 cycle_id (用于 CUR 窗口)
+            # 截止到当前日期的数据切片
+            df_upto_now = df.loc[:current_ts]
             current_cycle = df_upto_now.iloc[-1]['cycle']
 
+            # 4. 遍历窗口配置
             for window in windows:
-                # 获取窗口数据切片
+                # 获取计算所需的窗口数据
                 df_window = cls._get_window_slice(df_upto_now, window, current_cycle)
+
+                # 数据不足则跳过
                 if df_window is None or df_window.empty:
                     continue
+
                 # 计算指标
-                metrics = cls._calculate_metrics(df_window, window.annualization_factor)
-                # 构建对象
+                metrics = cls._calculate_metrics(df_window, window.annualization_factor, risk_free_rate)
+
+                # 组装对象
                 snapshot = HoldingAnalyticsSnapshot()
                 snapshot.user_id = user_id
-                snapshot.ho_id = ho_id
+                snapshot.ho_id = holding.id
                 snapshot.snapshot_date = current_date_obj
                 snapshot.window_key = window.window_key
-                snapshot.twrr_cumulative = metrics['twrr_cum']
-                snapshot.twrr_annualized = metrics['twrr_ann']
-                snapshot.irr_cumulative = metrics['irr_cum']
-                snapshot.irr_annualized = metrics['irr_ann']
-                snapshot.has_cumulative_pnl = metrics['cum_pnl']
-                snapshot.has_cash_dividend = metrics['total_cash_div']
-                snapshot.has_reinvest_dividend = metrics['total_reinvest_div']
-                snapshot.has_total_dividend = snapshot.has_cash_dividend + snapshot.has_reinvest_dividend
-                snapshot.has_return_volatility = metrics['volatility']
-                snapshot.has_sharpe_ratio = metrics['sharpe']
-                snapshot.has_max_drawdown = metrics['mdd']
-                snapshot.has_max_drawdown_start_date = metrics['mdd_start']
-                snapshot.has_max_drawdown_end_date = metrics['mdd_end']
-                snapshot.has_max_drawdown_recovery_date = metrics['mdd_recovery_date']
-                snapshot.has_max_drawdown_days = metrics['mdd_days']
-                snapshot.has_max_runup = metrics['max_runup']
-                snapshot.has_win_rate = metrics['win_rate']
-                snapshot.has_calmar_ratio = metrics['calmar']
-                snapshot.has_sortino_ratio = metrics['sortino']
-                snapshot.has_downside_risk = metrics['downside_risk']
+
+                # 映射指标
+                snapshot.twrr_cumulative = metrics.get('twrr_cum')
+                snapshot.twrr_annualized = metrics.get('twrr_ann')
+                snapshot.irr_cumulative = metrics.get('irr_cum')
+                snapshot.irr_annualized = metrics.get('irr_ann')
+                snapshot.has_cumulative_pnl = metrics.get('cum_pnl')
+                snapshot.has_cash_dividend = metrics.get('total_cash_div')
+                snapshot.has_reinvest_dividend = metrics.get('total_reinvest_div')
+                snapshot.has_total_dividend = (snapshot.has_cash_dividend or ZERO) + (snapshot.has_reinvest_dividend or ZERO)
+                snapshot.has_return_volatility = metrics.get('volatility')
+                snapshot.has_sharpe_ratio = metrics.get('sharpe')
+                snapshot.has_max_drawdown = metrics.get('mdd')
+                snapshot.has_max_drawdown_start_date = metrics.get('mdd_start')
+                snapshot.has_max_drawdown_end_date = metrics.get('mdd_end')
+                snapshot.has_max_drawdown_recovery_date = metrics.get('mdd_recovery_date')
+                snapshot.has_max_drawdown_days = metrics.get('mdd_days')
+                snapshot.has_max_runup = metrics.get('max_runup')
+                snapshot.has_win_rate = metrics.get('win_rate')
+                snapshot.has_calmar_ratio = metrics.get('calmar')
+                snapshot.has_sortino_ratio = metrics.get('sortino')
+                snapshot.has_downside_risk = metrics.get('downside_risk')
 
                 results.append(snapshot)
+
         return results
 
     @classmethod
-    def _load_holding_data(cls, ho_id: int, up_to_date: date = None) -> pd.DataFrame:
+    def _load_holding_data(cls, ho_id: int, up_to_date: date) -> pd.DataFrame:
         """
-        加载持仓的基础快照数据并转换为 DataFrame
+        加载持仓基础快照并转为 DataFrame 以便计算
         """
         query = db.session.query(
             HoldingSnapshot.snapshot_date,
@@ -310,31 +208,32 @@ class HoldingAnalyticsSnapshotService:
             HoldingSnapshot.hos_net_external_cash_flow,
             HoldingSnapshot.hos_market_value,
         ).filter(
-            HoldingSnapshot.ho_id == ho_id
-        )
-        if up_to_date:
-            query = query.filter(HoldingSnapshot.snapshot_date <= up_to_date)
-        raw_data = query.order_by(HoldingSnapshot.snapshot_date).all()
+            HoldingSnapshot.ho_id == ho_id,
+            HoldingSnapshot.snapshot_date <= up_to_date
+        ).order_by(HoldingSnapshot.snapshot_date)
+
+        raw_data = query.all()
         if not raw_data:
             return pd.DataFrame()
 
-        # 使用列表推导式和 zip 更高效地构建字典列表
-        column_names = [
-            'date', 'daily_pnl_ratio', 'daily_pnl', 'shares', 'daily_cash_dividend', 'daily_reinvest_dividend',
+        # 转换为 DataFrame
+        columns = [
+            'date', 'daily_pnl_ratio', 'daily_pnl', 'shares',
+            'daily_cash_dividend', 'daily_reinvest_dividend',
             'cycle', 'net_external_cash_flow', 'mv'
         ]
-        data_dicts = [dict(zip(column_names, row)) for row in raw_data]
-        df = pd.DataFrame(data_dicts)
+        df = pd.DataFrame([dict(zip(columns, row)) for row in raw_data])
 
-        # 类型转换: Decimal -> Float
-        cols_to_float = ['daily_pnl_ratio', 'daily_pnl', 'shares', 'daily_cash_dividend', 'daily_reinvest_dividend',
-                         'net_external_cash_flow', 'mv']
+        # 类型转换
+        cols_to_float = [
+            'daily_pnl_ratio', 'daily_pnl', 'shares',
+            'daily_cash_dividend', 'daily_reinvest_dividend',
+            'net_external_cash_flow', 'mv'
+        ]
         for col in cols_to_float:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0.0)
 
-        # 确保 cycle 是 int
         df['cycle'] = df['cycle'].fillna(0).astype(int)
-
         df['date'] = pd.to_datetime(df['date'])
         df.set_index('date', inplace=True)
 
@@ -343,35 +242,30 @@ class HoldingAnalyticsSnapshotService:
     @staticmethod
     def _get_window_slice(df: pd.DataFrame, window: AnalyticsWindow, current_cycle_id: int) -> Optional[pd.DataFrame]:
         """
-        根据窗口定义，从完整历史 df 中切分出需要计算的数据段
+        根据窗口定义切片数据
         """
         if window.window_type == 'rolling':
             if not window.window_days:
                 return None
-            # 取最后 N 天
             return df.tail(window.window_days)
 
         elif window.window_type == 'expanding':
             if window.window_key == 'ALL':
-                # 自建仓以来 (全部数据)
                 return df
             elif window.window_key == 'CUR':
-                # 本轮持仓：过滤出 cycle_id 等于当前 cycle_id 的行
                 return df[df['cycle'] == current_cycle_id]
             else:
-                # 其他 expanding 逻辑，默认全部
                 return df
 
         return None
 
     @classmethod
-    def _calculate_metrics(cls, df: pd.DataFrame, annual_factor: int = 252) -> Dict:
+    def _calculate_metrics(cls, df: pd.DataFrame, annual_factor: int = 252, risk_free_rate: float = DEFAULT_RISK_FREE_RATE) -> Dict:
         """
-        核心计算引擎：输入一个 DataFrame（包含 daily_pnl_ratio, pnl），输出所有指标字典
+        核心指标计算
         """
-        # 提取 Series
-        daily_pnl_ratio_list = df['daily_pnl_ratio']  # 日收益率 (0.01 代表 1%)
-        pnls = df['daily_pnl']  # 日盈亏金额
+        daily_pnl_ratio_list = df['daily_pnl_ratio']
+        pnls = df['daily_pnl']
         daily_cash_dividend = df['daily_cash_dividend']
         daily_reinvest_dividend = df['daily_reinvest_dividend']
 
@@ -379,432 +273,326 @@ class HoldingAnalyticsSnapshotService:
         if n == 0:
             return {}
 
-        # 1. twrr_cum 公式: (1+r1)*(1+r2)... - 1
+        # 1. TWRR Cumulative
         twrr_cum = (1 + daily_pnl_ratio_list).prod() - 1
 
-        # 3. 累计盈亏 & 分红
+        # 2. Annualized TWRR
+        twrr_ann = None
+        if n >= MIN_ANNUALIZATION_DAYS:
+            twrr_ann = (1 + twrr_cum) ** (annual_factor / n) - 1
+
+        # 3. PnL & Dividends
         cum_pnl = pnls.sum()
         total_cash_div = daily_cash_dividend.sum()
         total_reinvest_div = daily_reinvest_dividend.sum()
 
-        # 2. twrr_cum 年化收益率 (Annualized Return)
-        # 公式: (1 + cum_ret) ^ (252/n) - 1
-        # 注意：如果天数太少（<30天），年化通常没有意义或极度失真
-        if n >= MIN_ANNUALIZATION_DAYS:
-            twrr_ann = (1 + twrr_cum) ** (annual_factor / n) - 1
-        else:
-            twrr_ann = None  # 用None表示不适用
-
-        # 3. IRR (XIRR)
-        # 仅对长周期或 ALL 窗口计算，短周期 XIRR 意义不大且耗时
-        # XIRR 本身就是年化指标
+        # 4. IRR (XIRR)
         irr_ann = None
         irr_cum = None
         if n >= MIN_ANNUALIZATION_DAYS:
             try:
                 irr_ann = cls._calculate_xirr(df)
                 if irr_ann is not None:
-                    # 根据年化 IRR 反推这段时间的累计 IRR
-                    # 累计 = (1 + 年化) ^ (自然日天数 / 365) - 1
                     days_diff = (df.index[-1] - df.index[0]).days
                     if days_diff > 0:
-                        irr_cum = (1 + irr_ann) ** (days_diff / 365.0) - 1
+                        irr_cum = Decimal(f"{((1 + irr_ann) ** (days_diff / 365.0) - 1):.6f}")
                     else:
                         irr_cum = ZERO
-            except Exception as e:
-                # XIRR 计算可能不收敛
-                logger.debug(f"XIRR calculation failed: {e}")
+            except Exception:
                 pass
 
-        # 4. 波动率 (Volatility)
-        # 标准差 * sqrt(252)
+        # 5. Volatility
+        volatility = ZERO
         if n > 1:
-            volatility = daily_pnl_ratio_list.std(ddof=1) * np.sqrt(annual_factor)
-        else:
-            volatility = ZERO
+            volatility = Decimal(f"{daily_pnl_ratio_list.std(ddof=1) * np.sqrt(annual_factor):.6f}")
 
-        # 5. 夏普比率 (Sharpe Ratio)
-        # (Rp - Rf) / Vol
-        if volatility > EPSILON:
-            sharpe = (twrr_ann - RISK_FREE_RATE) / volatility if twrr_ann is not None else 0.0
-        else:
-            sharpe = ZERO
+        # 6. Sharpe
+        sharpe = ZERO
+        if volatility > EPSILON and twrr_ann is not None:
+            sharpe = Decimal(f"{(float(twrr_ann) - risk_free_rate) / float(volatility):.4f}")
 
-        # 6. 下行风险 & Sortino
-        # 只取负收益计算标准差
-        negtive_returns = daily_pnl_ratio_list[daily_pnl_ratio_list < 0]
-        if len(negtive_returns) > 1:
-            downside_std = negtive_returns.std(ddof=1) * np.sqrt(annual_factor)
-        else:
-            downside_std = ZERO
+        # 7. Downside Risk & Sortino
+        neg_returns = daily_pnl_ratio_list[daily_pnl_ratio_list < 0]
+        downside_std = ZERO
+        if len(neg_returns) > 1:
+            downside_std = Decimal(f"{neg_returns.std(ddof=1) * np.sqrt(annual_factor):.6f}")
 
-        if downside_std > EPSILON:
-            sortino = (twrr_ann - RISK_FREE_RATE) / downside_std if twrr_ann is not None else 0.0
-        else:
-            sortino = ZERO
+        sortino = ZERO
+        if downside_std > EPSILON and twrr_ann is not None:
+            sortino = Decimal(f"{(float(twrr_ann) - risk_free_rate) / float(downside_std):.4f}")
 
-        # 7. 最大回撤 (Max Drawdown)
-        # 构造净值曲线 (假设初始为1)
+        # 8. MDD & Dates
         nav_series = (1 + daily_pnl_ratio_list).cumprod()
-        # 历史累计最大值
         running_max = nav_series.cummax()
-        # 回撤序列 (始终 <= 0)
         drawdown_series = (nav_series - running_max) / running_max
-        mdd = drawdown_series.min()  # e.g. -0.15
+        mdd = drawdown_series.min()
 
-        # 计算回撤日期
-        mdd_end_ts = drawdown_series.idxmin()  # 回撤最低点的日期  Timestamp
+        mdd_end_ts = drawdown_series.idxmin()
         mdd_end_date = mdd_end_ts.date()
 
-        # 找到最低点之前的那个最高点日期
-        # 在 mdd_end_idx 之前的数据中，找到等于 running_max[mdd_end_idx] 的最后一天
+        # MDD Start
         subset_before_trough = running_max.loc[:mdd_end_ts]
         if not subset_before_trough.empty:
             peak_val = subset_before_trough.iloc[-1]
-            mdd_start_ts = subset_before_trough[subset_before_trough == peak_val].index[-1]
+            peak_candidates = subset_before_trough[subset_before_trough == peak_val]
+            mdd_start_ts = peak_candidates.index[-1]
             mdd_start_date = mdd_start_ts.date()
         else:
             mdd_start_date = df.index[0].date()
             peak_val = nav_series.iloc[0]
 
-        # 回撤天数 (交易日) 通常指 Peak 到 Trough 之间的间隔
+        # MDD Days
         try:
-            mdd_days = trade_calendar.count_trade_days_between(
-                mdd_start_date, mdd_end_date, inclusive=False
-            )
+            mdd_days = trade_calendar.count_trade_days_between(mdd_start_date, mdd_end_date, inclusive=False)
         except Exception:
-            # 降级处理：如果日历报错，使用自然日或列表长度
             mdd_days = (mdd_end_date - mdd_start_date).days
 
-        # 最大回撤恢复日期
-        # 直接复用 nav_series, mdd_end_date, peak_val
+        # Recovery Date
         recovery_date = cls._calc_recovery_date(nav_series, mdd_end_date, peak_val)
-        # 最大上涨幅度
-        # 直接复用 nav_series
+
+        # Max Runup
         max_runup = cls._calc_max_runup(nav_series)
 
-        # 8. 卡玛比率 (Calmar)
-        # Ann_Ret / abs(MDD)
-        if mdd < 0:
-            calmar = twrr_ann / abs(mdd) if twrr_ann is not None else 0.0
-        else:
-            calmar = ZERO
+        # 9. Calmar
+        calmar = ZERO
+        if mdd < 0 and twrr_ann is not None:
+            calmar = Decimal(f"{float(twrr_ann) / abs(float(mdd)):.4f}")
 
-        # 9. 胜率 (Win Rate)
-        win_count = (daily_pnl_ratio_list > 0).sum()
-        win_rate = win_count / n
+        # 10. Win Rate
+        win_rate = Decimal((daily_pnl_ratio_list > 0).sum() / n)
 
         return {
             'twrr_cum': Decimal(f"{twrr_cum:.6f}"),
             'twrr_ann': Decimal(f"{twrr_ann:.6f}") if twrr_ann is not None else None,
             'irr_ann': Decimal(f"{irr_ann:.6f}") if irr_ann is not None else None,
-            'irr_cum': Decimal(f"{irr_cum:.6f}") if irr_cum is not None else None,
+            'irr_cum': irr_cum,
             'cum_pnl': Decimal(f"{cum_pnl:.4f}"),
             'total_cash_div': Decimal(f"{total_cash_div:.4f}"),
             'total_reinvest_div': Decimal(f"{total_reinvest_div:.4f}"),
-            'volatility': Decimal(f"{volatility:.6f}"),
-            'sharpe': Decimal(f"{sharpe:.4f}"),
-            'sortino': Decimal(f"{sortino:.4f}"),
-            'downside_risk': Decimal(f"{downside_std:.6f}"),
+            'volatility': volatility,
+            'sharpe': sharpe,
+            'sortino': sortino,
+            'downside_risk': downside_std,
             'mdd': Decimal(f"{mdd:.6f}"),
             'mdd_start': mdd_start_date,
             'mdd_end': mdd_end_date,
             'mdd_days': int(mdd_days),
-            'calmar': Decimal(f"{calmar:.4f}"),
-            'win_rate': Decimal(f"{win_rate:.4f}"),
+            'calmar': calmar,
+            'win_rate': win_rate,
             'mdd_recovery_date': recovery_date,
             'max_runup': max_runup,
         }
 
+    # ---------------------------------------------------------
+    # Utility Methods (XIRR, Recovery, Runup)
+    # ---------------------------------------------------------
+
     @staticmethod
     def _calculate_xirr(df: pd.DataFrame) -> Optional[float]:
         """
-        计算单只持仓的 XIRR
-        现金流定义 :
-        - 买入 (net_inflow > 0): 现金流出，记为负。
-        - 卖出 (net_inflow < 0): 现金流入，记为正。
-        - 现金分红 (dividend > 0): 现金流入，记为正。
-        - 期末市值 (mv): 视为全部赎回，记为正。
+        计算 XIRR (Newton/Bisection fallback)
         """
-        if df.empty:
-            return None
-
-        # 显式创建副本
         df = df.copy()
-        # 1. 构造现金流 Flow = net_external_cash_flow + dividend
         df['flow'] = df['net_external_cash_flow'] + df['daily_cash_dividend']
-        # 过滤出有现金流的日子
+
+        # 过滤微小现金流
         flows = df[df['flow'].abs() > EPSILON].copy()
         dates = list(flows.index)
         amounts = list(flows['flow'])
 
-        # 添加期末市值 (视为全部赎回)
+        # 加入期末市值
         last_date = df.index[-1]
         last_mv = df.iloc[-1]['mv']
-        # 如果最后一天已经有现金流，累加；否则追加
+
         if dates and dates[-1] == last_date:
             amounts[-1] += last_mv
         else:
             dates.append(last_date)
             amounts.append(last_mv)
 
-        if not dates or len(dates) < 2:
+        if len(dates) < 2:
             return None
 
-        # 增强的数据有效性检查 检查现金流是否只有单一方向（全是流入或全是流出）
-        positive_flows = sum(1 for a in amounts if a > 0)
-        negative_flows = sum(1 for a in amounts if a < 0)
-        if positive_flows == 0 or negative_flows == 0:
-            logger.debug("XIRR skipped: Cash flows are all positive or all negative.")
+        # 检查现金流方向
+        pos = sum(1 for a in amounts if a > 0)
+        neg = sum(1 for a in amounts if a < 0)
+        if pos == 0 or neg == 0:
             return None
-        # 检查总期间是否过短，XIRR 对于短周期意义不大且不稳定
-        total_days = (dates[-1] - dates[0]).days
-        if total_days < MIN_ANNUALIZATION_DAYS:  # 复用你定义的常量
-            logger.debug(f"XIRR skipped: Period too short ({total_days} days).")
+
+        if (dates[-1] - dates[0]).days < MIN_ANNUALIZATION_DAYS:
             return None
 
         def xnpv(rate, dates, amounts):
-            """
-            XNPV 方程定义
-            """
             if rate <= -1.0:
                 return float('inf')
             d0 = dates[0]
-            # 核心公式：Sum( CashFlow_i / (1+r)^((d_i - d0)/365) )
-            # 这里的 365 是金融学定义 XIRR 的标准，代表自然年
-            return sum([a / ((1.0 + rate) ** ((d - d0).days / 365.0)) for d, a in zip(dates, amounts)])
+            return sum(a / ((1.0 + rate) ** ((d - d0).days / 365.0)) for d, a in zip(dates, amounts))
 
-        # 一个简单的近似IRR，作为牛顿法的初始猜测
-        total_inflow = sum(a for a in amounts if a < 0)
-        total_outflow = sum(a for a in amounts if a > 0)
-        # 避免除以零
-        if total_inflow == 0:
-            initial_guess = 0.1
-        else:
-            # 简单回报率 / 年数
-            simple_return = (total_outflow + total_inflow) / abs(total_inflow)
-            years = total_days / 365.0
-            initial_guess = simple_return / years if years > 0 else 0.1
-            # 限制猜测值在合理范围内，避免极端情况
-            initial_guess = max(-0.99, min(10.0, initial_guess))
+        # Initial Guess
+        total_in = sum(a for a in amounts if a < 0)
+        total_out = sum(a for a in amounts if a > 0)
+        guess = 0.1
+        if total_in != 0:
+            years = (dates[-1] - dates[0]).days / 365.0
+            if years > 0:
+                guess = ((total_out + total_in) / abs(total_in)) / years
+                guess = max(-0.99, min(10.0, guess))
+
         try:
-            # 使用 Newton-Raphson 方法求解 f(r) = 0
-            # 初始猜测值 0.1 (10%)
-            result = optimize.newton(
-                lambda r: xnpv(r, dates, amounts),
-                initial_guess,
-                tol=1e-6,  # 更严格的容差
-                maxiter=200,  # 更多迭代次数
-                disp=False  # 不打印收敛信息到stderr
-            )
-            # 检查结果是否为有效数字
+            result = optimize.newton(lambda r: xnpv(r, dates, amounts), guess, tol=1e-6, maxiter=200, disp=False)
             if not np.isfinite(result):
-                raise RuntimeError("Newton method resulted in non-finite value.")
+                raise RuntimeError("Non-finite")
             return result
-        except (RuntimeError, ValueError) as e:
-            # --- 备用算法：二分法 ---
-            # 牛顿法失败时，二分法虽然慢，但更稳定，只要能确定一个包含根的区间
-            logger.warning(f"XIRR Newton method failed: {e}. Trying bisection method.")
+        except (RuntimeError, ValueError):
+            # Fallback: Bisection
             try:
-                # 二分法需要一个区间 [a, b]，其中 f(a) 和 f(b) 符号相反
-                # 我们尝试一个很宽的范围，比如 [-99%, 1000%]
                 a, b = -0.99, 10.0
                 fa, fb = xnpv(a, dates, amounts), xnpv(b, dates, amounts)
-                # 如果边界值同号，说明根不在这个区间，或者无解
                 if fa * fb > 0:
-                    logger.warning(f"XIRR Bisection failed: f(a) and f(b) have same sign. No root in interval.")
                     return None
-
-                root, info = optimize.bisect(
-                    lambda r: xnpv(r, dates, amounts),
-                    a, b,
-                    xtol=1e-6,
-                    maxiter=500,
-                    disp=False
-                )
+                root, _ = optimize.bisect(lambda r: xnpv(r, dates, amounts), a, b, xtol=1e-6, maxiter=500, disp=False)
                 return root
-            except Exception as e_bisect:
-                logger.exception(f"XIRR Bisection method also failed: {e_bisect}")
+            except Exception:
                 return None
-        except Exception as e:
-            logger.exception(f"Unexpected error during XIRR calculation: {e}")
-            return None
 
     @staticmethod
     def _calc_recovery_date(nav_series: pd.Series, mdd_end_date: date, peak_val: float) -> Optional[date]:
-        """
-        计算最大回撤恢复日期
-        逻辑：在最大回撤低点(mdd_end_date)之后，寻找第一个净值 >= 回撤前最高点(peak_val)的日期
-        """
-        if mdd_end_date is None or peak_val is None:
+        if mdd_end_date is None:
             return None
+        try:
+            after_trough = nav_series.loc[pd.Timestamp(mdd_end_date) + timedelta(days=1):]
+            if after_trough.empty:
+                return None
 
-        # 1. 截取低点之后的数据
-        # 注意：nav_series 的索引必须是 datetime 类型
-        # mdd_end_date 是 date 类型，Pandas 切片通常兼容，但最好转一下
-        after_trough = nav_series.loc[pd.Timestamp(mdd_end_date):]
+            recovery_mask = after_trough >= peak_val
+            if not recovery_mask.any():
+                return None
 
-        # 排除掉低点当天（如果低点当天就恢复了，那是V型反转，逻辑上也成立，但通常是之后）
-        if len(after_trough) <= 1:
+            return recovery_mask.idxmax().date()
+        except Exception:
             return None
-
-        after_trough = after_trough.iloc[1:]
-
-        # 2. 寻找第一个大于等于 peak_val 的位置
-        # idxmax() 在布尔序列中会返回第一个 True 的索引
-        recovery_mask = after_trough >= peak_val
-
-        if not recovery_mask.any():
-            return None  # 至今尚未恢复
-
-        recovery_ts = recovery_mask.idxmax()
-        return recovery_ts.date()
 
     @staticmethod
     def _calc_max_runup(nav_series: pd.Series) -> Decimal:
-        """
-        计算最大上涨幅度 (Max Run-up)
-        逻辑：与最大回撤相反。计算 (当前净值 - 历史最低净值) / 历史最低净值 的最大值
-        """
         if nav_series.empty:
             return ZERO
-
-        # 1. 计算历史累计最小值
-        running_min = nav_series.cummin()
-
-        # 2. 防止除以0 (虽然净值通常 > 0，但防守一下 将0替换为极小值或处理异常)
-        running_min = running_min.replace(0, np.nan)
-        # 3. 计算潜在上涨幅度序列 公式：(Price / Low) - 1
+        running_min = nav_series.cummin().replace(0, np.nan)
         runup_series = (nav_series / running_min) - 1
         if runup_series.isnull().all():
             return ZERO
+        return Decimal(f"{runup_series.max():.6f}")
 
-        # 4. 取最大值
-        max_runup = runup_series.max()
-
-        return Decimal(f"{max_runup:.6f}")
+    # ---------------------------------------------------------
+    # Portfolio Level Aggregation
+    # ---------------------------------------------------------
 
     @classmethod
-    def update_position_ratios_and_contributions(cls, user_id: int = None):
+    def update_position_ratios_and_contributions(cls, user_id: int, start_date: date = None, end_date: date = None):
         """
-        定时任务：计算并更新指定日期的 has_position_ratio 和 has_portfolio_contribution。
-        计算逻辑：
-          - position_ratio = holding_mv / portfolio_mv
-          - contribution = holding_daily_pnl / portfolio_mv_yesterday
-                贡献度基于简单收益率法计算。当日大额资金进出可能会导致贡献度数值失真。
+        更新仓位占比和组合贡献，需要先计算ias。
+
+        :param user_id: 用户ID (必填)
+        :param start_date: 开始日期 (可选，如果不传则自动查找 has_position_ratio IS NULL 的记录)
+        :param end_date: 结束日期 (可选)
         """
+        logger.info(f"Updating position ratios/contributions for user {user_id}")
         start_time = time.time()
 
         # 获取需要更新字段的列表
-        to_update_has_list = HoldingAnalyticsSnapshot.query.filter(
-            HoldingAnalyticsSnapshot.user_id == user_id,
-            or_(
-                HoldingAnalyticsSnapshot.has_position_ratio.is_(None),
-                HoldingAnalyticsSnapshot.has_portfolio_contribution.is_(None)
+        query = HoldingAnalyticsSnapshot.query.filter(
+            HoldingAnalyticsSnapshot.user_id == user_id
+        )
+
+        if start_date and end_date:
+            # 如果传入了日期范围，按范围处理
+            query = query.filter(
+                HoldingAnalyticsSnapshot.snapshot_date >= start_date,
+                HoldingAnalyticsSnapshot.snapshot_date <= end_date
             )
-        ).order_by(HoldingAnalyticsSnapshot.snapshot_date).all()
+        else:
+            # 如果未传入日期，自动查找 has_position_ratio IS NULL 的记录
+            query = query.filter(
+                or_(
+                    HoldingAnalyticsSnapshot.has_position_ratio.is_(None),
+                    HoldingAnalyticsSnapshot.has_portfolio_contribution.is_(None)
+                )
+            )
+
+        to_update_has_list = query.order_by(HoldingAnalyticsSnapshot.snapshot_date).all()
         if not to_update_has_list:
-            logger.info(f"Nothing in to_update_has_list.")
+            logger.info("Nothing to update in position ratios/contributions.")
             return {"updated": 0}
 
         # 1. 构建需要更新的 HoldingAnalyticsSnapshot 日期映射
-        has_to_update_map = defaultdict(lambda: defaultdict(list))
+        has_to_update_map = defaultdict(list)
         for has in to_update_has_list:
-            has_to_update_map[has.snapshot_date][has.user_id].append(has)
-        # 2. 获取日期范围并批量查询 InvestedAssetSnapshot
+            has_to_update_map[has.snapshot_date].append(has)
+
+        # 2. 获取日期范围并批量查询
         min_date = min(has_to_update_map.keys())
         max_date = max(has_to_update_map.keys())
 
         # 3. 获取所有需要的持仓快照
-        user_ids = [user_id for date_map in has_to_update_map.values() for user_id in date_map.keys()]
-
         holding_snapshots = HoldingSnapshot.query.filter(
             HoldingSnapshot.snapshot_date.between(min_date, max_date),
-            HoldingSnapshot.user_id.in_(user_ids)
+            HoldingSnapshot.user_id == user_id
         ).all()
 
-        holding_data_map = defaultdict(lambda: defaultdict(dict))
+        holding_data_map = defaultdict(dict)
         for snap in holding_snapshots:
-            holding_data_map[snap.snapshot_date][snap.user_id][snap.ho_id] = snap
+            holding_data_map[snap.snapshot_date][snap.ho_id] = snap
 
-        # 获取所有需要的投资组合快照 往前倒一天
-        ias_query_min_date = trade_calendar.prev_trade_day(min_date)
+        # 获取所有需要的投资组合快照 (往前倒一天)
         ias_list = InvestedAssetSnapshot.query.filter(
-            InvestedAssetSnapshot.snapshot_date.between(ias_query_min_date, max_date),
-            InvestedAssetSnapshot.user_id.in_(user_ids)
+            InvestedAssetSnapshot.snapshot_date.between(trade_calendar.prev_trade_day(min_date), max_date),
+            InvestedAssetSnapshot.user_id == user_id
         ).all()
 
-        ias_date_user_map = defaultdict(dict)
-        for ias in ias_list:
-            ias_date_user_map[ias.snapshot_date][ias.user_id] = ias
+        ias_date_map = {ias.snapshot_date: ias for ias in ias_list}
 
         updated_count = 0
-        records_to_commit = []  # 用于批量更新的列表
-
+        records_to_commit = []
         # 遍历并计算更新
-        for target_date, users_has_records in has_to_update_map.items():
-            # 获取当日和前一日所有用户的组合快照
-            ias_for_target_date = ias_date_user_map.get(target_date, {})
-            ias_for_prev_date = ias_date_user_map.get(trade_calendar.prev_trade_day(target_date), {})
+        for target_date, has_records in has_to_update_map.items():
+            # 获取当日和前一日的组合快照
+            ias_today = ias_date_map.get(target_date)
+            ias_prev = ias_date_map.get(trade_calendar.prev_trade_day(target_date))
 
-            # 获取当日所有用户的持仓快照
-            holding_snaps_for_target_date = holding_data_map.get(target_date, {})
+            # 获取当日的持仓快照
+            holding_snaps_for_date = holding_data_map.get(target_date, {})
 
-            for user_id, has_records_for_user in users_has_records.items():
-                # 获取当前用户当日的组合市值
-                ias_today = ias_for_target_date.get(user_id)
-                if not ias_today:
-                    logger.warning(f"Skipping user_id={user_id} for date={target_date}: No InvestedAssetSnapshot found for today.")
+            for has in has_records:
+                holding_data = holding_snaps_for_date.get(has.ho_id)
+                if not holding_data:
+                    logger.debug(f"Skipping HAS id={has.id}: No HoldingSnapshot data found.")
                     continue
 
-                # 获取当前用户前一日的组合市值 (用于贡献度计算)
-                ias_prev = ias_for_prev_date.get(user_id)
-                # 注意：ias_prev 可能为 None，这表示该用户在 target_date 是其投资组合的第一个交易日。
-                # 在这种情况下，贡献度通常设为 ZERO。
+                # 计算 has_portfolio_contribution
+                prev_mv = ias_prev.ias_market_value if ias_prev else ZERO
+                if prev_mv and prev_mv != ZERO:
+                    has.has_portfolio_contribution = holding_data.hos_daily_pnl / prev_mv
+                else:
+                    has.has_portfolio_contribution = ZERO
 
-                holding_snaps_for_user_on_date = holding_snaps_for_target_date.get(user_id, {})
+                # 计算 has_position_ratio
+                if ias_today and ias_today.ias_market_value and ias_today.ias_market_value != ZERO:
+                    has.has_position_ratio = holding_data.hos_market_value / ias_today.ias_market_value
+                else:
+                    has.has_position_ratio = ZERO
 
-                for has in has_records_for_user:
-                    holding_data = holding_snaps_for_user_on_date.get(has.ho_id)
-                    if not holding_data:
-                        logger.debug(f"Skipping HAS id={has.id} (user_id={user_id}, ho_id={has.ho_id}, date={target_date}): No HoldingSnapshot data found.")
-                        continue
+                records_to_commit.append(has)
+                updated_count += 1
 
-                    # 计算 has_portfolio_contribution
-                    # 公式: contribution = holding_daily_pnl / portfolio_mv_yesterday
-                    # 此计算方式与 HoldingAnalyticsSnapshot 定义中的 "(该持仓当日收益额 / 整个组合昨日总市值)" 一致。
-                    # 并且，它也等价于“每日权重法”中单个持仓对组合的每日贡献 (每日权重 * 日收益率)。
-                    # hos_daily_pnl 已经包含了持仓层面的现金流和分红，代表了持仓当日的实际盈亏金额。
-                    prev_mv = ias_prev.ias_market_value if ias_prev else ZERO
-                    if prev_mv and prev_mv != ZERO:
-                        has.has_portfolio_contribution = holding_data.hos_daily_pnl / prev_mv
-                    else:
-                        # 如果前一日组合市值不存在或为零，则贡献度设为零。
-                        # 这通常发生在用户投资组合的第一个交易日。
-                        has.has_portfolio_contribution = ZERO
-
-                    # 计算 has_position_ratio
-                    # 公式: position_ratio = holding_mv / portfolio_mv (today)
-                    if ias_today.ias_market_value and ias_today.ias_market_value != ZERO:
-                        has.has_position_ratio = holding_data.hos_market_value / ias_today.ias_market_value
-                    else:
-                        # 如果当日组合市值不存在或为零，则仓位占比设为零。
-                        has.has_position_ratio = ZERO
-
-                    records_to_commit.append(has)
-                    updated_count += 1
         if records_to_commit:
             try:
-                db.session.bulk_save_objects(records_to_commit)  # 使用 bulk_save_objects 提高性能
+                db.session.bulk_save_objects(records_to_commit)
                 db.session.commit()
                 logger.info(f"Successfully updated {updated_count} HoldingAnalyticsSnapshot records.")
             except Exception as e:
                 db.session.rollback()
                 logger.exception(f"Error committing updates for HoldingAnalyticsSnapshot: {e}")
-                raise  # 重新抛出异常，以便上层调用者处理
-        else:
-            logger.info("No HoldingAnalyticsSnapshot records were updated in this run after processing.")
+                raise
 
         duration = round(time.time() - start_time, 2)
-        logger.info(f"Finished update_position_ratios_and_contributions task in {duration} seconds. Updated {updated_count} records.")
+        logger.info(f"Finished update_position_ratios_and_contributions in {duration}s. Updated {updated_count} records.")
         return {"updated": updated_count, "duration": duration}
