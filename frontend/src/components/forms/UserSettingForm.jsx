@@ -11,6 +11,7 @@ export default function UserSettingForm({onSubmit, onClose, initialValues}) {
         username: '',
         default_lang: 'zh-CN',
         email_address: '',
+        risk_free_rate: 0.02,
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -40,6 +41,7 @@ export default function UserSettingForm({onSubmit, onClose, initialValues}) {
                 username: initialValues.username || '',
                 default_lang: initialValues.default_lang || 'zh',
                 email_address: initialValues.email_address || '',
+                risk_free_rate: initialValues.risk_free_rate ?? 0.02,
             });
         }
     }, [initialValues]);
@@ -51,9 +53,9 @@ export default function UserSettingForm({onSubmit, onClose, initialValues}) {
                     <input
                         placeholder={t('th_username')}
                         value={form.username}
-                        onChange={(e) => setForm({...form, username: e.target.value})}
-                        required
-                        className="input-field"
+                        readOnly
+                        disabled
+                        className="input-field bg-slate-100 dark:bg-slate-700 cursor-not-allowed"
                     />
                 </FormField>
 
@@ -79,6 +81,28 @@ export default function UserSettingForm({onSubmit, onClose, initialValues}) {
                         onChange={(e) => setForm({...form, email_address: e.target.value})}
                         className="input-field"
                     />
+                </FormField>
+
+                <FormField label={t('th_risk_free_rate')}>
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="number"
+                            step="0.001"
+                            min="0"
+                            max="1"
+                            value={form.risk_free_rate}
+                            onChange={(e) => {
+                                const value = parseFloat(e.target.value);
+                                if (!isNaN(value) && value >= 0 && value <= 1) {
+                                    setForm({...form, risk_free_rate: value});
+                                }
+                            }}
+                            className="input-field flex-1"
+                        />
+                        <span className="text-sm text-slate-500 whitespace-nowrap">
+                            ({(form.risk_free_rate * 100).toFixed(2)}%)
+                        </span>
+                    </div>
                 </FormField>
             </div>
 

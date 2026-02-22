@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from flask import Blueprint, request, current_app, g
 from flask_jwt_extended import (
@@ -261,12 +262,23 @@ def update_user():
     data = request.get_json()
     email_address = data.get('email_address')
     default_lang = data.get('default_lang')
+    risk_free_rate = data.get('risk_free_rate')
 
     # 更新
     if email_address and user.email_address != email_address:
         user.email_address = email_address
     if default_lang and user.default_lang != default_lang:
         user.default_lang = default_lang
+
+    # 更新 risk_free_rate
+    if risk_free_rate is not None:
+        try:
+            rate = float(risk_free_rate)
+            if rate < 0 or rate > 1:
+                raise BizException(_("RISK_FREE_RATE_INVALID"))
+            user.risk_free_rate = Decimal(str(rate))
+        except (ValueError, TypeError):
+            raise BizException(_("RISK_FREE_RATE_INVALID"))
 
     db.session.commit()
     return Res.success()
