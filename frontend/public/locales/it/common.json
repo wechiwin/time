@@ -283,5 +283,10 @@
   "msg_loading_data": "Caricamento dati...",
   "nav_trend": "Andamento NAV",
   "tl_total_profit": "Profitto/Perdita Totale",
-  "holding_not_found": "Posizione non trovata"
+  "holding_not_found": "Posizione non trovata",
+
+  "not_found_title": "Pagina Non Trovata",
+  "not_found_description": "Spiacenti, la pagina che stai cercando non esiste o è stata rimossa.",
+  "back_to_home": "Torna alla Home",
+  "go_back": "Torna Indietro"
 }

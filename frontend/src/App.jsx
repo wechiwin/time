@@ -9,6 +9,7 @@ import NavHistoryDetailPage from "./pages/detail/NavHistoryDetailPage";
 import TradeHistoryDetailPage from "./pages/detail/TradeHistoryDetailPage";
 import AlertPage from "./pages/AlertPage";
 import LoginPage from "./pages/LoginPage";
+import NotFoundPage from "./pages/NotFoundPage";
 import PrivateRoute from "./components/common/PrivateRoute";
 import RegisterPage from "./pages/RegisterPage";
 import {DarkModeProvider} from "./components/context/DarkModeContext";
@@ -67,8 +68,8 @@ export default function App() {
                                         <Route path="/task_logs" element={<AsyncTaskLogPage/>}/>
                                     </Route>
                                 </Route>
-                                {/* 任何其他未匹配的路径重定向到 Dashboard 或 404 */}
-                                <Route path="*" element={<Navigate to="/dashboard" replace/>}/>
+                                {/* 404 页面 */}
+                                <Route path="*" element={<NotFoundPage/>}/>
                             </Routes>
                         </ColorProvider>
                     </EnumProvider>

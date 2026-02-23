@@ -286,5 +286,10 @@
   "msg_loading_data": "加载数据中...",
   "nav_trend": "净值走势",
   "tl_total_profit": "累计盈亏",
-  "holding_not_found": "持仓不存在"
+  "holding_not_found": "持仓不存在",
+
+  "not_found_title": "页面未找到",
+  "not_found_description": "抱歉，您访问的页面不存在或已被移除。",
+  "back_to_home": "返回首页",
+  "go_back": "返回上一页"
 }
