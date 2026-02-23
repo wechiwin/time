@@ -1,6 +1,6 @@
 // src/pages/NavHistoryDetailPage.jsx
-import { useParams } from 'react-router-dom';
-import { useEffect, useState, useCallback } from 'react';
+import {useParams} from 'react-router-dom';
+import {useEffect, useState, useCallback} from 'react';
 import NavHistoryChart from "../sub/NavHistoryChart";
 import HoldingInfoCard from "../sub/HoldingInfoCard";
 import useTradeList from "../../hooks/api/useTradeList";
@@ -8,7 +8,7 @@ import useHoldingList from "../../hooks/api/useHoldingList";
 import useHoldingTimeline from "../../hooks/useHoldingTimeline";
 import useHoldingSnapshot from "../../hooks/api/useHoldingSnapshot";
 import useNavHistoryList from "../../hooks/api/useNavHistoryList";
-import dayjs from "dayjs"; // 假设你有的通用抽屉组件
+import dayjs from "dayjs";
 
 export default function NavHistoryDetailPage() {
     const {ho_id} = useParams();
@@ -25,10 +25,10 @@ export default function NavHistoryDetailPage() {
     const [isFullHistoryLoaded, setIsFullHistoryLoaded] = useState(false);
 
     // API Hooks
-    const { listByHoId: fetchTrades } = useTradeList({ autoLoad: false });
-    const { getById: fetchHoldingInfo } = useHoldingList({ autoLoad: false });
-    const { list_hos: fetchSnapshots } = useHoldingSnapshot({ autoLoad: false });
-    const { list_history: fetchNavHistory } = useNavHistoryList({ autoLoad: false });
+    const {listByHoId: fetchTrades} = useTradeList({autoLoad: false});
+    const {getById: fetchHoldingInfo} = useHoldingList({autoLoad: false});
+    const {list_hos: fetchSnapshots} = useHoldingSnapshot({autoLoad: false});
+    const {list_history: fetchNavHistory} = useNavHistoryList({autoLoad: false});
 
     // 获取数据
     useEffect(() => {
@@ -86,10 +86,10 @@ export default function NavHistoryDetailPage() {
         }
     }, [ho_id, isFullHistoryLoaded, fetchNavHistory]);
 
-    const { rounds, globalStats } = useHoldingTimeline(trades, snapshots, fundInfo);
+    const {rounds, globalStats} = useHoldingTimeline(trades, snapshots, fundInfo);
 
     return (
-        <div className="bg-gray-50 dark:bg-gray-900 min-h-screen">
+        <div className="space-y-4">
             <HoldingInfoCard
                 fundInfo={fundInfo}
                 globalStats={globalStats}

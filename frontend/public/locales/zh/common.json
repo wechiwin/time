@@ -280,5 +280,11 @@
   "max_compare_funds": "最多只能选择 5 个对比基金",
   "msg_delete_default": "您确定要删除此项目吗？",
   "loading": "加载中...",
-  "please_select": "请选择"
+  "please_select": "请选择",
+  "chart_show_cost_line": "显示成本线",
+  "chart_cost_line": "成本线",
+  "msg_loading_data": "加载数据中...",
+  "nav_trend": "净值走势",
+  "tl_total_profit": "累计盈亏",
+  "holding_not_found": "持仓不存在"
 }

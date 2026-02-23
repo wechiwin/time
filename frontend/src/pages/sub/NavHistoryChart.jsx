@@ -249,7 +249,7 @@ export default function NavHistoryChart({navHistory, snapshots, trades, fundInfo
                 }
             },
             series,
-            backgroundColor: isDarkMode ? '#111827' : '#ffffff'
+            backgroundColor: isDarkMode ? '#1f2937' : '#ffffff'
         };
         return baseOptions;
     }, [legendData, legendSelected, xAxisData, series, isDarkMode]);
@@ -292,8 +292,8 @@ export default function NavHistoryChart({navHistory, snapshots, trades, fundInfo
                         value={chartKind}
                         onChange={e => setChartKind(e.target.value)}
                     >
-                        <option value="nav_per_unit">{t('th_nav_per_unit', '单位净值')}</option>
-                        <option value="nav_accumulated_per_unit">{t('th_nav_accumulated_per_unit', '累计净值')}</option>
+                        <option value="nav_per_unit">{t('th_price_per_unit', '单位净值')}</option>
+                        <option value="nav_accumulated_per_unit">{t('th_adj_ref_price', '累计净值')}</option>
                     </select>
 
                     <div className="flex items-center gap-2">
@@ -307,8 +307,9 @@ export default function NavHistoryChart({navHistory, snapshots, trades, fundInfo
                                 inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
                             />
                         </Switch>
-                        <span
-                            className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('chart_show_cost_line', '显示成本线')}</span>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            {t('chart_show_cost_line', '显示成本线')}
+                        </span>
                     </div>
                 </div>
 
@@ -373,6 +374,7 @@ export default function NavHistoryChart({navHistory, snapshots, trades, fundInfo
                 )}
 
                 <ReactECharts
+                    key={`${chartKind}-${showCostLine}`}
                     ref={chartRef}
                     option={getChartOptions()}
                     style={{height: 450}}
@@ -382,7 +384,7 @@ export default function NavHistoryChart({navHistory, snapshots, trades, fundInfo
                         text: t('msg_loading_data', '加载数据中...'),
                         color: isDarkMode ? '#6366f1' : '#4f46e5',
                         textColor: isDarkMode ? '#e5e7eb' : '#374151',
-                        maskColor: isDarkMode ? 'rgba(17, 24, 39, 0.7)' : 'rgba(255, 255, 255, 0.7)',
+                        maskColor: isDarkMode ? 'rgba(31, 41, 55, 0.7)' : 'rgba(255, 255, 255, 0.7)',
                         zlevel: 0
                     }}
                     notMerge={true}

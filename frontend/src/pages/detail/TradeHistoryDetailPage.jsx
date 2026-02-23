@@ -72,7 +72,7 @@ export default function TradeHistoryDetailPage() {
     if (!fundInfo) {
         return (
             <div className="flex h-full items-center justify-center text-gray-500">
-                <p>{t('fund_not_found') || 'Fund information not found.'}</p>
+                <p>{t('holding_not_found') || 'Holding information not found.'}</p>
             </div>
         );
     }

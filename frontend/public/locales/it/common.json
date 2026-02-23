@@ -277,5 +277,11 @@
   "max_compare_funds": "Massimo 5 fondi di confronto",
   "msg_delete_default": "Sei sicuro di voler eliminare questo elemento?",
   "loading": "Caricamento...",
-  "please_select": "Seleziona"
+  "please_select": "Seleziona",
+  "chart_show_cost_line": "Mostra Linea dei Costi",
+  "chart_cost_line": "Linea dei Costi",
+  "msg_loading_data": "Caricamento dati...",
+  "nav_trend": "Andamento NAV",
+  "tl_total_profit": "Profitto/Perdita Totale",
+  "holding_not_found": "Posizione non trovata"
 }

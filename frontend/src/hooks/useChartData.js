@@ -62,7 +62,7 @@ export default function useChartData({
             series.push({
                 name: t('chart_cost_line', '成本线'),
                 type: 'line',
-                data: mapDataToAxis(snapshots, 'snapshot_date', 'hos_cost_price'),
+                data: mapDataToAxis(snapshots, 'snapshot_date', 'avg_cost'),
                 smooth: true,
                 showSymbol: false,
                 lineStyle: {width: 1.5, type: 'dotted', color: '#f97316'}, // 橙色虚线
@@ -77,7 +77,7 @@ export default function useChartData({
             series.push({
                 name: compareName,
                 type: 'line',
-                data: mapDataToAxis(item.list, dataKey),
+                data: mapDataToAxis(item.list, 'nav_date', dataKey),
                 smooth: true,
                 showSymbol: false,
                 lineStyle: {width: 1.5, type: 'dashed'},
