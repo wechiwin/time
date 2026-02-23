@@ -6,7 +6,7 @@ services:
     container_name: time-backend
     restart: always
     env_file:
-      - backend/.env.prod
+      - backend/.env
     ports:
       - "8080:8080"
     volumes:
