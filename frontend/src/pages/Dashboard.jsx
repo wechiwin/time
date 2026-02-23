@@ -13,7 +13,7 @@ import {
 import useDarkMode from "../hooks/useDarkMode";
 import {formatCurrency, formatPercent, formatPercentNeutral, formatRatioAsPercent,} from '../utils/numberFormatters';
 import {getLineOption, getPieOption} from '../utils/chartOptions';
-import {getBadgeStyle, getColor} from "../utils/colorFormatters";
+import {useColorContext} from "../components/context/ColorContext";
 import {useEnumTranslation} from "../contexts/EnumContext";
 
 const TIME_RANGE_CONFIG = {
@@ -32,6 +32,7 @@ export default function Dashboard() {
     const {translateEnum} = useEnumTranslation();
     const [timeRange, setTimeRange] = useState('1y');
     const {dark: isDarkMode} = useDarkMode();
+    const {getProfitColor, getTradeColor, invertColors} = useColorContext();
     const [highlightedIndex, setHighlightedIndex] = useState(null);
     const chartRef = useRef(null);
     // 获取账户整体状况
@@ -97,8 +98,8 @@ export default function Dashboard() {
         [trend, isDarkMode, t]
     );
     const pieOption = useMemo(() =>
-            getPieOption(processedAllocation, isDarkMode, t('msg_no_records'), highlightedIndex, t),
-        [processedAllocation, isDarkMode, highlightedIndex, t]
+            getPieOption(processedAllocation, isDarkMode, t('msg_no_records'), highlightedIndex, t, invertColors),
+        [processedAllocation, isDarkMode, highlightedIndex, t, invertColors]
     );
 
     // 联动高亮效果
@@ -201,24 +202,24 @@ export default function Dashboard() {
                 <KpiCard
                     title={t('cumulative_profit_loss')}
                     value={formatCurrency(overviewData?.total_pnl)}
-                    valueColor={getColor(overviewData?.total_pnl)}
+                    valueColor={getProfitColor(overviewData?.total_pnl)}
                     subValue={overviewData?.total_pnl_ratio ? `${formatPercent(overviewData?.total_pnl_ratio)}` : '0.00%'}
-                    subValueColor={getColor(overviewData?.total_pnl_ratio)}
+                    subValueColor={getProfitColor(overviewData?.total_pnl_ratio)}
                     icon={<ScaleIcon className="w-5 h-5 text-purple-500"/>}
                 />
                 <KpiCard
                     title={t('cumulative_twrr')}
                     value={formatPercent(overviewData?.twrr_cum)}
-                    valueColor={getColor(overviewData?.twrr_cum)}
+                    valueColor={getProfitColor(overviewData?.twrr_cum)}
                     subValue={`年化 IRR: ${formatPercent(overviewData?.irr_ann)}`}
-                    subValueColor={getColor(overviewData?.total_pnl_ratio)}
+                    subValueColor={getProfitColor(overviewData?.total_pnl_ratio)}
                     icon={<PresentationChartLineIcon className="w-5 h-5 text-orange-500"/>}
                     tooltip={t('twrr_description')}
                 />
                 <KpiCard
                     title={t('max_drawdown')}
                     value={formatPercent(overviewData?.max_drawdown)}
-                    valueColor={getColor(overviewData?.max_drawdown)}
+                    valueColor={getProfitColor(overviewData?.max_drawdown)}
                     icon={<ClockIcon className="w-5 h-5 text-green-500"/>}
                     tooltip={t('irr_description')}
                 />
@@ -250,15 +251,15 @@ export default function Dashboard() {
                 <KpiCard
                     title={`${t('interval_profit_loss')} (${windowName})`}
                     value={formatCurrency(performance?.period_pnl)}
-                    valueColor={getColor(performance?.period_pnl)}
+                    valueColor={getProfitColor(performance?.period_pnl)}
                     subValue={formatPercent(performance?.period_pnl_ratio)}
-                    subValueColor={getColor(performance?.period_pnl_ratio)}
+                    subValueColor={getProfitColor(performance?.period_pnl_ratio)}
                     icon={<ScaleIcon className="w-6 h-6 text-purple-500"/>}
                 />
                 <KpiCard
                     title="TWRR"
                     value={formatPercent(performance?.twrr_cumulative)}
-                    valueColor={getColor(performance?.twrr_cumulative)}
+                    valueColor={getProfitColor(performance?.twrr_cumulative)}
                     subValue={performance?.irr_annualized === 0
                         ? `${t('annualized_irr')}: -`
                         : `${t('annualized_irr')}: ${formatPercent(performance?.irr_annualized)}`}
@@ -269,7 +270,7 @@ export default function Dashboard() {
                 <KpiCard
                     title={t('excess_return')}
                     value={formatPercent(performance?.alpha)}
-                    valueColor={getColor(performance?.alpha)}
+                    valueColor={getProfitColor(performance?.alpha)}
                     // Beta 衡量对市场的敏感度，与 Alpha 成对出现最合适
                     subValue={`Beta: ${performance?.beta ? formatPercent(performance.beta) : '-'}`}
                     subValueColor="text-gray-500"
@@ -280,7 +281,7 @@ export default function Dashboard() {
                 <KpiCard
                     title={t('benchmark_return_same_period')}
                     value={formatPercent(performance?.benchmark_cumulative_return)}
-                    valueColor={getColor(performance?.benchmark_cumulative_return)}
+                    valueColor={getProfitColor(performance?.benchmark_cumulative_return)}
                     // 显示具体的基准名称，让用户知道在和谁比
                     subValue={performance?.benchmark_name || '沪深300'}
                     icon={<ChartPieIcon className="w-6 h-6 text-gray-500"/>}
@@ -320,7 +321,7 @@ export default function Dashboard() {
                             {performance ? (
                                 <div className="grid grid-cols-2 gap-3">
                                     <RiskMetric label={t('label_sharpe_ratio')} value={performance.sharpe_ratio?.toFixed(2)} desc={t('hint_sharpe_ratio_optimal')}/>
-                                    <RiskMetric label={t('label_max_drawdown')} value={formatPercent(performance.max_drawdown)} color={getColor(performance.max_drawdown)} desc={t('smaller_is_better')}/>
+                                    <RiskMetric label={t('label_max_drawdown')} value={formatPercent(performance.max_drawdown)} color={getProfitColor(performance.max_drawdown)} desc={t('smaller_is_better')}/>
                                     <RiskMetric label={t('label_annualized_volatility')} value={formatPercent(performance.volatility)} desc={t('label_risk_level')}/>
                                     <RiskMetric label={t('label_win_rate')} value={formatPercent(performance.win_rate)} desc={t('label_profitable_days_ratio')}/>
                                 </div>
@@ -347,7 +348,7 @@ export default function Dashboard() {
                                         <tr key={alert.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                                             <td className="px-2 py-2 font-medium text-gray-900 dark:text-white">{alert.ar_name}</td>
                                             <td className="px-2 py-2">
-                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${getBadgeStyle(alert.action)}`}>
+                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${getTradeColor(alert.action)}`}>
                                                     {translateEnum('AlertRuleActionEnum', alert.action)}
                                                 </span>
                                             </td>
@@ -503,7 +504,8 @@ const ChartSkeleton = () => (
 
 // --- 抽离的子组件：增强型列表项 ---
 function AllocationListItem({item, index, isHighlighted, onHover, t}) {
-    const color = getColor(item.has_cumulative_pnl);
+    const {getProfitColor} = useColorContext();
+    const color = getProfitColor(item.has_cumulative_pnl);
     // 计算进度条宽度，假设最大比例为100%，或者是当前最大项的比例
     const widthPercent = Math.max(0, (item.has_position_ratio || 0) * 100);
     return (

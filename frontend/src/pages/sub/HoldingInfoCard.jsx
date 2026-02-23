@@ -7,6 +7,7 @@ import {
     ScaleIcon
 } from '@heroicons/react/24/outline';
 import {formatNumber, formatPercentNeutral} from "../../utils/numberFormatters";
+import {useColorContext} from "../../components/context/ColorContext";
 
 /**
  * 基金持仓概览卡片
@@ -19,6 +20,7 @@ export default function HoldingInfoCard({
                                             globalStats
                                         }) {
     const {t} = useTranslation();
+    const {getProfitColor} = useColorContext();
 
     // 辅助判断：是否有有效的统计数据
     const hasStats = !!globalStats;
@@ -118,7 +120,7 @@ export default function HoldingInfoCard({
                         {t('info_cumulative_returns', '累计收益')}
                     </div>
                     <div
-                        className={`font-semibold ${hasStats ? (globalStats.totalProfit >= 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400') : 'text-gray-900 dark:text-gray-200'}`}>
+                        className={`font-semibold ${hasStats ? getProfitColor(globalStats.totalProfit) : 'text-gray-900 dark:text-gray-200'}`}>
                         {hasStats ? (
                             <>
                                 {globalStats.totalProfit > 0 ? '+' : ''}
@@ -135,7 +137,7 @@ export default function HoldingInfoCard({
                         {t('info_cumulative_return_rate', '累计收益率')}
                     </div>
                     <div
-                        className={`font-semibold ${hasStats ? (globalStats.cumulativeReturnRate >= 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400') : 'text-gray-900 dark:text-gray-200'}`}>
+                        className={`font-semibold ${hasStats ? getProfitColor(globalStats.cumulativeReturnRate) : 'text-gray-900 dark:text-gray-200'}`}>
                         {hasStats ? (
                             <>
                                 {globalStats.cumulativeReturnRate > 0 ? '+' : ''}

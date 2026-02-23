@@ -1,4 +1,5 @@
 // src/utils/chartOptions.js
+import {getProfitHex} from './colorFormatters';
 
 // 空数据处理配置
 const getEmptyOption = (isDark, text) => ({
@@ -171,7 +172,7 @@ const hslToHex = (h, s, l) => {
 };
 
 // 饼图配置
-export const getPieOption = (data, isDark, emptyMsg, highlightedIndex = null, t) => {
+export const getPieOption = (data, isDark, emptyMsg, highlightedIndex = null, t, invertColors = false) => {
     if (!Array.isArray(data) || data.length === 0) {
         return getEmptyOption(isDark, emptyMsg);
     }
@@ -194,8 +195,8 @@ export const getPieOption = (data, isDark, emptyMsg, highlightedIndex = null, t)
                 const {rawData} = data;
                 if (!rawData) return `${name}: ${(value * 100).toFixed(2)}%`;
 
-                const pnlColor = rawData.has_cumulative_pnl >= 0 ? '#ef4444' : '#22c55e';
-                const contributionColor = rawData.has_portfolio_contribution >= 0 ? '#ef4444' : '#22c55e';
+                const pnlColor = getProfitHex(rawData.has_cumulative_pnl, invertColors);
+                const contributionColor = getProfitHex(rawData.has_portfolio_contribution, invertColors);
 
                 return `
                     <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid ${isDark ? '#374151' : '#e5e7eb'}; display: flex; align-items: center;">

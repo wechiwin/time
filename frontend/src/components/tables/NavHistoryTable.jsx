@@ -1,5 +1,6 @@
 // src/components/tables/NavHistoryTable.jsx
 import DeleteButton from '../common/DeleteButton';
+import EditButton from '../common/EditButton';
 import {useTranslation} from "react-i18next";
 import {useNavigate} from "react-router-dom";
 
@@ -39,12 +40,7 @@ export default function NavHistoryTable({data = [], onDelete, onEdit}) {
                         <td className="table-cell">{n.nav_accumulated_per_unit}</td>
                         <td className="table-cell sticky-action-cell">
                             <div className="flex items-center space-x-2">
-                                <button
-                                    className="btn-secondary"
-                                    onClick={() => onEdit(n)}
-                                >
-                                    {t('button_edit')}
-                                </button>
+                                <EditButton onClick={() => onEdit(n)} title={t('button_edit')} />
                                 <DeleteButton
                                     onConfirm={() => onDelete(n.id)}
                                     description={`${n.ho_code} - ${n.nav_date} ?`}

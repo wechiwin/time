@@ -4,11 +4,13 @@ import ReactECharts from 'echarts-for-react';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import useNavHistoryList from "../../hooks/api/useNavHistoryList";
-import { formatCurrency, formatNumber } from '../../utils/numberFormatters'; // 假设你有这些工具函数
+import { formatCurrency, formatNumber } from '../../utils/numberFormatters';
+import { useColorContext } from '../../components/context/ColorContext';
 
 export default function NavChart({ hoId, startDate, endDate, trades = [], className = '' }) {
     const { t } = useTranslation();
     const { list_history } = useNavHistoryList({ autoLoad: false });
+    const { getTradeHex, getProfitColor } = useColorContext();
     const [navData, setNavData] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -48,7 +50,7 @@ export default function NavChart({ hoId, startDate, endDate, trades = [], classN
             symbolRotate: trade.tr_type === 'BUY' ? 0 : 180, // 卖出倒置
             symbolSize: 12,
             itemStyle: {
-                color: trade.tr_type === 'BUY' ? '#ef4444' : '#3b82f6',
+                color: getTradeHex(trade.tr_type),
                 borderColor: '#fff',
                 borderWidth: 1
             },
@@ -56,7 +58,7 @@ export default function NavChart({ hoId, startDate, endDate, trades = [], classN
                 show: false // 图表上不直接显示文字，避免遮挡，依靠 Tooltip
             }
         }));
-    }, [trades]);
+    }, [trades, getTradeHex]);
 
     const chartOption = {
         tooltip: {
@@ -83,12 +85,12 @@ export default function NavChart({ hoId, startDate, endDate, trades = [], classN
                     } else if (param.seriesName === '交易点') {
                         // 从 data.extra 中获取我们在 useMemo 中存入的交易对象
                         const trade = param.data.extra;
-                        const typeColor = trade.tr_type === 'BUY' ? 'text-red-500' : 'text-blue-500';
+                        const typeColor = getTradeHex(trade.tr_type);
                         const typeName = trade.tr_type === 'BUY' ? t('tr_type_buy') : t('tr_type_sell');
 
                         html += `
                             <div class="mt-2 pt-1 border-t border-dashed border-gray-200 text-xs">
-                                <div class="flex justify-between font-bold ${typeColor}">
+                                <div class="flex justify-between font-bold" style="color: ${typeColor}">
                                     <span>${typeName}</span>
                                     <span>${formatCurrency(trade.tr_amount)}</span>
                                 </div>

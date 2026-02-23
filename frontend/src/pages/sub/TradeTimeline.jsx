@@ -14,12 +14,13 @@ import {
 } from '@heroicons/react/24/outline';
 import {formatCurrency, formatPercent, formatNumber} from '../../utils/numberFormatters';
 import NavChart from './NavChart';
-import {getColor} from "../../utils/colorFormatters"; // 新建图表组件
+import {useColorContext} from "../../components/context/ColorContext";
 import {useEnumTranslation} from "../../contexts/EnumContext";
 
 export default function TradeTimeline({rounds = [], loading = false}) {
     const {t} = useTranslation();
     const {translateEnum} = useEnumTranslation();
+    const {getProfitColor, invertColors} = useColorContext();
     const [sortOrder, setSortOrder] = useState('desc');
 
     const sortedRounds = useMemo(() => {
@@ -36,19 +37,38 @@ export default function TradeTimeline({rounds = [], loading = false}) {
 
     const getTypeStyle = (type) => {
         const isBuy = type === 'BUY';
-        return isBuy
-            ? {
-                bg: 'bg-red-50 dark:bg-red-900/20',
-                text: 'text-red-700 dark:text-red-300',
-                border: 'border-red-200 dark:border-red-700',
-                dot: 'bg-red-500'
-            }
-            : {
-                bg: 'bg-blue-50 dark:bg-blue-900/20',
-                text: 'text-blue-700 dark:text-blue-300',
-                border: 'border-blue-200 dark:border-blue-700',
-                dot: 'bg-blue-500'
-            };
+        // Chinese: red=buy, blue/green=sell; International: green=buy, red=sell
+        if (invertColors) {
+            // Chinese convention
+            return isBuy
+                ? {
+                    bg: 'bg-red-50 dark:bg-red-900/20',
+                    text: 'text-red-700 dark:text-red-300',
+                    border: 'border-red-200 dark:border-red-700',
+                    dot: 'bg-red-500'
+                }
+                : {
+                    bg: 'bg-green-50 dark:bg-green-900/20',
+                    text: 'text-green-700 dark:text-green-300',
+                    border: 'border-green-200 dark:border-green-700',
+                    dot: 'bg-green-500'
+                };
+        } else {
+            // International convention
+            return isBuy
+                ? {
+                    bg: 'bg-green-50 dark:bg-green-900/20',
+                    text: 'text-green-700 dark:text-green-300',
+                    border: 'border-green-200 dark:border-green-700',
+                    dot: 'bg-green-500'
+                }
+                : {
+                    bg: 'bg-red-50 dark:bg-red-900/20',
+                    text: 'text-red-700 dark:text-red-300',
+                    border: 'border-red-200 dark:border-red-700',
+                    dot: 'bg-red-500'
+                };
+        }
     };
 
     return (
@@ -82,8 +102,8 @@ export default function TradeTimeline({rounds = [], loading = false}) {
                     <>
                         {sortedRounds.map((round, idx) => {
                             const holdDays = calculateHoldDays(round.startDate, round.endDate, round.isClear);
-                            const profitColor = getColor(round.stats.totalProfit);
-                            const returnRateColor = getColor(round.stats.returnRate * 100);
+                            const profitColor = getProfitColor(round.stats.totalProfit);
+                            const returnRateColor = getProfitColor(round.stats.returnRate * 100);
 
                             return (
                                 <div key={idx}
@@ -184,7 +204,7 @@ export default function TradeTimeline({rounds = [], loading = false}) {
                                                 className="relative pl-4 border-l-2 border-gray-200 dark:border-gray-600 space-y-6">
                                                 {(sortOrder === 'asc' ? round.trades : [...round.trades].reverse()).map((trade) => {
                                                     const style = getTypeStyle(trade.tr_type);
-                                                    const amountColor = getColor(trade.cash_amount);
+                                                    const amountColor = getProfitColor(trade.cash_amount);
 
                                                     return (
                                                         <div key={trade.id} className="relative">
@@ -225,7 +245,7 @@ export default function TradeTimeline({rounds = [], loading = false}) {
                                                             {/* --- 使用 Grid 布局优化 4 个字段的显示 --- */}
                                                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-3 gap-x-4 text-xs bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700/50 mt-1">
                                                                 <div className="flex flex-col">
-                                                                    <span className="text-gray-400 scale-90 origin-left mb-0.5">{t('th_tr_nav_per_unit')}</span>
+                                                                    <span className="text-gray-400 scale-90 origin-left mb-0.5">{t('th_price_per_unit')}</span>
                                                                     <span className="font-mono text-gray-700 dark:text-gray-300">{formatNumber(trade.tr_nav_per_unit, 4)}</span>
                                                                 </div>
                                                                 <div className="flex flex-col">

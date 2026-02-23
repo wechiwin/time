@@ -1,4 +1,5 @@
 import DeleteButton from '../common/DeleteButton';
+import EditButton from '../common/EditButton';
 import {useTranslation} from 'react-i18next';
 import {useEnumTranslation} from '../../contexts/EnumContext';
 
@@ -35,12 +36,7 @@ export default function AlertRuleTable({data = [], onDelete, onEdit}) {
                         <td className="table-cell">{getStatusText(rule.ar_is_active)}</td>
                         <td className="table-cell sticky-action-cell">
                             <div className="flex items-center space-x-2">
-                                <button
-                                    className="btn-secondary"
-                                    onClick={() => onEdit(rule)}
-                                >
-                                    {t('button_edit')}
-                                </button>
+                                <EditButton onClick={() => onEdit(rule)} title={t('button_edit')} />
                                 <DeleteButton
                                     onConfirm={() => onDelete(rule.id)}
                                     description={`${rule.ar_name} ?`}

@@ -1,5 +1,6 @@
 // src/utils/echartsConfig.js
 import * as echarts from 'echarts';
+import {getProfitHex} from './colorFormatters';
 
 // 暗黑模式主题配置
 export const darkTheme = {
@@ -142,7 +143,7 @@ export const getPieChartOption = (data, isDarkMode) => {
 };
 
 // 收益趋势图配置
-export const getLineChartOption = (data, isDarkMode) => {
+export const getLineChartOption = (data, isDarkMode, invertColors = false) => {
     const theme = getTheme(isDarkMode);
 
     return {
@@ -166,7 +167,7 @@ export const getLineChartOption = (data, isDarkMode) => {
             formatter: function(params) {
                 const date = params[0].axisValue;
                 const value = params[0].value;
-                const color = value >= 0 ? '#10b981' : '#ef4444';
+                const color = getProfitHex(value, invertColors);
 
                 return `
           <div style="font-weight: bold; margin-bottom: 4px">${date}</div>

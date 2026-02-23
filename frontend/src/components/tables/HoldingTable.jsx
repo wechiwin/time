@@ -1,5 +1,6 @@
 // src/components/tables/FundTable.jsx
 import DeleteButton from '../common/DeleteButton';
+import EditButton from '../common/EditButton';
 import {useNavigate} from 'react-router-dom';
 import {useTranslation} from 'react-i18next'
 import {useEnumTranslation} from '../../contexts/EnumContext';
@@ -51,12 +52,7 @@ export default function HoldingTable({data = [], onDelete, onEdit}) {
                         {/* <td className="table-cell">{f.currency}</td> */}
                         <td className="table-cell sticky-action-cell">
                             <div className="flex items-center justify-center gap-2">
-                                <button
-                                    className="btn-secondary"
-                                    onClick={() => onEdit(f)}
-                                >
-                                    {t('button_edit')}
-                                </button>
+                                <EditButton onClick={() => onEdit(f)} title={t('button_edit')} />
                                 <DeleteButton
                                     onConfirm={() => onDelete(f)}
                                     description={`${f.ho_short_name} ?`}

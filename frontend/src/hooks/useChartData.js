@@ -1,6 +1,7 @@
 // src/hooks/useChartData.js
 import {useMemo} from 'react';
 import {useTranslation} from 'react-i18next';
+import {useColorContext} from '../components/context/ColorContext';
 
 /**
  * 将原始数据转换为 ECharts 所需的格式
@@ -22,6 +23,7 @@ export default function useChartData({
                                          mainFundName = ''
                                      }) {
     const {t} = useTranslation();
+    const {colors} = useColorContext();
 
     return useMemo(() => {
         // 1. 收集所有日期并创建统一的 X 轴
@@ -94,7 +96,7 @@ export default function useChartData({
                     value: [tr.tr_date, tr.tr_nav_per_unit],
                     symbol: 'triangle',
                     symbolSize: 12,
-                    itemStyle: {color: '#ef4444'}, // red-500
+                    itemStyle: {color: colors.buy.hex},
                 }));
 
             const sellPoints = trades
@@ -105,7 +107,7 @@ export default function useChartData({
                     symbol: 'triangle',
                     symbolRotate: 180,
                     symbolSize: 12,
-                    itemStyle: {color: '#22c55e'}, // green-500
+                    itemStyle: {color: colors.sell.hex},
                 }));
 
             series.push({
@@ -138,5 +140,5 @@ export default function useChartData({
 
         return {xAxisData, series, legendData, legendSelected};
 
-    }, [navHistory, snapshots, trades, compareDataMap, chartKind, showCostLine, mainFundName, t]);
+    }, [navHistory, snapshots, trades, compareDataMap, chartKind, showCostLine, mainFundName, t, colors]);
 }
