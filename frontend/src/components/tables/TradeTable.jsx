@@ -102,7 +102,7 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                         <th scope="col" className="table-header">{t('th_cash_amount')}</th>
                         <th scope="col" className="table-header">{t('th_tr_fee')}</th>
                         <th scope="col" className="table-header">{t('th_tr_amount')}</th>
-                        <th scope="col" className="table-header sticky right-0 !bg-white dark:!bg-gray-800 z-20 border-l border-slate-200 dark:border-slate-700">{t('th_actions')}</th>
+                        <th scope="col" className="table-header sticky-action-header">{t('th_actions')}</th>
                     </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -126,7 +126,7 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                             <td className="table-cell">{tr.tr_amount}</td>
                             <td className="table-cell">{tr.tr_fee}</td>
                             <td className="table-cell">{tr.cash_amount}</td>
-                            <td className="table-cell sticky right-0 !bg-white dark:!bg-gray-800 z-20 border-l border-slate-200 dark:border-slate-700/50">
+                            <td className="table-cell sticky-action-cell">
                                 <div className="flex items-center justify-end space-x-2">
                                     <button
                                         className="btn-secondary"

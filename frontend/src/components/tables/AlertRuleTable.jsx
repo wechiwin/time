@@ -21,19 +21,19 @@ export default function AlertRuleTable({data = [], onDelete, onEdit}) {
                     <th className="table-header">{t('alert_type')}</th>
                     <th className="table-header">{t('alert_target_price')}</th>
                     <th className="table-header">{t('alert_status')}</th>
-                    <th className="table-header sticky right-0 !bg-white dark:!bg-gray-800 z-20 border-l border-slate-200 dark:border-slate-700">{t('th_actions')}</th>
+                    <th className="table-header sticky-action-header">{t('th_actions')}</th>
                 </tr>
                 </thead>
-                <tbody className="card divide-y divide-gray-200">
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {data.map((rule) => (
-                    <tr key={rule.id} className="hover:page-bg">
+                    <tr key={rule.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
                         <td className="table-cell">{rule.ho_code}</td>
                         {/* <td className="table-cell">{rule.ho_short_name}</td> */}
                         <td className="table-cell">{rule.ar_name}</td>
                         <td className="table-cell">{translateEnum('AlertRuleActionEnum', rule.action)}</td>
                         <td className="table-cell">{rule.target_price}</td>
                         <td className="table-cell">{getStatusText(rule.ar_is_active)}</td>
-                        <td className="table-cell sticky right-0 !bg-white dark:!bg-gray-800 z-20 border-l border-slate-200 dark:border-slate-700/50">
+                        <td className="table-cell sticky-action-cell">
                             <div className="flex items-center space-x-2">
                                 <button
                                     className="btn-secondary"

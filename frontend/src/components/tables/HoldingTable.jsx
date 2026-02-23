@@ -26,7 +26,9 @@ export default function HoldingTable({data = [], onDelete, onEdit}) {
                     <th className="table-header">{t('th_ho_establish_date')}</th>
                     <th className="table-header">{t('info_hold_status')}</th>
                     {/* <th className="table-header">{t('th_currency')}</th> */}
-                    <th scope="col" className="table-header sticky right-0 !bg-white dark:!bg-gray-800 z-20 border-l border-slate-200 dark:border-slate-700">{t('th_actions')}</th>
+                    <th scope="col" className="table-header sticky-action-header">
+                        {t('th_actions')}
+                    </th>
                 </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -47,8 +49,8 @@ export default function HoldingTable({data = [], onDelete, onEdit}) {
                         <td className="table-cell">{f.establishment_date}</td>
                         <td className="table-cell">{translateEnum('HoldingStatusEnum', f.ho_status)}</td>
                         {/* <td className="table-cell">{f.currency}</td> */}
-                        <td className="table-cell sticky right-0 !bg-white dark:!bg-gray-800 z-20 border-l border-slate-200 dark:border-slate-700/50">
-                            <div className="flex items-center space-x-2">
+                        <td className="table-cell sticky-action-cell">
+                            <div className="flex items-center justify-center gap-2">
                                 <button
                                     className="btn-secondary"
                                     onClick={() => onEdit(f)}

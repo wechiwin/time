@@ -42,7 +42,7 @@ export default function AsyncTaskLogTable({data = [], onDelete}) {
                     <th scope="col" className="table-header">{t('th_retries')}</th>
                     <th scope="col" className="table-header">{t('th_updated_at')}</th>
                     <th scope="col" className="table-header">{t('th_created_at')}</th>
-                    <th scope="col" className="table-header sticky right-0 !bg-white dark:!bg-gray-800 z-20 border-l border-slate-200 dark:border-slate-700">{t('th_actions')}</th>
+                    <th scope="col" className="table-header sticky-action-header">{t('th_actions')}</th>
                 </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -55,7 +55,7 @@ export default function AsyncTaskLogTable({data = [], onDelete}) {
                         <td className="table-cell">{`${log.retry_count} / ${log.max_retries}`}</td>
                         <td className="table-cell">{log.updated_at}</td>
                         <td className="table-cell">{log.created_at}</td>
-                        <td className="table-cell sticky right-0 !bg-white dark:!bg-gray-800 z-20 border-l border-slate-200 dark:border-slate-700/50">
+                        <td className="table-cell sticky-action-cell">
                             {onDelete && (
                                 <DeleteButton
                                     onConfirm={() => onDelete(log.id)}

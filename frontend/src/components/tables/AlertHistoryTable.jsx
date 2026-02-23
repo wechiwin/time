@@ -20,9 +20,9 @@ export default function AlertHistoryTable({data = []}) {
                     <th className="table-header">{t('th_created_at')}</th>
                 </tr>
                 </thead>
-                <tbody className="card divide-y divide-gray-200">
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {data.map((history, index) => (
-                    <tr key={history.id || index} className="hover:page-bg">
+                    <tr key={history.id || index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
                         <td className="table-cell">{history.ho_code}</td>
                         <td className="table-cell">{history.ar_name}</td>
                         <td className="table-cell">{history.target_price}</td>

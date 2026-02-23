@@ -53,25 +53,6 @@
     animation-delay: 4s;
 }
 
-/* 全局表单控件样式 */
-.input-field {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all;
-}
-
-/* 表格样式 */
-.table-container {
-    @apply overflow-x-auto border border-gray-200 rounded-lg
-    max-w-full;
-}
-
-.table-header {
-    @apply px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 tracking-wider bg-gray-50;
-}
-
-.table-cell {
-    @apply px-3 md:px-6 py-3 text-sm text-gray-500;
-}
-
 @layer components {
     /* 卡片或页面背景 */
     .page-bg {
@@ -198,8 +179,8 @@
     .table-header {
         @apply px-3 py-3 md:px-6 text-xs md:text-sm font-semibold
         text-slate-600 dark:text-slate-300
-        tracking-wider text-left whitespace-nowrap
-        bg-slate-100 dark:bg-slate-800/50 /* 调整表头背景 */
+        tracking-wider text-center whitespace-nowrap
+        bg-slate-100 dark:bg-slate-800/50
         border-b border-slate-200 dark:border-slate-700
         sticky top-0 z-10;
     }
@@ -208,8 +189,8 @@
     .table-cell {
         @apply px-3 py-2 md:px-6 md:py-4 whitespace-nowrap
         text-xs md:text-sm text-slate-700 dark:text-slate-300
-        border-b border-slate-100 dark:border-slate-700/50;
-        /* 调整边框颜色 */
+        border-b border-slate-100 dark:border-slate-700/50
+        text-center; /* 添加全局居中 */
     }
 
     /* 搜索区容器：flex 布局、间距、右端按钮组自动靠右 */
@@ -245,7 +226,38 @@
         color: #d1d5db; /* gray-300 */
     }
 
-    /* 自定义滚动条样式已被全局样式统一，以下保留以便向后兼容 */
+    /* === 表格固定列样式 (Action Column) === */
+    /* 1. 表头固定列：颜色需与 table-header 保持一致 */
+    .sticky-action-header {
+        @apply sticky right-0 z-30 border-l border-slate-200 dark:border-slate-700
+        bg-slate-100 dark:bg-slate-800 !important;
+        text-align: center; /* 明确强制居中 */
+        box-shadow: -4px 0 6px -4px rgba(0, 0, 0, 0.1);
+    }
+
+    /* 2. 单元格固定列：背景需完全不透明 */
+    .sticky-action-cell {
+        @apply sticky right-0 z-20 border-l border-slate-200 dark:border-slate-700/50
+        bg-white dark:bg-slate-800 transition-colors duration-150 !important;
+        text-align: center; /* 单元格内容居中 */
+        box-shadow: -4px 0 6px -4px rgba(0, 0, 0, 0.1);
+    }
+
+    /* 3. 处理 Hover 状态：当行被 hover 时，固定列同步变色 */
+    tr:hover .sticky-action-cell {
+        @apply bg-slate-50 dark:bg-slate-700/60 !important;
+    }
+
+    /* 暗色模式下的阴影加强 */
+    .dark .sticky-action-header,
+    .dark .sticky-action-cell {
+        box-shadow: -8px 0 12px -8px rgba(0, 0, 0, 0.5);
+    }
+
+    /* 确保表格容器在有固定列时，边框不穿透 */
+    .table-container {
+        @apply border-separate border-spacing-0;
+    }
 
     /* React Select 样式 */
     .react-multi-select .select__control {
@@ -568,7 +580,6 @@
    自定义滚动条样式 - 适配暗黑模式
    统一为细样式 (与 Dashboard 保持一致)
    ========================================= */
-
     /* 全局滚动条样式 - 细样式 (6px 宽，轨道透明) */
     /* Firefox 滚动条样式 */
     .table-container,
