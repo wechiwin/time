@@ -38,16 +38,55 @@ class FundNavHistoryService:
         return results
 
     @classmethod
-    def crawl_all_nav_history(cls, ):
+    def crawl_nav_history_by_date_range(cls, start_date, end_date):
         """
-        爬取所有基金的市场数据
+        根据开始和结束时间爬取所有基金的净值数据
+        :param start_date: 开始日期
+        :param end_date: 结束日期
+        :return: dict with 'success_count', 'fail_count', 'errors'
+        """
+        # 查询所有基金的信息
+        all_holdings = Holding.query.all()
+        if not all_holdings:
+            return {'success_count': 0, 'fail_count': 0, 'errors': []}
+
+        success_count = 0
+        fail_count = 0
+        errors = []
+
+        for holding in all_holdings:
+            ho_code = holding.ho_code
+
+            try:
+                inserted = cls.crawl_one_nav_and_insert(holding, start_date, end_date)
+                logger.info(f"Crawled {ho_code}: inserted {inserted} records")
+                success_count += 1
+                time.sleep(0.5)
+            except Exception as e:
+                fail_count += 1
+                error_msg = f"Failed to crawl {ho_code} in range [{start_date}, {end_date}]: {e}"
+                logger.exception(error_msg)
+                errors.append({'ho_code': ho_code, 'error': str(e)})
+
+        return {
+            'success_count': success_count,
+            'fail_count': fail_count,
+            'errors': errors
+        }
+
+    @classmethod
+    def crawl_all_nav_history(cls):
+        """
+        爬取所有基金的全部历史净值数据（智能补充缺失数据）
+        - 如果数据库无记录：从成立日爬到昨天
+        - 如果有记录：补充最新数据 + 补充早期缺失数据
         """
         yesterday = datetime.now().date() - timedelta(days=1)
 
         # 查询所有基金的信息
         all_holdings = Holding.query.all()
         if not all_holdings:
-            return {'inserted': 0, 'errors': []}
+            return {'success_count': 0, 'fail_count': 0, 'errors': []}
 
         # 一次查询获取所有持仓的最大和最小日期
         date_stats_query = db.session.query(
@@ -58,7 +97,9 @@ class FundNavHistoryService:
 
         date_stats = {row.ho_id: {'min': row.min_date, 'max': row.max_date} for row in date_stats_query}
 
-        total_inserted = 0
+        success_count = 0
+        fail_count = 0
+        errors = []
 
         for holding in all_holdings:
             ho_id = holding.id
@@ -71,7 +112,6 @@ class FundNavHistoryService:
                 continue
 
             stats = date_stats.get(ho_id)
-
             ranges_to_crawl = []
 
             if not stats:
@@ -87,21 +127,36 @@ class FundNavHistoryService:
                 if stats['min'] > ho_establish_date:
                     end_date = stats['min'] - timedelta(days=1)
                     ranges_to_crawl.append((ho_establish_date, end_date))
+
             # 遍历所有需要爬取的范围，执行爬取和保存
             for start_date, end_date in ranges_to_crawl:
                 try:
-                    # inserted_count = cls._crawl_and_save_single_range(
-                    #     holding, start_date, end_date
-                    # )
-                    data = cls.crawl_one_nav_and_insert(holding, start_date, end_date)
-                    # logger.info(data)
-                    # cls.save_market_data_to_db(data, holding, start_date, end_date)
+                    inserted = cls.crawl_one_nav_and_insert(holding, start_date, end_date)
+                    logger.info(f"Crawled {ho_code}: inserted {inserted} records in range [{start_date}, {end_date}]")
+                    success_count += 1
                     time.sleep(0.5)
                 except Exception as e:
-                    msg = f"Failed to crawl/save for {ho_code} in range [{start_date}, {end_date}]: {e}"
-                    # 使用 logger 记录完整错误堆栈，便于排查
-                    logger.exception(msg)
-        return True
+                    fail_count += 1
+                    error_msg = f"Failed to crawl {ho_code} in range [{start_date}, {end_date}]: {e}"
+                    logger.exception(error_msg)
+                    errors.append({'ho_code': ho_code, 'range': f'{start_date} ~ {end_date}', 'error': str(e)})
+
+        return {
+            'success_count': success_count,
+            'fail_count': fail_count,
+            'errors': errors
+        }
+
+    @classmethod
+    def crawl_yesterday_nav_history(cls):
+        """
+        爬取所有基金昨天的净值数据
+        用于每日增量更新
+        """
+        yesterday = datetime.now().date() - timedelta(days=1)
+        logger.info(f"Starting to crawl yesterday's nav history for all holdings: {yesterday}")
+
+        return cls.crawl_nav_history_by_date_range(yesterday, yesterday)
 
     @classmethod
     def crawl_one_nav_and_insert(cls,
@@ -170,7 +225,7 @@ class FundNavHistoryService:
                 page += 1
                 time.sleep(0.5)  # 防爬，避免请求过快
             except Exception as e:
-                logger.exception()
+                logger.exception(e)
                 raise BizException(_("CRAWL_PAGE_ERROR") % {"ho_code": holding.ho_code, "page": page})
 
         # 储存数据
@@ -189,7 +244,7 @@ class FundNavHistoryService:
             return len(all_data)
         except Exception as e:
             db.session.rollback()
-            logger.exception()
+            logger.exception(e)
             raise BizException(_("DATA_SAVE_FAILED") % {"ho_code": holding.ho_code})
 
     @staticmethod

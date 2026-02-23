@@ -1,7 +1,8 @@
 # app/scheduler/__init__.py
 import os
 from .daily_snapshot_consume_job import consume_async_tasks
-from .net_value_jobs import crawl_all_fund_net_values
+from .daily_snapshot_produce_job import produce_async_tasks
+from .net_value_jobs import crawl_holding_data
 
 
 def _context_wrapper(app, func):
@@ -27,12 +28,22 @@ def init_scheduler(app, scheduler):
 
     # 统一加任务
     scheduler.add_job(
-        id='crawl_all_fund_net_values',
-        func=_context_wrapper(app, crawl_all_fund_net_values),
+        id='crawl_holding_data',
+        func=_context_wrapper(app, crawl_holding_data),
         trigger='cron',
-        hour=2,
-        minute=0,
-        second=0,
+        hour=0,
+        minute=24,
+        second=3,
+        replace_existing=True
+    )
+
+    scheduler.add_job(
+        id='produce_async_tasks',
+        func=_context_wrapper(app, produce_async_tasks),
+        trigger='cron',
+        hour=1,
+        minute=22,
+        second=3,
         replace_existing=True
     )
 
@@ -40,12 +51,12 @@ def init_scheduler(app, scheduler):
         id='consume_async_tasks',
         func=_context_wrapper(app, consume_async_tasks),
         trigger='interval',
-        minutes=1,
+        minutes=3,
         replace_existing=True
     )
 
     scheduler.start()
-    app.logger.info("APScheduler started with jobs: crawl_all_fund_net_values, consume_async_tasks")
+    app.logger.info("APScheduler started with jobs")
 
     #     scheduler.add_job(
 #         id='test_job',
