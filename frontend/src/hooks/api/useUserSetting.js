@@ -56,7 +56,7 @@ export default function useUserSetting() {
 
     // 更新用户设置
     const updateUser = useCallback(async (userData) => {
-        const result = await post(urlPrefix + '/user', {userData});
+        const result = await post(urlPrefix + '/update_user', userData);
         return result;
     }, [post]);
 

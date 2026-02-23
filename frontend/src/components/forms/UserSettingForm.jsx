@@ -9,7 +9,7 @@ export default function UserSettingForm({onSubmit, onClose, initialValues}) {
     const [form, setForm] = useState({
         us_id: '',
         username: '',
-        default_lang: 'zh-CN',
+        default_lang: 'en',
         email_address: '',
         risk_free_rate: 0.02,
     });
@@ -66,7 +66,7 @@ export default function UserSettingForm({onSubmit, onClose, initialValues}) {
                         className="input-field"
                     >
                         {LANGUAGES.map((option) => (
-                            <option key={option.code} value={option.value}>
+                            <option key={option.code} value={option.code}>
                                 {option.name}
                             </option>
                         ))}
