@@ -1,8 +1,10 @@
 # app/scheduler/__init__.py
 import os
+
+from .check_alert_rules import check_alert_rules, send_alert_mail
+from .crawl_holding_data import crawl_holding_data
 from .daily_snapshot_consume_job import consume_async_tasks
 from .daily_snapshot_produce_job import produce_async_tasks
-from .net_value_jobs import crawl_holding_data
 
 
 def _context_wrapper(app, func):
@@ -52,6 +54,22 @@ def init_scheduler(app, scheduler):
         func=_context_wrapper(app, consume_async_tasks),
         trigger='interval',
         minutes=3,
+        replace_existing=True
+    )
+
+    scheduler.add_job(
+        id='check_alert_rules',
+        func=_context_wrapper(app, check_alert_rules),
+        trigger='interval',
+        minutes=55,
+        replace_existing=True
+    )
+
+    scheduler.add_job(
+        id='send_alert_mail',
+        func=_context_wrapper(app, send_alert_mail),
+        trigger='interval',
+        minutes=58,
         replace_existing=True
     )
 

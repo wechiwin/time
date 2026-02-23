@@ -158,5 +158,5 @@ def alert_job():
 @alert_bp.route('/history/mail_job', methods=['GET'])
 @auth_required
 def mail_job():
-    AlertService.trigger_alert_job()
+    AlertService.send_alert_mail()
     return Res.success()

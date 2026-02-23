@@ -65,7 +65,7 @@ class EnumViewMixin:
                 if hasattr(enum_member, 'view'):
                     data[f"{field_name}$view"] = str(enum_member.view)
             except Exception as e:
-                logger.exception()
+                logger.exception(e)
 
         return data
 

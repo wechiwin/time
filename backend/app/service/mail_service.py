@@ -25,8 +25,10 @@ def send_async_email(app, msg):
             current_app.logger.info(f"邮件发送成功: {msg.subject}")
         except Exception as e:
             current_app.logger.exception(f"邮件发送失败: {str(e)}")
+            raise  # 重新抛出异常，让调用者知道发送失败
 
-def send_email(to, subject, template=None, **kwargs):
+
+def send_email(to, subject, template=None, async_mode=False, **kwargs):
     """
     发送邮件核心方法
 
@@ -34,6 +36,7 @@ def send_email(to, subject, template=None, **kwargs):
         to: 收件人邮箱地址
         subject: 邮件主题
         template: 邮件模板路径(可选)
+        async_mode: 是否异步发送(默认False，同步发送)
         **kwargs: 模板参数
     """
     app = current_app._get_current_object()
@@ -55,8 +58,13 @@ def send_email(to, subject, template=None, **kwargs):
     else:
         msg.body = kwargs.get('body', '')
 
-    # 异步发送邮件
-    thr = threading.Thread(target=send_async_email, args=(app, msg))
-    thr.start()
-
-    return thr
+    if async_mode:
+        # 异步发送邮件
+        thr = threading.Thread(target=send_async_email, args=(app, msg))
+        thr.start()
+        return thr
+    else:
+        # 同步发送邮件
+        mail.send(msg)
+        logger.info(f"邮件发送成功: {subject}")
+        return True

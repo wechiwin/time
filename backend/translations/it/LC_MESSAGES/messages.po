@@ -38,6 +38,9 @@ msgstr "Commissione di Vendita"
 msgid "COL_HO_STATUS"
 msgstr "Stato"
 
+msgid "COL_HO_NICKNAME"
+msgstr "Soprannome"
+
 msgid "HO_LOG"
 msgstr "Registro delle Posizioni"
 

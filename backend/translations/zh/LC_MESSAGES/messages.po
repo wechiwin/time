@@ -39,6 +39,9 @@ msgstr "基金销售费率"
 msgid "COL_HO_STATUS"
 msgstr "状态"
 
+msgid "COL_HO_NICKNAME"
+msgstr "别称"
+
 msgid "HO_LOG"
 msgstr "持仓记录"
 
@@ -265,7 +268,7 @@ msgid "EXCEL_MISSING_REQUIRED_COLUMNS"
 msgstr "Excel缺少必要列"
 
 msgid "TRADE_TYPE_NOT_RECOGNIZED"
-msgstr "交易类型"%(value)s"无法识别，请使用模板提供的下拉选项。"
+msgstr "交易类型\"%(value)s\"无法识别，请使用模板提供的下拉选项。"
 
 msgid "ALERT_RECORD_CREATE_FAILED"
 msgstr "提醒记录创建失败"

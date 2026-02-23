@@ -1,9 +1,7 @@
 import {useTranslation} from 'react-i18next';
-import {useEnumTranslation} from '../../contexts/EnumContext';
 
 export default function AlertHistoryTable({data = []}) {
     const {t} = useTranslation();
-    const {translateEnum} = useEnumTranslation();
 
     return (
         <div className="table-container">
@@ -17,7 +15,8 @@ export default function AlertHistoryTable({data = []}) {
                     <th className="table-header">{t('alert_trigger_price')}</th>
                     <th className="table-header">{t('alert_trigger_time')}</th>
                     <th className="table-header">{t('alert_status')}</th>
-                    <th className="table-header">{t('th_created_at')}</th>
+                    <th className="table-header">{t('remark')}</th>
+                    <th className="table-header">{t('th_updated_at')}</th>
                 </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -26,11 +25,12 @@ export default function AlertHistoryTable({data = []}) {
                         <td className="table-cell">{history.ho_code}</td>
                         <td className="table-cell">{history.ar_name}</td>
                         <td className="table-cell">{history.target_price}</td>
-                        <td className="table-cell">{translateEnum('AlertRuleActionEnum', history.action)}</td>
+                        <td className="table-cell">{history.action$view}</td>
                         <td className="table-cell">{history.trigger_price}</td>
                         <td className="table-cell">{history.trigger_nav_date}</td>
-                        <td className="table-cell">{translateEnum('AlertEmailStatusEnum', history.send_status)}</td>
-                        <td className="table-cell">{history.created_at}</td>
+                        <td className="table-cell">{history.send_status$view}</td>
+                        <td className="table-cell">{history.remark}</td>
+                        <td className="table-cell">{history.updated_at}</td>
                     </tr>
                 ))}
                 </tbody>

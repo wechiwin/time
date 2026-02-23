@@ -32,22 +32,33 @@ def list_ho():
     from urllib.parse import unquote
     keyword = unquote(keyword)
 
-    # 通过 UserHolding 查询用户持有的基金
-    query = Holding.query.join(
+    # 通过 UserHolding 查询用户持有的基金，同时获取 UserHolding 的字段
+    query = db.session.query(Holding, UserHolding).join(
         UserHolding, Holding.id == UserHolding.ho_id
     ).filter(
         UserHolding.user_id == g.user.id
     )
 
     # 执行模糊查询
-    holdings = query.filter(
+    results = query.filter(
         or_(
             Holding.ho_code.ilike(f'%{keyword}%'),
             Holding.ho_name.ilike(f'%{keyword}%')
         )
     ).all()
 
-    return Res.success(HoldingSchema(many=True).dump(holdings))
+    # 组装返回数据：合并 Holding 和 UserHolding 的字段
+    data = []
+    user_holding_schema = UserHoldingSchema()
+    for holding, user_holding in results:
+        holding_data = HoldingSchema().dump(holding)
+        # 使用 UserHoldingSchema 序列化以正确处理枚举字段
+        user_holding_data = user_holding_schema.dump(user_holding)
+        holding_data['ho_status'] = user_holding_data.get('ho_status')
+        holding_data['ho_nickname'] = user_holding.ho_nickname
+        data.append(holding_data)
+
+    return Res.success(data)
 
 
 @holding_bp.route('page_holding', methods=['POST'])
@@ -64,29 +75,29 @@ def page_holding():
     ho_type = data.get('ho_type')
     ho_status = data.get('ho_status')
 
-    # 通过 UserHolding 查询用户持有的基金
-    query = Holding.query.join(
+    # 通过 UserHolding 查询用户持有的基金，同时获取 UserHolding 的字段
+    query = db.session.query(Holding, UserHolding).join(
         UserHolding, Holding.id == UserHolding.ho_id
     ).filter(
         UserHolding.user_id == g.user.id
     )
 
     if ho_code:
-        query = query.filter_by(ho_code=ho_code)
+        query = query.filter(Holding.ho_code == ho_code)
     if ho_name:
-        query = query.filter_by(ho_name=ho_name)
+        query = query.filter(Holding.ho_name == ho_name)
 
     # 多选支持逻辑 (IN 查询)
     if ho_type:
         if isinstance(ho_type, list) and len(ho_type) > 0:
             query = query.filter(Holding.ho_type.in_(ho_type))
         elif isinstance(ho_type, str) and ho_type.strip():
-            query = query.filter_by(ho_type=ho_type)
+            query = query.filter(Holding.ho_type == ho_type)
     if ho_status:
         if isinstance(ho_status, list) and len(ho_status) > 0:
             query = query.filter(UserHolding.ho_status.in_(ho_status))
         elif isinstance(ho_status, str) and ho_status.strip():
-            query = query.filter_by(ho_status=ho_status)
+            query = query.filter(UserHolding.ho_status == ho_status)
 
     if keyword:
         query = query.filter(
@@ -101,7 +112,29 @@ def page_holding():
         page=page, per_page=per_page, error_out=False
     )
 
-    return Res.success(marshal_pagination(pagination, HoldingSchema))
+    # 组装返回数据：合并 Holding 和 UserHolding 的字段
+    items = []
+    user_holding_schema = UserHoldingSchema()
+    for holding, user_holding in pagination.items:
+        holding_data = HoldingSchema().dump(holding)
+        # 使用 UserHoldingSchema 序列化以正确处理枚举字段
+        user_holding_data = user_holding_schema.dump(user_holding)
+        holding_data['ho_status'] = user_holding_data.get('ho_status')
+        holding_data['ho_nickname'] = user_holding.ho_nickname
+        items.append(holding_data)
+
+    # 构建分页响应
+    result = {
+        'items': items,
+        'total': pagination.total,
+        'pages': pagination.pages,
+        'current_page': pagination.page,
+        'per_page': pagination.per_page,
+        'has_next': pagination.has_next,
+        'has_prev': pagination.has_prev,
+    }
+
+    return Res.success(result)
 
 
 @holding_bp.route('add_ho', methods=['POST'])
@@ -217,18 +250,22 @@ def del_ho():
 @holding_bp.route('/export', methods=['GET'])
 @auth_required
 def export_holdings():
-    holdings = Holding.query.all()
+    # 通过 UserHolding 查询用户持有的基金，同时获取 UserHolding 的字段
+    results = db.session.query(Holding, UserHolding).join(
+        UserHolding, Holding.id == UserHolding.ho_id
+    ).filter(
+        UserHolding.user_id == g.user.id
+    ).all()
+
     df = pd.DataFrame([{
-        gettext('COL_HO_CODE'): t.ho_code,
-        gettext('COL_HO_NAME'): t.ho_name,
-        gettext('COL_HO_TYPE'): t.ho_type,
-        gettext('COL_HO_ESTABLISH_DATE'): t.establishment_date,
-        gettext('COL_HO_SHORT_NAME'): t.ho_short_name,
-        gettext('COL_HO_MANAGE_EXP_RATE'): t.ho_manage_exp_rate,
-        gettext('COL_HO_TRUSTEE_EXP_RATE'): t.ho_trustee_exp_rate,
-        gettext('COL_HO_SALES_EXP_RATE'): t.ho_sales_exp_rate,
-        gettext('COL_HO_STATUS'): t.ho_status,
-    } for t in holdings])
+        gettext('COL_HO_CODE'): holding.ho_code,
+        gettext('COL_HO_NAME'): holding.ho_name,
+        gettext('COL_HO_TYPE'): holding.ho_type,
+        gettext('COL_HO_ESTABLISH_DATE'): holding.establishment_date,
+        gettext('COL_HO_SHORT_NAME'): holding.ho_short_name,
+        gettext('COL_HO_STATUS'): user_holding.ho_status,
+        gettext('COL_HO_NICKNAME'): user_holding.ho_nickname,
+    } for holding, user_holding in results])
 
     output = BytesIO()
     writer = pd.ExcelWriter(output, engine='xlsxwriter')
@@ -297,7 +334,7 @@ def import_holdings():
         success_count = HoldingService.import_holdings(ho_codes, g.user.id)
         return Res.success(success_count)
     except Exception as e:
-        logger.exception()
+        logger.exception(e)
         raise BizException(msg=ErrorMessageEnum.OPERATION_FAILED.view)
 
 

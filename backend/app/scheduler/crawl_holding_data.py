@@ -1,5 +1,4 @@
 # app/scheduler/net_value_jobs.py
-from flask import current_app
 from loguru import logger
 
 from app.framework.system_task_wrapper import with_task_logging

@@ -38,6 +38,9 @@ msgstr "Sales Expense Rate"
 msgid "COL_HO_STATUS"
 msgstr "Status"
 
+msgid "COL_HO_NICKNAME"
+msgstr "Nickname"
+
 msgid "HO_LOG"
 msgstr "Holding Log"
 
