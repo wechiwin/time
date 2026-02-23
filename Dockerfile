@@ -11,6 +11,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ .
 
+# Create logs directory for Loguru (must exist before flask db upgrade runs)
+RUN mkdir -p /app/logs
+
 EXPOSE 8080
 
 # Run database migrations before starting the app
