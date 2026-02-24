@@ -125,6 +125,7 @@ class DevelopmentConfig(Config):
     DEBUG = True
     ENV = 'development'  # 明确设置环境名称
     SQLALCHEMY_ECHO = True  # 开发时显示SQL日志
+    SQLALCHEMY_LOG_LEVEL = 'DEBUG'  # 显示完整SQL信息（含参数）
     JWT_AUTH_REQUIRED = True
     JWT_COOKIE_SECURE = False
     MAIL_DEBUG = True  # 开启调试
@@ -139,6 +140,8 @@ class TestingConfig(Config):
     ENV = 'testing'
     JWT_COOKIE_SECURE = False
     JWT_AUTH_REQUIRED = True
+    SQLALCHEMY_ECHO = False
+    SQLALCHEMY_LOG_LEVEL = 'WARNING'  # 测试环境不打印SQL
     SCHEDULER_ENABLED = False  # 测试时通常禁用定时任务
     LOG_LEVEL = 'DEBUG'
 
@@ -151,6 +154,7 @@ class ProductionConfig(Config):
     JWT_AUTH_REQUIRED = True
     JWT_COOKIE_SECURE = True
     SQLALCHEMY_ECHO = False
+    SQLALCHEMY_LOG_LEVEL = 'WARNING'  # 生产环境只显示SQL警告/错误
 
     SCHEDULER_ENABLED = True
     SCHEDULER_API_ENABLED = False
