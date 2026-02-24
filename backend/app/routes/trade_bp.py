@@ -124,10 +124,38 @@ def del_tr():
     return Res.success()
 
 
-@trade_bp.route('/export', methods=['GET'])
+@trade_bp.route('/export', methods=['POST'])
 @auth_required
 def export_trade():
-    trade = Trade.query.filter_by(user_id=g.user.id).all()
+    # Get filter parameters from request body
+    data = request.get_json() or {}
+    ho_code = data.get('ho_code')
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+    keyword = data.get('keyword')
+    tr_type = data.get('tr_type')
+
+    query = Trade.query.options(joinedload(Trade.holding))
+    query = query.filter_by(user_id=g.user.id)
+
+    # Apply filters (same logic as tr_page)
+    if ho_code:
+        query = query.filter_by(ho_code=ho_code)
+    if start_date:
+        query = query.filter(Trade.tr_date >= start_date)
+    if end_date:
+        query = query.filter(Trade.tr_date <= end_date)
+    if tr_type:
+        query = query.filter(Trade.tr_type == tr_type)
+    if keyword:
+        query = query.join(Holding, Trade.ho_id == Holding.id).filter(
+            or_(
+                Holding.ho_code.ilike(f'%{keyword}%'),
+                Holding.ho_short_name.ilike(f'%{keyword}%')
+            )
+        )
+
+    trade = query.order_by(desc(Trade.tr_date)).all()
     df = pd.DataFrame([{
         gettext('COL_HO_CODE'): t.ho_code,
         gettext('COL_TR_TYPE'): reverse_map_trade_type(t.tr_type),

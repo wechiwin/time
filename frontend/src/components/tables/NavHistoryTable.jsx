@@ -2,13 +2,11 @@
 import DeleteButton from '../common/DeleteButton';
 import EditButton from '../common/EditButton';
 import {useTranslation} from "react-i18next";
-import {useNavigate} from "react-router-dom";
 
 export default function NavHistoryTable({data = [], onDelete, onEdit}) {
     const {t} = useTranslation()
-    const navigate = useNavigate();
     const handleRowClick = (n) => {
-        navigate(`/historical_trend/${n.ho_id}`);
+        window.open(`/historical_trend/${n.ho_id}`, '_blank');
     };
     return (
         <div className="table-container">

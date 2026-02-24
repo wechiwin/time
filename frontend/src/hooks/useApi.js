@@ -81,6 +81,37 @@ export default function useApi() {
         }
     }, []);
 
+    // POST 方式下载文件
+    const downloadPost = useCallback(async (url, body, filename, config = {}) => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await apiClient.post(url, body, {
+                ...config,
+                responseType: 'blob'
+            });
+            // 处理 Blob 下载
+            const blob = new Blob([response.data], {
+                type: response.headers['content-type'] || 'application/octet-stream'
+            });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+            return response;
+        } catch (err) {
+            const msg = err.message || '下载失败';
+            setError(msg);
+            console.error(`[useApi] 下载错误: ${msg}`, err);
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
     return {
         loading,
         error,
@@ -89,6 +120,7 @@ export default function useApi() {
         put,
         del,
         download,
+        downloadPost,
         request
     };
 }

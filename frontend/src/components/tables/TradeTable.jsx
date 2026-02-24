@@ -3,18 +3,16 @@ import React from 'react';
 import DeleteButton from '../common/DeleteButton';
 import EditButton from '../common/EditButton';
 import {useTranslation} from "react-i18next";
-import {useNavigate} from "react-router-dom";
 import {useEnumTranslation} from '../../contexts/EnumContext';
 import {useColorContext} from '../context/ColorContext';
 
 export default function TradeTable({data = [], onDelete, onEdit}) {
     const {t} = useTranslation()
-    const navigate = useNavigate();
     const {translateEnum} = useEnumTranslation();
     const {getTradeColor} = useColorContext();
 
     const handleRowClick = (tr) => {
-        navigate(`/trade/${tr.ho_id}`);
+        window.open(`/trade/${tr.ho_id}`, '_blank');
     };
 
     // 渲染交易类型徽章的辅助函数

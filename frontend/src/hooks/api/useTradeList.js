@@ -17,7 +17,7 @@ export default function useTradeList(options = {}) {
 
     // 业务层管理数据状态
     const [data, setData] = useState(null);
-    const {loading, error, get, post, download} = useApi();
+    const {loading, error, get, post, download, downloadPost} = useApi();
     const urlPrefix = '/trade';
 
     const search = useCallback(async (params = {}) => {
@@ -89,14 +89,20 @@ export default function useTradeList(options = {}) {
     const exportData = useCallback(async () => {
         const url = urlPrefix + '/export';
         const filename = 'tradeLog.xlsx';
+        const body = {
+            keyword,
+            tr_type,
+            start_date,
+            end_date
+        };
 
         try {
-            await download(url, filename);
+            await downloadPost(url, body, filename);
         } catch (error) {
             console.error('Export data failed:', error);
             throw error;
         }
-    }, [download]);
+    }, [downloadPost, keyword, tr_type, start_date, end_date]);
 
     const listByHoId = useCallback(async (ho_id = '') => {
         const result = await post(urlPrefix + '/list_by_ho_id', {ho_id});

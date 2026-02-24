@@ -167,6 +167,8 @@ class HoldingService:
         try:
             # 分离 fund_detail 数据
             fund_detail_data = data.pop('fund_detail', None)
+            # 分离 UserHolding 专属字段（ho_nickname 属于 UserHolding，不属于 Holding）
+            ho_nickname = data.pop('ho_nickname', None)
 
             # 检查 Holding 表中是否已存在该基金（通过 ho_code 查找）
             holding = Holding.query.filter_by(ho_code=ho_code).first()
@@ -216,7 +218,8 @@ class HoldingService:
             user_holding = UserHolding(
                 user_id=user_id,
                 ho_id=holding.id,
-                ho_status=HoldingStatusEnum.NOT_HELD.value
+                ho_status=HoldingStatusEnum.NOT_HELD.value,
+                ho_nickname=ho_nickname
             )
             db.session.add(user_holding)
             db.session.commit()

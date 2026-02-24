@@ -9,7 +9,7 @@ export default function Toast({type = 'success', message, onClose}) {
 
     return (
         <div
-            className={`fixed bottom-4 right-4 z-50 animate-fade-in ${bgColor} text-white px-4 py-2 rounded-md shadow-lg flex items-center cursor-pointer`}
+            className={`fixed bottom-4 right-4 z-toast animate-fade-in ${bgColor} text-white px-4 py-2 rounded-md shadow-lg flex items-center cursor-pointer`}
             onClick={onClose}
             role="alert"
             aria-live="assertive"
