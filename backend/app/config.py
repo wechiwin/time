@@ -1,11 +1,45 @@
 import os
 from datetime import timedelta
-
+from pathlib import Path
 from dotenv import load_dotenv
 
 basedir = os.path.abspath(os.path.dirname(__file__))
+project_root = Path(basedir).parent
 
-load_dotenv('.env')
+
+def _load_env_and_get_config():
+    """
+    加载环境变量并返回对应的环境名称
+
+    加载顺序：
+    1. 先加载 .flaskenv 获取 FLASK_ENV
+    2. 根据 FLASK_ENV 加载对应的 .env 文件
+    """
+    # Step 1: 先加载 .flaskenv 获取 FLASK_ENV
+    flaskenv_file = project_root / '.flaskenv'
+    if flaskenv_file.exists():
+        load_dotenv(flaskenv_file, override=False)
+
+    # Step 2: 获取环境名称（默认为 development）
+    env = os.getenv('FLASK_ENV', 'development').lower()
+
+    # Step 3: 根据 FLASK_ENV 加载对应的 .env 文件
+    env_file_map = {
+        'testing': '.env.test',
+        'production': '.env.prod',
+        'development': '.env'
+    }
+    env_file_name = env_file_map.get(env, '.env')
+    env_file = project_root / env_file_name
+
+    # 加载环境变量（override=True 确保 .env 覆盖 .flaskenv 中的同名变量）
+    if env_file.exists():
+        load_dotenv(env_file, override=True)
+
+    return env
+
+
+_current_env = _load_env_and_get_config()
 
 
 class Config:
@@ -85,19 +119,9 @@ class Config:
     CACHE_TYPE = 'SimpleCache'  # 使用内存缓存
     CACHE_DEFAULT_TIMEOUT = 300  # 缓存默认超时时间（秒
 
-    # 自动识别当前环境配置
-    @classmethod
-    def get_config(cls):
-        env = os.getenv('FLASK_ENV', 'development').lower()
-        if env == 'development':
-            return DevelopmentConfig
-        elif env == 'testing':
-            return TestingConfig
-        else:
-            return ProductionConfig
-
 
 class DevelopmentConfig(Config):
+    """开发环境配置"""
     DEBUG = True
     ENV = 'development'  # 明确设置环境名称
     SQLALCHEMY_ECHO = True  # 开发时显示SQL日志
@@ -113,13 +137,10 @@ class TestingConfig(Config):
     # """测试环境配置"""
     TESTING = True
     ENV = 'testing'
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     JWT_COOKIE_SECURE = False
-    WTF_CSRF_ENABLED = False  # 在测试中通常禁用CSRF保护
-    JWT_AUTH_REQUIRED = False  # 方便对不需要认证的端点进行测试
+    JWT_AUTH_REQUIRED = True
     SCHEDULER_ENABLED = False  # 测试时通常禁用定时任务
-    LOG_LEVEL = 'TESTING'
-    pass
+    LOG_LEVEL = 'DEBUG'
 
 
 class ProductionConfig(Config):
@@ -137,5 +158,16 @@ class ProductionConfig(Config):
     LOG_BACKUP_COUNT = 30  # 保留30天日志
 
 
+# 根据 FLASK_ENV 选择配置类
+def get_config():
+    """根据 FLASK_ENV 返回对应的配置类"""
+    if _current_env == 'development':
+        return DevelopmentConfig
+    elif _current_env == 'testing':
+        return TestingConfig
+    else:
+        return ProductionConfig
+
+
 # 方便在其他地方直接导入正确的配置对象
-config = Config.get_config()
+config = get_config()

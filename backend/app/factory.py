@@ -6,7 +6,7 @@ from flask import Flask, request
 from loguru import logger
 
 from app.cache import cache
-from app.config import Config
+from app.config import get_config
 from app.extension import db, migrate, scheduler, babel, cors, jwt, mail, limiter, openai_client
 from app.framework.error_handler import register_error_handler
 from app.framework.interceptor import register_interceptors
@@ -55,7 +55,7 @@ def build_app() -> Flask:
     # 这是最关键的一步，必须在所有其他操作之前完成。
     # 只有这样，app.debug, app.config['...'] 等才会生效。
     # -----------------------------------------------------------------
-    app.config.from_object(Config.get_config())
+    app.config.from_object(get_config())
     # Configure JSON to not escape non-ASCII characters (e.g., Chinese)
     app.json.ensure_ascii = False
     # -----------------------------------------------------------------
