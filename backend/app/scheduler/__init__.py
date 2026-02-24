@@ -19,14 +19,29 @@ def _context_wrapper(app, func):
 
 # 把调度器初始化逻辑集中到这里
 def init_scheduler(app, scheduler):
-    """注册所有定时任务"""
+    """
+    注册所有定时任务并启动调度器
+
+    注意：scheduler.init_app(app) 应该在 factory.py 中调用
+    这里只负责添加 jobs 和启动 scheduler
+    """
     # 检查是否是迁移模式，如果是则跳过 scheduler 初始化
     if os.environ.get('MIGRATION_MODE'):
         app.logger.info("Migration mode detected, skipping scheduler initialization")
         return
 
-    # 初始化调度器
-    scheduler.init_app(app)
+    # 检查是否应该运行 scheduler（Gunicorn 多 worker 场景）
+    # RUN_SCHEDULER 由 gunicorn.conf.py 的 post_worker_init 钩子设置
+    # 只有 worker 0 会设置 RUN_SCHEDULER=true
+    run_scheduler = os.environ.get('RUN_SCHEDULER', 'true').lower() == 'true'
+    if not run_scheduler:
+        app.logger.info("RUN_SCHEDULER=false, skipping scheduler initialization (non-primary worker)")
+        return
+
+    # 检查 scheduler 是否已经绑定 app
+    if not hasattr(scheduler, 'app') or scheduler.app is None:
+        app.logger.warning("Scheduler not bound to app, calling init_app first")
+        scheduler.init_app(app)
 
     # 统一加任务
     scheduler.add_job(
@@ -53,39 +68,29 @@ def init_scheduler(app, scheduler):
         id='consume_async_tasks',
         func=_context_wrapper(app, consume_async_tasks),
         trigger='interval',
-        minutes=3,
+        minutes=10,
         replace_existing=True
     )
 
     scheduler.add_job(
         id='check_alert_rules',
         func=_context_wrapper(app, check_alert_rules),
-        trigger='interval',
-        minutes=55,
+        trigger='cron',
+        hour=3,
+        minute=24,
+        second=3,
         replace_existing=True
     )
 
     scheduler.add_job(
         id='send_alert_mail',
         func=_context_wrapper(app, send_alert_mail),
-        trigger='interval',
-        minutes=58,
+        trigger='cron',
+        hour=3,
+        minute=54,
+        second=3,
         replace_existing=True
     )
 
     scheduler.start()
     app.logger.info("APScheduler started with jobs")
-
-    #     scheduler.add_job(
-#         id='test_job',
-#         func=crawl_all_fund_net_values,
-#         trigger='interval',
-#         seconds=10
-#     )
-# scheduler.add_job(
-#     crawl_all_fund_net_values,
-#     'cron',
-#     hour=0,
-#     minute=1,
-#     id='crawl_all_fund_net_values'
-# )
