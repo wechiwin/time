@@ -8,6 +8,7 @@
 #   3. 内存占用翻倍
 
 import os
+import fcntl
 
 # Worker 数量 - 对于 1GB 内存的机器，2 个 worker 已经很勉强
 workers = 2
@@ -47,6 +48,10 @@ accesslog = "-"
 errorlog = "-"
 loglevel = "info"
 
+# Lock file for ensuring only one worker runs scheduler
+_scheduler_lock_file = "/tmp/gunicorn_scheduler.lock"
+_scheduler_lock_fd = None
+
 # ============================================
 # Gunicorn Hooks
 # ============================================
@@ -58,27 +63,39 @@ def on_starting(server):
     """
     server.log.info("Gunicorn master process starting...")
     os.environ['RUN_SCHEDULER'] = 'false'
+    # Clean up any stale lock file
+    try:
+        os.unlink(_scheduler_lock_file)
+    except FileNotFoundError:
+        pass
 
 
 def post_fork(server, worker):
     """
     fork 后在每个 Worker 中调用
-    只有 worker 0 会启动 APScheduler
+    使用文件锁确保只有一个 worker 启动 APScheduler
     """
-    if worker.id == 0:
-        worker.log.info(f"Worker {worker.id} - Enabling APScheduler")
-        os.environ['RUN_SCHEDULER'] = 'true'
+    global _scheduler_lock_fd
 
-        # 重新初始化 scheduler
+    try:
+        _scheduler_lock_fd = open(_scheduler_lock_file, 'w')
+        # Try to acquire an exclusive non-blocking lock
+        fcntl.flock(_scheduler_lock_fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        worker.log.info(f"Worker pid={worker.pid} - Acquired scheduler lock, enabling APScheduler")
+        os.environ['RUN_SCHEDULER'] = 'true'
         _init_scheduler(worker)
-    else:
-        worker.log.info(f"Worker {worker.id} - APScheduler disabled (only worker 0 runs scheduler)")
+    except (IOError, OSError):
+        # Lock not acquired, another worker already has it
+        worker.log.info(f"Worker pid={worker.pid} - APScheduler disabled (another worker runs scheduler)")
         os.environ['RUN_SCHEDULER'] = 'false'
+        if _scheduler_lock_fd:
+            _scheduler_lock_fd.close()
+            _scheduler_lock_fd = None
 
 
 def _init_scheduler(worker):
     """
-    在 worker 0 中初始化并启动 scheduler
+    在获得锁的 worker 中初始化并启动 scheduler
     """
     try:
         # 获取全局 app 实例（由 wsgi.py 创建）
@@ -87,13 +104,21 @@ def _init_scheduler(worker):
         from app.scheduler import init_scheduler
 
         init_scheduler(app, scheduler)
-        worker.log.info(f"Worker {worker.id} - APScheduler initialized successfully")
+        worker.log.info(f"Worker pid={worker.pid} - APScheduler initialized successfully")
     except Exception as e:
-        worker.log.error(f"Worker {worker.id} - Failed to initialize APScheduler: {e}")
+        worker.log.error(f"Worker pid={worker.pid} - Failed to initialize APScheduler: {e}")
 
 
 def worker_exit(server, worker):
     """
     Worker 退出时调用
     """
-    worker.log.info(f"Worker {worker.id} exiting...")
+    global _scheduler_lock_fd
+    worker.log.info(f"Worker pid={worker.pid} exiting...")
+    if _scheduler_lock_fd:
+        try:
+            fcntl.flock(_scheduler_lock_fd.fileno(), fcntl.LOCK_UN)
+            _scheduler_lock_fd.close()
+        except:
+            pass
+        _scheduler_lock_fd = None
