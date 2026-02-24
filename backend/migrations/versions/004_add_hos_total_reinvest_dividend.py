@@ -1,6 +1,6 @@
 """add hos_total_reinvest_dividend to holding_snapshot
 
-Revision ID: 004_add_hos_total_reinvest_dividend
+Revision ID: 004_hos_reinvest_dividend
 Revises: 003_add_risk_free_rate
 Create Date: 2026-02-24 15:35:38.992200
 
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '004_add_hos_total_reinvest_dividend'
+revision: str = '004_hos_reinvest_dividend'
 down_revision: Union[str, Sequence[str], None] = '003_add_risk_free_rate'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
