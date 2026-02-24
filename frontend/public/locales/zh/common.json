@@ -291,5 +291,16 @@
   "not_found_title": "页面未找到",
   "not_found_description": "抱歉，您访问的页面不存在或已被移除。",
   "back_to_home": "返回首页",
-  "go_back": "返回上一页"
+  "go_back": "返回上一页",
+
+  "loading_content": "加载中...",
+  "loading_table": "加载数据中...",
+  "empty_table": "暂无数据",
+  "empty_holdings": "暂无持仓记录",
+  "empty_holdings_hint": "添加您的第一个持仓以开始跟踪",
+  "empty_trades": "暂无交易记录",
+  "empty_trades_hint": "添加交易记录以跟踪您的投资",
+  "empty_nav_history": "暂无历史数据",
+  "empty_alerts": "暂无监控规则",
+  "empty_task_logs": "暂无任务执行记录"
 }

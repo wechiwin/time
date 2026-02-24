@@ -11,6 +11,8 @@ import {usePaginationState} from "../hooks/usePaginationState";
 import SearchArea from "../components/search/SearchArea";
 import {ArrowDownTrayIcon, ArrowUpTrayIcon, DocumentArrowDownIcon, PlusIcon} from "@heroicons/react/16/solid";
 import useCommon from "../hooks/api/useCommon";
+import TableWrapper from "../components/common/TableWrapper";
+import EmptyState from "../components/common/EmptyState";
 
 export default function TradePage() {
     const {t} = useTranslation();
@@ -25,7 +27,7 @@ export default function TradePage() {
     });
 
     const {
-        data, add, remove, update, importData, exportData, downloadTemplate, search
+        data, loading, add, remove, update, importData, exportData, downloadTemplate, search
     } = useTradeList({
         page,
         perPage,
@@ -190,7 +192,18 @@ export default function TradePage() {
                 }
             />
 
-            <TradeTable data={data?.items || []} onDelete={handleDelete} onEdit={(item) => openModal('edit', item)}/>
+            <TableWrapper
+                isLoading={loading}
+                isEmpty={!loading && (!data?.items || data.items.length === 0)}
+                emptyComponent={
+                    <EmptyState
+                        message={t('empty_trades')}
+                        hint={t('empty_trades_hint')}
+                    />
+                }
+            >
+                <TradeTable data={data?.items || []} onDelete={handleDelete} onEdit={(item) => openModal('edit', item)}/>
+            </TableWrapper>
 
             {data?.pagination && (
                 <Pagination

@@ -7,6 +7,8 @@ import {useParams} from "react-router-dom";
 import HoldingInfoCard from "../sub/HoldingInfoCard";
 import useHoldingSnapshot from "../../hooks/api/useHoldingSnapshot";
 import useHoldingTimeline from "../../hooks/useHoldingTimeline";
+import { CenteredSpinner } from "../../components/ui/Spinner";
+import EmptyState from "../../components/common/EmptyState";
 
 export default function TradeHistoryDetailPage() {
     const {ho_id} = useParams();
@@ -61,18 +63,16 @@ export default function TradeHistoryDetailPage() {
 
     // FIX: 添加加载状态处理
     if (loading) {
-        return (
-            <div className="flex h-full items-center justify-center text-gray-500">
-                {/* 你可以在这里放置一个更美观的 Spinner 或 Skeleton 组件 */}
-                <p>{t('loading') || 'Loading...'}</p>
-            </div>
-        );
+        return <CenteredSpinner className="h-full" />;
     }
     // FIX: 添加数据不存在时的处理
     if (!fundInfo) {
         return (
-            <div className="flex h-full items-center justify-center text-gray-500">
-                <p>{t('holding_not_found') || 'Holding information not found.'}</p>
+            <div className="h-full flex items-center justify-center">
+                <EmptyState
+                    message={t('holding_not_found')}
+                    size="lg"
+                />
             </div>
         );
     }

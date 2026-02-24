@@ -13,6 +13,8 @@ import {useIsMobile} from "../hooks/useIsMobile";
 import HoldingFormMobile from "../components/forms/HoldingFormMobile";
 import ConfirmationModal from "../components/common/ConfirmationModal";
 import {useEnumTranslation} from "../contexts/EnumContext";
+import TableWrapper from "../components/common/TableWrapper";
+import EmptyState from "../components/common/EmptyState";
 
 export default function HoldingPage() {
     const isMobile = useIsMobile();
@@ -27,6 +29,7 @@ export default function HoldingPage() {
 
     const {
         data,
+        loading,
         add,
         remove,
         checkCascadeDelete,
@@ -244,11 +247,22 @@ export default function HoldingPage() {
                 }
             />
 
-            <HoldingTable
-                data={data?.items || []}
-                onDelete={handleDeleteRequest}
-                onEdit={(item) => openModal('edit', item)}
-            />
+            <TableWrapper
+                isLoading={loading}
+                isEmpty={!loading && (!data?.items || data.items.length === 0)}
+                emptyComponent={
+                    <EmptyState
+                        message={t('empty_holdings')}
+                        hint={t('empty_holdings_hint')}
+                    />
+                }
+            >
+                <HoldingTable
+                    data={data?.items || []}
+                    onDelete={handleDeleteRequest}
+                    onEdit={(item) => openModal('edit', item)}
+                />
+            </TableWrapper>
 
             {data?.pagination && (
                 <Pagination

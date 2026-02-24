@@ -13,6 +13,7 @@ import {usePaginationState} from "../hooks/usePaginationState";
 import SearchArea from "../components/search/SearchArea";
 import useCommon from "../hooks/api/useCommon";
 import EmptyState from "../components/common/EmptyState";
+import TableWrapper from "../components/common/TableWrapper";
 
 export default function AlertPage() {
     const {t} = useTranslation();
@@ -24,7 +25,7 @@ export default function AlertPage() {
     // 统一管理所有搜索参数
     const [searchParams, setSearchParams] = useState({});
 
-    const {data, addRule, updateRule, deleteRule} = useAlertList({
+    const {data, loading, addRule, updateRule, deleteRule} = useAlertList({
         page, perPage, autoLoad: true, mode, refreshKey, ...searchParams
     });
 
@@ -211,18 +212,22 @@ export default function AlertPage() {
 
             {/* 表格内容 */}
             {mode === 'rule' ? (
-                data?.items?.length > 0 ? (
-                    <AlertRuleTable data={data.items} onDelete={handleDelete}
+                <TableWrapper
+                    isLoading={loading}
+                    isEmpty={!loading && (!data?.items || data.items.length === 0)}
+                    emptyComponent={<EmptyState message={t('empty_alerts')} />}
+                >
+                    <AlertRuleTable data={data?.items || []} onDelete={handleDelete}
                                     onEdit={(item) => openModal('edit', item)}/>
-                ) : (
-                    <EmptyState/>
-                )
+                </TableWrapper>
             ) : (
-                data?.items?.length > 0 ? (
-                    <AlertHistoryTable data={data.items}/>
-                ) : (
-                    <EmptyState/>
-                )
+                <TableWrapper
+                    isLoading={loading}
+                    isEmpty={!loading && (!data?.items || data.items.length === 0)}
+                    emptyComponent={<EmptyState />}
+                >
+                    <AlertHistoryTable data={data?.items || []}/>
+                </TableWrapper>
             )}
 
 

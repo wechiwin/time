@@ -288,5 +288,16 @@
   "not_found_title": "Pagina Non Trovata",
   "not_found_description": "Spiacenti, la pagina che stai cercando non esiste o è stata rimossa.",
   "back_to_home": "Torna alla Home",
-  "go_back": "Torna Indietro"
+  "go_back": "Torna Indietro",
+
+  "loading_content": "Caricamento contenuti...",
+  "loading_table": "Caricamento dati...",
+  "empty_table": "Nessun dato disponibile",
+  "empty_holdings": "Nessuna posizione",
+  "empty_holdings_hint": "Aggiungi la tua prima posizione per iniziare a monitorare",
+  "empty_trades": "Nessuna operazione",
+  "empty_trades_hint": "Aggiungi operazioni per monitorare il tuo investimento",
+  "empty_nav_history": "Nessun dato storico",
+  "empty_alerts": "Nessuna regola di avviso configurata",
+  "empty_task_logs": "Nessun registro di esecuzione"
 }

@@ -9,6 +9,7 @@ import AsyncTaskLogTable from '../components/tables/AsyncTaskLogTable';
 import Pagination from '../components/common/pagination/Pagination';
 import EmptyState from "../components/common/EmptyState";
 import {ArrowPathIcon} from '@heroicons/react/16/solid';
+import TableWrapper from "../components/common/TableWrapper";
 
 export default function AsyncTaskLogPage() {
     const {t} = useTranslation();
@@ -134,11 +135,13 @@ export default function AsyncTaskLogPage() {
                 />
             </div>
 
-            {data?.items?.length > 0 ? (
-                <AsyncTaskLogTable data={data.items} onDelete={handleDelete}/>
-            ) : (
-                <EmptyState message={t('msg_no_records')}/>
-            )}
+            <TableWrapper
+                isLoading={isLoading}
+                isEmpty={!isLoading && (!data?.items || data.items.length === 0)}
+                emptyComponent={<EmptyState message={t('empty_task_logs')} />}
+            >
+                <AsyncTaskLogTable data={data?.items || []} onDelete={handleDelete}/>
+            </TableWrapper>
 
 
             {data?.pagination && (

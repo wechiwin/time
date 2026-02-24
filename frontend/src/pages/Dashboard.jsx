@@ -15,6 +15,7 @@ import {formatCurrency, formatPercent, formatPercentNeutral, formatRatioAsPercen
 import {getLineOption, getPieOption} from '../utils/chartOptions';
 import {useColorContext} from "../components/context/ColorContext";
 import {useEnumTranslation} from "../contexts/EnumContext";
+import { KpiCardsSkeleton, CardSkeleton } from '../components/skeletons';
 
 const TIME_RANGE_CONFIG = {
     '1m': {window: 'R21', days: 30, i18nKey: 'period_last_30_days'},
@@ -161,11 +162,10 @@ export default function Dashboard() {
     if (isInitialLoading) {
         return (
             <div className="p-2 md:p-4 max-w-7xl mx-auto space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                    {[...Array(4)].map((_, i) => <KpiCardSkeleton key={i}/>)}
-                </div>
+                <KpiCardsSkeleton count={4} />
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <ChartSkeleton/>
+                    <CardSkeleton variant="chart" className="lg:col-span-2" />
+                    <CardSkeleton variant="chart" />
                 </div>
             </div>
         );
@@ -479,28 +479,6 @@ function RiskMetric({label, value, desc, color = "text-gray-900 dark:text-white"
         </div>
     );
 }
-
-const KpiCardSkeleton = () => (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700">
-        <div className="flex justify-between items-start">
-            <div className="flex-1">
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20 animate-pulse"></div>
-                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-24 mt-2 animate-pulse"></div>
-            </div>
-            <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg animate-pulse">
-                <div className="w-5 h-5"></div>
-            </div>
-        </div>
-        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16 mt-3 animate-pulse"></div>
-    </div>
-);
-
-const ChartSkeleton = () => (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700">
-        <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-32 mb-4 animate-pulse"></div>
-        <div className="h-80 bg-gray-100 dark:bg-gray-700 rounded animate-pulse"></div>
-    </div>
-);
 
 // --- 抽离的子组件：增强型列表项 ---
 function AllocationListItem({item, index, isHighlighted, onHover, t}) {
