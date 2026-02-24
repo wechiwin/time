@@ -126,12 +126,14 @@ def page_holding():
     # 构建分页响应
     result = {
         'items': items,
-        'total': pagination.total,
-        'pages': pagination.pages,
-        'current_page': pagination.page,
-        'per_page': pagination.per_page,
-        'has_next': pagination.has_next,
-        'has_prev': pagination.has_prev,
+        'pagination': {
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'page': pagination.page,
+            'per_page': pagination.per_page,
+            'has_next': pagination.has_next,
+            'has_prev': pagination.has_prev,
+        }
     }
 
     return Res.success(result)
