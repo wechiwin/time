@@ -50,6 +50,7 @@ class TestPositionState:
             hos_total_buy_amount=Decimal('1500'),
             hos_total_sell_amount=Decimal('0'),
             hos_total_cash_dividend=Decimal('10'),
+            hos_total_reinvest_dividend=Decimal('5'),  # 累计的分红再投资
             hos_total_dividend=Decimal('15'),  # Total dividend includes cash + reinvest
             hos_realized_pnl=Decimal('0')
         )
@@ -60,7 +61,6 @@ class TestPositionState:
         assert state.hos_holding_cost == Decimal('1500')
         assert state.total_buy_amount == Decimal('1500')
         assert state.total_cash_dividend == Decimal('10')
-        # reinvest_amount = total_dividend - cash_dividend = 15 - 10 = 5
         assert state.total_reinvest_amount == Decimal('5')
         assert state.total_dividend == Decimal('15')
 

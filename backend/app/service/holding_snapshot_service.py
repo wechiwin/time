@@ -338,6 +338,7 @@ class HoldingSnapshotService:
         snapshot.hos_daily_cash_dividend = flows["cash_div"]
         snapshot.hos_daily_reinvest_dividend = flows["reinvest"]
         snapshot.hos_total_cash_dividend = state.total_cash_dividend
+        snapshot.hos_total_reinvest_dividend = state.total_reinvest_amount
         snapshot.hos_total_dividend = state.total_dividend
 
         snapshot.hos_realized_pnl = state.realized_pnl

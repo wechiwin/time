@@ -248,6 +248,8 @@ def mock_holding_snapshot(db, mock_user, mock_holding):
         hos_market_value=Decimal('1500.00'),
         hos_total_buy_amount=Decimal('1501.50'),
         hos_total_sell_amount=Decimal('0'),
+        hos_total_cash_dividend=Decimal('0'),
+        hos_total_reinvest_dividend=Decimal('0'),
         hos_unrealized_pnl=Decimal('-1.50'),
         hos_total_pnl=Decimal('-1.50'),
         tr_cycle=1,

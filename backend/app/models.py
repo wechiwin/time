@@ -385,6 +385,10 @@ class HoldingSnapshot(TimestampMixin, BaseModel):
     """
     累计收到的现金分红
     """
+    hos_total_reinvest_dividend = db.Column(db.Numeric(18, 4))
+    """
+    累计的分红再投资
+    """
     hos_total_dividend = db.Column(db.Numeric(18, 4))
     """
     累计收到的分红总额，包含现金分红和分红再投资
