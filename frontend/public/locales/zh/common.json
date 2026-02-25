@@ -216,6 +216,8 @@
   "th_default_language": "默认语言",
   "th_email_address": "邮箱地址",
   "th_risk_free_rate": "无风险利率",
+  "th_benchmark": "业绩基准",
+  "th_benchmark_placeholder": "选择业绩基准",
 
   "today": "今天",
   "past": "过去",
@@ -284,7 +286,6 @@
   "chart_show_cost_line": "显示成本线",
   "chart_cost_line": "成本线",
   "msg_loading_data": "加载数据中...",
-  "nav_trend": "净值走势",
   "tl_total_profit": "累计盈亏",
   "holding_not_found": "持仓不存在",
 
@@ -302,5 +303,12 @@
   "empty_trades_hint": "添加交易记录以跟踪您的投资",
   "empty_nav_history": "暂无历史数据",
   "empty_alerts": "暂无监控规则",
-  "empty_task_logs": "暂无任务执行记录"
+  "empty_task_logs": "暂无任务执行记录",
+
+  "benchmark_csi_300": "沪深300",
+  "benchmark_sse_50": "上证50",
+  "benchmark_csi_500": "中证500",
+  "benchmark_csi_1000": "中证1000",
+
+  "now": "现在"
 }

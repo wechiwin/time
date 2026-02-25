@@ -19,7 +19,7 @@ class BenchmarkService:
     """
 
     DEFAULT_BENCHMARK_CODE = '000300.SH'
-    DEFAULT_BENCHMARK_NAME = '沪深300'
+    DEFAULT_BENCHMARK_NAME = 'CSI 300'
 
     @staticmethod
     def ensure_benchmark_exists(code: str = None, name: str = None) -> Benchmark:

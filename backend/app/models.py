@@ -791,7 +791,9 @@ class UserSetting(TimestampMixin, BaseModel):
     last_login_at = db.Column(db.DateTime(timezone=True), nullable=True)
     is_locked = db.Column(db.Integer, nullable=False)
     risk_free_rate = db.Column(db.Numeric(6, 5), nullable=False, default=Decimal('0.02000'))
+    benchmark_id = db.Column(db.Integer, db.ForeignKey('benchmark.id'), nullable=True)
 
+    benchmark = db.relationship('Benchmark', backref='users', lazy='joined')
     user_holdings = db.relationship('UserHolding', backref='user', lazy='dynamic', cascade="all, delete-orphan")
     trades = db.relationship('Trade', backref='user', lazy='dynamic')
     alert_rules = db.relationship('AlertRule', backref='user', lazy='dynamic')

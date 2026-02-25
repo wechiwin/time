@@ -14,6 +14,7 @@ from app.framework.jwt_config import configure_jwt
 from app.framework.log_config import setup_logging
 from app.routes import register_routes
 from app.scheduler import init_scheduler
+from app.cli import init_app as init_cli
 
 
 def _get_locale():
@@ -100,6 +101,7 @@ def build_app() -> Flask:
     register_interceptors(app)
     register_routes(app)
     register_error_handler(app)
+    init_cli(app)  # Register CLI commands (flask seed)
     # -----------------------------------------------------------------
     # 步骤 6: 返回最终配置好的 app 实例
     # -----------------------------------------------------------------

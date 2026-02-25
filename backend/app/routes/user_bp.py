@@ -16,7 +16,7 @@ from app.constant.sys_enums import GlobalYesOrNo
 from app.framework.auth import auth_required, auth_refresh_required
 from app.framework.exceptions import BizException
 from app.framework.res import Res
-from app.models import TokenBlacklist, UserSetting, db, UserSession
+from app.models import Benchmark, TokenBlacklist, UserSetting, db, UserSession
 from app.schemas_marshall import UserSettingSchema
 from app.service.user_service import UserService
 from app.utils.device_parser import DeviceParser
@@ -263,6 +263,7 @@ def update_user():
     email_address = data.get('email_address')
     default_lang = data.get('default_lang')
     risk_free_rate = data.get('risk_free_rate')
+    benchmark_id = data.get('benchmark_id')
 
     # 更新
     if email_address and user.email_address != email_address:
@@ -279,6 +280,16 @@ def update_user():
             user.risk_free_rate = Decimal(str(rate))
         except (ValueError, TypeError):
             raise BizException(_("RISK_FREE_RATE_INVALID"))
+
+    # 更新 benchmark_id
+    if benchmark_id is not None:
+        if benchmark_id:  # non-empty value
+            benchmark = Benchmark.query.get(benchmark_id)
+            if not benchmark:
+                raise BizException(_("BENCHMARK_NOT_FOUND"))
+            user.benchmark_id = benchmark_id
+        else:
+            user.benchmark_id = None
 
     db.session.commit()
     return Res.success()

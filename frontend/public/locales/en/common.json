@@ -213,6 +213,8 @@
   "th_default_language": "Default Language",
   "th_email_address": "Email Address",
   "th_risk_free_rate": "Risk-Free Rate",
+  "th_benchmark": "Benchmark",
+  "th_benchmark_placeholder": "Select a benchmark",
 
   "today": "Today",
   "past": "Past",
@@ -281,7 +283,6 @@
   "chart_show_cost_line": "Show Cost Line",
   "chart_cost_line": "Cost Line",
   "msg_loading_data": "Loading data...",
-  "nav_trend": "NAV Trend",
   "tl_total_profit": "Total P&L",
   "holding_not_found": "Holding not found",
 
@@ -299,5 +300,12 @@
   "empty_trades_hint": "Add trades to track your investment",
   "empty_nav_history": "No history data",
   "empty_alerts": "No alert rules configured",
-  "empty_task_logs": "No task execution records"
+  "empty_task_logs": "No task execution records",
+
+  "benchmark_csi_300": "CSI 300",
+  "benchmark_sse_50": "SSE 50",
+  "benchmark_csi_500": "CSI 500",
+  "benchmark_csi_1000": "CSI 1000",
+
+  "now": "Now"
 }

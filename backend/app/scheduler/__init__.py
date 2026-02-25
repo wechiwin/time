@@ -1,10 +1,12 @@
 # app/scheduler/__init__.py
 import os
 
+from .batch_update_benchmark_metrics import batch_update_all_benchmark_metrics
 from .check_alert_rules import check_alert_rules, send_alert_mail
 from .crawl_holding_data import crawl_holding_data
 from .daily_snapshot_consume_job import consume_async_tasks
 from .daily_snapshot_produce_job import produce_async_tasks
+from .sync_benchmark_data import sync_all_benchmark_data
 
 
 def _context_wrapper(app, func):
@@ -89,6 +91,26 @@ def init_scheduler(app, scheduler):
         hour=3,
         minute=54,
         second=3,
+        replace_existing=True
+    )
+
+    scheduler.add_job(
+        id='sync_benchmark_data',
+        func=_context_wrapper(app, sync_all_benchmark_data),
+        trigger='cron',
+        hour=2,
+        minute=1,
+        second=0,
+        replace_existing=True
+    )
+
+    scheduler.add_job(
+        id='batch_update_benchmark_metrics',
+        func=_context_wrapper(app, batch_update_all_benchmark_metrics),
+        trigger='cron',
+        hour=2,
+        minute=32,
+        second=0,
         replace_existing=True
     )
 

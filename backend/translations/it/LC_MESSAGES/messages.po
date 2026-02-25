@@ -293,3 +293,9 @@ msgstr "%(ho_code)s errore durante l'estrazione della pagina %(page)s"
 
 msgid "DATA_SAVE_FAILED"
 msgstr "%(ho_code)s salvataggio dati non riuscito"
+
+msgid "RISK_FREE_RATE_INVALID"
+msgstr "Il tasso privo di rischio deve essere compreso tra 0 e 1"
+
+msgid "BENCHMARK_NOT_FOUND"
+msgstr "Benchmark selezionato non trovato"

@@ -299,3 +299,9 @@ msgstr "%(ho_code)s 爬取第 %(page)s 页出错"
 
 msgid "DATA_SAVE_FAILED"
 msgstr "%(ho_code)s 数据保存失败"
+
+msgid "RISK_FREE_RATE_INVALID"
+msgstr "无风险利率必须在 0 到 1 之间"
+
+msgid "BENCHMARK_NOT_FOUND"
+msgstr "所选业绩基准不存在"

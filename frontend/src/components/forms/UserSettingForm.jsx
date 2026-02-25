@@ -4,6 +4,7 @@ import {useToast} from '../context/ToastContext';
 import {useTranslation} from "react-i18next";
 import {LANGUAGES} from "../../constants/sysConst";
 import FormField from "../common/FormField";
+import useBenchmark from "../../hooks/api/useBenchmark";
 
 export default function UserSettingForm({onSubmit, onClose, initialValues}) {
     const [form, setForm] = useState({
@@ -12,11 +13,21 @@ export default function UserSettingForm({onSubmit, onClose, initialValues}) {
         default_lang: 'en',
         email_address: '',
         risk_free_rate: 0.02,
+        benchmark_id: null,
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const {showSuccessToast, showErrorToast} = useToast();
     const {t} = useTranslation();
+    const {benchmarks, fetchBenchmarkList} = useBenchmark();
+
+    // Fetch benchmark list on mount
+    useEffect(() => {
+        fetchBenchmarkList().catch(err => {
+            console.error('[UserSettingForm] Failed to fetch benchmarks:', err);
+            showErrorToast(err.message);
+        });
+    }, [fetchBenchmarkList]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -42,6 +53,7 @@ export default function UserSettingForm({onSubmit, onClose, initialValues}) {
                 default_lang: initialValues.default_lang || 'zh',
                 email_address: initialValues.email_address || '',
                 risk_free_rate: initialValues.risk_free_rate ?? 0.02,
+                benchmark_id: initialValues.benchmark_id ?? null,
             });
         }
     }, [initialValues]);
@@ -103,6 +115,24 @@ export default function UserSettingForm({onSubmit, onClose, initialValues}) {
                             ({(form.risk_free_rate * 100).toFixed(2)}%)
                         </span>
                     </div>
+                </FormField>
+
+                <FormField label={t('th_benchmark')}>
+                    <select
+                        value={form.benchmark_id ?? ''}
+                        onChange={(e) => {
+                            const value = e.target.value ? parseInt(e.target.value, 10) : null;
+                            setForm({...form, benchmark_id: value});
+                        }}
+                        className="input-field"
+                    >
+                        {/* <option value="">{t('th_benchmark_placeholder')}</option> */}
+                        {benchmarks.map((bm) => (
+                            <option key={bm.id} value={bm.id}>
+                                {bm.bm_name} ({bm.bm_code})
+                            </option>
+                        ))}
+                    </select>
                 </FormField>
             </div>
 
