@@ -282,8 +282,7 @@ export default function Dashboard() {
                     title={t('benchmark_return_same_period')}
                     value={formatPercent(performance?.benchmark_cumulative_return)}
                     valueColor={getProfitColor(performance?.benchmark_cumulative_return)}
-                    // 显示具体的基准名称，让用户知道在和谁比
-                    subValue={performance?.benchmark_name || '沪深300'}
+                    subValue={t(`benchmark_${(performance?.benchmark_name || 'CSI 300').toLowerCase().replace(/ /g, '_')}`)}
                     icon={<ChartPieIcon className="w-6 h-6 text-gray-500"/>}
                     tooltip={t('benchmark_return_description')}
                 />

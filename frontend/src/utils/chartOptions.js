@@ -120,6 +120,11 @@ const generateBluePalette = (
 
     const colors = [];
 
+    // 边界情况：只有1个数据项时，直接返回单一颜色
+    if (count === 1) {
+        return [hslToHex(hue, maxSaturation, maxLightness)];
+    }
+
     for (let i = 0; i < count; i++) {
         // 从深到浅：索引0最深，索引count-1最浅
         const progress = i / (count - 1);

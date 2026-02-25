@@ -26,7 +26,7 @@ export default function NavChart({ hoId, startDate, endDate, trades = [], classN
                 const data = await list_history(hoId, startDate, end);
                 setNavData(Array.isArray(data) ? data : []);
             } catch (error) {
-                console.error('加载净值数据失败:', error);
+                console.error('Failed to load NAV data:', error);
                 setNavData([]);
             } finally {
                 setLoading(false);
@@ -75,14 +75,14 @@ export default function NavChart({ hoId, startDate, endDate, trades = [], classN
 
                 // 遍历所有系列（净值线 + 交易点）
                 params.forEach(param => {
-                    if (param.seriesName === '净值') {
+                    if (param.seriesName === 'his') {
                         html += `
                             <div class="flex justify-between items-center gap-4">
-                                <span style="color:${param.color}">● ${t('th_tr_nav_per_unit')}</span>
+                                <span style="color:${param.color}">● ${t('th_price_per_unit')}</span>
                                 <span class="font-mono font-bold">${param.value}</span>
                             </div>
                         `;
-                    } else if (param.seriesName === '交易点') {
+                    } else if (param.seriesName === 'trade_point') {
                         // 从 data.extra 中获取我们在 useMemo 中存入的交易对象
                         const trade = param.data.extra;
                         const typeColor = getTradeHex(trade.tr_type);
@@ -125,7 +125,7 @@ export default function NavChart({ hoId, startDate, endDate, trades = [], classN
         },
         series: [
             {
-                name: '净值',
+                name: 'his',
                 data: navData.map(item => parseFloat(item.nav_per_unit)),
                 type: 'line',
                 smooth: true,
@@ -145,7 +145,7 @@ export default function NavChart({ hoId, startDate, endDate, trades = [], classN
                 }
             },
             {
-                name: '交易点',
+                name: 'trade_point',
                 type: 'scatter',
                 coordinateSystem: 'cartesian2d',
                 data: tradePoints,
@@ -167,7 +167,7 @@ export default function NavChart({ hoId, startDate, endDate, trades = [], classN
     if (!navData.length) {
         return (
             <div className={`flex items-center justify-center text-gray-400 ${className}`}>
-                {t('no_nav_data', '暂无净值数据')}
+                {t('empty_nav_history', 'No data available')}
             </div>
         );
     }
