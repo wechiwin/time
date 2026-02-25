@@ -66,6 +66,55 @@ def del_rule():
     return Res.success()
 
 
+@alert_bp.route('/rule/batch_del_rule', methods=['POST'])
+@auth_required
+def batch_del_rule():
+    """
+    批量删除预警规则接口。
+
+    请求参数:
+        ids: 规则 ID 列表
+
+    Returns:
+        {
+            "deleted_count": n,
+            "errors": [{"id": x, "message": "error msg"}]
+        }
+    """
+    data = request.get_json()
+    rule_ids = data.get('ids', [])
+
+    if not rule_ids or not isinstance(rule_ids, list):
+        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.view)
+
+    result = {
+        'deleted_count': 0,
+        'errors': []
+    }
+
+    try:
+        for rule_id in rule_ids:
+            rule = AlertRule.query.filter_by(id=rule_id, user_id=g.user.id).first()
+
+            if not rule:
+                result['errors'].append({
+                    'id': rule_id,
+                    'message': 'not_found_or_no_permission'
+                })
+                continue
+
+            db.session.delete(rule)
+            result['deleted_count'] += 1
+
+        db.session.commit()
+
+    except Exception as e:
+        db.session.rollback()
+        raise BizException(msg=ErrorMessageEnum.OPERATION_FAILED.view)
+
+    return Res.success(result)
+
+
 @alert_bp.route('/rule/page_rule', methods=['POST'])
 @auth_required
 def page_rule():

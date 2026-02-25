@@ -142,3 +142,57 @@ def del_log():
     db.session.delete(log)
     db.session.commit()
     return Res.success()
+
+
+@task_log_bp.route('/batch_del_log', methods=['POST'])
+@auth_required
+def batch_del_log():
+    """
+    批量删除异步任务日志接口。
+
+    请求参数:
+        ids: 日志 ID 列表
+
+    Returns:
+        {
+            "deleted_count": n,
+            "errors": [{"id": x, "message": "error msg"}]
+        }
+    """
+    data = request.get_json()
+    log_ids = data.get('ids', [])
+
+    if not log_ids or not isinstance(log_ids, list):
+        from app.constant.biz_enums import ErrorMessageEnum
+        from app.framework.exceptions import BizException
+        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.view)
+
+    result = {
+        'deleted_count': 0,
+        'errors': []
+    }
+
+    try:
+        for log_id in log_ids:
+            # 只能删除用户自己的任务日志
+            log = AsyncTaskLog.query.filter_by(id=log_id, user_id=g.user.id).first()
+
+            if not log:
+                result['errors'].append({
+                    'id': log_id,
+                    'message': 'not_found_or_no_permission'
+                })
+                continue
+
+            db.session.delete(log)
+            result['deleted_count'] += 1
+
+        db.session.commit()
+
+    except Exception as e:
+        db.session.rollback()
+        from app.constant.biz_enums import ErrorMessageEnum
+        from app.framework.exceptions import BizException
+        raise BizException(msg=ErrorMessageEnum.OPERATION_FAILED.view)
+
+    return Res.success(result)

@@ -65,6 +65,8 @@
   "button_upload_image": "AI识别图片",
   "button_crawl_all": "爬取所有",
   "button_reset": "重置",
+  "button_batch_delete": "批量删除",
+  "button_clear_selection": "取消选择",
 
   "project_title": "投资持仓管理系统",
 
@@ -133,6 +135,13 @@
   "msg_verifying_identity": "正在验证身份...",
   "msg_no_alert_signals": "暂无预警信号",
   "msg_task_started": "任务已后台启动",
+  "msg_selected_count": "已选择 {{count}} 项",
+  "msg_no_selection": "请至少选择一项",
+  "msg_batch_delete_confirm": "确定要删除选中的 {{count}} 项记录吗？",
+  "msg_batch_delete_cascade": "确定要删除 {{count}} 项记录吗？此操作还将永久删除：{{details}}",
+  "msg_batch_delete_success": "成功删除 {{count}} 项记录",
+  "msg_batch_delete_partial": "成功删除 {{success}} 项，{{failed}} 项失败",
+  "msg_delete_success": "删除成功",
 
   "info_hold_status": "持仓状态",
   "info_status_holding": "持仓中",
@@ -228,6 +237,7 @@
   "label_name_or_code": "持仓名称或代码",
 
   "select_all": "全选",
+  "th_select": "选择",
 
   "menu_task_logs": "任务运行",
   "search_keyword": "搜索关键词",

@@ -249,6 +249,37 @@ def del_ho():
         return Res.success()
 
 
+@holding_bp.route('/batch_del_ho', methods=['POST'])
+@auth_required
+def batch_del_ho():
+    """
+    批量删除持仓接口。
+
+    请求参数:
+        ids: 持仓 ID 列表
+        dry_run: 是否仅检查级联信息（不实际删除）
+
+    Returns:
+        dry_run=True: 返回级联删除信息汇总
+        dry_run=False: 返回删除结果
+    """
+    data = request.get_json()
+    holding_ids = data.get('ids', [])
+    is_dry_run = data.get('dry_run', False)
+
+    if not holding_ids or not isinstance(holding_ids, list):
+        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.view)
+
+    if is_dry_run:
+        # 检查模式：返回批量级联删除信息
+        cascade_info = HoldingService.get_batch_cascade_delete_info(holding_ids, g.user.id)
+        return Res.success(cascade_info)
+    else:
+        # 删除模式：执行批量删除
+        result = HoldingService.batch_delete_holdings_with_cascade(holding_ids, g.user.id)
+        return Res.success(result)
+
+
 @holding_bp.route('/export', methods=['GET'])
 @auth_required
 def export_holdings():

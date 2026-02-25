@@ -88,5 +88,10 @@ export default function useAsyncTaskLogList({
         return result;
     }, [post]);
 
-    return {data, isLoading, isDebounced, error, redo_all_snapshot, redo_yesterday_snapshot, deleteLog};
+    const batchDeleteLog = useCallback(async (ids) => {
+        const result = await post('/task_log/batch_del_log', {ids});
+        return result;
+    }, [post]);
+
+    return {data, isLoading, isDebounced, error, redo_all_snapshot, redo_yesterday_snapshot, deleteLog, batchDeleteLog};
 }

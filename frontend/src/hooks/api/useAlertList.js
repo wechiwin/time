@@ -59,6 +59,11 @@ export default function useAlertList(options = {}) {
         return result;
     }, [post, searchPage, keyword, page, perPage]);
 
+    const batchDeleteRule = useCallback(async (ids) => {
+        const result = await post('/alert/rule/batch_del_rule', {ids});
+        return result;
+    }, [post]);
+
     // AlertHistory 操作
     const addHistory = useCallback(async (body) => {
         const result = await post('/alert/history', body);
@@ -73,6 +78,7 @@ export default function useAlertList(options = {}) {
         addRule,
         updateRule,
         deleteRule,
+        batchDeleteRule,
         addHistory,
         searchPage,
         setData

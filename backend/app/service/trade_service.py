@@ -472,3 +472,62 @@ class TradeService:
                     user_holding.ho_status = HoldingStatusEnum.CLOSED.value
                 db.session.add(user_holding)
         # 注意：这里不执行 commit，交由调用方统一 commit，以便发生异常时回滚
+
+    @classmethod
+    def batch_delete_trades(cls, trade_ids: list, user_id: int) -> dict:
+        """
+        批量删除交易记录并重新计算受影响的持仓。
+
+        Args:
+            trade_ids: 交易 ID 列表
+            user_id: 用户 ID
+
+        Returns:
+            {
+                "deleted_count": n,
+                "affected_holdings": [ho_id1, ho_id2, ...],
+                "errors": [{"id": x, "message": "error msg"}]
+            }
+        """
+        result = {
+            'deleted_count': 0,
+            'affected_holdings': set(),
+            'errors': []
+        }
+
+        try:
+            # 收集受影响的 ho_id
+            affected_ho_ids = set()
+
+            for tr_id in trade_ids:
+                trade = Trade.query.filter_by(id=tr_id, user_id=user_id).first()
+
+                if not trade:
+                    result['errors'].append({
+                        'id': tr_id,
+                        'message': 'not_found_or_no_permission'
+                    })
+                    continue
+
+                # 记录受影响的持仓
+                affected_ho_ids.add(trade.ho_id)
+
+                # 删除交易
+                db.session.delete(trade)
+                result['deleted_count'] += 1
+
+            # 对每个受影响的持仓重新计算
+            for ho_id in affected_ho_ids:
+                cls.recalculate_holding_trades(ho_id, user_id)
+
+            db.session.commit()
+
+            result['affected_holdings'] = list(affected_ho_ids)
+            logger.info(f"批量删除交易完成: 删除 {result['deleted_count']} 条, 失败 {len(result['errors'])} 条")
+
+        except Exception as e:
+            db.session.rollback()
+            logger.exception(f"批量删除交易失败: {e}")
+            raise BizException(ErrorMessageEnum.OPERATION_FAILED.view)
+
+        return result

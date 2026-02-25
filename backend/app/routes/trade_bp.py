@@ -124,6 +124,32 @@ def del_tr():
     return Res.success()
 
 
+@trade_bp.route('/batch_del_tr', methods=['POST'])
+@auth_required
+def batch_del_tr():
+    """
+    批量删除交易记录接口。
+
+    请求参数:
+        ids: 交易 ID 列表
+
+    Returns:
+        {
+            "deleted_count": n,
+            "affected_holdings": [ho_id1, ho_id2, ...],
+            "errors": []
+        }
+    """
+    data = request.get_json()
+    trade_ids = data.get('ids', [])
+
+    if not trade_ids or not isinstance(trade_ids, list):
+        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.view)
+
+    result = TradeService.batch_delete_trades(trade_ids, g.user.id)
+    return Res.success(result)
+
+
 @trade_bp.route('/export', methods=['POST'])
 @auth_required
 def export_trade():

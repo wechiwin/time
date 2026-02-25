@@ -316,3 +316,112 @@ class HoldingService:
             db.session.rollback()
             logger.exception(f"删除持仓 {holding.ho_code} 失败: {e}")
             raise BizException(ErrorMessageEnum.OPERATION_FAILED.view)
+
+    @staticmethod
+    def get_batch_cascade_delete_info(holding_ids: list, user_id: int) -> dict:
+        """
+        批量获取级联删除信息。
+        返回每个持仓的级联信息和汇总统计。
+
+        Args:
+            holding_ids: 持仓 ID 列表
+            user_id: 用户 ID
+
+        Returns:
+            {
+                "items": {holding_id: {cascade_info}},
+                "summary": {total_trades: n, total_alert_rules: n, ...}
+            }
+        """
+        items = {}
+        summary = {
+            'trades': 0,
+            'alert_rules': 0,
+            'fund_nav_histories': 0,
+            'holding_snapshots': 0
+        }
+
+        for ho_id in holding_ids:
+            holding = db.session.query(Holding).join(
+                UserHolding, UserHolding.ho_id == Holding.id
+            ).filter(
+                Holding.id == ho_id,
+                UserHolding.user_id == user_id
+            ).first()
+
+            if holding:
+                cascade_info = HoldingService.get_cascade_delete_info(holding)
+                items[str(ho_id)] = cascade_info
+                # 汇总统计
+                for key in summary:
+                    summary[key] += cascade_info.get(key, 0)
+            else:
+                items[str(ho_id)] = {'error': 'not_found'}
+
+        # 只保留非零的汇总项
+        summary = {k: v for k, v in summary.items() if v > 0}
+
+        return {
+            'items': items,
+            'summary': summary
+        }
+
+    @staticmethod
+    def batch_delete_holdings_with_cascade(holding_ids: list, user_id: int) -> dict:
+        """
+        批量删除持仓及其级联数据。
+        在单个事务中执行，失败时全部回滚。
+
+        Args:
+            holding_ids: 持仓 ID 列表
+            user_id: 用户 ID
+
+        Returns:
+            {
+                "deleted_count": n,
+                "errors": [{"id": x, "message": "error msg"}]
+            }
+        """
+        result = {
+            'deleted_count': 0,
+            'errors': []
+        }
+
+        try:
+            for ho_id in holding_ids:
+                # 验证用户权限
+                user_holding = db.session.query(UserHolding).filter(
+                    UserHolding.ho_id == ho_id,
+                    UserHolding.user_id == user_id
+                ).first()
+
+                if not user_holding:
+                    result['errors'].append({
+                        'id': ho_id,
+                        'message': 'not_found_or_no_permission'
+                    })
+                    continue
+
+                holding = db.session.query(Holding).get(ho_id)
+                if not holding:
+                    result['errors'].append({
+                        'id': ho_id,
+                        'message': 'not_found'
+                    })
+                    continue
+
+                # 删除 UserHolding 关联（需要先删除）
+                db.session.delete(user_holding)
+                # 删除 Holding（级联删除其他关联数据）
+                db.session.delete(holding)
+                result['deleted_count'] += 1
+
+            db.session.commit()
+            logger.info(f"批量删除持仓完成: 删除 {result['deleted_count']} 条, 失败 {len(result['errors'])} 条")
+
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            logger.exception(f"批量删除持仓数据库错误: {e}")
+            raise BizException(ErrorMessageEnum.OPERATION_FAILED.view)
+
+        return result

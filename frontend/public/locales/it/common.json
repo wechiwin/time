@@ -63,6 +63,8 @@
   "button_upload_image": "Analizza immagine",
   "button_crawl_all": "Crawl tutti",
   "button_reset": "Reimposta",
+  "button_batch_delete": "Eliminazione in blocco",
+  "button_clear_selection": "Deseleziona tutto",
 
   "project_title": "Sistema di Gestione delle Partecipazioni",
 
@@ -131,6 +133,13 @@
   "msg_verifying_identity": "Verifica dell'identità in corso...",
   "msg_no_alert_signals": "Nessun segnale di allerta",
   "msg_task_started": "L'attività è stata avviata in background",
+  "msg_selected_count": "{{count}} selezionati",
+  "msg_no_selection": "Seleziona almeno un elemento",
+  "msg_batch_delete_confirm": "Eliminare {{count}} elementi selezionati?",
+  "msg_batch_delete_cascade": "Eliminare {{count}} elementi? Questa azione eliminerà anche: {{details}}",
+  "msg_batch_delete_success": "{{count}} elementi eliminati",
+  "msg_batch_delete_partial": "{{success}} eliminati, {{failed}} falliti",
+  "msg_delete_success": "Eliminazione riuscita",
 
   "info_hold_status": "Stato della Posizione",
   "info_status_holding": "In Posizione",
@@ -225,6 +234,7 @@
   "label_name_or_code": "Nome o Codice",
 
   "select_all": "Tutto",
+  "th_select": "Seleziona",
 
   "menu_task_logs": "Esecuzione dei Task",
   "search_keyword": "Parola Chiave di Ricerca",

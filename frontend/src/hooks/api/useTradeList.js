@@ -52,6 +52,15 @@ export default function useTradeList(options = {}) {
         return result;
     }, [post]);
 
+    /**
+     * 执行批量删除操作。
+     * @param {number[]} ids - The IDs of trades to remove.
+     * @returns {Promise<object>} - A promise with deleted_count, affected_holdings, and errors.
+     */
+    const batchRemove = useCallback(async (ids) => {
+        return post(urlPrefix + '/batch_del_tr', {ids});
+    }, [post]);
+
     const update = useCallback(async ({tr_id, ...body}) => {
         const result = await post(urlPrefix + "/update_tr", body);
         return result;
@@ -136,6 +145,7 @@ export default function useTradeList(options = {}) {
         error,
         add,
         remove,
+        batchRemove,
         update,
         search,
         downloadTemplate,

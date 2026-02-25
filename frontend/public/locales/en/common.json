@@ -63,6 +63,8 @@
   "button_upload_image": "AI image recognition",
   "button_crawl_all": "Crawl All",
   "button_reset": "Reset",
+  "button_batch_delete": "Batch Delete",
+  "button_clear_selection": "Clear Selection",
 
   "project_title": "Holding Management System",
 
@@ -131,6 +133,13 @@
   "msg_verifying_identity": "Verifying identity...",
   "msg_no_alert_signals": "No alert signals",
   "msg_task_started": "Task has started in the background",
+  "msg_selected_count": "{{count}} selected",
+  "msg_no_selection": "Please select at least one item",
+  "msg_batch_delete_confirm": "Delete {{count}} selected items?",
+  "msg_batch_delete_cascade": "Delete {{count}} items? This will also delete: {{details}}",
+  "msg_batch_delete_success": "{{count}} items deleted",
+  "msg_batch_delete_partial": "{{success}} deleted, {{failed}} failed",
+  "msg_delete_success": "Deleted successfully",
 
   "info_hold_status": "Holding Status",
   "info_status_holding": "Holding",
@@ -225,6 +234,7 @@
   "label_name_or_code": "Name or Code",
 
   "select_all": "All",
+  "th_select": "Select",
 
   "menu_task_logs": "Task Execution",
   "search_keyword": "Search Keyword",
