@@ -12,3 +12,4 @@ logs
 .flaskenv
 *.mo
 __pycache__
+settings.local.json

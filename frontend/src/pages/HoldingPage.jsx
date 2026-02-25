@@ -20,7 +20,7 @@ export default function HoldingPage() {
     const isMobile = useIsMobile();
     const {t} = useTranslation();
     const {showSuccessToast, showErrorToast} = useToast();
-    const {getEnumOptions} = useEnumTranslation();
+    const {getEnumOptions, enumMap} = useEnumTranslation();
     const {page, perPage, handlePageChange, handlePerPageChange} = usePaginationState();
 
     const [queryKeyword, setQueryKeyword] = useState("");
@@ -48,8 +48,6 @@ export default function HoldingPage() {
         nav_date: searchParams.nav_date
     });
 
-    const [hoTypeOptions, setHoTypeOptions] = useState([]);
-    const [hoStatusOptions, setHoStatusOptions] = useState([]);
     const [confirmState, setConfirmState] = useState({
         isOpen: false,
         holdingId: null,
@@ -58,11 +56,9 @@ export default function HoldingPage() {
         isLoading: false,
     });
 
-    // Load enum options for search filters (automatically updates on language change)
-    useEffect(() => {
-        setHoTypeOptions(getEnumOptions('HoldingTypeEnum'));
-        setHoStatusOptions(getEnumOptions('HoldingStatusEnum'));
-    }, [getEnumOptions]);
+    // 枚举选项 - 依赖 enumMap 确保数据加载后更新
+    const hoTypeOptions = useMemo(() => getEnumOptions('HoldingTypeEnum'), [getEnumOptions, enumMap]);
+    const hoStatusOptions = useMemo(() => getEnumOptions('HoldingStatusEnum'), [getEnumOptions, enumMap]);
 
     // 搜索配置
     const searchFields = [
@@ -73,12 +69,6 @@ export default function HoldingPage() {
             placeholder: t('msg_search_placeholder'),
             className: 'md:col-span-3',
         },
-        // {
-        //     name: 'nav_date',
-        //     type: 'daterange',
-        //     label: t('th_market_date'),
-        //     className: 'md:col-span-3',
-        // },
         {
             name: 'ho_type',
             type: 'multiselect',

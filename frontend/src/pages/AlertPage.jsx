@@ -11,7 +11,7 @@ import {useToast} from "../components/context/ToastContext";
 import Pagination from "../components/common/pagination/Pagination";
 import {usePaginationState} from "../hooks/usePaginationState";
 import SearchArea from "../components/search/SearchArea";
-import useCommon from "../hooks/api/useCommon";
+import {useEnumTranslation} from "../contexts/EnumContext";
 import EmptyState from "../components/common/EmptyState";
 import TableWrapper from "../components/common/TableWrapper";
 
@@ -29,30 +29,10 @@ export default function AlertPage() {
         page, perPage, autoLoad: true, mode, refreshKey, ...searchParams
     });
 
-    const {fetchMultipleEnumValues} = useCommon();
-    // const [hoTypeOptions, setHoTypeOptions] = useState([]);
-    const [typeOptions, setTypeOptions] = useState([]);
-    const [emailStatusOptions, setEmailStatusOptions] = useState([]);
-
-    useEffect(() => {
-        const loadEnumValues = async () => {
-            try {
-                const [
-                    typeOptions,
-                    emailStatusOptions,
-                ] = await fetchMultipleEnumValues([
-                    'TradeTypeEnum',
-                    'AlertEmailStatusEnum',
-                ]);
-                setTypeOptions(typeOptions);
-                setEmailStatusOptions(emailStatusOptions);
-            } catch (err) {
-                console.error('Failed to load enum values:', err);
-                showErrorToast(t('msg_failed_to_load_enum'));
-            }
-        };
-        loadEnumValues();
-    }, [fetchMultipleEnumValues, showErrorToast]);
+    const {getEnumOptions, enumMap} = useEnumTranslation();
+    // 枚举选项 - 依赖 enumMap 确保数据加载后更新
+    const typeOptions = useMemo(() => getEnumOptions('TradeTypeEnum'), [getEnumOptions, enumMap]);
+    const emailStatusOptions = useMemo(() => getEnumOptions('AlertEmailStatusEnum'), [getEnumOptions, enumMap]);
 
     // 切换模式时重置搜索条件和分页
     const handleModeChange = (newMode) => {
