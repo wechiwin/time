@@ -1,4 +1,4 @@
-import React, {createContext, useContext, useEffect, useState, useCallback} from 'react';
+import React, {createContext, useContext, useEffect, useState, useCallback, useMemo} from 'react';
 import {useTranslation} from 'react-i18next';
 import useCommon from '../hooks/api/useCommon';
 
@@ -18,10 +18,20 @@ export function EnumProvider({children}) {
     const {i18n} = useTranslation();
     const {fetchMultipleEnumValues} = useCommon();
     const [enumMap, setEnumMap] = useState({});
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
-    // Fetch all enum values
-    const fetchEnumValues = useCallback(async () => {
+    // Cache fetchMultipleEnumValues to prevent recreation
+    const stableFetchMultipleEnumValues = useMemo(() => fetchMultipleEnumValues, []);
+
+    // Fetch all enum values with error handling and retry logic
+    const fetchEnumValues = useCallback(async (isRetry = false) => {
+        if (loading) return; // Prevent concurrent requests
+
         try {
+            setLoading(true);
+            setError(null);
+
             const enumNames = [
                 'HoldingTypeEnum',
                 'HoldingStatusEnum',
@@ -33,7 +43,8 @@ export function EnumProvider({children}) {
                 'AlertEmailStatusEnum',
                 'TaskStatusEnum',
             ];
-            const allEnums = await fetchMultipleEnumValues(enumNames);
+
+            const allEnums = await stableFetchMultipleEnumValues(enumNames);
 
             // Convert to a map for O(1) lookup
             // allEnums is an array of options arrays, need to map each to its enum name
@@ -50,13 +61,37 @@ export function EnumProvider({children}) {
             setEnumMap(newEnumMap);
         } catch (err) {
             console.error('Failed to fetch enum values:', err);
-        }
-    }, [fetchMultipleEnumValues]);
+            setError(err.message || 'Failed to fetch enum values');
 
-    // Initial fetch and refetch on language change
+            // Retry once on first failure
+            if (!isRetry) {
+                console.log('Retrying enum fetch...');
+                setTimeout(() => fetchEnumValues(true), 1000);
+            }
+        } finally {
+            setLoading(false);
+        }
+    }, [stableFetchMultipleEnumValues]);
+
+    // Initial fetch
     useEffect(() => {
+        console.log('[EnumProvider] Initial fetch triggered');
         fetchEnumValues();
-    }, [fetchEnumValues, i18n.language]);
+    }, []);
+
+    // Refetch on language change with debounce
+    useEffect(() => {
+        console.log('[EnumProvider] Language changed, scheduling refetch');
+        const timeoutId = setTimeout(() => {
+            console.log('[EnumProvider] Executing refetch due to language change');
+            fetchEnumValues();
+        }, 300); // Debounce language change
+
+        return () => {
+            console.log('[EnumProvider] Clearing timeout');
+            clearTimeout(timeoutId);
+        };
+    }, [i18n.language]);
 
     // Translate an enum value
     const translateEnum = useCallback((enumName, value, fallback = value) => {
@@ -71,7 +106,7 @@ export function EnumProvider({children}) {
         return Object.entries(valueLabelMap).map(([value, label]) => ({value, label}));
     }, [enumMap]);
 
-    const value = {translateEnum, getEnumOptions, enumMap};
+    const value = {translateEnum, getEnumOptions, enumMap, loading, error};
 
     return <EnumContext.Provider value={value}>{children}</EnumContext.Provider>;
 }
