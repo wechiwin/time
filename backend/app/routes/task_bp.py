@@ -1,7 +1,9 @@
 # app/routes/task_log_bp.py
-from datetime import datetime
+import threading
+from datetime import datetime, date
 
-from flask import Blueprint, request, g
+from flask import Blueprint, request, g, current_app
+from loguru import logger
 from sqlalchemy import desc, or_
 
 from app.framework.async_task_manager import create_task, DeduplicationStrategy
@@ -31,13 +33,8 @@ def page_task_log():
     statuses = data.get('status')  # 前端会传来一个数组
     created_at_range = data.get('created_at')  # 预期格式: ['YYYY-MM-DD', 'YYYY-MM-DD']
 
-    # 1. 基础查询：用户自己的任务 + 系统任务 (user_id is NULL)
-    query = AsyncTaskLog.query.filter(
-        or_(
-            AsyncTaskLog.user_id == g.user.id,
-            AsyncTaskLog.user_id.is_(None)  # System tasks
-        )
-    )
+    # 1. 基础查询：只查询用户自己的任务（不包含系统任务）
+    query = AsyncTaskLog.query.filter(AsyncTaskLog.user_id == g.user.id)
 
     # 2. 应用筛选条件
     if statuses:  # 检查列表是否非空
@@ -196,3 +193,69 @@ def batch_del_log():
         raise BizException(msg=ErrorMessageEnum.OPERATION_FAILED.view)
 
     return Res.success(result)
+
+
+@task_log_bp.route('/async_calculate_all', methods=['POST'])
+@auth_required
+def async_calculate_all():
+    """
+    Execute all calculation tasks in a background thread:
+    1. Redo all snapshots
+    2. Sync benchmark data
+    3. Batch update benchmark metrics
+
+    Request body (optional):
+        start_date: Start date (YYYY-MM-DD format), defaults to earliest trade date
+        end_date: End date (YYYY-MM-DD format), defaults to previous trade day
+    """
+    from app import create_app
+    from app.service.task_service import TaskService
+
+    user_id = g.user.id
+    data = request.get_json() or {}
+
+    start_date_str = data.get('start_date')
+    end_date_str = data.get('end_date')
+
+    start_date = None
+    end_date = None
+
+    if start_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            from app.constant.biz_enums import ErrorMessageEnum
+            from app.framework.exceptions import BizException
+            raise BizException(msg=ErrorMessageEnum.INVALID_PARAM.view)
+
+    if end_date_str:
+        try:
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            from app.constant.biz_enums import ErrorMessageEnum
+            from app.framework.exceptions import BizException
+            raise BizException(msg=ErrorMessageEnum.INVALID_PARAM.view)
+
+    def run_in_thread(app, uid, s_date, e_date):
+        """Execute calculate_all in a separate thread with Flask app context."""
+        with app.app_context():
+            try:
+                task_log_id = TaskService.calculate_all(user_id=uid, start_date=s_date, end_date=e_date)
+                logger.info(f"Background task calculate_all completed for user {uid}, task_id={task_log_id}")
+            except Exception as e:
+                logger.exception(f"Background task calculate_all failed for user {uid}: {str(e)}")
+
+    # Get the current Flask app instance
+    app = current_app._get_current_object()
+
+    # Start the background thread
+    thread = threading.Thread(
+        target=run_in_thread,
+        args=(app, user_id, start_date, end_date),
+        daemon=True
+    )
+    thread.start()
+
+    logger.info(f"Started background thread for calculate_all, user_id={user_id}")
+
+    return Res.success("Task started in background thread")

@@ -3,6 +3,7 @@ import os
 
 from .batch_update_benchmark_metrics import batch_update_all_benchmark_metrics
 from .check_alert_rules import check_alert_rules, send_alert_mail
+from .cleanup_old_task_logs import cleanup_old_task_logs
 from .crawl_holding_data import crawl_holding_data
 from .daily_snapshot_consume_job import consume_async_tasks
 from .daily_snapshot_produce_job import produce_async_tasks
@@ -110,6 +111,18 @@ def init_scheduler(app, scheduler):
         trigger='cron',
         hour=2,
         minute=32,
+        second=0,
+        replace_existing=True
+    )
+
+    # 每两周清理一次超过两周的任务日志
+    scheduler.add_job(
+        id='cleanup_old_task_logs',
+        func=_context_wrapper(app, cleanup_old_task_logs),
+        trigger='cron',
+        day='1,15',  # 每月1号和15号执行
+        hour=4,
+        minute=0,
         second=0,
         replace_existing=True
     )

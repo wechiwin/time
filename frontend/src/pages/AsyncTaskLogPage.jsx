@@ -22,7 +22,7 @@ export default function AsyncTaskLogPage() {
     const [searchParams, setSearchParams] = useState({keyword: '', status: [], created_at: null});
 
     // API Hook 调用更简洁，直接传入 searchParams
-    const {data, isLoading, isDebounced, redo_all_snapshot, redo_yesterday_snapshot, deleteLog, batchDeleteLog} = useAsyncTaskLogList({
+    const {data, isLoading, isDebounced, async_calculate_all, redo_yesterday_snapshot, deleteLog, batchDeleteLog} = useAsyncTaskLogList({
         page,
         perPage,
         autoLoad: true,
@@ -70,6 +70,17 @@ export default function AsyncTaskLogPage() {
     const handleRefresh = () => {
         setRefreshKey(p => p + 1);
     };
+
+    // Calculate all - dates are optional, backend will use defaults
+    const handleCalculateAll = useCallback(async () => {
+        try {
+            await async_calculate_all();
+            showSuccessToast(t('msg_task_started'));
+        } catch (err) {
+            console.error('Failed to start calculate_all task:', err);
+            showErrorToast(err.message);
+        }
+    }, [async_calculate_all, showSuccessToast, showErrorToast, t]);
 
     const handleDelete = useCallback(async (id) => {
         try {
@@ -201,15 +212,15 @@ export default function AsyncTaskLogPage() {
                 </button>
             )}
             <button
-                onClick={redo_all_snapshot}
+                onClick={handleCalculateAll}
                 disabled={isDebounced}
                 className="btn-secondary text-sm inline-flex items-center gap-1.5 px-2.5 py-1.5"
             >
                 <ArrowPathIcon className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`}/>
-                {t('redo_all_snapshots')}
+                {t('calculate_all')}
             </button>
         </>
-    ), [isLoading, isDebounced, t, selectedIds.size, handleBatchDeleteRequest]);
+    ), [isLoading, isDebounced, t, selectedIds.size, handleBatchDeleteRequest, handleCalculateAll]);
 
 
     return (
