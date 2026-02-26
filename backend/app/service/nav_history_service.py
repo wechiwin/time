@@ -77,32 +77,22 @@ class FundNavHistoryService:
     @classmethod
     def crawl_all_nav_history(cls):
         """
-        爬取所有基金的全部历史净值数据（智能补充缺失数据）
-        - 如果数据库无记录：从成立日爬到昨天
-        - 如果有记录：补充最新数据 + 补充早期缺失数据
+        爬取所有基金的全部历史净值数据（全量重新爬取）
+        - 从成立日爬到昨天
+        - 删除旧数据，插入新数据
         """
         yesterday = datetime.now().date() - timedelta(days=1)
 
-        # 查询所有基金的信息
-        all_holdings = Holding.query.all()
+        # 查询所有基金的信息（去重，避免重复爬取）
+        all_holdings = Holding.query.distinct(Holding.ho_code).all()
         if not all_holdings:
             return {'success_count': 0, 'fail_count': 0, 'errors': []}
-
-        # 一次查询获取所有持仓的最大和最小日期
-        date_stats_query = db.session.query(
-            FundNavHistory.ho_id,
-            func.min(FundNavHistory.nav_date).label('min_date'),
-            func.max(FundNavHistory.nav_date).label('max_date')
-        ).group_by(FundNavHistory.ho_id).all()
-
-        date_stats = {row.ho_id: {'min': row.min_date, 'max': row.max_date} for row in date_stats_query}
 
         success_count = 0
         fail_count = 0
         errors = []
 
         for holding in all_holdings:
-            ho_id = holding.id
             ho_code = holding.ho_code
             ho_establish_date = holding.establishment_date
 
@@ -111,35 +101,16 @@ class FundNavHistoryService:
                 logger.warning(msg)
                 continue
 
-            stats = date_stats.get(ho_id)
-            ranges_to_crawl = []
-
-            if not stats:
-                # 情况1: 数据库无任何记录，从成立日爬到昨天
-                ranges_to_crawl.append((ho_establish_date, yesterday))
-            else:
-                # 情况2: 补充最新数据 (从已有最大日期的后一天 -> 昨天)
-                if stats['max'] < yesterday:
-                    start_date = stats['max'] + timedelta(days=1)
-                    ranges_to_crawl.append((start_date, yesterday))
-
-                # 情况3: 补充早期缺失数据 (从成立日 -> 已有最小日期的前一天)
-                if stats['min'] > ho_establish_date:
-                    end_date = stats['min'] - timedelta(days=1)
-                    ranges_to_crawl.append((ho_establish_date, end_date))
-
-            # 遍历所有需要爬取的范围，执行爬取和保存
-            for start_date, end_date in ranges_to_crawl:
-                try:
-                    inserted = cls.crawl_one_nav_and_insert(holding, start_date, end_date)
-                    logger.info(f"Crawled {ho_code}: inserted {inserted} records in range [{start_date}, {end_date}]")
-                    success_count += 1
-                    time.sleep(0.5)
-                except Exception as e:
-                    fail_count += 1
-                    error_msg = f"Failed to crawl {ho_code} in range [{start_date}, {end_date}]: {e}"
-                    logger.exception(error_msg)
-                    errors.append({'ho_code': ho_code, 'range': f'{start_date} ~ {end_date}', 'error': str(e)})
+            try:
+                inserted = cls.crawl_one_nav_and_insert(holding, ho_establish_date, yesterday)
+                logger.info(f"Crawled {ho_code}: inserted {inserted} records in range [{ho_establish_date}, {yesterday}]")
+                success_count += 1
+                time.sleep(0.5)
+            except Exception as e:
+                fail_count += 1
+                error_msg = f"Failed to crawl {ho_code} in range [{ho_establish_date}, {yesterday}]: {e}"
+                logger.exception(error_msg)
+                errors.append({'ho_code': ho_code, 'range': f'{ho_establish_date} ~ {yesterday}', 'error': str(e)})
 
         return {
             'success_count': success_count,
