@@ -164,40 +164,17 @@ class HoldingService:
         if existing_user_holding:
             raise BizException(ErrorMessageEnum.DUPLICATE_DATA.view)
 
+        # 检查 Holding 表中是否已存在该基金（通过 ho_code 查找）
+        holding = Holding.query.filter_by(ho_code=ho_code).first()
+
         try:
             # 分离 fund_detail 数据
             fund_detail_data = data.pop('fund_detail', None)
             # 分离 UserHolding 专属字段（ho_nickname 属于 UserHolding，不属于 Holding）
             ho_nickname = data.pop('ho_nickname', None)
 
-            # 检查 Holding 表中是否已存在该基金（通过 ho_code 查找）
-            holding = Holding.query.filter_by(ho_code=ho_code).first()
-
-            if holding:
-                # 基金已存在，更新信息
-                for key, value in data.items():
-                    if hasattr(holding, key):
-                        setattr(holding, key, value)
-
-                # 日期转换处理
-                if isinstance(holding.establishment_date, str) and holding.establishment_date:
-                    holding.establishment_date = str_to_date(holding.establishment_date)
-                else:
-                    holding.establishment_date = None
-
-                # 更新关联的 FundDetail
-                if fund_detail_data:
-                    if holding.fund_detail:
-                        # FundDetail 已存在，更新
-                        for key, value in fund_detail_data.items():
-                            if hasattr(holding.fund_detail, key):
-                                setattr(holding.fund_detail, key, value)
-                    else:
-                        # FundDetail 不存在，创建新的
-                        fund_detail = FundDetail(**fund_detail_data)
-                        holding.fund_detail = fund_detail
-            else:
-                # 基金不存在，创建新的
+            # 基金不存在，创建新的
+            if not holding:
                 holding = Holding(**data)
                 holding.ho_type = HoldingTypeEnum.FUND.value
                 # 日期转换处理
@@ -253,7 +230,7 @@ class HoldingService:
                 continue
             # 1. 检查用户是否已持有 (避免不必要的爬虫请求)
             if db.session.query(UserHolding).join(
-                Holding, UserHolding.ho_id == Holding.id
+                    Holding, UserHolding.ho_id == Holding.id
             ).filter(
                 Holding.ho_code == code,
                 UserHolding.user_id == user_id
