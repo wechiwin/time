@@ -16,7 +16,7 @@ from app.service.benchmark_service import BenchmarkService
 class TaskService:
 
     @classmethod
-    def redo_all_snapshot(cls, user_id: int):
+    def redo_all_snapshot(cls, user_id: int, start_date: date = None, end_date: date = None):
         """
         重新执行所有的快照任务
         """
@@ -28,13 +28,14 @@ class TaskService:
         try:
             for user in user_list:
                 # 计算日期范围：从最早的交易日期到今天
-                earliest_trade = Trade.query.filter(Trade.user_id == user.id).order_by(Trade.tr_date).first()
-                if earliest_trade:
-                    start_date = earliest_trade.tr_date
-                else:
-                    start_date = date.today()
+                if not start_date or not end_date:
+                    earliest_trade = Trade.query.filter(Trade.user_id == user.id).order_by(Trade.tr_date).first()
+                    if earliest_trade:
+                        start_date = earliest_trade.tr_date
+                    else:
+                        start_date = date.today()
 
-                end_date = trade_calendar.prev_trade_day(date.today())
+                    end_date = trade_calendar.prev_trade_day(date.today())
 
                 # Holding Snapshot
                 HoldingSnapshotService.generate_snapshots(
@@ -153,23 +154,26 @@ class TaskService:
             task_id: The ID of the created AsyncTaskLog record
         """
         # Calculate default dates if not provided
-        # if not start_date or not end_date:
-        #     earliest_trade = Trade.query.filter(Trade.user_id == user_id).order_by(Trade.tr_date).first()
-        #     if earliest_trade:
-        #         default_start = earliest_trade.tr_date
-        #     else:
-        #         default_start = date.today()
-        #     default_end = trade_calendar.prev_trade_day(date.today())
-        #
-        #     start_date = start_date or default_start
-        #     end_date = end_date or default_end
+        if not start_date or not end_date:
+            earliest_trade = Trade.query.filter(Trade.user_id == user_id).order_by(Trade.tr_date).first()
+            if earliest_trade:
+                default_start = earliest_trade.tr_date
+            else:
+                default_start = date.today()
+            default_end = trade_calendar.prev_trade_day(date.today())
+
+            start_date = start_date or default_start
+            end_date = end_date or default_end
 
         # Create task log record
         task_log = AsyncTaskLog(
             user_id=user_id,
             task_name="Calculate all",
             status=TaskStatusEnum.RUNNING.value,
-            params='',
+            params={
+                "start_date": str(start_date) if start_date else None,
+                "end_date": str(end_date) if end_date else None
+            },
             max_retries=1,
             retry_count=0,
             business_key=f"calculate_all:user_{user_id}"
@@ -182,7 +186,7 @@ class TaskService:
             logger.info(f"Starting calculate_all")
 
             # Step 1: Redo all snapshots
-            cls.redo_all_snapshot(user_id)
+            cls.redo_all_snapshot(user_id, start_date, end_date)
             logger.info(f"Completed redo_all_snapshot")
 
             # Step 2: Sync benchmark data
@@ -190,7 +194,7 @@ class TaskService:
             logger.info("Completed sync_benchmark_data")
 
             # Step 3: Batch update benchmark metrics
-            BenchmarkService.batch_update_benchmark_metrics()
+            BenchmarkService.batch_update_benchmark_metrics(user_id=user_id)
             logger.info(f"Completed batch_update_benchmark_metrics")
 
             # Update task log to SUCCESS

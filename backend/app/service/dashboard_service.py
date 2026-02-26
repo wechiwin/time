@@ -121,7 +121,23 @@ class DashboardService:
         if not latest_date:
             return []
 
+        # 2. 获取持仓分配数据
         holding_ana_snaps = DashboardMapper.get_holdings_allocation(user_id, date_to_str(latest_date), window_key)
+
+        # 3. 获取组合同期的 period_pnl
+        iaas = InvestedAssetAnalyticsSnapshot.query.filter_by(
+            user_id=user_id,
+            snapshot_date=latest_date,
+            window_key=window_key
+        ).first()
+
+        # 4. 计算盈亏占比（pnl_contribution_ratio = has_cumulative_pnl / 组合同期盈亏）
+        total_pnl = float(iaas.period_pnl) if iaas and iaas.period_pnl else 0
+        for item in holding_ana_snaps:
+            if total_pnl != 0:
+                item['pnl_contribution_ratio'] = float(item['has_cumulative_pnl']) / total_pnl
+            else:
+                item['pnl_contribution_ratio'] = 0
 
         return holding_ana_snaps
 

@@ -189,7 +189,8 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
         setForm(prev => ({
             ...prev,
             ho_code: fund?.ho_code || '',
-            ho_id: fund?.id || '',
+            // 确保 ID 为字符串，避免 Select 组件回显问题
+            ho_id: fund?.id ? String(fund.id) : '',
             ho_short_name: fund?.ho_short_name || ''
         }));
     };
@@ -251,7 +252,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
 
                 if (data.status === 'success') {
                     // LLM 处理成功，填充表单
-                    const o = data.data.parsed_json; // 注意后端结构是 data -> data -> parsed_json
+                    const o = data.data.parsed_json;
 
                     setForm(prev => {
                         const isEditMode = !!initialValues?.id;
@@ -259,7 +260,8 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                             ...prev,
                             id: o.id ?? prev.id ?? '',
                             ho_code: isEditMode ? prev.ho_code : (o.ho_code ?? prev.ho_code ?? ''),
-                            ho_id: isEditMode ? prev.ho_id : (o.ho_id ?? prev.ho_id ?? ''),
+                            // 确保 ID 为字符串
+                            ho_id: isEditMode ? prev.ho_id : (o.ho_id ? String(o.ho_id) : (prev.ho_id ?? '')),
                             ho_short_name: isEditMode ? prev.ho_short_name : (o.ho_short_name ?? prev.ho_short_name ?? ''),
                             tr_amount: o.tr_amount ?? prev.tr_amount ?? '',
                             tr_date: o.tr_date ?? prev.tr_date ?? '',
@@ -274,14 +276,24 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                     showSuccessToast();
                     console.log("OCR Text:", data.data.ocr_text);
 
+                    // 成功后关闭连接
+                    eventSource.close();
+                    eventSourceRef.current = null;
+                    setUploading(false);
+                    setProcessingStatus('');
+
                 } else if (data.error) {
                     showErrorToast(data.error);
+                    // 出错后关闭连接
+                    eventSource.close();
+                    eventSourceRef.current = null;
+                    setUploading(false);
+                    setProcessingStatus('');
                 }
+                // 注意：如果是 'processing' 等中间状态，不要关闭连接，也不要设置 uploading 为 false
             } catch (e) {
                 console.error("Parse Error", e);
                 showErrorToast(t('msg_data_parsing_failed'));
-            } finally {
-                // 无论成功失败，收到消息后即关闭连接
                 eventSource.close();
                 eventSourceRef.current = null;
                 setUploading(false);
@@ -308,24 +320,28 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
 
         setIsSubmitting(true);
 
-        // 定义必填字段
-        const requiredFields = [
-            'ho_code',
-            'tr_type',
-            'tr_date',
-            'dividend_type',
-            'tr_nav_per_unit',
-            'tr_shares',
-            'tr_amount',
-            'tr_fee',
-            'cash_amount',
-        ];
-        // 3. 执行验证
+        // 动态生成必填字段
+        let requiredFields = ['ho_code', 'tr_type', 'tr_date'];
+
+        if (form.tr_type === 'DIVIDEND') {
+            requiredFields.push('dividend_type');
+            if (form.dividend_type === 'CASH') {
+                // 现金分红：只需要金额
+                requiredFields.push('cash_amount');
+            } else if (form.dividend_type === 'REINVEST') {
+                // 红利再投：需要净值、份额、金额、费用
+                requiredFields.push('tr_nav_per_unit', 'tr_shares', 'tr_amount', 'tr_fee');
+            }
+        } else {
+            // 普通买卖：需要全部字段
+            requiredFields.push('tr_nav_per_unit', 'tr_shares', 'tr_amount', 'tr_fee', 'cash_amount');
+        }
+
+        // 执行验证
         const {isValid, errors: newErrors} = validateForm(form, requiredFields, t);
 
         if (!isValid) {
             setErrors(newErrors); // 设置错误状态，触发红框
-            // showErrorToast(t('validation_failed_msg')); // 可选：弹一个总的提示
             setIsSubmitting(false);
             return;
         }
@@ -344,7 +360,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
         if (initialValues) {
             setForm({
                 id: initialValues.id,
-                ho_id: initialValues.ho_id || '',
+                ho_id: initialValues.ho_id ? String(initialValues.ho_id) : '',
                 ho_code: initialValues.ho_code || '',
                 ho_short_name: initialValues.ho_short_name || '',
                 tr_type: initialValues.tr_type || '',
@@ -354,6 +370,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                 tr_amount: initialValues.tr_amount || '',
                 tr_fee: initialValues.tr_fee || '',
                 cash_amount: initialValues.cash_amount || '',
+                dividend_type: initialValues.dividend_type || null,
             });
         }
     }, [initialValues]);
@@ -390,7 +407,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                 </FormField>
 
                 {/* 交易类型 - 半宽 */}
-                <FormField label={t('th_tr_type')}>
+                <FormField label={t('th_tr_type')} error={errors['tr_type']} required>
                     <MySelect
                         options={typeOptions}
                         value={form.tr_type}
@@ -400,7 +417,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
                 </FormField>
 
                 {/* 交易日期 - 半宽 */}
-                <FormField label={t('th_market_date')} error={errors['ho_code']} required>
+                <FormField label={t('th_market_date')} error={errors['tr_date']} required>
                     <MyDate
                         value={form.tr_date}
                         onChange={(dateStr) => setForm({...form, tr_date: dateStr})}
@@ -410,7 +427,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
 
                 {/* 分红类型 - 条件显示 */}
                 {isDividend && (
-                    <FormField label={t('th_dividend_type')}>
+                    <FormField label={t('th_dividend_type')} error={errors['dividend_type']} required>
                         <MySelect options={dividendTypeOptions} value={form.dividend_type}
                                   onChange={(val) => handleFieldChange('dividend_type', val)}
                                   className="input-field"/>

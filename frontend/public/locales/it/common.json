@@ -274,6 +274,7 @@
   "position_distribution": "Distribuzione delle Posizioni",
   "position_percentage": "Percentuale di Posizione",
   "portfolio_contribution": "Contributo al Portafoglio",
+  "pnl_contribution": "Contributo P&L",
   "items_per_page": "elementi per pagina",
   "errors_server_error": "Servizio non disponibile. Riprova più tardi.",
   "errors_request_failed": "Richiesta non riuscita. Controlla la connessione e riprova.",

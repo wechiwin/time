@@ -81,13 +81,16 @@ export default function Dashboard() {
         // C. 计算聚合值
         const otherTotalRatio = others.reduce((sum, item) => sum + (parseFloat(item.has_position_ratio) || 0), 0);
         const otherTotalPnl = others.reduce((sum, item) => sum + (parseFloat(item.has_cumulative_pnl) || 0), 0);
-        const otherContribution = others.reduce((sum, item) => sum + (parseFloat(item.has_portfolio_contribution) || 0), 0);
+        // 盈亏占比可以直接相加（因为都是占总盈亏的比例）
+        const otherContributionRatio = others.reduce((sum, item) => sum + (parseFloat(item.pnl_contribution_ratio) || 0), 0);
         topHoldings.push({
             ho_code: 'OTHERS',
             ho_short_name: t('others'), // 确保 i18n 中有 'others' 翻译
             has_position_ratio: otherTotalRatio,
             has_cumulative_pnl: otherTotalPnl,
-            has_portfolio_contribution: otherContribution,
+            pnl_contribution_ratio: otherContributionRatio,
+            // 旧字段（已废弃）
+            // has_portfolio_contribution: otherContribution,
             isOthers: true
         });
         return topHoldings;
@@ -526,9 +529,11 @@ function AllocationListItem({item, index, isHighlighted, onHover, t}) {
                         {formatCurrency(item.has_cumulative_pnl)}
                     </div>
                     <div className={`text-xs font-mono ${color} opacity-80`}>
-                        {/* 贡献度: 对组合的影响 */}
+                        {/* 盈亏占比: 该持仓盈亏占总盈亏的比例 */}
+                        {formatRatioAsPercent(item.pnl_contribution_ratio)}
+                        {/* 旧的贡献度逻辑（单日）
                         {item.has_portfolio_contribution > 0 ? '+' : ''}
-                        {formatRatioAsPercent(item.has_portfolio_contribution)}
+                        {formatRatioAsPercent(item.has_portfolio_contribution)} */}
                     </div>
                 </div>
             </div>

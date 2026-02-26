@@ -125,7 +125,7 @@ class DevelopmentConfig(Config):
     DEBUG = True
     ENV = 'development'  # 明确设置环境名称
     SQLALCHEMY_ECHO = True  # 开发时显示SQL日志
-    SQLALCHEMY_LOG_LEVEL = 'DEBUG'  # 显示完整SQL信息（含参数）
+    SQLALCHEMY_LOG_LEVEL = 'INFO'  # 显示完整SQL信息（含参数）
     JWT_AUTH_REQUIRED = True
     JWT_COOKIE_SECURE = False
     MAIL_DEBUG = True  # 开启调试

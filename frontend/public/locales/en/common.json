@@ -274,6 +274,7 @@
   "position_distribution": "Position Distribution",
   "position_percentage": "Position",
   "portfolio_contribution": "Portfolio Contribution",
+  "pnl_contribution": "P&L Contribution",
   "items_per_page": "items per page",
   "errors_server_error": "Service unavailable. Please try again later.",
   "errors_request_failed": "Request failed. Please check your connection and retry.",

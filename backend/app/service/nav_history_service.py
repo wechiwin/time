@@ -9,7 +9,7 @@ from sqlalchemy import func, desc
 from sqlalchemy.orm import selectinload
 
 from app.framework.exceptions import BizException
-from app.models import db, FundNavHistory, Holding
+from app.models import db, FundNavHistory, Holding, UserHolding
 from app.utils.date_util import str_to_date
 
 
@@ -75,16 +75,26 @@ class FundNavHistoryService:
         }
 
     @classmethod
-    def crawl_all_nav_history(cls):
+    def crawl_all_nav_history(cls, user_id=None):
         """
-        爬取所有基金的全部历史净值数据（全量重新爬取）
+        爬取基金的全部历史净值数据（全量重新爬取）
         - 从成立日爬到昨天
         - 删除旧数据，插入新数据
+        :param user_id: 可选，指定用户ID时只爬取该用户持有的基金
         """
         yesterday = datetime.now().date() - timedelta(days=1)
 
-        # 查询所有基金的信息（去重，避免重复爬取）
-        all_holdings = Holding.query.distinct(Holding.ho_code).all()
+        # 查询基金信息（去重，避免重复爬取）
+        if user_id:
+            # 只爬取用户持有的基金
+            all_holdings = Holding.query.join(
+                UserHolding, Holding.id == UserHolding.ho_id
+            ).filter(
+                UserHolding.user_id == user_id
+            ).distinct(Holding.ho_code).all()
+        else:
+            # 爬取所有基金（定时任务场景）
+            all_holdings = Holding.query.distinct(Holding.ho_code).all()
         if not all_holdings:
             return {'success_count': 0, 'fail_count': 0, 'errors': []}
 

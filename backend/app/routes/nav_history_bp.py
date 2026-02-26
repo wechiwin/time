@@ -164,19 +164,20 @@ def async_crawl_task(app, holding, start_date, end_date):
 @nav_history_bp.route('/crawl_all', methods=['GET'])
 @auth_required
 def crawl_all():
+    user_id = g.user.id
     app = current_app._get_current_object()
     # 启动异步任务
     thread = threading.Thread(
         target=async_crawl_all,
-        args=(app,)
+        args=(app, user_id)
     )
     thread.start()
     return Res.success()
 
 
-def async_crawl_all(app):
+def async_crawl_all(app, user_id):
     with app.app_context():
-        app.logger.info('Starting async crawl_all task')
-        data = FundNavHistoryService.crawl_all_nav_history()
-        app.logger.info('Crawl_all task completed successfully')
+        app.logger.info(f'Starting async crawl_all task for user {user_id}')
+        data = FundNavHistoryService.crawl_all_nav_history(user_id=user_id)
+        app.logger.info(f'Crawl_all task for user {user_id} completed successfully')
         return data

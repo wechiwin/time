@@ -573,7 +573,7 @@ class HoldingAnalyticsSnapshot(TimestampMixin, BaseModel):
     注意：计算此字段需要读取 InvestedAssetSnapshot 的数据。
     """
     __table_args__ = (
-        db.UniqueConstraint('ho_id', 'snapshot_date', 'window_key', name='uq_ho_date_window'),
+        db.UniqueConstraint('user_id', 'ho_id', 'snapshot_date', 'window_key', name='uq_user_ho_date_window'),
         db.Index('idx_has_user_window_date', 'user_id', 'window_key', 'snapshot_date'),
     )
 

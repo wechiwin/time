@@ -201,7 +201,7 @@ export const getPieOption = (data, isDark, emptyMsg, highlightedIndex = null, t,
                 if (!rawData) return `${name}: ${(value * 100).toFixed(2)}%`;
 
                 const pnlColor = getProfitHex(rawData.has_cumulative_pnl, invertColors);
-                const contributionColor = getProfitHex(rawData.has_portfolio_contribution, invertColors);
+                const contributionColor = getProfitHex(rawData.pnl_contribution_ratio, invertColors);
 
                 return `
                     <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid ${isDark ? '#374151' : '#e5e7eb'}; display: flex; align-items: center;">
@@ -214,7 +214,7 @@ export const getPieOption = (data, isDark, emptyMsg, highlightedIndex = null, t,
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2
                 })}</span>
-                        <span>${t('portfolio_contribution')}:</span><span style="font-weight: 600; color: ${contributionColor}; text-align: right;">${(rawData.has_portfolio_contribution * 100).toFixed(2)}%</span>
+                        <span>${t('pnl_contribution')}:</span><span style="font-weight: 600; color: ${contributionColor}; text-align: right;">${(rawData.pnl_contribution_ratio * 100).toFixed(2)}%</span>
                     </div>
                 `;
             },
