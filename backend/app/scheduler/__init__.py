@@ -40,10 +40,10 @@ def init_scheduler(app, scheduler):
         app.logger.info("RUN_SCHEDULER=false, skipping scheduler initialization (non-primary worker)")
         return
 
-    # 检查 scheduler 是否已经绑定 app
+    # 确保 scheduler 已绑定 app（由调用方负责 init_app）
     if not hasattr(scheduler, 'app') or scheduler.app is None:
-        app.logger.warning("Scheduler not bound to app, calling init_app first")
-        scheduler.init_app(app)
+        app.logger.error("Scheduler not bound to app - init_app must be called first")
+        return
 
     # 统一加任务
     scheduler.add_job(

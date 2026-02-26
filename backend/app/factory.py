@@ -89,11 +89,15 @@ def build_app() -> Flask:
     db.init_app(app)
     migrate.init_app(app, db)
     cache.init_app(app)
-    # 检查是否是迁移模式，如果是则跳过 scheduler 初始化
+    # 检查是否应该初始化 scheduler
+    # 在 Gunicorn 预加载模式下，RUN_SCHEDULER 默认为 false
+    # 只有在 post_fork 钩子中获得锁的 worker 才会初始化 scheduler
     import os
     if not os.environ.get('MIGRATION_MODE'):
-        scheduler.init_app(app)
-    init_scheduler(app, scheduler)
+        run_scheduler = os.environ.get('RUN_SCHEDULER', 'false').lower() == 'true'
+        if run_scheduler:
+            scheduler.init_app(app)
+            init_scheduler(app, scheduler)
     openai_client.init_app(app)
     # -----------------------------------------------------------------
     # 步骤 5: 注册蓝图、拦截器、错误处理等

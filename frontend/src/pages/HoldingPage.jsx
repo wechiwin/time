@@ -33,8 +33,6 @@ export default function HoldingPage() {
         add,
         remove,
         batchRemove,
-        checkCascadeDelete,
-        checkBatchCascadeDelete,
         update,
         importData,
         downloadTemplate,
@@ -56,7 +54,6 @@ export default function HoldingPage() {
     // 批量删除确认状态
     const [batchConfirmState, setBatchConfirmState] = useState({
         isOpen: false,
-        cascadeInfo: null,
         isLoading: false,
     });
 
@@ -64,7 +61,6 @@ export default function HoldingPage() {
         isOpen: false,
         holdingId: null,
         holdingName: '',
-        cascadeInfo: null, // 存储级联信息
         isLoading: false,
     });
 
@@ -127,30 +123,25 @@ export default function HoldingPage() {
         handlePageChange(1);
     }, [handlePageChange]);
 
-    // 1. 用户点击删除按钮时，触发此函数
-    const handleDeleteRequest = useCallback(async (holding) => {
+    // ========== 单个删除处理函数 ==========
+
+    // 1. 用户点击删除按钮时，直接显示确认框
+    const handleDeleteRequest = useCallback((holding) => {
         setConfirmState({
             isOpen: true,
             holdingId: holding.id,
             holdingName: `${holding.ho_code} - ${holding.ho_short_name}`,
-            cascadeInfo: null,
-            isLoading: true,
+            isLoading: false,
         });
-        try {
-            const cascadeData = await checkCascadeDelete(holding.id);
-            setConfirmState(prev => ({ ...prev, cascadeInfo: cascadeData, isLoading: false }));
-        } catch (err) {
-            showErrorToast(err.message);
-            setConfirmState({ isOpen: false, holdingId: null, holdingName: '', cascadeInfo: null, isLoading: false });
-        }
-    }, [checkCascadeDelete, showErrorToast]);
-    // 2. 用户在模态框中点击“确认”时，触发此函数
+    }, []);
+
+    // 2. 用户在模态框中点击”确认”时，执行删除
     const handleConfirmDelete = async () => {
         if (!confirmState.holdingId) return;
         setConfirmState(prev => ({ ...prev, isLoading: true }));
         try {
             await remove(confirmState.holdingId);
-            showSuccessToast(t('msg_delete_success'));
+            showSuccessToast(t('msg_remove_from_list_success'));
             // 刷新逻辑
             if (data?.items?.length === 1 && page > 1) {
                 handlePageChange(page - 1);
@@ -160,27 +151,19 @@ export default function HoldingPage() {
         } catch (err) {
             showErrorToast(err.message);
         } finally {
-            // 关闭并重置模态框状态
-            setConfirmState({ isOpen: false, holdingId: null, holdingName: '', cascadeInfo: null, isLoading: false });
+            setConfirmState({ isOpen: false, holdingId: null, holdingName: '', isLoading: false });
         }
     };
+
     // 3. 关闭模态框
     const handleCancelDelete = () => {
-        setConfirmState({ isOpen: false, holdingId: null, holdingName: '', cascadeInfo: null, isLoading: false });
+        setConfirmState({ isOpen: false, holdingId: null, holdingName: '', isLoading: false });
     };
-    // 动态生成模态框的描述信息
+
+    // 简化确认框描述
     const confirmationDescription = useMemo(() => {
-        if (!confirmState.cascadeInfo) {
-            return t('msg_delete_confirmation_simple', { name: confirmState.holdingName });
-        }
-        const details = Object.entries(confirmState.cascadeInfo)
-            .map(([key, value]) => `${value} ${t(`cascade_item_${key}`)}`) // e.g., "5 trade records"
-            .join(', ');
-        if (!details) {
-            return t('msg_delete_confirmation_simple', { name: confirmState.holdingName });
-        }
-        return t('msg_delete_confirmation_cascade', { name: confirmState.holdingName, details });
-    }, [confirmState.cascadeInfo, confirmState.holdingName, t]);
+        return t('msg_remove_from_list_confirm', { name: confirmState.holdingName });
+    }, [confirmState.holdingName, t]);
 
     const [modalConfig, setModalConfig] = useState({show: false, title: "", submitAction: null, initialValues: {}});
     const openModal = (type, values = {}) => {
@@ -235,8 +218,8 @@ export default function HoldingPage() {
 
     // ========== 批量删除处理函数 ==========
 
-    // 批量删除请求（显示确认框）
-    const handleBatchDeleteRequest = useCallback(async () => {
+    // 批量删除请求（直接显示确认框）
+    const handleBatchDeleteRequest = useCallback(() => {
         if (selectedIds.size === 0) {
             showErrorToast(t('msg_no_selection'));
             return;
@@ -244,26 +227,9 @@ export default function HoldingPage() {
 
         setBatchConfirmState({
             isOpen: true,
-            cascadeInfo: null,
-            isLoading: true,
+            isLoading: false,
         });
-
-        try {
-            const result = await checkBatchCascadeDelete(Array.from(selectedIds));
-            setBatchConfirmState(prev => ({
-                ...prev,
-                cascadeInfo: result,
-                isLoading: false,
-            }));
-        } catch (err) {
-            showErrorToast(err.message);
-            setBatchConfirmState({
-                isOpen: false,
-                cascadeInfo: null,
-                isLoading: false,
-            });
-        }
-    }, [selectedIds, checkBatchCascadeDelete, showErrorToast, t]);
+    }, [selectedIds.size, showErrorToast, t]);
 
     // 确认批量删除
     const handleBatchDeleteConfirm = async () => {
@@ -274,9 +240,9 @@ export default function HoldingPage() {
             const errorCount = result?.errors?.length || 0;
 
             if (errorCount > 0) {
-                showErrorToast(t('msg_batch_delete_partial', {success: deletedCount, failed: errorCount}));
+                showErrorToast(t('msg_batch_remove_partial', {success: deletedCount, failed: errorCount}));
             } else {
-                showSuccessToast(t('msg_batch_delete_success', {count: deletedCount}));
+                showSuccessToast(t('msg_batch_remove_success', {count: deletedCount}));
             }
 
             // 清空选择
@@ -293,7 +259,6 @@ export default function HoldingPage() {
         } finally {
             setBatchConfirmState({
                 isOpen: false,
-                cascadeInfo: null,
                 isLoading: false,
             });
         }
@@ -303,7 +268,6 @@ export default function HoldingPage() {
     const handleBatchDeleteCancel = () => {
         setBatchConfirmState({
             isOpen: false,
-            cascadeInfo: null,
             isLoading: false,
         });
     };
@@ -311,20 +275,8 @@ export default function HoldingPage() {
     // 批量删除确认框描述
     const batchConfirmationDescription = useMemo(() => {
         const count = selectedIds.size;
-        if (!batchConfirmState.cascadeInfo?.summary) {
-            return t('msg_batch_delete_confirm', {count});
-        }
-
-        const summary = batchConfirmState.cascadeInfo.summary;
-        const details = Object.entries(summary)
-            .map(([key, value]) => `${value} ${t(`cascade_item_${key}`)}`)
-            .join(', ');
-
-        if (!details) {
-            return t('msg_batch_delete_confirm', {count});
-        }
-        return t('msg_batch_delete_cascade', {count, details});
-    }, [batchConfirmState.cascadeInfo, selectedIds.size, t]);
+        return t('msg_batch_remove_confirm', {count});
+    }, [selectedIds.size, t]);
 
     return (
         <div className="space-y-6">

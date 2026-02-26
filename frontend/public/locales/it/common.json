@@ -140,6 +140,11 @@
   "msg_batch_delete_success": "{{count}} elementi eliminati",
   "msg_batch_delete_partial": "{{success}} eliminati, {{failed}} falliti",
   "msg_delete_success": "Eliminazione riuscita",
+  "msg_remove_from_list_confirm": "Rimuovere {{name}} dalla tua lista? I dati della posizione saranno conservati.",
+  "msg_remove_from_list_success": "Rimosso dalla tua lista",
+  "msg_batch_remove_confirm": "Rimuovere {{count}} elementi selezionati dalla tua lista? I dati delle posizioni saranno conservati.",
+  "msg_batch_remove_success": "{{count}} elementi rimossi dalla tua lista",
+  "msg_batch_remove_partial": "{{success}} rimossi, {{failed}} falliti",
 
   "info_hold_status": "Stato della Posizione",
   "info_status_holding": "In Posizione",
@@ -247,6 +252,7 @@
   "th_error_message": "Messaggio di Errore",
 
   "title_delete_confirmation": "Conferma eliminazione",
+  "loading_cascade_info": "Verifica dati correlati...",
   "msg_delete_confirmation_simple": "Sei sicuro di voler eliminare {{name}}?",
   "msg_delete_confirmation_cascade": "Sei sicuro di voler eliminare {{name}}? Questa azione eliminerà in modo permanente anche: {{details}}.",
   "cascade_item_trades": "registrazioni delle operazioni",

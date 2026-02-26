@@ -223,9 +223,19 @@ def update_holding():
 @holding_bp.route('/del_ho', methods=['POST'])
 @auth_required
 def del_ho():
+    """
+    删除用户与持仓的关联（不删除持仓本身）。
+
+    请求参数:
+        id: 持仓 ID
+        dry_run: 是否仅检查（返回持仓信息）
+
+    Returns:
+        dry_run=True: 返回持仓信息
+        dry_run=False: 返回删除结果
+    """
     data = request.get_json()
     holding_id = data.get('id')
-    # dry_run 参数用于区分检查阶段和实际删除阶段
     is_dry_run = data.get('dry_run', False)
 
     # 验证用户是否有权限访问该 Holding
@@ -240,12 +250,14 @@ def del_ho():
     holding = Holding.query.get(holding_id)
 
     if is_dry_run:
-        # 检查模式：返回将要被删除的关联数据信息
-        cascade_info = HoldingService.get_cascade_delete_info(holding)
-        return Res.success(cascade_info)
+        # 检查模式：返回持仓信息（不再需要级联信息）
+        return Res.success({
+            'ho_code': holding.ho_code,
+            'ho_short_name': holding.ho_short_name
+        })
     else:
-        # 删除模式：执行实际的删除操作
-        HoldingService.delete_holding_with_cascade(holding)
+        # 删除模式：只删除用户与持仓的关联
+        HoldingService.delete_user_holding(holding, g.user.id)
         return Res.success()
 
 
@@ -253,14 +265,14 @@ def del_ho():
 @auth_required
 def batch_del_ho():
     """
-    批量删除持仓接口。
+    批量删除用户与持仓的关联（不删除持仓本身）。
 
     请求参数:
         ids: 持仓 ID 列表
-        dry_run: 是否仅检查级联信息（不实际删除）
+        dry_run: 是否仅检查（返回持仓列表）
 
     Returns:
-        dry_run=True: 返回级联删除信息汇总
+        dry_run=True: 返回持仓列表
         dry_run=False: 返回删除结果
     """
     data = request.get_json()
@@ -271,12 +283,12 @@ def batch_del_ho():
         raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.view)
 
     if is_dry_run:
-        # 检查模式：返回批量级联删除信息
-        cascade_info = HoldingService.get_batch_cascade_delete_info(holding_ids, g.user.id)
-        return Res.success(cascade_info)
+        # 检查模式：返回持仓列表信息
+        info = HoldingService.get_batch_cascade_delete_info(holding_ids, g.user.id)
+        return Res.success(info)
     else:
-        # 删除模式：执行批量删除
-        result = HoldingService.batch_delete_holdings_with_cascade(holding_ids, g.user.id)
+        # 删除模式：只删除用户与持仓的关联
+        result = HoldingService.batch_delete_user_holdings(holding_ids, g.user.id)
         return Res.success(result)
 
 

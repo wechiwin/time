@@ -285,92 +285,76 @@ class HoldingService:
     @staticmethod
     def get_cascade_delete_info(holding: Holding) -> dict:
         """
-        获取删除一个 Holding 将会级联删除的关联数据摘要。
-        只执行 COUNT 查询，性能高。
+        获取持仓的关联数据信息（仅供参考，不再级联删除）。
         """
         if not holding:
             return {}
-        # 使用 relationship 属性来查询关联对象的数量
-        # 这会触发高效的 COUNT(*) 查询
+        # 返回关联数据数量，仅供用户参考
         cascade_counts = {
             'trades': len(holding.trades),
             'alert_rules': len(holding.alert_rules),
             'fund_nav_histories': len(holding.fund_nav_history_list),
             'holding_snapshots': len(holding.holding_snapshots),
-            # 添加其他需要检查的关联模型
         }
-        # 只返回数量大于0的项，简化前端处理
         return {k: v for k, v in cascade_counts.items() if v > 0}
 
     @staticmethod
-    def delete_holding_with_cascade(holding: Holding):
+    def delete_user_holding(holding: Holding, user_id: int):
         """
-        在一个事务中删除 Holding 及其所有关联数据。
-        依赖于在 models.py 中定义的 cascade="all, delete-orphan"。
+        删除用户与持仓的关联（UserHolding），不删除持仓本身。
+        持仓可能被其他用户使用，不应删除。
         """
         try:
-            # SQLAlchemy 将基于 model 中定义的 cascade 规则自动删除所有关联数据
-            db.session.delete(holding)
+            user_holding = db.session.query(UserHolding).filter(
+                UserHolding.ho_id == holding.id,
+                UserHolding.user_id == user_id
+            ).first()
+
+            if not user_holding:
+                raise BizException(ErrorMessageEnum.DATA_NOT_FOUND.view)
+
+            db.session.delete(user_holding)
             db.session.commit()
         except SQLAlchemyError as e:
             db.session.rollback()
-            logger.exception(f"删除持仓 {holding.ho_code} 失败: {e}")
+            logger.exception(f"删除用户持仓关联 {holding.ho_code} 失败: {e}")
             raise BizException(ErrorMessageEnum.OPERATION_FAILED.view)
 
     @staticmethod
     def get_batch_cascade_delete_info(holding_ids: list, user_id: int) -> dict:
         """
-        批量获取级联删除信息。
-        返回每个持仓的级联信息和汇总统计。
-
-        Args:
-            holding_ids: 持仓 ID 列表
-            user_id: 用户 ID
-
-        Returns:
-            {
-                "items": {holding_id: {cascade_info}},
-                "summary": {total_trades: n, total_alert_rules: n, ...}
-            }
+        批量获取持仓信息（不再返回级联删除信息）。
+        仅返回持仓名称列表供确认框显示。
         """
         items = {}
-        summary = {
-            'trades': 0,
-            'alert_rules': 0,
-            'fund_nav_histories': 0,
-            'holding_snapshots': 0
-        }
+        summary = {}
 
         for ho_id in holding_ids:
-            holding = db.session.query(Holding).join(
-                UserHolding, UserHolding.ho_id == Holding.id
+            user_holding = db.session.query(UserHolding).join(
+                Holding, Holding.id == UserHolding.ho_id
             ).filter(
-                Holding.id == ho_id,
+                UserHolding.ho_id == ho_id,
                 UserHolding.user_id == user_id
             ).first()
 
-            if holding:
-                cascade_info = HoldingService.get_cascade_delete_info(holding)
-                items[str(ho_id)] = cascade_info
-                # 汇总统计
-                for key in summary:
-                    summary[key] += cascade_info.get(key, 0)
+            if user_holding:
+                holding = user_holding.holding
+                items[str(ho_id)] = {
+                    'ho_code': holding.ho_code,
+                    'ho_short_name': holding.ho_short_name
+                }
             else:
                 items[str(ho_id)] = {'error': 'not_found'}
 
-        # 只保留非零的汇总项
-        summary = {k: v for k, v in summary.items() if v > 0}
-
         return {
             'items': items,
-            'summary': summary
+            'summary': summary  # 不再有级联删除汇总
         }
 
     @staticmethod
-    def batch_delete_holdings_with_cascade(holding_ids: list, user_id: int) -> dict:
+    def batch_delete_user_holdings(holding_ids: list, user_id: int) -> dict:
         """
-        批量删除持仓及其级联数据。
-        在单个事务中执行，失败时全部回滚。
+        批量删除用户与持仓的关联（UserHolding），不删除持仓本身。
 
         Args:
             holding_ids: 持仓 ID 列表
@@ -389,7 +373,6 @@ class HoldingService:
 
         try:
             for ho_id in holding_ids:
-                # 验证用户权限
                 user_holding = db.session.query(UserHolding).filter(
                     UserHolding.ho_id == ho_id,
                     UserHolding.user_id == user_id
@@ -402,26 +385,16 @@ class HoldingService:
                     })
                     continue
 
-                holding = db.session.query(Holding).get(ho_id)
-                if not holding:
-                    result['errors'].append({
-                        'id': ho_id,
-                        'message': 'not_found'
-                    })
-                    continue
-
-                # 删除 UserHolding 关联（需要先删除）
+                # 只删除 UserHolding 关联，不删除 Holding 本身
                 db.session.delete(user_holding)
-                # 删除 Holding（级联删除其他关联数据）
-                db.session.delete(holding)
                 result['deleted_count'] += 1
 
             db.session.commit()
-            logger.info(f"批量删除持仓完成: 删除 {result['deleted_count']} 条, 失败 {len(result['errors'])} 条")
+            logger.info(f"批量删除用户持仓关联完成: 删除 {result['deleted_count']} 条, 失败 {len(result['errors'])} 条")
 
         except SQLAlchemyError as e:
             db.session.rollback()
-            logger.exception(f"批量删除持仓数据库错误: {e}")
+            logger.exception(f"批量删除用户持仓关联数据库错误: {e}")
             raise BizException(ErrorMessageEnum.OPERATION_FAILED.view)
 
         return result

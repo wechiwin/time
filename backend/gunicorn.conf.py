@@ -103,6 +103,8 @@ def _init_scheduler(worker):
         from app.extension import scheduler
         from app.scheduler import init_scheduler
 
+        # 先初始化 scheduler（绑定 app），再添加 jobs
+        scheduler.init_app(app)
         init_scheduler(app, scheduler)
         worker.log.info(f"Worker pid={worker.pid} - APScheduler initialized successfully")
     except Exception as e:
