@@ -38,7 +38,9 @@ def register_interceptors(app):
     @app.after_request
     def log_response(response):
         """记录响应信息"""
-        duration_ms = round((time.time() - g.start_time) * 1000)
+        # 使用 getattr 安全获取 start_time，防止异常处理时 g.start_time 不存在
+        start_time = getattr(g, 'start_time', None)
+        duration_ms = round((time.time() - start_time) * 1000) if start_time else 0
 
         # 构建响应日志
         parts = [f"<-- {request.method} {request.path} {response.status_code} ({duration_ms}ms)"]
@@ -59,7 +61,8 @@ def register_interceptors(app):
         logger.info(" | ".join(parts))
 
         # 添加 Trace ID 和安全头
-        response.headers['X-Trace-ID'] = g.trace_id
+        trace_id = getattr(g, 'trace_id', 'unknown')
+        response.headers['X-Trace-ID'] = trace_id
         add_security_headers(response)
         return response
 
