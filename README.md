@@ -19,10 +19,9 @@ This project functions as a research-oriented engineering system, serving as a t
 
 
 
-<div align="center">
-  <video src="https://github.com/wechiwin/time/master/assets/intro.mp4" width="800" controls muted loop autoplay>
-  </video>
-</div>
+
+https://github.com/user-attachments/assets/7837dcae-4c42-4144-bec0-a75b3ad68e95
+
 
 
 
