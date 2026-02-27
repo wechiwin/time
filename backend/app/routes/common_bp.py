@@ -2,7 +2,6 @@ from flask import Blueprint, request
 
 from app.cache import cache
 from app.constant.biz_enums import get_all_enum_classes, ErrorMessageEnum
-from app.framework.auth import auth_required
 from app.framework.res import Res
 
 common_bp = Blueprint('common', __name__, url_prefix='/common')
@@ -25,7 +24,6 @@ def _serialize_enum(enum_class) -> list[dict]:
 
 
 @common_bp.route('/get_enum', methods=['POST'])
-@auth_required
 @cache.cached(timeout=300, key_prefix=_make_enum_key_prefix)
 def get_enum():
     """
@@ -53,7 +51,6 @@ def get_enum():
 
 
 @common_bp.route('/get_all_enums', methods=['POST'])
-@auth_required
 @cache.cached(timeout=300, key_prefix=lambda: f"all_enums_{request.headers.get('Accept-Language', 'en')}")
 def get_all_enums():
     """
