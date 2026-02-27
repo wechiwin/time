@@ -78,7 +78,7 @@ export default function HoldingInfoCard({
                         {t('info_hold_cost', '持仓成本')}
                     </div>
                     <div className="font-semibold text-gray-900 dark:text-gray-200">
-                        {hasStats && globalStats.isHolding ? formatPercentNeutral(globalStats.currentCost, 4) : '-'}
+                        {hasStats && globalStats.isHolding ? formatNumber(globalStats.currentCost, 4) : '-'}
                     </div>
                 </div>
 
@@ -108,7 +108,7 @@ export default function HoldingInfoCard({
                         {t('info_holding_shares', '当前份额')}
                     </div>
                     <div className="font-semibold text-gray-900 dark:text-gray-200">
-                        {hasStats && globalStats.isHolding ? formatPercentNeutral(globalStats.currentShares, 2) : (hasStats ? '0.00' : '-')}
+                        {hasStats && globalStats.isHolding ? formatNumber(globalStats.currentShares, 2) : (hasStats ? '0.00' : '-')}
                     </div>
                 </div>
 
@@ -120,13 +120,13 @@ export default function HoldingInfoCard({
                         {t('info_cumulative_returns', '累计收益')}
                     </div>
                     <div
-                        className={`font-semibold ${hasStats ? getProfitColor(globalStats.totalProfit) : 'text-gray-900 dark:text-gray-200'}`}>
-                        {hasStats ? (
+                        className={`font-semibold ${hasStats && globalStats.totalProfit != null ? getProfitColor(globalStats.totalProfit) : 'text-gray-900 dark:text-gray-200'}`}>
+                        {hasStats && globalStats.totalProfit != null ? (
                             <>
                                 {globalStats.totalProfit > 0 ? '+' : ''}
                                 {formatNumber(globalStats.totalProfit)}
                             </>
-                        ) : '-'}
+                        ) : (hasStats ? '--' : '-')}
                     </div>
                 </div>
 
@@ -137,13 +137,13 @@ export default function HoldingInfoCard({
                         {t('info_cumulative_return_rate', '累计收益率')}
                     </div>
                     <div
-                        className={`font-semibold ${hasStats ? getProfitColor(globalStats.cumulativeReturnRate) : 'text-gray-900 dark:text-gray-200'}`}>
-                        {hasStats ? (
+                        className={`font-semibold ${hasStats && globalStats.cumulativeReturnRate != null ? getProfitColor(globalStats.cumulativeReturnRate) : 'text-gray-900 dark:text-gray-200'}`}>
+                        {hasStats && globalStats.cumulativeReturnRate != null ? (
                             <>
                                 {globalStats.cumulativeReturnRate > 0 ? '+' : ''}
                                 {formatPercentNeutral(globalStats.cumulativeReturnRate)}
                             </>
-                        ) : '-'}
+                        ) : (hasStats ? '--' : '-')}
                     </div>
                 </div>
 

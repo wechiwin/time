@@ -164,38 +164,17 @@ class HoldingService:
         if existing_user_holding:
             raise BizException(ErrorMessageEnum.DUPLICATE_DATA.view)
 
+        # 检查 Holding 表中是否已存在该基金（通过 ho_code 查找）
+        holding = Holding.query.filter_by(ho_code=ho_code).first()
+
         try:
             # 分离 fund_detail 数据
             fund_detail_data = data.pop('fund_detail', None)
+            # 分离 UserHolding 专属字段（ho_nickname 属于 UserHolding，不属于 Holding）
+            ho_nickname = data.pop('ho_nickname', None)
 
-            # 检查 Holding 表中是否已存在该基金（通过 ho_code 查找）
-            holding = Holding.query.filter_by(ho_code=ho_code).first()
-
-            if holding:
-                # 基金已存在，更新信息
-                for key, value in data.items():
-                    if hasattr(holding, key):
-                        setattr(holding, key, value)
-
-                # 日期转换处理
-                if isinstance(holding.establishment_date, str) and holding.establishment_date:
-                    holding.establishment_date = str_to_date(holding.establishment_date)
-                else:
-                    holding.establishment_date = None
-
-                # 更新关联的 FundDetail
-                if fund_detail_data:
-                    if holding.fund_detail:
-                        # FundDetail 已存在，更新
-                        for key, value in fund_detail_data.items():
-                            if hasattr(holding.fund_detail, key):
-                                setattr(holding.fund_detail, key, value)
-                    else:
-                        # FundDetail 不存在，创建新的
-                        fund_detail = FundDetail(**fund_detail_data)
-                        holding.fund_detail = fund_detail
-            else:
-                # 基金不存在，创建新的
+            # 基金不存在，创建新的
+            if not holding:
                 holding = Holding(**data)
                 holding.ho_type = HoldingTypeEnum.FUND.value
                 # 日期转换处理
@@ -216,7 +195,8 @@ class HoldingService:
             user_holding = UserHolding(
                 user_id=user_id,
                 ho_id=holding.id,
-                ho_status=HoldingStatusEnum.NOT_HELD.value
+                ho_status=HoldingStatusEnum.NOT_HELD.value,
+                ho_nickname=ho_nickname
             )
             db.session.add(user_holding)
             db.session.commit()
@@ -250,7 +230,7 @@ class HoldingService:
                 continue
             # 1. 检查用户是否已持有 (避免不必要的爬虫请求)
             if db.session.query(UserHolding).join(
-                Holding, UserHolding.ho_id == Holding.id
+                    Holding, UserHolding.ho_id == Holding.id
             ).filter(
                 Holding.ho_code == code,
                 UserHolding.user_id == user_id
@@ -282,34 +262,116 @@ class HoldingService:
     @staticmethod
     def get_cascade_delete_info(holding: Holding) -> dict:
         """
-        获取删除一个 Holding 将会级联删除的关联数据摘要。
-        只执行 COUNT 查询，性能高。
+        获取持仓的关联数据信息（仅供参考，不再级联删除）。
         """
         if not holding:
             return {}
-        # 使用 relationship 属性来查询关联对象的数量
-        # 这会触发高效的 COUNT(*) 查询
+        # 返回关联数据数量，仅供用户参考
         cascade_counts = {
             'trades': len(holding.trades),
             'alert_rules': len(holding.alert_rules),
             'fund_nav_histories': len(holding.fund_nav_history_list),
             'holding_snapshots': len(holding.holding_snapshots),
-            # 添加其他需要检查的关联模型
         }
-        # 只返回数量大于0的项，简化前端处理
         return {k: v for k, v in cascade_counts.items() if v > 0}
 
     @staticmethod
-    def delete_holding_with_cascade(holding: Holding):
+    def delete_user_holding(holding: Holding, user_id: int):
         """
-        在一个事务中删除 Holding 及其所有关联数据。
-        依赖于在 models.py 中定义的 cascade="all, delete-orphan"。
+        删除用户与持仓的关联（UserHolding），不删除持仓本身。
+        持仓可能被其他用户使用，不应删除。
         """
         try:
-            # SQLAlchemy 将基于 model 中定义的 cascade 规则自动删除所有关联数据
-            db.session.delete(holding)
+            user_holding = db.session.query(UserHolding).filter(
+                UserHolding.ho_id == holding.id,
+                UserHolding.user_id == user_id
+            ).first()
+
+            if not user_holding:
+                raise BizException(ErrorMessageEnum.DATA_NOT_FOUND.view)
+
+            db.session.delete(user_holding)
             db.session.commit()
         except SQLAlchemyError as e:
             db.session.rollback()
-            logger.exception(f"删除持仓 {holding.ho_code} 失败: {e}")
+            logger.exception(f"删除用户持仓关联 {holding.ho_code} 失败: {e}")
             raise BizException(ErrorMessageEnum.OPERATION_FAILED.view)
+
+    @staticmethod
+    def get_batch_cascade_delete_info(holding_ids: list, user_id: int) -> dict:
+        """
+        批量获取持仓信息（不再返回级联删除信息）。
+        仅返回持仓名称列表供确认框显示。
+        """
+        items = {}
+        summary = {}
+
+        for ho_id in holding_ids:
+            user_holding = db.session.query(UserHolding).join(
+                Holding, Holding.id == UserHolding.ho_id
+            ).filter(
+                UserHolding.ho_id == ho_id,
+                UserHolding.user_id == user_id
+            ).first()
+
+            if user_holding:
+                holding = user_holding.holding
+                items[str(ho_id)] = {
+                    'ho_code': holding.ho_code,
+                    'ho_short_name': holding.ho_short_name
+                }
+            else:
+                items[str(ho_id)] = {'error': 'not_found'}
+
+        return {
+            'items': items,
+            'summary': summary  # 不再有级联删除汇总
+        }
+
+    @staticmethod
+    def batch_delete_user_holdings(holding_ids: list, user_id: int) -> dict:
+        """
+        批量删除用户与持仓的关联（UserHolding），不删除持仓本身。
+
+        Args:
+            holding_ids: 持仓 ID 列表
+            user_id: 用户 ID
+
+        Returns:
+            {
+                "deleted_count": n,
+                "errors": [{"id": x, "message": "error msg"}]
+            }
+        """
+        result = {
+            'deleted_count': 0,
+            'errors': []
+        }
+
+        try:
+            for ho_id in holding_ids:
+                user_holding = db.session.query(UserHolding).filter(
+                    UserHolding.ho_id == ho_id,
+                    UserHolding.user_id == user_id
+                ).first()
+
+                if not user_holding:
+                    result['errors'].append({
+                        'id': ho_id,
+                        'message': 'not_found_or_no_permission'
+                    })
+                    continue
+
+                # 只删除 UserHolding 关联，不删除 Holding 本身
+                db.session.delete(user_holding)
+                result['deleted_count'] += 1
+
+            db.session.commit()
+            logger.info(f"批量删除用户持仓关联完成: 删除 {result['deleted_count']} 条, 失败 {len(result['errors'])} 条")
+
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            logger.exception(f"批量删除用户持仓关联数据库错误: {e}")
+            raise BizException(ErrorMessageEnum.OPERATION_FAILED.view)
+
+        return result

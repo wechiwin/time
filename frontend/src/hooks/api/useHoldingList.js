@@ -73,7 +73,7 @@ export default function useHoldingList(options = {}) {
      */
     const checkCascadeDelete = useCallback(async (id) => {
         // 调用 del_ho 接口，但附带 dry_run=true 参数
-        return await post(urlPrefix + '/del_ho', {id, dry_run: true});
+        return post(urlPrefix + '/del_ho', {id, dry_run: true});
     }, [post]);
 
     /**
@@ -87,6 +87,24 @@ export default function useHoldingList(options = {}) {
         // 删除成功后，建议由调用方（Page组件）决定何时刷新，而不是在这里自动刷新
         // 这样可以让 Page 组件处理分页逻辑（如删除最后一项后返回上一页）
         return result;
+    }, [post]);
+
+    /**
+     * 批量检查级联删除信息。
+     * @param {number[]} ids - The IDs of holdings to check.
+     * @returns {Promise<object>} - A promise that resolves to the batch cascade info.
+     */
+    const checkBatchCascadeDelete = useCallback(async (ids) => {
+        return post(urlPrefix + '/batch_del_ho', {ids, dry_run: true});
+    }, [post]);
+
+    /**
+     * 执行批量删除操作。
+     * @param {number[]} ids - The IDs of holdings to remove.
+     * @returns {Promise<object>} - A promise with deleted_count and errors.
+     */
+    const batchRemove = useCallback(async (ids) => {
+        return post(urlPrefix + '/batch_del_ho', {ids});
     }, [post]);
     // 更新基金
     const update = useCallback(async (body) => {
@@ -146,6 +164,8 @@ export default function useHoldingList(options = {}) {
         error,
         add,
         remove,
+        batchRemove,
+        checkBatchCascadeDelete,
         searchPage,
         listHolding,
         update,

@@ -11,6 +11,8 @@ import {useToast} from "../components/context/ToastContext";
 import {useTranslation} from "react-i18next";
 import SearchArea from "../components/search/SearchArea";
 import {ArrowDownTrayIcon, DocumentArrowDownIcon} from "@heroicons/react/16/solid";
+import TableWrapper from "../components/common/TableWrapper";
+import EmptyState from "../components/common/EmptyState";
 
 export default function NavHistoryPage() {
     const {t} = useTranslation();
@@ -23,7 +25,7 @@ export default function NavHistoryPage() {
         dateRange: { startDate: null, endDate: null }
     });
 
-    const { data, remove, update, crawl, crawl_all } = useNavHistoryList({
+    const { data, loading, remove, update, crawl, crawl_all } = useNavHistoryList({
         page,
         perPage,
         keyword: queryKeyword,
@@ -131,7 +133,15 @@ export default function NavHistoryPage() {
                 }
             />
 
-            <NavHistoryTable data={data?.items || []} onDelete={handleDelete} onEdit={openEditModal}/>
+            <TableWrapper
+                isLoading={loading}
+                isEmpty={!loading && (!data?.items || data.items.length === 0)}
+                emptyComponent={
+                    <EmptyState message={t('empty_nav_history')} />
+                }
+            >
+                <NavHistoryTable data={data?.items || []} onDelete={handleDelete} onEdit={openEditModal}/>
+            </TableWrapper>
 
             {data?.pagination && (
                 <Pagination

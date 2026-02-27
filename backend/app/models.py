@@ -385,6 +385,10 @@ class HoldingSnapshot(TimestampMixin, BaseModel):
     """
     累计收到的现金分红
     """
+    hos_total_reinvest_dividend = db.Column(db.Numeric(18, 4))
+    """
+    累计的分红再投资
+    """
     hos_total_dividend = db.Column(db.Numeric(18, 4))
     """
     累计收到的分红总额，包含现金分红和分红再投资
@@ -569,7 +573,7 @@ class HoldingAnalyticsSnapshot(TimestampMixin, BaseModel):
     注意：计算此字段需要读取 InvestedAssetSnapshot 的数据。
     """
     __table_args__ = (
-        db.UniqueConstraint('ho_id', 'snapshot_date', 'window_key', name='uq_ho_date_window'),
+        db.UniqueConstraint('user_id', 'ho_id', 'snapshot_date', 'window_key', name='uq_user_ho_date_window'),
         db.Index('idx_has_user_window_date', 'user_id', 'window_key', 'snapshot_date'),
     )
 
@@ -787,7 +791,9 @@ class UserSetting(TimestampMixin, BaseModel):
     last_login_at = db.Column(db.DateTime(timezone=True), nullable=True)
     is_locked = db.Column(db.Integer, nullable=False)
     risk_free_rate = db.Column(db.Numeric(6, 5), nullable=False, default=Decimal('0.02000'))
+    benchmark_id = db.Column(db.Integer, db.ForeignKey('benchmark.id'), nullable=True)
 
+    benchmark = db.relationship('Benchmark', backref='users', lazy='joined')
     user_holdings = db.relationship('UserHolding', backref='user', lazy='dynamic', cascade="all, delete-orphan")
     trades = db.relationship('Trade', backref='user', lazy='dynamic')
     alert_rules = db.relationship('AlertRule', backref='user', lazy='dynamic')

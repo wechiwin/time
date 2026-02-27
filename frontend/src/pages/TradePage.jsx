@@ -1,5 +1,5 @@
 // src/pages/TradePage.jsx
-import React, {useCallback, useEffect, useState} from "react";
+import React, {useCallback, useEffect, useMemo, useState} from "react";
 import {useTranslation} from "react-i18next";
 import TradeForm from '../components/forms/TradeForm';
 import TradeTable from '../components/tables/TradeTable';
@@ -9,8 +9,11 @@ import {useToast} from "../components/context/ToastContext";
 import Pagination from "../components/common/pagination/Pagination";
 import {usePaginationState} from "../hooks/usePaginationState";
 import SearchArea from "../components/search/SearchArea";
-import {ArrowDownTrayIcon, ArrowUpTrayIcon, DocumentArrowDownIcon, PlusIcon} from "@heroicons/react/16/solid";
-import useCommon from "../hooks/api/useCommon";
+import {ArrowDownTrayIcon, ArrowUpTrayIcon, DocumentArrowDownIcon, PlusIcon, TrashIcon} from "@heroicons/react/16/solid";
+import {useEnumTranslation} from "../contexts/EnumContext";
+import TableWrapper from "../components/common/TableWrapper";
+import EmptyState from "../components/common/EmptyState";
+import ConfirmationModal from "../components/common/ConfirmationModal";
 
 export default function TradePage() {
     const {t} = useTranslation();
@@ -25,7 +28,7 @@ export default function TradePage() {
     });
 
     const {
-        data, add, remove, update, importData, exportData, downloadTemplate, search
+        data, loading, add, remove, batchRemove, update, importData, exportData, downloadTemplate, search
     } = useTradeList({
         page,
         perPage,
@@ -37,21 +40,17 @@ export default function TradePage() {
         end_date: searchParams.dateRange.endDate
     });
 
-    const {fetchEnum} = useCommon();
-    const [typeOptions, setTypeOptions] = useState([]);
+    // 批量选择状态
+    const [selectedIds, setSelectedIds] = useState(new Set());
 
-    useEffect(() => {
-        const loadEnumValues = async () => {
-            try {
-                const options = await fetchEnum('TradeTypeEnum');
-                setTypeOptions(options);
-            } catch (err) {
-                console.error('Failed to load enum values:', err);
-                showErrorToast(t('msg_failed_to_load_enum'));
-            }
-        };
-        loadEnumValues();
-    }, [fetchEnum, showErrorToast]);
+    // 批量删除确认状态
+    const [batchConfirmState, setBatchConfirmState] = useState({
+        isOpen: false,
+        isLoading: false,
+    });
+
+    const {getEnumOptions} = useEnumTranslation();
+    const typeOptions = useMemo(() => getEnumOptions('TradeTypeEnum'), [getEnumOptions]);
 
     // 搜索配置
     const searchFields = [
@@ -156,6 +155,82 @@ export default function TradePage() {
         input.click();
     };
 
+    // ========== 批量选择处理函数 ==========
+
+    // 单项选择
+    const handleSelectionChange = useCallback((id, isSelected) => {
+        setSelectedIds(prev => {
+            const newSet = new Set(prev);
+            if (isSelected) {
+                newSet.add(id);
+            } else {
+                newSet.delete(id);
+            }
+            return newSet;
+        });
+    }, []);
+
+    // ========== 批量删除处理函数 ==========
+
+    // 批量删除请求（显示确认框）
+    const handleBatchDeleteRequest = useCallback(async () => {
+        if (selectedIds.size === 0) {
+            showErrorToast(t('msg_no_selection'));
+            return;
+        }
+
+        setBatchConfirmState({
+            isOpen: true,
+            isLoading: false,
+        });
+    }, [selectedIds.size, showErrorToast, t]);
+
+    // 确认批量删除
+    const handleBatchDeleteConfirm = async () => {
+        setBatchConfirmState(prev => ({...prev, isLoading: true}));
+        try {
+            const result = await batchRemove(Array.from(selectedIds));
+            const deletedCount = result?.deleted_count || 0;
+            const errorCount = result?.errors?.length || 0;
+
+            if (errorCount > 0) {
+                showErrorToast(t('msg_batch_delete_partial', {success: deletedCount, failed: errorCount}));
+            } else {
+                showSuccessToast(t('msg_batch_delete_success', {count: deletedCount}));
+            }
+
+            // 清空选择
+            setSelectedIds(new Set());
+
+            // 刷新逻辑
+            if (deletedCount >= (data?.items?.length || 0) && page > 1) {
+                handlePageChange(page - 1);
+            } else {
+                setRefreshKey(p => p + 1);
+            }
+        } catch (err) {
+            showErrorToast(err.message);
+        } finally {
+            setBatchConfirmState({
+                isOpen: false,
+                isLoading: false,
+            });
+        }
+    };
+
+    // 取消批量删除
+    const handleBatchDeleteCancel = () => {
+        setBatchConfirmState({
+            isOpen: false,
+            isLoading: false,
+        });
+    };
+
+    // 批量删除确认框描述
+    const batchConfirmationDescription = useMemo(() => {
+        return t('msg_batch_delete_confirm', {count: selectedIds.size});
+    }, [selectedIds.size, t]);
+
     return (
         <div className="space-y-6">
             {/* 搜索区域 */}
@@ -170,27 +245,53 @@ export default function TradePage() {
                 onReset={handleReset}
                 actionButtons={
                     <>
-                        <button onClick={() => openModal('add')} className="btn-primary inline-flex items-center gap-2">
-                            <PlusIcon className="h-4 w-4"/>
+                        {selectedIds.size > 0 && (
+                            <button
+                                onClick={handleBatchDeleteRequest}
+                                className="btn-danger text-sm inline-flex items-center gap-1.5 px-2.5 py-1.5"
+                            >
+                                <TrashIcon className="h-3.5 w-3.5"/>
+                                {t('button_batch_delete')} ({selectedIds.size})
+                            </button>
+                        )}
+                        <button onClick={() => openModal('add')} className="btn-primary text-sm inline-flex items-center gap-1.5 px-2.5 py-1.5">
+                            <PlusIcon className="h-3.5 w-3.5"/>
                             {t('button_add')}
                         </button>
-                        <button onClick={downloadTemplate} className="btn-secondary inline-flex items-center gap-2">
-                            <DocumentArrowDownIcon className="h-4 w-4"/>
+                        <button onClick={downloadTemplate} className="btn-secondary text-sm inline-flex items-center gap-1.5 px-2.5 py-1.5">
+                            <DocumentArrowDownIcon className="h-3.5 w-3.5"/>
                             {t('button_download_template')}
                         </button>
-                        <button onClick={handleImport} className="btn-secondary inline-flex items-center gap-2">
-                            <ArrowDownTrayIcon className="h-4 w-4"/>
+                        <button onClick={handleImport} className="btn-secondary text-sm inline-flex items-center gap-1.5 px-2.5 py-1.5">
+                            <ArrowDownTrayIcon className="h-3.5 w-3.5"/>
                             {t('button_import_data')}
                         </button>
-                        <button onClick={exportData} className="btn-secondary inline-flex items-center gap-2">
-                            <ArrowUpTrayIcon className="h-4 w-4"/>
+                        <button onClick={exportData} className="btn-secondary text-sm inline-flex items-center gap-1.5 px-2.5 py-1.5">
+                            <ArrowUpTrayIcon className="h-3.5 w-3.5"/>
                             {t('button_export_data')}
                         </button>
                     </>
                 }
             />
 
-            <TradeTable data={data?.items || []} onDelete={handleDelete} onEdit={(item) => openModal('edit', item)}/>
+            <TableWrapper
+                isLoading={loading}
+                isEmpty={!loading && (!data?.items || data.items.length === 0)}
+                emptyComponent={
+                    <EmptyState
+                        message={t('empty_trades')}
+                        hint={t('empty_trades_hint')}
+                    />
+                }
+            >
+                <TradeTable
+                    data={data?.items || []}
+                    onDelete={handleDelete}
+                    onEdit={(item) => openModal('edit', item)}
+                    selectedIds={selectedIds}
+                    onSelectionChange={handleSelectionChange}
+                />
+            </TableWrapper>
 
             {data?.pagination && (
                 <Pagination
@@ -206,6 +307,16 @@ export default function TradePage() {
                 onSubmit={modalConfig.submitAction}
                 FormComponent={TradeForm}
                 initialValues={modalConfig.initialValues}
+            />
+
+            {/* 批量删除确认框 */}
+            <ConfirmationModal
+                isOpen={batchConfirmState.isOpen}
+                onClose={handleBatchDeleteCancel}
+                onConfirm={handleBatchDeleteConfirm}
+                title={t('title_delete_confirmation')}
+                description={batchConfirmationDescription}
+                isLoading={batchConfirmState.isLoading}
             />
         </div>
     );

@@ -1,8 +1,8 @@
-import {useEffect, useState} from 'react';
+import {useEffect, useMemo, useState} from 'react';
 import {useToast} from '../context/ToastContext';
 import {useTranslation} from "react-i18next";
 import MyDate from "../common/MyDate";
-import useCommon from "../../hooks/api/useCommon";
+import {useEnumTranslation} from "../../contexts/EnumContext";
 import MySelect from "../common/MySelect";
 import FormField from "../common/FormField";
 import {validateForm} from "../../utils/formValidation";
@@ -43,13 +43,6 @@ const REQUIRED_FIELDS = [
     'fund_detail.sales_exp_rate'
 ];
 
-const ENUM_TYPES = [
-    'HoldingTypeEnum',
-    'FundTradeMarketEnum',
-    'CurrencyEnum',
-    'FundDividendMethodEnum',
-];
-
 export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl}) {
     const [form, setForm] = useState(INITIAL_FORM_STATE);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,29 +51,13 @@ export default function HoldingForm({onSubmit, onClose, initialValues, onCrawl})
 
     const {showSuccessToast, showErrorToast} = useToast();
     const {t} = useTranslation();
-    const {fetchMultipleEnumValues} = useCommon();
+    const {getEnumOptions, enumMap} = useEnumTranslation();
 
-    const [hoTypeOptions, setHoTypeOptions] = useState([]);
-    const [tradeMarketOptions, setTradeMarketOptions] = useState([]);
-    const [currencyOptions, setCurrencyOptions] = useState([]);
-    const [dividendOptions, setDividendOptions] = useState([]);
-
-    useEffect(() => {
-        const loadEnumValues = async () => {
-            try {
-                const [typeOptions, marketOptions, currencyOptions, dividendOptions] =
-                    await fetchMultipleEnumValues(ENUM_TYPES);
-                setHoTypeOptions(typeOptions);
-                setTradeMarketOptions(marketOptions);
-                setCurrencyOptions(currencyOptions);
-                setDividendOptions(dividendOptions);
-            } catch (err) {
-                console.error('Failed to load enum values:', err);
-                showErrorToast(t('msg_failed_to_load_enum'));
-            }
-        };
-        loadEnumValues();
-    }, [fetchMultipleEnumValues, showErrorToast]);
+    // 枚举选项 - 依赖 enumMap 确保数据加载后更新
+    const hoTypeOptions = useMemo(() => getEnumOptions('HoldingTypeEnum'), [getEnumOptions, enumMap]);
+    const tradeMarketOptions = useMemo(() => getEnumOptions('FundTradeMarketEnum'), [getEnumOptions, enumMap]);
+    const currencyOptions = useMemo(() => getEnumOptions('CurrencyEnum'), [getEnumOptions, enumMap]);
+    const dividendOptions = useMemo(() => getEnumOptions('FundDividendMethodEnum'), [getEnumOptions, enumMap]);
 
     const handleFieldChange = (field, value) => {
         if (field.includes('.')) {

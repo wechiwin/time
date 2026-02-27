@@ -20,4 +20,6 @@ EXPOSE 8080
 # Note: Ensure SQLALCHEMY_DATABASE_URI in .env.prod is correctly configured for Neon PostgreSQL
 RUN flask db upgrade
 
-CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:8080", "wsgi:app"]
+# 使用 gunicorn.conf.py 配置文件
+# 该配置确保 APScheduler 只在 worker 0 中运行，避免重复执行和内存问题
+CMD ["gunicorn", "-c", "gunicorn.conf.py", "wsgi:app"]

@@ -2,13 +2,15 @@ import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useTranslation} from 'react-i18next';
 import {useToast} from '../components/context/ToastContext';
 import {usePaginationState} from '../hooks/usePaginationState';
-import useCommon from '../hooks/api/useCommon';
+import {useEnumTranslation} from '../contexts/EnumContext';
 import useAsyncTaskLogList from '../hooks/api/useAsyncTaskLogList';
 import SearchArea from '../components/search/SearchArea';
 import AsyncTaskLogTable from '../components/tables/AsyncTaskLogTable';
 import Pagination from '../components/common/pagination/Pagination';
 import EmptyState from "../components/common/EmptyState";
-import {ArrowPathIcon} from '@heroicons/react/16/solid';
+import {ArrowPathIcon, TrashIcon} from '@heroicons/react/16/solid';
+import TableWrapper from "../components/common/TableWrapper";
+import ConfirmationModal from "../components/common/ConfirmationModal";
 
 export default function AsyncTaskLogPage() {
     const {t} = useTranslation();
@@ -20,7 +22,7 @@ export default function AsyncTaskLogPage() {
     const [searchParams, setSearchParams] = useState({keyword: '', status: [], created_at: null});
 
     // API Hook 调用更简洁，直接传入 searchParams
-    const {data, isLoading, isDebounced, redo_all_snapshot, redo_yesterday_snapshot, deleteLog} = useAsyncTaskLogList({
+    const {data, isLoading, isDebounced, async_calculate_all, redo_yesterday_snapshot, deleteLog, batchDeleteLog} = useAsyncTaskLogList({
         page,
         perPage,
         autoLoad: true,
@@ -28,22 +30,17 @@ export default function AsyncTaskLogPage() {
         ...searchParams
     });
 
-    const {fetchMultipleEnumValues} = useCommon();
-    const [taskStatusOptions, setTaskStatusOptions] = useState([]);
+    // 批量选择状态
+    const [selectedIds, setSelectedIds] = useState(new Set());
 
-    useEffect(() => {
-        const loadEnumValues = async () => {
-            try {
-                const [statusOptions] = await fetchMultipleEnumValues(
-                    ['TaskStatusEnum']);
-                setTaskStatusOptions(statusOptions);
-            } catch (err) {
-                console.error('Failed to load enum values:', err);
-                showErrorToast(t('msg_failed_to_load_enum'));
-            }
-        };
-        loadEnumValues();
-    }, [fetchMultipleEnumValues, showErrorToast]);
+    // 批量删除确认状态
+    const [batchConfirmState, setBatchConfirmState] = useState({
+        isOpen: false,
+        isLoading: false,
+    });
+
+    const {getEnumOptions} = useEnumTranslation();
+    const taskStatusOptions = useMemo(() => getEnumOptions('TaskStatusEnum'), [getEnumOptions]);
 
     // [重构 3] 回调函数更精简
     const handleSearch = useCallback((values) => {
@@ -59,6 +56,17 @@ export default function AsyncTaskLogPage() {
     const handleRefresh = () => {
         setRefreshKey(p => p + 1);
     };
+
+    // Calculate all - dates are optional, backend will use defaults
+    const handleCalculateAll = useCallback(async () => {
+        try {
+            await async_calculate_all();
+            showSuccessToast(t('msg_task_started'));
+        } catch (err) {
+            console.error('Failed to start calculate_all task:', err);
+            showErrorToast(err.message);
+        }
+    }, [async_calculate_all, showSuccessToast, showErrorToast, t]);
 
     const handleDelete = useCallback(async (id) => {
         try {
@@ -78,6 +86,82 @@ export default function AsyncTaskLogPage() {
             showErrorToast();
         }
     }, [deleteLog, showSuccessToast, showErrorToast, t, data, page, handlePageChange]);
+
+    // ========== 批量选择处理函数 ==========
+
+    // 单项选择
+    const handleSelectionChange = useCallback((id, isSelected) => {
+        setSelectedIds(prev => {
+            const newSet = new Set(prev);
+            if (isSelected) {
+                newSet.add(id);
+            } else {
+                newSet.delete(id);
+            }
+            return newSet;
+        });
+    }, []);
+
+    // ========== 批量删除处理函数 ==========
+
+    // 批量删除请求（显示确认框）
+    const handleBatchDeleteRequest = useCallback(async () => {
+        if (selectedIds.size === 0) {
+            showErrorToast(t('msg_no_selection'));
+            return;
+        }
+
+        setBatchConfirmState({
+            isOpen: true,
+            isLoading: false,
+        });
+    }, [selectedIds.size, showErrorToast, t]);
+
+    // 确认批量删除
+    const handleBatchDeleteConfirm = async () => {
+        setBatchConfirmState(prev => ({...prev, isLoading: true}));
+        try {
+            const result = await batchDeleteLog(Array.from(selectedIds));
+            const deletedCount = result?.deleted_count || 0;
+            const errorCount = result?.errors?.length || 0;
+
+            if (errorCount > 0) {
+                showErrorToast(t('msg_batch_delete_partial', {success: deletedCount, failed: errorCount}));
+            } else {
+                showSuccessToast(t('msg_batch_delete_success', {count: deletedCount}));
+            }
+
+            // 清空选择
+            setSelectedIds(new Set());
+
+            // 刷新逻辑
+            if (deletedCount >= (data?.items?.length || 0) && page > 1) {
+                handlePageChange(page - 1);
+            } else {
+                setRefreshKey(p => p + 1);
+            }
+        } catch (err) {
+            showErrorToast(err.message);
+        } finally {
+            setBatchConfirmState({
+                isOpen: false,
+                isLoading: false,
+            });
+        }
+    };
+
+    // 取消批量删除
+    const handleBatchDeleteCancel = () => {
+        setBatchConfirmState({
+            isOpen: false,
+            isLoading: false,
+        });
+    };
+
+    // 批量删除确认框描述
+    const batchConfirmationDescription = useMemo(() => {
+        return t('msg_batch_delete_confirm', {count: selectedIds.size});
+    }, [selectedIds.size, t]);
 
     const searchFields = [
         {
@@ -104,20 +188,25 @@ export default function AsyncTaskLogPage() {
 
     const actionButtons = useMemo(() => (
         <>
+            {selectedIds.size > 0 && (
+                <button
+                    onClick={handleBatchDeleteRequest}
+                    className="btn-danger text-sm inline-flex items-center gap-1.5 px-2.5 py-1.5"
+                >
+                    <TrashIcon className="h-3.5 w-3.5"/>
+                    {t('button_batch_delete')} ({selectedIds.size})
+                </button>
+            )}
             <button
-                onClick={redo_all_snapshot}
+                onClick={handleCalculateAll}
                 disabled={isDebounced}
-                className="btn-secondary inline-flex items-center gap-2"
+                className="btn-secondary text-sm inline-flex items-center gap-1.5 px-2.5 py-1.5"
             >
-                <ArrowPathIcon className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}/>
-                {t('redo_all_snapshots')}
+                <ArrowPathIcon className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`}/>
+                {t('calculate_all')}
             </button>
-            {/* <button onClick={redo_yesterday_snapshot} className="btn-secondary inline-flex items-center gap-2"> */}
-            {/*     <ArrowPathIcon className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}/> */}
-            {/*     redo_yesterday_snapshot */}
-            {/* </button> */}
         </>
-    ), [isLoading, isDebounced, t]);
+    ), [isLoading, isDebounced, t, selectedIds.size, handleBatchDeleteRequest, handleCalculateAll]);
 
 
     return (
@@ -134,11 +223,18 @@ export default function AsyncTaskLogPage() {
                 />
             </div>
 
-            {data?.items?.length > 0 ? (
-                <AsyncTaskLogTable data={data.items} onDelete={handleDelete}/>
-            ) : (
-                <EmptyState message={t('msg_no_records')}/>
-            )}
+            <TableWrapper
+                isLoading={isLoading}
+                isEmpty={!isLoading && (!data?.items || data.items.length === 0)}
+                emptyComponent={<EmptyState message={t('empty_task_logs')} />}
+            >
+                <AsyncTaskLogTable
+                    data={data?.items || []}
+                    onDelete={handleDelete}
+                    selectedIds={selectedIds}
+                    onSelectionChange={handleSelectionChange}
+                />
+            </TableWrapper>
 
 
             {data?.pagination && (
@@ -148,6 +244,16 @@ export default function AsyncTaskLogPage() {
                     onPerPageChange={handlePerPageChange}
                 />
             )}
+
+            {/* 批量删除确认框 */}
+            <ConfirmationModal
+                isOpen={batchConfirmState.isOpen}
+                onClose={handleBatchDeleteCancel}
+                onConfirm={handleBatchDeleteConfirm}
+                title={t('title_delete_confirmation')}
+                description={batchConfirmationDescription}
+                isLoading={batchConfirmState.isLoading}
+            />
         </div>
     );
 }

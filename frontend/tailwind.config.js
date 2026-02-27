@@ -36,6 +36,7 @@ module.exports = {
                 'modal': '50',
                 'modal-backdrop': '40',
                 'popover': '60', // for datepicker, dropdowns etc.
+                'toast': '70', // for toast notifications, always on top
             }
         }
     },

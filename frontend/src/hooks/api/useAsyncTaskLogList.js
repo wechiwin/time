@@ -72,6 +72,27 @@ export default function useAsyncTaskLogList({
         }
     }, [get, fetchData, isDebounced]);
 
+    const async_calculate_all = useCallback(async (startDate = null, endDate = null) => {
+        if (isDebounced) return;
+        setIsDebounced(true);
+        debounceTimeoutRef.current = setTimeout(() => {
+            setIsDebounced(false);
+        }, 3000);
+
+        setIsLoading(true);
+        try {
+            const payload = {};
+            if (startDate) payload.start_date = startDate;
+            if (endDate) payload.end_date = endDate;
+
+            const result = await post('/task_log/async_calculate_all', payload);
+            await fetchData();  // Refresh task list to show the new task
+            return result;
+        } finally {
+            setIsLoading(false);
+        }
+    }, [post, fetchData, isDebounced]);
+
     const redo_yesterday_snapshot = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -88,5 +109,10 @@ export default function useAsyncTaskLogList({
         return result;
     }, [post]);
 
-    return {data, isLoading, isDebounced, error, redo_all_snapshot, redo_yesterday_snapshot, deleteLog};
+    const batchDeleteLog = useCallback(async (ids) => {
+        const result = await post('/task_log/batch_del_log', {ids});
+        return result;
+    }, [post]);
+
+    return {data, isLoading, isDebounced, error, redo_all_snapshot, async_calculate_all, redo_yesterday_snapshot, deleteLog, batchDeleteLog};
 }

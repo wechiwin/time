@@ -261,6 +261,9 @@ msgstr "No file selected"
 msgid "EXCEL_MISSING_REQUIRED_COLUMNS"
 msgstr "Excel is missing required columns"
 
+msgid "INVALID_DATE_FORMAT"
+msgstr "Invalid date format in Excel"
+
 msgid "TRADE_TYPE_NOT_RECOGNIZED"
 msgstr "Trade type \"%(value)s\" is not recognized, please use the dropdown options provided in the template."
 
@@ -293,3 +296,9 @@ msgstr "%(ho_code)s error crawling page %(page)s"
 
 msgid "DATA_SAVE_FAILED"
 msgstr "%(ho_code)s data save failed"
+
+msgid "RISK_FREE_RATE_INVALID"
+msgstr "Risk-free rate must be between 0 and 1"
+
+msgid "BENCHMARK_NOT_FOUND"
+msgstr "Selected benchmark not found"

@@ -16,6 +16,7 @@ from app.constant.sys_enums import GlobalYesOrNo
 from app.extension import openai_client
 from app.framework.exceptions import BizException
 from app.models import db, Holding, Trade, UserHolding
+from app.service.holding_service import HoldingService
 from app.utils.common_util import is_not_blank
 from app.utils.date_util import str_to_date, date_to_str
 
@@ -234,10 +235,31 @@ class TradeService:
         ).all()
         user_holding_map = {uh.holding.ho_code: uh for uh in user_holdings}
 
-        # 3. 检查是否存在未创建的持仓
+        # 3. 检查是否存在未创建的持仓，如果存在则自动爬取并创建
         missing_codes = set(ho_codes) - set(user_holding_map.keys())
-        if missing_codes and len(missing_codes) > 0 and missing_codes is not None:
-            raise BizException(_("FUND_CODE_NOT_IN_HOLDINGS") % {"codes": ', '.join(map(str, missing_codes))})
+        if missing_codes:
+            for code in missing_codes:
+                try:
+                    # 爬取基金信息
+                    fund_data = HoldingService.crawl_fund_info(code)
+                    # 创建持仓
+                    HoldingService.create_holding(fund_data, user_id)
+                    logger.info(f"自动创建持仓成功: {code}")
+                except BizException as e:
+                    logger.error(f"自动创建持仓失败: {code}, 原因: {e.msg}")
+                    raise BizException(_("FUND_CODE_NOT_IN_HOLDINGS") % {"codes": f"{code} ({e.msg})"})
+                except Exception as e:
+                    logger.exception(f"自动创建持仓异常: {code}")
+                    raise BizException(_("FUND_CODE_NOT_IN_HOLDINGS") % {"codes": f"{code} (爬取失败)"})
+
+            # 重新查询用户持仓，获取新创建的记录
+            user_holdings = db.session.query(UserHolding).join(
+                Holding, Holding.id == UserHolding.ho_id
+            ).filter(
+                Holding.ho_code.in_(ho_codes),
+                UserHolding.user_id == user_id
+            ).all()
+            user_holding_map = {uh.holding.ho_code: uh for uh in user_holdings}
 
         try:
             # 4. 循环处理每个基金的交易列表
@@ -258,8 +280,6 @@ class TradeService:
                 # 5. 按时间顺序处理该基金的每一笔新交易
                 for trade in to_iterate_trades:
                     trade_shares = Decimal(str(trade.tr_shares))
-                    if isinstance(trade.tr_date, str):
-                        trade.tr_date = str_to_date(trade.tr_date)
 
                     if trade.tr_type == TradeTypeEnum.SELL.value and (
                             current_shares.is_zero() or trade_shares > current_shares):
@@ -349,17 +369,17 @@ class TradeService:
         返回:
             tuple: (持仓总份额, 持仓总成本)
         """
-        total_shares = 0.0
-        total_cost = 0.0
+        total_shares = ZERO
+        total_cost = ZERO
 
         # 按交易日期排序，确保交易按时间顺序处理
         sorted_trades = sorted(uncleared_trade_list, key=lambda x: x.tr_date)
 
         for trade in sorted_trades:
-            if trade.tr_type == 1:  # 买入交易
+            if trade.tr_type == TradeTypeEnum.BUY.value:  # 买入交易
                 total_shares += trade.tr_shares
                 total_cost += trade.cash_amount  # 总成本包含交易费用
-            elif trade.tr_type == 0:  # 卖出交易
+            elif trade.tr_type == TradeTypeEnum.SELL.value:  # 卖出交易
                 # 使用移动平均法计算卖出成本 TODO 之后增加选项FIFO给用户
                 if total_shares > 0:
                     avg_cost = total_cost / total_shares
@@ -367,7 +387,7 @@ class TradeService:
                     total_shares -= trade.tr_shares
                     total_cost -= sell_cost
 
-        return total_shares, total_cost
+        return float(total_shares), float(total_cost)
 
     @classmethod
     def recalculate_holding_trades(cls, ho_id: int, user_id: int = None):
@@ -395,7 +415,7 @@ class TradeService:
             return
 
         # 3. 初始化状态变量
-        current_shares = Decimal('0')
+        current_shares = ZERO
         current_cycle = 1
 
         # 用于浮点数比较的极小值
@@ -450,3 +470,62 @@ class TradeService:
                     user_holding.ho_status = HoldingStatusEnum.CLOSED.value
                 db.session.add(user_holding)
         # 注意：这里不执行 commit，交由调用方统一 commit，以便发生异常时回滚
+
+    @classmethod
+    def batch_delete_trades(cls, trade_ids: list, user_id: int) -> dict:
+        """
+        批量删除交易记录并重新计算受影响的持仓。
+
+        Args:
+            trade_ids: 交易 ID 列表
+            user_id: 用户 ID
+
+        Returns:
+            {
+                "deleted_count": n,
+                "affected_holdings": [ho_id1, ho_id2, ...],
+                "errors": [{"id": x, "message": "error msg"}]
+            }
+        """
+        result = {
+            'deleted_count': 0,
+            'affected_holdings': set(),
+            'errors': []
+        }
+
+        try:
+            # 收集受影响的 ho_id
+            affected_ho_ids = set()
+
+            for tr_id in trade_ids:
+                trade = Trade.query.filter_by(id=tr_id, user_id=user_id).first()
+
+                if not trade:
+                    result['errors'].append({
+                        'id': tr_id,
+                        'message': 'not_found_or_no_permission'
+                    })
+                    continue
+
+                # 记录受影响的持仓
+                affected_ho_ids.add(trade.ho_id)
+
+                # 删除交易
+                db.session.delete(trade)
+                result['deleted_count'] += 1
+
+            # 对每个受影响的持仓重新计算
+            for ho_id in affected_ho_ids:
+                cls.recalculate_holding_trades(ho_id, user_id)
+
+            db.session.commit()
+
+            result['affected_holdings'] = list(affected_ho_ids)
+            logger.info(f"批量删除交易完成: 删除 {result['deleted_count']} 条, 失败 {len(result['errors'])} 条")
+
+        except Exception as e:
+            db.session.rollback()
+            logger.exception(f"批量删除交易失败: {e}")
+            raise BizException(ErrorMessageEnum.OPERATION_FAILED.view)
+
+        return result

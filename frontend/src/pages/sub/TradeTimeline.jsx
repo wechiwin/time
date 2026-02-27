@@ -102,8 +102,10 @@ export default function TradeTimeline({rounds = [], loading = false}) {
                     <>
                         {sortedRounds.map((round, idx) => {
                             const holdDays = calculateHoldDays(round.startDate, round.endDate, round.isClear);
-                            const profitColor = getProfitColor(round.stats.totalProfit);
-                            const returnRateColor = getProfitColor(round.stats.returnRate * 100);
+                            const hasProfit = round.stats.totalProfit != null;
+                            const hasReturnRate = round.stats.returnRate != null;
+                            const profitColor = hasProfit ? getProfitColor(round.stats.totalProfit) : 'text-gray-500 dark:text-gray-400';
+                            const returnRateColor = hasReturnRate ? getProfitColor(round.stats.returnRate * 100) : 'text-gray-500 dark:text-gray-400';
 
                             return (
                                 <div key={idx}
@@ -121,13 +123,13 @@ export default function TradeTimeline({rounds = [], loading = false}) {
                                                     {round.isClear ? t('info_status_cleared') : t('info_status_holding')}
                                                 </span>
                                                 <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                                                    {round.startDate} ~ {round.isClear ? round.endDate : t('now','现在')}
+                                                    {round.startDate} ~ {round.isClear ? round.endDate : t('now', '现在')}
                                                 </span>
                                             </div>
                                             <div className={`text-right font-mono font-bold text-lg ${profitColor}`}>
-                                                {formatCurrency(round.stats.totalProfit)}
+                                                {hasProfit ? formatCurrency(round.stats.totalProfit) : '--'}
                                                 <span className={`text-xs ml-1 font-normal ${returnRateColor}`}>
-                                                    ({formatPercent(round.stats.returnRate * 100)})
+                                                    ({hasReturnRate ? formatPercent(round.stats.returnRate * 100) : '--'})
                                                 </span>
                                             </div>
                                         </div>
@@ -170,7 +172,7 @@ export default function TradeTimeline({rounds = [], loading = false}) {
                                                             <BanknotesIcon className="w-3 h-3"/> {t('tl_total_profit')}
                                                         </span>
                                                         <span className={`font-medium ${profitColor}`}>
-                                                            {formatCurrency(round.stats.totalProfit)}
+                                                            {hasProfit ? formatCurrency(round.stats.totalProfit) : '--'}
                                                         </span>
                                                     </>
                                                 ) : (
@@ -271,9 +273,6 @@ export default function TradeTimeline({rounds = [], loading = false}) {
                                         <div
                                             className="flex-1 p-4 bg-white dark:bg-gray-800 border-t md:border-t-0 md:border-l border-gray-200 dark:border-gray-700"
                                         >
-                                            <h1 className="text-center text-sm text-gray-500 mb-1">
-                                                {t('nav_trend', '净值走势')}
-                                            </h1>
                                             <NavChart
                                                 hoId={round.trades[0]?.ho_id}
                                                 startDate={round.startDate}

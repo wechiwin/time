@@ -15,6 +15,7 @@ import {formatCurrency, formatPercent, formatPercentNeutral, formatRatioAsPercen
 import {getLineOption, getPieOption} from '../utils/chartOptions';
 import {useColorContext} from "../components/context/ColorContext";
 import {useEnumTranslation} from "../contexts/EnumContext";
+import { KpiCardsSkeleton, CardSkeleton } from '../components/skeletons';
 
 const TIME_RANGE_CONFIG = {
     '1m': {window: 'R21', days: 30, i18nKey: 'period_last_30_days'},
@@ -80,13 +81,16 @@ export default function Dashboard() {
         // C. 计算聚合值
         const otherTotalRatio = others.reduce((sum, item) => sum + (parseFloat(item.has_position_ratio) || 0), 0);
         const otherTotalPnl = others.reduce((sum, item) => sum + (parseFloat(item.has_cumulative_pnl) || 0), 0);
-        const otherContribution = others.reduce((sum, item) => sum + (parseFloat(item.has_portfolio_contribution) || 0), 0);
+        // 盈亏占比可以直接相加（因为都是占总盈亏的比例）
+        const otherContributionRatio = others.reduce((sum, item) => sum + (parseFloat(item.pnl_contribution_ratio) || 0), 0);
         topHoldings.push({
             ho_code: 'OTHERS',
             ho_short_name: t('others'), // 确保 i18n 中有 'others' 翻译
             has_position_ratio: otherTotalRatio,
             has_cumulative_pnl: otherTotalPnl,
-            has_portfolio_contribution: otherContribution,
+            pnl_contribution_ratio: otherContributionRatio,
+            // 旧字段（已废弃）
+            // has_portfolio_contribution: otherContribution,
             isOthers: true
         });
         return topHoldings;
@@ -161,11 +165,10 @@ export default function Dashboard() {
     if (isInitialLoading) {
         return (
             <div className="p-2 md:p-4 max-w-7xl mx-auto space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                    {[...Array(4)].map((_, i) => <KpiCardSkeleton key={i}/>)}
-                </div>
+                <KpiCardsSkeleton count={4} />
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <ChartSkeleton/>
+                    <CardSkeleton variant="chart" className="lg:col-span-2" />
+                    <CardSkeleton variant="chart" />
                 </div>
             </div>
         );
@@ -282,8 +285,7 @@ export default function Dashboard() {
                     title={t('benchmark_return_same_period')}
                     value={formatPercent(performance?.benchmark_cumulative_return)}
                     valueColor={getProfitColor(performance?.benchmark_cumulative_return)}
-                    // 显示具体的基准名称，让用户知道在和谁比
-                    subValue={performance?.benchmark_name || '沪深300'}
+                    subValue={t(`benchmark_${(performance?.benchmark_name || 'CSI 300').toLowerCase().replace(/ /g, '_')}`)}
                     icon={<ChartPieIcon className="w-6 h-6 text-gray-500"/>}
                     tooltip={t('benchmark_return_description')}
                 />
@@ -480,28 +482,6 @@ function RiskMetric({label, value, desc, color = "text-gray-900 dark:text-white"
     );
 }
 
-const KpiCardSkeleton = () => (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700">
-        <div className="flex justify-between items-start">
-            <div className="flex-1">
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20 animate-pulse"></div>
-                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-24 mt-2 animate-pulse"></div>
-            </div>
-            <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg animate-pulse">
-                <div className="w-5 h-5"></div>
-            </div>
-        </div>
-        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16 mt-3 animate-pulse"></div>
-    </div>
-);
-
-const ChartSkeleton = () => (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-gray-700">
-        <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-32 mb-4 animate-pulse"></div>
-        <div className="h-80 bg-gray-100 dark:bg-gray-700 rounded animate-pulse"></div>
-    </div>
-);
-
 // --- 抽离的子组件：增强型列表项 ---
 function AllocationListItem({item, index, isHighlighted, onHover, t}) {
     const {getProfitColor} = useColorContext();
@@ -549,9 +529,11 @@ function AllocationListItem({item, index, isHighlighted, onHover, t}) {
                         {formatCurrency(item.has_cumulative_pnl)}
                     </div>
                     <div className={`text-xs font-mono ${color} opacity-80`}>
-                        {/* 贡献度: 对组合的影响 */}
+                        {/* 盈亏占比: 该持仓盈亏占总盈亏的比例 */}
+                        {formatRatioAsPercent(item.pnl_contribution_ratio)}
+                        {/* 旧的贡献度逻辑（单日）
                         {item.has_portfolio_contribution > 0 ? '+' : ''}
-                        {formatRatioAsPercent(item.has_portfolio_contribution)}
+                        {formatRatioAsPercent(item.has_portfolio_contribution)} */}
                     </div>
                 </div>
             </div>

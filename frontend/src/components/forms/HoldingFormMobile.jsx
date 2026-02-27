@@ -1,8 +1,8 @@
-import {useEffect, useState} from 'react';
+import {useEffect, useMemo, useState} from 'react';
 import {useToast} from '../context/ToastContext';
 import {useTranslation} from "react-i18next";
 import MyDate from "../common/MyDate";
-import useCommon from "../../hooks/api/useCommon";
+import {useEnumTranslation} from "../../contexts/EnumContext";
 import MySelect from "../common/MySelect";
 
 // 移动端专用表单组件
@@ -38,33 +38,13 @@ export default function HoldingFormMobile({onSubmit, onClose, initialValues, onC
 
     const {showSuccessToast, showErrorToast} = useToast();
     const {t} = useTranslation();
-    const {fetchMultipleEnumValues} = useCommon();
-    const [hoTypeOptions, setHoTypeOptions] = useState([]);
-    const [tradeMarketOptions, setTradeMarketOptions] = useState([]);
-    const [currencyOptions, setCurrencyOptions] = useState([]);
-    const [dividendOptions, setDividendOptions] = useState([]);
+    const {getEnumOptions, enumMap} = useEnumTranslation();
 
-    // Hooks for fetching data and handling form state
-    useEffect(() => {
-        const loadEnumValues = async () => {
-            try {
-                const [typeOptions, marketOptions, currencyOptions, dividendOptions] = await fetchMultipleEnumValues([
-                    'HoldingTypeEnum',
-                    'FundTradeMarketEnum',
-                    'CurrencyEnum',
-                    'FundDividendMethodEnum',
-                ]);
-                setHoTypeOptions(typeOptions);
-                setTradeMarketOptions(marketOptions);
-                setCurrencyOptions(currencyOptions);
-                setDividendOptions(dividendOptions);
-            } catch (err) {
-                console.error('Failed to load enum values:', err);
-                showErrorToast('加载类型选项失败');
-            }
-        };
-        loadEnumValues();
-    }, [fetchMultipleEnumValues, showErrorToast]);
+    // 枚举选项 - 依赖 enumMap 确保数据加载后更新
+    const hoTypeOptions = useMemo(() => getEnumOptions('HoldingTypeEnum'), [getEnumOptions, enumMap]);
+    const tradeMarketOptions = useMemo(() => getEnumOptions('FundTradeMarketEnum'), [getEnumOptions, enumMap]);
+    const currencyOptions = useMemo(() => getEnumOptions('CurrencyEnum'), [getEnumOptions, enumMap]);
+    const dividendOptions = useMemo(() => getEnumOptions('FundDividendMethodEnum'), [getEnumOptions, enumMap]);
 
     useEffect(() => {
         if (initialValues) {

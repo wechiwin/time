@@ -1,7 +1,7 @@
 // src/pages/AlertPage.jsx
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useTranslation} from "react-i18next";
-import {PlusIcon} from "@heroicons/react/16/solid";
+import {PlusIcon, TrashIcon} from "@heroicons/react/16/solid";
 import AlertRuleTable from '../components/tables/AlertRuleTable';
 import AlertHistoryTable from '../components/tables/AlertHistoryTable';
 import AlertRuleForm from '../components/forms/AlertRuleForm';
@@ -11,8 +11,10 @@ import {useToast} from "../components/context/ToastContext";
 import Pagination from "../components/common/pagination/Pagination";
 import {usePaginationState} from "../hooks/usePaginationState";
 import SearchArea from "../components/search/SearchArea";
-import useCommon from "../hooks/api/useCommon";
+import {useEnumTranslation} from "../contexts/EnumContext";
 import EmptyState from "../components/common/EmptyState";
+import TableWrapper from "../components/common/TableWrapper";
+import ConfirmationModal from "../components/common/ConfirmationModal";
 
 export default function AlertPage() {
     const {t} = useTranslation();
@@ -24,34 +26,23 @@ export default function AlertPage() {
     // 统一管理所有搜索参数
     const [searchParams, setSearchParams] = useState({});
 
-    const {data, addRule, updateRule, deleteRule} = useAlertList({
+    const {data, loading, addRule, updateRule, deleteRule, batchDeleteRule} = useAlertList({
         page, perPage, autoLoad: true, mode, refreshKey, ...searchParams
     });
 
-    const {fetchMultipleEnumValues} = useCommon();
-    // const [hoTypeOptions, setHoTypeOptions] = useState([]);
-    const [typeOptions, setTypeOptions] = useState([]);
-    const [emailStatusOptions, setEmailStatusOptions] = useState([]);
+    // 批量选择状态
+    const [selectedIds, setSelectedIds] = useState(new Set());
 
-    useEffect(() => {
-        const loadEnumValues = async () => {
-            try {
-                const [
-                    typeOptions,
-                    emailStatusOptions,
-                ] = await fetchMultipleEnumValues([
-                    'TradeTypeEnum',
-                    'AlertEmailStatusEnum',
-                ]);
-                setTypeOptions(typeOptions);
-                setEmailStatusOptions(emailStatusOptions);
-            } catch (err) {
-                console.error('Failed to load enum values:', err);
-                showErrorToast(t('msg_failed_to_load_enum'));
-            }
-        };
-        loadEnumValues();
-    }, [fetchMultipleEnumValues, showErrorToast]);
+    // 批量删除确认状态
+    const [batchConfirmState, setBatchConfirmState] = useState({
+        isOpen: false,
+        isLoading: false,
+    });
+
+    const {getEnumOptions, enumMap} = useEnumTranslation();
+    // 枚举选项 - 依赖 enumMap 确保数据加载后更新
+    const typeOptions = useMemo(() => getEnumOptions('TradeTypeEnum'), [getEnumOptions, enumMap]);
+    const emailStatusOptions = useMemo(() => getEnumOptions('AlertEmailStatusEnum'), [getEnumOptions, enumMap]);
 
     // 切换模式时重置搜索条件和分页
     const handleModeChange = (newMode) => {
@@ -119,18 +110,44 @@ export default function AlertPage() {
         ];
     }, [mode, t, typeOptions, emailStatusOptions]);
 
+    // ========== 批量删除处理函数 ==========
+
+    // 批量删除请求（显示确认框）
+    const handleBatchDeleteRequest = useCallback(async () => {
+        if (selectedIds.size === 0) {
+            showErrorToast(t('msg_no_selection'));
+            return;
+        }
+
+        setBatchConfirmState({
+            isOpen: true,
+            isLoading: false,
+        });
+    }, [selectedIds.size, showErrorToast, t]);
+
     // 使用 useMemo 根据 mode 动态生成操作按钮
     const actionButtons = useMemo(() => {
         if (mode === 'rule') {
             return (
-                <button onClick={() => openModal('add')} className="btn-primary inline-flex items-center gap-2">
-                    <PlusIcon className="h-4 w-4"/>
-                    {t('button_add')}
-                </button>
+                <>
+                    {selectedIds.size > 0 && (
+                        <button
+                            onClick={handleBatchDeleteRequest}
+                            className="btn-danger text-sm inline-flex items-center gap-1.5 px-2.5 py-1.5"
+                        >
+                            <TrashIcon className="h-3.5 w-3.5"/>
+                            {t('button_batch_delete')} ({selectedIds.size})
+                        </button>
+                    )}
+                    <button onClick={() => openModal('add')} className="btn-primary text-sm inline-flex items-center gap-1.5 px-2.5 py-1.5">
+                        <PlusIcon className="h-3.5 w-3.5"/>
+                        {t('button_add')}
+                    </button>
+                </>
             );
         }
         return null;
-    }, [mode, t]);
+    }, [mode, t, selectedIds.size, handleBatchDeleteRequest]);
 
     const handleDelete = async (id) => {
         try {
@@ -149,6 +166,67 @@ export default function AlertPage() {
             showErrorToast(err.message);
         }
     };
+
+    // ========== 批量选择处理函数 ==========
+
+    // 单项选择
+    const handleSelectionChange = useCallback((id, isSelected) => {
+        setSelectedIds(prev => {
+            const newSet = new Set(prev);
+            if (isSelected) {
+                newSet.add(id);
+            } else {
+                newSet.delete(id);
+            }
+            return newSet;
+        });
+    }, []);
+
+    // 确认批量删除
+    const handleBatchDeleteConfirm = async () => {
+        setBatchConfirmState(prev => ({...prev, isLoading: true}));
+        try {
+            const result = await batchDeleteRule(Array.from(selectedIds));
+            const deletedCount = result?.deleted_count || 0;
+            const errorCount = result?.errors?.length || 0;
+
+            if (errorCount > 0) {
+                showErrorToast(t('msg_batch_delete_partial', {success: deletedCount, failed: errorCount}));
+            } else {
+                showSuccessToast(t('msg_batch_delete_success', {count: deletedCount}));
+            }
+
+            // 清空选择
+            setSelectedIds(new Set());
+
+            // 刷新逻辑
+            if (deletedCount >= (data?.items?.length || 0) && page > 1) {
+                handlePageChange(page - 1);
+            } else {
+                setRefreshKey(p => p + 1);
+            }
+        } catch (err) {
+            showErrorToast(err.message);
+        } finally {
+            setBatchConfirmState({
+                isOpen: false,
+                isLoading: false,
+            });
+        }
+    };
+
+    // 取消批量删除
+    const handleBatchDeleteCancel = () => {
+        setBatchConfirmState({
+            isOpen: false,
+            isLoading: false,
+        });
+    };
+
+    // 批量删除确认框描述
+    const batchConfirmationDescription = useMemo(() => {
+        return t('msg_batch_delete_confirm', {count: selectedIds.size});
+    }, [selectedIds.size, t]);
 
     const [modalConfig, setModalConfig] = useState({
         show: false,
@@ -211,18 +289,27 @@ export default function AlertPage() {
 
             {/* 表格内容 */}
             {mode === 'rule' ? (
-                data?.items?.length > 0 ? (
-                    <AlertRuleTable data={data.items} onDelete={handleDelete}
-                                    onEdit={(item) => openModal('edit', item)}/>
-                ) : (
-                    <EmptyState/>
-                )
+                <TableWrapper
+                    isLoading={loading}
+                    isEmpty={!loading && (!data?.items || data.items.length === 0)}
+                    emptyComponent={<EmptyState message={t('empty_alerts')} />}
+                >
+                    <AlertRuleTable
+                        data={data?.items || []}
+                        onDelete={handleDelete}
+                        onEdit={(item) => openModal('edit', item)}
+                        selectedIds={selectedIds}
+                        onSelectionChange={handleSelectionChange}
+                    />
+                </TableWrapper>
             ) : (
-                data?.items?.length > 0 ? (
-                    <AlertHistoryTable data={data.items}/>
-                ) : (
-                    <EmptyState/>
-                )
+                <TableWrapper
+                    isLoading={loading}
+                    isEmpty={!loading && (!data?.items || data.items.length === 0)}
+                    emptyComponent={<EmptyState />}
+                >
+                    <AlertHistoryTable data={data?.items || []}/>
+                </TableWrapper>
             )}
 
 
@@ -245,6 +332,16 @@ export default function AlertPage() {
                     initialValues={modalConfig.initialValues}
                 />
             )}
+
+            {/* 批量删除确认框 */}
+            <ConfirmationModal
+                isOpen={batchConfirmState.isOpen}
+                onClose={handleBatchDeleteCancel}
+                onConfirm={handleBatchDeleteConfirm}
+                title={t('title_delete_confirmation')}
+                description={batchConfirmationDescription}
+                isLoading={batchConfirmState.isLoading}
+            />
         </div>
     );
 }

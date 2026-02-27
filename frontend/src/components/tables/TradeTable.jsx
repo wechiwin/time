@@ -1,20 +1,61 @@
 // src/components/tables/TradeTable.jsx
-import React from 'react';
+import React, {useMemo} from 'react';
 import DeleteButton from '../common/DeleteButton';
 import EditButton from '../common/EditButton';
 import {useTranslation} from "react-i18next";
-import {useNavigate} from "react-router-dom";
 import {useEnumTranslation} from '../../contexts/EnumContext';
 import {useColorContext} from '../context/ColorContext';
 
-export default function TradeTable({data = [], onDelete, onEdit}) {
+export default function TradeTable({
+    data = [],
+    onDelete,
+    onEdit,
+    selectedIds = new Set(),
+    onSelectionChange,
+}) {
     const {t} = useTranslation()
-    const navigate = useNavigate();
     const {translateEnum} = useEnumTranslation();
     const {getTradeColor} = useColorContext();
 
+    // 计算当前页是否全选
+    const isAllSelected = useMemo(() => {
+        return data.length > 0 && data.every(item => selectedIds.has(item.id));
+    }, [data, selectedIds]);
+
+    // 计算是否部分选中
+    const isIndeterminate = useMemo(() => {
+        const selectedCount = data.filter(item => selectedIds.has(item.id)).length;
+        return selectedCount > 0 && selectedCount < data.length;
+    }, [data, selectedIds]);
+
+    // 全选/取消全选
+    const handleSelectAll = (e) => {
+        if (onSelectionChange) {
+            if (e.target.checked) {
+                data.forEach(item => {
+                    if (!selectedIds.has(item.id)) {
+                        onSelectionChange(item.id, true);
+                    }
+                });
+            } else {
+                data.forEach(item => {
+                    if (selectedIds.has(item.id)) {
+                        onSelectionChange(item.id, false);
+                    }
+                });
+            }
+        }
+    };
+
+    // 单行选择
+    const handleSelectOne = (id) => (e) => {
+        if (onSelectionChange) {
+            onSelectionChange(id, e.target.checked);
+        }
+    };
+
     const handleRowClick = (tr) => {
-        navigate(`/trade/${tr.ho_id}`);
+        window.open(`/trade/${tr.ho_id}`, '_blank');
     };
 
     // 渲染交易类型徽章的辅助函数
@@ -32,12 +73,21 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
             className="card mb-3 p-4 border border-gray-200 rounded-lg shadow-sm"
         >
             <div className="flex justify-between items-start mb-2">
-                <button
-                    className="text-blue-600 hover:text-blue-800 underline cursor-pointer font-medium"
-                    onClick={() => handleRowClick(tr)}
-                >
-                    {tr.ho_code}
-                </button>
+                <div className="flex items-center gap-2">
+                    <input
+                        type="checkbox"
+                        className="checkbox"
+                        checked={selectedIds.has(tr.id)}
+                        onChange={handleSelectOne(tr.id)}
+                        aria-label={`${t('th_select')} ${tr.ho_short_name}`}
+                    />
+                    <button
+                        className="text-blue-600 hover:text-blue-800 underline cursor-pointer font-medium"
+                        onClick={() => handleRowClick(tr)}
+                    >
+                        {tr.ho_code}
+                    </button>
+                </div>
                 <div className="text-right font-medium">{tr.ho_short_name}</div>
             </div>
 
@@ -68,7 +118,7 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                 <EditButton onClick={() => onEdit(tr)} title={t('button_edit')} />
                 <DeleteButton
                     onConfirm={() => onDelete(tr.id)}
-                    description={`${tr.ho_short_name} - ${tr.tr_date} ?`}
+                    name={`${tr.ho_short_name} - ${tr.tr_date}`}
                 />
             </div>
         </div>
@@ -85,6 +135,19 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                 <table className="min-w-full">
                     <thead>
                     <tr>
+                        {/* 复选框列 */}
+                        <th className="table-header w-12">
+                            <input
+                                type="checkbox"
+                                className="checkbox"
+                                checked={isAllSelected}
+                                ref={el => {
+                                    if (el) el.indeterminate = isIndeterminate;
+                                }}
+                                onChange={handleSelectAll}
+                                aria-label={t('select_all')}
+                            />
+                        </th>
                         <th scope="col" className="table-header">{t('th_ho_code')}</th>
                         <th scope="col" className="table-header">{t('th_ho_name')}</th>
                         <th scope="col" className="table-header">{t('th_tr_type')}</th>
@@ -100,6 +163,16 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {data.map((tr) => (
                         <tr key={tr.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
+                            {/* 复选框 */}
+                            <td className="table-cell w-12">
+                                <input
+                                    type="checkbox"
+                                    className="checkbox"
+                                    checked={selectedIds.has(tr.id)}
+                                    onChange={handleSelectOne(tr.id)}
+                                    aria-label={`${t('th_select')} ${tr.ho_short_name}`}
+                                />
+                            </td>
                             <td className="table-cell">
                                 <button
                                     className="text-blue-600 hover:text-blue-800 underline cursor-pointer"
@@ -123,7 +196,7 @@ export default function TradeTable({data = [], onDelete, onEdit}) {
                                     <EditButton onClick={() => onEdit(tr)} title={t('button_edit')} />
                                     <DeleteButton
                                         onConfirm={() => onDelete(tr.id)}
-                                        description={`${tr.ho_short_name} - ${tr.tr_date} ?`}
+                                        name={`${tr.ho_short_name} - ${tr.tr_date}`}
                                     />
                                 </div>
                             </td>

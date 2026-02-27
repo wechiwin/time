@@ -239,3 +239,30 @@ class AnalyticsWindowEnum(str, Enum):
             cls.ALL,
             cls.CUR,
         }
+
+
+# Excluded enums that should not be exposed via API
+_ENUM_EXCLUDE_SET = {
+    'ErrorMessageEnum',  # Error messages, not for UI display
+    'AnalyticsWindowEnum',  # Analytics internal use
+}
+
+
+def get_all_enum_classes() -> dict[str, type[Enum]]:
+    """
+    Automatically discover all Enum subclasses in this module.
+
+    Returns:
+        dict: A mapping of enum class names to enum class objects,
+              excluding those in _ENUM_EXCLUDE_SET.
+    """
+    import sys
+    current_module = sys.modules[__name__]
+    return {
+        name: cls
+        for name, cls in vars(current_module).items()
+        if (isinstance(cls, type)
+            and issubclass(cls, Enum)
+            and cls is not Enum
+            and name not in _ENUM_EXCLUDE_SET)
+    }

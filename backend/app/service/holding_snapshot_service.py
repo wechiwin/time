@@ -81,8 +81,11 @@ class HoldingSnapshotService:
         # 2. 预加载全局数据 (优化：减少DB往返)
         ho_ids = [h.id for h in holdings]
 
-        # 2.1 获取所有相关交易
-        all_trades = Trade.query.filter(Trade.ho_id.in_(ho_ids)).order_by(Trade.tr_date).all()
+        # 2.1 获取所有相关交易 (必须过滤 user_id，避免多用户数据混淆)
+        all_trades = Trade.query.filter(
+            Trade.ho_id.in_(ho_ids),
+            Trade.user_id == user_id
+        ).order_by(Trade.tr_date).all()
         trades_by_ho = defaultdict(list)
         for t in all_trades:
             trades_by_ho[t.ho_id].append(t)
@@ -338,6 +341,7 @@ class HoldingSnapshotService:
         snapshot.hos_daily_cash_dividend = flows["cash_div"]
         snapshot.hos_daily_reinvest_dividend = flows["reinvest"]
         snapshot.hos_total_cash_dividend = state.total_cash_dividend
+        snapshot.hos_total_reinvest_dividend = state.total_reinvest_amount
         snapshot.hos_total_dividend = state.total_dividend
 
         snapshot.hos_realized_pnl = state.realized_pnl

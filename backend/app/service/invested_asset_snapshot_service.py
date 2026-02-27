@@ -120,12 +120,10 @@ class InvestedAssetSnapshotService:
             # 获取当日聚合数据
             day_data = daily_agg_dict.get(current_date)
             if not day_data:
-                # 如果当天没有持仓快照，可能是空仓且无变动，跳过或视为0
-                day_data = {
-                    'mv': ZERO, 'cost': ZERO, 'unrealized_pnl': ZERO,
-                    'net_flow': ZERO, 'cash_div': ZERO, 'reinvest_div': ZERO,
-                    'buy': ZERO, 'sell': ZERO
-                }
+                # 如果当天没有持仓快照，跳过当天
+                logger.warning(f"No HoldingSnapshot found for user {user_id} on {current_date}, skipping InvestedAssetSnapshot")
+                current_date += timedelta(days=1)
+                continue
 
             new_snap, state = cls._calculate_daily_snapshot(user_id, current_date, state, day_data)
             results.append(new_snap)

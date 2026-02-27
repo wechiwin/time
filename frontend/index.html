@@ -10,6 +10,21 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"/>
     <meta name="apple-mobile-web-app-title" content="MyWebSite"/>
     <link rel="manifest" href="/site.webmanifest"/>
+    <script>
+        // 在 React 加载之前检测并应用暗黑模式，避免页面加载时的白色闪烁
+        (function() {
+            var saved = localStorage.getItem('dark');
+            var isDark = saved !== null ? saved === 'true' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
+    <style>
+        /* 设置初始背景色，与 Tailwind dark 模式配合 */
+        html { background-color: #f9fafb; }
+        html.dark { background-color: #111827; }
+    </style>
 </head>
 <body>
 <div id="root"></div>

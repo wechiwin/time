@@ -183,14 +183,14 @@ export default function SearchArea({
                         <div className="flex gap-2">
                             <button
                                 onClick={handleSearch}
-                                className="btn-primary inline-flex items-center gap-2"
+                                className="btn-primary text-sm inline-flex items-center gap-1.5 px-2.5 py-1.5"
                             >
-                                <MagnifyingGlassIcon className="h-4 w-4"/>
+                                <MagnifyingGlassIcon className="h-3.5 w-3.5"/>
                                 {t('button_search')}
                             </button>
                             <button
                                 onClick={handleReset}
-                                className="btn-secondary h-[42px]"
+                                className="btn-secondary text-sm px-2.5 py-1.5"
                             >
                                 {t('button_reset')}
                             </button>

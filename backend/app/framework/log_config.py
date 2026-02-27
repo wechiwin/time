@@ -6,12 +6,11 @@ from loguru import logger
 
 # 1. 定义日志格式
 # Loguru 的格式字符串语法与 str.format 类似
-# 增加了 process ID 和 thread ID，便于在 Gunicorn 多进程环境下调试
 LOG_FORMAT = (
     "<green>[{time:YYYY-MM-DD HH:mm:ss.SSS}]</green> "
     "<level>{level: <8}</level> "
-    "<cyan>{process}</cyan>:<cyan>{thread}</cyan> "
-    "<cyan>{module}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
+    "<cyan>{process}</cyan> "
+    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
     "<level>{message}</level>"
 )
 
@@ -19,9 +18,9 @@ LOG_FORMAT = (
 LOG_FORMAT_FILE = (
     "[{time:YYYY-MM-DD HH:mm:ss.SSS}] "
     "{level: <8} "
-    "{process}:{thread} "
-    "{module}:{function}:{line} - "
-    "{message} - {extra}"  # <-- 新增 {extra}
+    "{process} "
+    "{name}:{function}:{line} - "
+    "{message}"
 )
 
 
@@ -116,15 +115,14 @@ def setup_logging(app):
     logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
 
     # 显式设置第三方库的日志级别
+    sqlalchemy_log_level = app.config.get('SQLALCHEMY_LOG_LEVEL', 'WARNING')
+
     loggers_to_configure = {
         'werkzeug': log_level_str,
-        'sqlalchemy.engine': log_level_str,
+        'sqlalchemy.engine': sqlalchemy_log_level,
         'flask_sqlalchemy': log_level_str,
         'apscheduler': log_level_str,
     }
-
-    if app.debug:
-        loggers_to_configure['sqlalchemy.engine'] = 'INFO'  # debug显示row+sql，INFO只显示SQL语句
 
     for logger_name, level in loggers_to_configure.items():
         std_logger = logging.getLogger(logger_name)

@@ -213,6 +213,7 @@ class UserSettingSchema(BaseSchema):
         model = UserSetting
         # 排除 id 和 pwd_hash 字段
         exclude = ('id', 'pwd_hash')
+        include_fk = True  # Include foreign key fields like benchmark_id
 
 
 class LoginHistorySchema(BaseSchema):

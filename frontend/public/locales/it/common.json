@@ -63,6 +63,8 @@
   "button_upload_image": "Analizza immagine",
   "button_crawl_all": "Crawl tutti",
   "button_reset": "Reimposta",
+  "button_batch_delete": "Eliminazione in blocco",
+  "button_clear_selection": "Deseleziona tutto",
 
   "project_title": "Sistema di Gestione delle Partecipazioni",
 
@@ -131,6 +133,18 @@
   "msg_verifying_identity": "Verifica dell'identità in corso...",
   "msg_no_alert_signals": "Nessun segnale di allerta",
   "msg_task_started": "L'attività è stata avviata in background",
+  "msg_selected_count": "{{count}} selezionati",
+  "msg_no_selection": "Seleziona almeno un elemento",
+  "msg_batch_delete_confirm": "Eliminare {{count}} elementi selezionati?",
+  "msg_batch_delete_cascade": "Eliminare {{count}} elementi? Questa azione eliminerà anche: {{details}}",
+  "msg_batch_delete_success": "{{count}} elementi eliminati",
+  "msg_batch_delete_partial": "{{success}} eliminati, {{failed}} falliti",
+  "msg_delete_success": "Eliminazione riuscita",
+  "msg_remove_from_list_confirm": "Rimuovere {{name}} dalla tua lista?",
+  "msg_remove_from_list_success": "Rimosso dalla tua lista",
+  "msg_batch_remove_confirm": "Rimuovere {{count}} elementi selezionati dalla tua lista?",
+  "msg_batch_remove_success": "{{count}} elementi rimossi dalla tua lista",
+  "msg_batch_remove_partial": "{{success}} rimossi, {{failed}} falliti",
 
   "info_hold_status": "Stato della Posizione",
   "info_status_holding": "In Posizione",
@@ -213,6 +227,8 @@
   "th_default_language": "Lingua Predefinita",
   "th_email_address": "Indirizzo Email",
   "th_risk_free_rate": "Tasso Privo di Rischio",
+  "th_benchmark": "Benchmark",
+  "th_benchmark_placeholder": "Seleziona benchmark",
 
   "today": "Oggi",
   "past": "Passati",
@@ -223,6 +239,7 @@
   "label_name_or_code": "Nome o Codice",
 
   "select_all": "Tutto",
+  "th_select": "Seleziona",
 
   "menu_task_logs": "Esecuzione dei Task",
   "search_keyword": "Parola Chiave di Ricerca",
@@ -235,6 +252,7 @@
   "th_error_message": "Messaggio di Errore",
 
   "title_delete_confirmation": "Conferma eliminazione",
+  "loading_cascade_info": "Verifica dati correlati...",
   "msg_delete_confirmation_simple": "Sei sicuro di voler eliminare {{name}}?",
   "msg_delete_confirmation_cascade": "Sei sicuro di voler eliminare {{name}}? Questa azione eliminerà in modo permanente anche: {{details}}.",
   "cascade_item_trades": "registrazioni delle operazioni",
@@ -251,10 +269,12 @@
   "end_date_cannot_be_earlier_than_start_date": "La data di fine non può essere anteriore alla data di inizio",
   "others": "Others",
   "redo_all_snapshots": "Rigenera dati di analisi",
+  "calculate_all": "Calcola Tutto",
   "total_cost": "Costo Totale",
   "position_distribution": "Distribuzione delle Posizioni",
   "position_percentage": "Percentuale di Posizione",
   "portfolio_contribution": "Contributo al Portafoglio",
+  "pnl_contribution": "Contributo P&L",
   "items_per_page": "elementi per pagina",
   "errors_server_error": "Servizio non disponibile. Riprova più tardi.",
   "errors_request_failed": "Richiesta non riuscita. Controlla la connessione e riprova.",
@@ -281,12 +301,29 @@
   "chart_show_cost_line": "Mostra Linea dei Costi",
   "chart_cost_line": "Linea dei Costi",
   "msg_loading_data": "Caricamento dati...",
-  "nav_trend": "Andamento NAV",
   "tl_total_profit": "Profitto/Perdita Totale",
   "holding_not_found": "Posizione non trovata",
 
   "not_found_title": "Pagina Non Trovata",
   "not_found_description": "Spiacenti, la pagina che stai cercando non esiste o è stata rimossa.",
   "back_to_home": "Torna alla Home",
-  "go_back": "Torna Indietro"
+  "go_back": "Torna Indietro",
+
+  "loading_content": "Caricamento contenuti...",
+  "loading_table": "Caricamento dati...",
+  "empty_table": "Nessun dato disponibile",
+  "empty_holdings": "Nessuna posizione",
+  "empty_holdings_hint": "Aggiungi la tua prima posizione per iniziare a monitorare",
+  "empty_trades": "Nessuna operazione",
+  "empty_trades_hint": "Aggiungi operazioni per monitorare il tuo investimento",
+  "empty_nav_history": "Nessun dato storico",
+  "empty_alerts": "Nessuna regola di avviso configurata",
+  "empty_task_logs": "Nessun registro di esecuzione",
+
+  "benchmark_csi_300": "CSI 300",
+  "benchmark_sse_50": "SSE 50",
+  "benchmark_csi_500": "CSI 500",
+  "benchmark_csi_1000": "CSI 1000",
+
+  "now": "Ora"
 }

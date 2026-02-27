@@ -65,6 +65,8 @@
   "button_upload_image": "AI识别图片",
   "button_crawl_all": "爬取所有",
   "button_reset": "重置",
+  "button_batch_delete": "批量删除",
+  "button_clear_selection": "取消选择",
 
   "project_title": "投资持仓管理系统",
 
@@ -133,6 +135,18 @@
   "msg_verifying_identity": "正在验证身份...",
   "msg_no_alert_signals": "暂无预警信号",
   "msg_task_started": "任务已后台启动",
+  "msg_selected_count": "已选择 {{count}} 项",
+  "msg_no_selection": "请至少选择一项",
+  "msg_batch_delete_confirm": "确定要删除选中的 {{count}} 项记录吗？",
+  "msg_batch_delete_cascade": "确定要删除 {{count}} 项记录吗？此操作还将永久删除：{{details}}",
+  "msg_batch_delete_success": "成功删除 {{count}} 项记录",
+  "msg_batch_delete_partial": "成功删除 {{success}} 项，{{failed}} 项失败",
+  "msg_delete_success": "删除成功",
+  "msg_remove_from_list_confirm": "确定要将 {{name}} 从你的列表中移除吗？",
+  "msg_remove_from_list_success": "已从列表中移除",
+  "msg_batch_remove_confirm": "确定要将 {{count}} 个选中项从你的列表中移除吗？",
+  "msg_batch_remove_success": "已从列表中移除 {{count}} 项",
+  "msg_batch_remove_partial": "{{success}} 项已移除，{{failed}} 项失败",
 
   "info_hold_status": "持仓状态",
   "info_status_holding": "持仓中",
@@ -216,6 +230,8 @@
   "th_default_language": "默认语言",
   "th_email_address": "邮箱地址",
   "th_risk_free_rate": "无风险利率",
+  "th_benchmark": "业绩基准",
+  "th_benchmark_placeholder": "选择业绩基准",
 
   "today": "今天",
   "past": "过去",
@@ -226,6 +242,7 @@
   "label_name_or_code": "持仓名称或代码",
 
   "select_all": "全选",
+  "th_select": "选择",
 
   "menu_task_logs": "任务运行",
   "search_keyword": "搜索关键词",
@@ -238,6 +255,7 @@
   "th_error_message": "错误信息",
 
   "title_delete_confirmation": "确认删除",
+  "loading_cascade_info": "正在检查关联数据...",
   "msg_delete_confirmation_simple": "确定要删除 {{name}} 吗？",
   "msg_delete_confirmation_cascade": "确定要删除 {{name}} 吗？此操作还将永久删除以下内容：{{details}}。",
   "cascade_item_trades": "交易记录",
@@ -254,8 +272,10 @@
   "end_date_cannot_be_earlier_than_start_date": "结束日期不能早于开始日期",
   "others": "其他",
   "redo_all_snapshots": "重新生成所有分析数据",
+  "calculate_all": "重新计算全部",
   "position_percentage": "持仓占比",
   "portfolio_contribution": "组合贡献",
+  "pnl_contribution": "盈亏贡献",
   "total_cost": "总成本",
   "position_distribution": "持仓分布",
   "items_per_page": "条/页",
@@ -284,12 +304,29 @@
   "chart_show_cost_line": "显示成本线",
   "chart_cost_line": "成本线",
   "msg_loading_data": "加载数据中...",
-  "nav_trend": "净值走势",
   "tl_total_profit": "累计盈亏",
   "holding_not_found": "持仓不存在",
 
   "not_found_title": "页面未找到",
   "not_found_description": "抱歉，您访问的页面不存在或已被移除。",
   "back_to_home": "返回首页",
-  "go_back": "返回上一页"
+  "go_back": "返回上一页",
+
+  "loading_content": "加载中...",
+  "loading_table": "加载数据中...",
+  "empty_table": "暂无数据",
+  "empty_holdings": "暂无持仓记录",
+  "empty_holdings_hint": "添加您的第一个持仓以开始跟踪",
+  "empty_trades": "暂无交易记录",
+  "empty_trades_hint": "添加交易记录以跟踪您的投资",
+  "empty_nav_history": "暂无历史数据",
+  "empty_alerts": "暂无监控规则",
+  "empty_task_logs": "暂无任务执行记录",
+
+  "benchmark_csi_300": "沪深300",
+  "benchmark_sse_50": "上证50",
+  "benchmark_csi_500": "中证500",
+  "benchmark_csi_1000": "中证1000",
+
+  "now": "现在"
 }

@@ -124,10 +124,64 @@ def del_tr():
     return Res.success()
 
 
-@trade_bp.route('/export', methods=['GET'])
+@trade_bp.route('/batch_del_tr', methods=['POST'])
+@auth_required
+def batch_del_tr():
+    """
+    批量删除交易记录接口。
+
+    请求参数:
+        ids: 交易 ID 列表
+
+    Returns:
+        {
+            "deleted_count": n,
+            "affected_holdings": [ho_id1, ho_id2, ...],
+            "errors": []
+        }
+    """
+    data = request.get_json()
+    trade_ids = data.get('ids', [])
+
+    if not trade_ids or not isinstance(trade_ids, list):
+        raise BizException(msg=ErrorMessageEnum.MISSING_FIELD.view)
+
+    result = TradeService.batch_delete_trades(trade_ids, g.user.id)
+    return Res.success(result)
+
+
+@trade_bp.route('/export', methods=['POST'])
 @auth_required
 def export_trade():
-    trade = Trade.query.filter_by(user_id=g.user.id).all()
+    # Get filter parameters from request body
+    data = request.get_json() or {}
+    ho_code = data.get('ho_code')
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+    keyword = data.get('keyword')
+    tr_type = data.get('tr_type')
+
+    query = Trade.query.options(joinedload(Trade.holding))
+    query = query.filter_by(user_id=g.user.id)
+
+    # Apply filters (same logic as tr_page)
+    if ho_code:
+        query = query.filter_by(ho_code=ho_code)
+    if start_date:
+        query = query.filter(Trade.tr_date >= start_date)
+    if end_date:
+        query = query.filter(Trade.tr_date <= end_date)
+    if tr_type:
+        query = query.filter(Trade.tr_type == tr_type)
+    if keyword:
+        query = query.join(Holding, Trade.ho_id == Holding.id).filter(
+            or_(
+                Holding.ho_code.ilike(f'%{keyword}%'),
+                Holding.ho_short_name.ilike(f'%{keyword}%')
+            )
+        )
+
+    trade = query.order_by(desc(Trade.tr_date)).all()
     df = pd.DataFrame([{
         gettext('COL_HO_CODE'): t.ho_code,
         gettext('COL_TR_TYPE'): reverse_map_trade_type(t.tr_type),
@@ -246,9 +300,11 @@ def import_trade():
     if not all(col in df.columns for col in required_columns):
         raise BizException(msg=gettext("EXCEL_MISSING_REQUIRED_COLUMNS"))
 
-    # 转换日期列为字符串格式
+    # 转换日期列为 datetime 类型
     df[gettext('COL_TR_DATE')] = pd.to_datetime(df[gettext('COL_TR_DATE')], errors='coerce')
-    df[gettext('COL_TR_DATE')] = df[gettext('COL_TR_DATE')].dt.strftime('%Y-%m-%d')  # 处理Timestamp类型
+    # 检查是否存在无效日期
+    if df[gettext('COL_TR_DATE')].isna().any():
+        raise BizException(msg=gettext("INVALID_DATE_FORMAT"))
 
     # 转换数值列为float（防止整数被识别为其他类型）
     numeric_cols = [
@@ -266,7 +322,7 @@ def import_trade():
         transaction = Trade(
             ho_code=str(row[gettext('COL_HO_CODE')]),
             tr_type=map_trade_type(row[gettext('COL_TR_TYPE')]),
-            tr_date=str(row[gettext('COL_TR_DATE')]),
+            tr_date=row[gettext('COL_TR_DATE')].date(),
             tr_nav_per_unit=float(row[gettext('COL_TR_NAV_PER_UNIT')]),
             tr_shares=float(row[gettext('COL_TR_SHARES')]),
             tr_amount=float(row[gettext('COL_TR_AMOUNT')]),

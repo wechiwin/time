@@ -19,7 +19,7 @@ class BenchmarkService:
     """
 
     DEFAULT_BENCHMARK_CODE = '000300.SH'
-    DEFAULT_BENCHMARK_NAME = '沪深300'
+    DEFAULT_BENCHMARK_NAME = 'CSI 300'
 
     @staticmethod
     def ensure_benchmark_exists(code: str = None, name: str = None) -> Benchmark:
@@ -224,7 +224,8 @@ class BenchmarkService:
             cls,
             snapshot_date: date,
             window_key: str,
-            bm_code: str = None
+            bm_code: str = None,
+            user_id: int = None
     ) -> Dict[str, float]:
         """
         计算并更新 InvestedAssetAnalyticsSnapshot 的基准相关指标
@@ -233,6 +234,7 @@ class BenchmarkService:
             snapshot_date: 快照日期
             window_key: 窗口键（如 'R21', 'R252', 'ALL' 等）
             bm_code: 基准代码，默认为 DEFAULT_BENCHMARK_CODE
+            user_id: 用户ID，为空时更新所有匹配的快照
 
         Returns:
             包含计算结果的字典
@@ -271,7 +273,7 @@ class BenchmarkService:
             )
 
             # 6. 更新数据库
-            cls._update_snapshot_metrics(snapshot_date, window_key, metrics)
+            cls._update_snapshot_metrics(snapshot_date, window_key, metrics, user_id=user_id)
 
             return metrics
 
@@ -464,34 +466,43 @@ class BenchmarkService:
     def _update_snapshot_metrics(
             snapshot_date: date,
             window_key: str,
-            metrics: Dict[str, float]
+            metrics: Dict[str, float],
+            user_id: int = None
     ) -> bool:
         """
         更新 InvestedAssetAnalyticsSnapshot 表中的基准指标
+
+        Args:
+            snapshot_date: 快照日期
+            window_key: 窗口键
+            metrics: 要更新的指标
+            user_id: 用户ID，为空时更新所有匹配的快照
         """
         try:
-            # 查找对应的快照记录
-            stmt = select(InvestedAssetAnalyticsSnapshot).where(
-                and_(
-                    InvestedAssetAnalyticsSnapshot.snapshot_date == snapshot_date,
-                    InvestedAssetAnalyticsSnapshot.window_key == window_key
-                )
-            )
+            # 构建查询条件
+            conditions = [
+                InvestedAssetAnalyticsSnapshot.snapshot_date == snapshot_date,
+                InvestedAssetAnalyticsSnapshot.window_key == window_key
+            ]
+            if user_id is not None:
+                conditions.append(InvestedAssetAnalyticsSnapshot.user_id == user_id)
 
-            snapshot = db.session.execute(stmt).scalar_one_or_none()
+            stmt = select(InvestedAssetAnalyticsSnapshot).where(and_(*conditions))
+            snapshots = db.session.execute(stmt).scalars().all()
 
-            if not snapshot:
-                logger.warning(f"No snapshot found for date {snapshot_date}, window {window_key}")
+            if not snapshots:
+                logger.warning(f"No snapshot found for date {snapshot_date}, window {window_key}, user {user_id}")
                 return False
 
-            # 更新字段
-            snapshot.benchmark_cumulative_return = metrics.get('benchmark_cumulative_return', 0.0)
-            snapshot.excess_return = metrics.get('excess_return', 0.0)
-            snapshot.beta = metrics.get('beta', 1.0)
-            snapshot.alpha = metrics.get('alpha', 0.0)
+            # 更新所有匹配的快照
+            for snapshot in snapshots:
+                snapshot.benchmark_cumulative_return = metrics.get('benchmark_cumulative_return', 0.0)
+                snapshot.excess_return = metrics.get('excess_return', 0.0)
+                snapshot.beta = metrics.get('beta', 1.0)
+                snapshot.alpha = metrics.get('alpha', 0.0)
 
             db.session.commit()
-            logger.info(f"Updated benchmark metrics for {snapshot_date}, {window_key}")
+            logger.info(f"Updated benchmark metrics for {snapshot_date}, {window_key}, {len(snapshots)} records")
             return True
 
         except SQLAlchemyError as e:
@@ -505,7 +516,8 @@ class BenchmarkService:
             start_date: date = None,
             end_date: date = None,
             window_keys: List[str] = None,
-            bm_code: str = None
+            bm_code: str = None,
+            user_id: int = None
     ) -> Dict[str, int]:
         """
         批量更新基准指标
@@ -515,6 +527,7 @@ class BenchmarkService:
             end_date: 结束日期（可选）
             window_keys: 要更新的窗口键列表（可选）
             bm_code: 基准代码（可选）
+            user_id: 用户ID（可选），为空时更新所有用户
 
         Returns:
             更新统计信息
@@ -534,6 +547,8 @@ class BenchmarkService:
                     stmt = stmt.where(InvestedAssetAnalyticsSnapshot.snapshot_date <= end_date)
                 if window_keys:
                     stmt = stmt.where(InvestedAssetAnalyticsSnapshot.window_key.in_(window_keys))
+                if user_id is not None:
+                    stmt = stmt.where(InvestedAssetAnalyticsSnapshot.user_id == user_id)
 
                 results = db.session.execute(stmt).all()
             else:
@@ -550,6 +565,8 @@ class BenchmarkService:
 
                 if window_keys:
                     stmt = stmt.where(InvestedAssetAnalyticsSnapshot.window_key.in_(window_keys))
+                if user_id is not None:
+                    stmt = stmt.where(InvestedAssetAnalyticsSnapshot.user_id == user_id)
 
                 results = db.session.execute(stmt).all()
 
@@ -560,7 +577,7 @@ class BenchmarkService:
             for snapshot_date, window_key in results:
                 try:
                     cls.calculate_and_update_benchmark_metrics(
-                        snapshot_date, window_key, bm_code
+                        snapshot_date, window_key, bm_code, user_id=user_id
                     )
                     success_count += 1
 

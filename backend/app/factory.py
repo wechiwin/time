@@ -6,7 +6,7 @@ from flask import Flask, request
 from loguru import logger
 
 from app.cache import cache
-from app.config import Config
+from app.config import get_config
 from app.extension import db, migrate, scheduler, babel, cors, jwt, mail, limiter, openai_client
 from app.framework.error_handler import register_error_handler
 from app.framework.interceptor import register_interceptors
@@ -14,6 +14,7 @@ from app.framework.jwt_config import configure_jwt
 from app.framework.log_config import setup_logging
 from app.routes import register_routes
 from app.scheduler import init_scheduler
+from app.cli import init_app as init_cli
 
 
 def _get_locale():
@@ -55,7 +56,7 @@ def build_app() -> Flask:
     # 这是最关键的一步，必须在所有其他操作之前完成。
     # 只有这样，app.debug, app.config['...'] 等才会生效。
     # -----------------------------------------------------------------
-    app.config.from_object(Config.get_config())
+    app.config.from_object(get_config())
     # Configure JSON to not escape non-ASCII characters (e.g., Chinese)
     app.json.ensure_ascii = False
     # -----------------------------------------------------------------
@@ -88,11 +89,15 @@ def build_app() -> Flask:
     db.init_app(app)
     migrate.init_app(app, db)
     cache.init_app(app)
-    # 检查是否是迁移模式，如果是则跳过 scheduler 初始化
+    # 检查是否应该初始化 scheduler
+    # 在 Gunicorn 预加载模式下，RUN_SCHEDULER 默认为 false
+    # 只有在 post_fork 钩子中获得锁的 worker 才会初始化 scheduler
     import os
     if not os.environ.get('MIGRATION_MODE'):
-        scheduler.init_app(app)
-    init_scheduler(app, scheduler)
+        run_scheduler = os.environ.get('RUN_SCHEDULER', 'false').lower() == 'true'
+        if run_scheduler:
+            scheduler.init_app(app)
+            init_scheduler(app, scheduler)
     openai_client.init_app(app)
     # -----------------------------------------------------------------
     # 步骤 5: 注册蓝图、拦截器、错误处理等
@@ -100,6 +105,7 @@ def build_app() -> Flask:
     register_interceptors(app)
     register_routes(app)
     register_error_handler(app)
+    init_cli(app)  # Register CLI commands (flask seed)
     # -----------------------------------------------------------------
     # 步骤 6: 返回最终配置好的 app 实例
     # -----------------------------------------------------------------
