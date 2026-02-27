@@ -15,8 +15,17 @@
 
 **TIME (Transaction-based Investment Management Engine)** is a personal investment analytics platform designed to ensure **transaction-level accuracy, auditable financial logic, and quantitative performance evaluation**.
 
-
 This project functions as a research-oriented engineering system, serving as a technical portfolio for Master’s program applications.
+
+
+
+<div align="center">
+  <video src="https://github.com/wechiwin/time/master/assets/intro.mp4" width="800" controls muted loop autoplay>
+  </video>
+</div>
+
+
+
 ### License
 
 MIT License - Open source for academic review purposes
@@ -46,7 +55,7 @@ The system adopts a **decoupled client-server architecture**.
 
 ```mermaid
 graph LR
-    A[React Frontend] -->|REST API / SSE| B[Flask Backend]
+    A[React Frontend] -->| API / SSE| B[Flask Backend]
     B --> C[(PostgreSQL)]
     B --> D[Background Jobs]
     D --> C
@@ -137,7 +146,7 @@ graph LR
 
 The database schema is designed to ensure referential integrity between transactions, snapshots, and asset definitions.
 
-![time_er](./time_er.png)
+![time_er](assets/time_er.png)
 
 ---
 
@@ -203,10 +212,10 @@ To run the project on a local machine, please ensure the following prerequisites
     ```bash
     # Create the virtual environment
     python -m venv venv
-
+    
     # Activate on macOS/Linux
     source venv/bin/activate
-
+    
     # Activate on Windows
     .\venv\Scripts\activate
     ```
@@ -216,7 +225,7 @@ To run the project on a local machine, please ensure the following prerequisites
     pip install -r requirements.txt
     ```
 
-4.  **Configure environment variables:
+4.  **Configure environment variables**:
     ```bash
     # cp .env.example .env
     # Then, modify the .env file with your local configuration.
