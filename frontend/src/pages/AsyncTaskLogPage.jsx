@@ -2,7 +2,7 @@ import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useTranslation} from 'react-i18next';
 import {useToast} from '../components/context/ToastContext';
 import {usePaginationState} from '../hooks/usePaginationState';
-import useCommon from '../hooks/api/useCommon';
+import {useEnumTranslation} from '../contexts/EnumContext';
 import useAsyncTaskLogList from '../hooks/api/useAsyncTaskLogList';
 import SearchArea from '../components/search/SearchArea';
 import AsyncTaskLogTable from '../components/tables/AsyncTaskLogTable';
@@ -39,22 +39,8 @@ export default function AsyncTaskLogPage() {
         isLoading: false,
     });
 
-    const {fetchMultipleEnumValues} = useCommon();
-    const [taskStatusOptions, setTaskStatusOptions] = useState([]);
-
-    useEffect(() => {
-        const loadEnumValues = async () => {
-            try {
-                const [statusOptions] = await fetchMultipleEnumValues(
-                    ['TaskStatusEnum']);
-                setTaskStatusOptions(statusOptions);
-            } catch (err) {
-                console.error('Failed to load enum values:', err);
-                showErrorToast(t('msg_failed_to_load_enum'));
-            }
-        };
-        loadEnumValues();
-    }, [fetchMultipleEnumValues, showErrorToast]);
+    const {getEnumOptions} = useEnumTranslation();
+    const taskStatusOptions = useMemo(() => getEnumOptions('TaskStatusEnum'), [getEnumOptions]);
 
     // [重构 3] 回调函数更精简
     const handleSearch = useCallback((values) => {

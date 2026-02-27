@@ -10,7 +10,7 @@ import Pagination from "../components/common/pagination/Pagination";
 import {usePaginationState} from "../hooks/usePaginationState";
 import SearchArea from "../components/search/SearchArea";
 import {ArrowDownTrayIcon, ArrowUpTrayIcon, DocumentArrowDownIcon, PlusIcon, TrashIcon} from "@heroicons/react/16/solid";
-import useCommon from "../hooks/api/useCommon";
+import {useEnumTranslation} from "../contexts/EnumContext";
 import TableWrapper from "../components/common/TableWrapper";
 import EmptyState from "../components/common/EmptyState";
 import ConfirmationModal from "../components/common/ConfirmationModal";
@@ -49,21 +49,8 @@ export default function TradePage() {
         isLoading: false,
     });
 
-    const {fetchEnum} = useCommon();
-    const [typeOptions, setTypeOptions] = useState([]);
-
-    useEffect(() => {
-        const loadEnumValues = async () => {
-            try {
-                const options = await fetchEnum('TradeTypeEnum');
-                setTypeOptions(options);
-            } catch (err) {
-                console.error('Failed to load enum values:', err);
-                showErrorToast(t('msg_failed_to_load_enum'));
-            }
-        };
-        loadEnumValues();
-    }, [fetchEnum, showErrorToast]);
+    const {getEnumOptions} = useEnumTranslation();
+    const typeOptions = useMemo(() => getEnumOptions('TradeTypeEnum'), [getEnumOptions]);
 
     // 搜索配置
     const searchFields = [

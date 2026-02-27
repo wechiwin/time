@@ -1,11 +1,11 @@
 // src/components/forms/TradeForm.jsx
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useRef, useState, useMemo} from 'react';
 import {useToast} from '../context/ToastContext';
 import {useTranslation} from "react-i18next";
 import useTradeList from "../../hooks/api/useTradeList";
 import MyDate from "../common/MyDate";
 import MySelect from "../common/MySelect";
-import useCommon from "../../hooks/api/useCommon";
+import {useEnumTranslation} from "../../contexts/EnumContext";
 import HoldingSearchSelect from "../search/HoldingSearchSelect";
 import {roundNumber} from "../../utils/numberFormatters";
 import {EventSourcePolyfill} from 'event-source-polyfill';
@@ -42,28 +42,11 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
     // 用于管理 EventSource 连接，以便随时关闭
     const eventSourceRef = useRef(null);
 
-    const {fetchEnum} = useCommon();
-    const [typeOptions, setTypeOptions] = useState([]);
-    const [dividendTypeOptions, setDividendTypeOptions] = useState([]); // 新增：分红类型选项
+    const {getEnumOptions} = useEnumTranslation();
+    const typeOptions = useMemo(() => getEnumOptions('TradeTypeEnum'), [getEnumOptions]);
+    const dividendTypeOptions = useMemo(() => getEnumOptions('DividendTypeEnum'), [getEnumOptions]);
 
     const [errors, setErrors] = useState({});
-
-    useEffect(() => {
-        const loadEnumValues = async () => {
-            try {
-                const [tradeTypes, dividendTypes] = await Promise.all([
-                    fetchEnum('TradeTypeEnum'),
-                    fetchEnum('DividendTypeEnum')
-                ]);
-                setTypeOptions(tradeTypes);
-                setDividendTypeOptions(dividendTypes);
-            } catch (err) {
-                console.error('Failed to load enum values:', err);
-                showErrorToast(t('msg_failed_to_load_enum'));
-            }
-        };
-        loadEnumValues();
-    }, [fetchEnum, showErrorToast]);
 
     // 组件卸载时，强制关闭未完成的连接
     useEffect(() => {

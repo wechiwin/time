@@ -72,6 +72,32 @@ export default function useCommon() {
         }
     }, [fetchEnum]);
 
+    /**
+     * Fetch all enums in a single batch request.
+     * More efficient than multiple individual requests.
+     * @returns {Promise<Object>} Object mapping enum names to their options arrays
+     */
+    const fetchAllEnums = useCallback(async (maxRetries = 2) => {
+        const doFetch = async (retryCount = 0) => {
+            try {
+                const result = await post(`${urlPrefix}/get_all_enums`);
+                if (!result || typeof result !== 'object') {
+                    throw new Error('Invalid response format');
+                }
+                return result;
+            } catch (err) {
+                if (retryCount < maxRetries) {
+                    console.warn(`[useCommon] Retrying fetchAllEnums (attempt ${retryCount + 1}/${maxRetries})`);
+                    await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+                    return doFetch(retryCount + 1);
+                }
+                console.error('[useCommon] fetchAllEnums failed after retries:', err);
+                throw err;
+            }
+        };
+        return doFetch();
+    }, [post]);
+
 
     return {
         data,
@@ -79,6 +105,7 @@ export default function useCommon() {
         error,
         fetchEnum,
         fetchMultipleEnumValues,
+        fetchAllEnums,
         setData
     };
 }

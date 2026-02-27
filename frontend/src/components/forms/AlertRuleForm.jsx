@@ -1,8 +1,8 @@
-import {useEffect, useState} from 'react';
+import {useEffect, useState, useMemo} from 'react';
 import {useToast} from '../context/ToastContext';
 import {useTranslation} from "react-i18next";
 import HoldingSearchSelect from "../search/HoldingSearchSelect";
-import useCommon from "../../hooks/api/useCommon";
+import {useEnumTranslation} from "../../contexts/EnumContext";
 import MySelect from "../common/MySelect";
 import FormField from "../common/FormField";
 import {validateForm} from "../../utils/formValidation";
@@ -23,26 +23,9 @@ export default function AlertRuleForm({onSubmit, onClose, initialValues}) {
     const {t} = useTranslation()
     const isEditMode = !!initialValues?.id;
 
-    const {fetchMultipleEnumValues} = useCommon();
-    const [actionOptions, setActionOptions] = useState([]);
+    const {getEnumOptions} = useEnumTranslation();
+    const actionOptions = useMemo(() => getEnumOptions('AlertRuleActionEnum'), [getEnumOptions]);
     const [errors, setErrors] = useState({});
-
-    useEffect(() => {
-        const loadEnumValues = async () => {
-            try {
-                const [
-                    actionOptions,
-                ] = await fetchMultipleEnumValues([
-                    'AlertRuleActionEnum',
-                ]);
-                setActionOptions(actionOptions);
-            } catch (err) {
-                console.error('Failed to load enum values:', err);
-                showErrorToast('加载类型选项失败');
-            }
-        };
-        loadEnumValues();
-    }, [fetchMultipleEnumValues, showErrorToast]);
 
 
     // 自动生成监控名称的effect
