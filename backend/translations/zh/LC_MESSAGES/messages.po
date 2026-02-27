@@ -265,7 +265,10 @@ msgid "NO_FILE_SELECTED"
 msgstr "没有选择文件"
 
 msgid "EXCEL_MISSING_REQUIRED_COLUMNS"
-msgstr "Excel缺少必要列"
+msgstr "Excel缺少必要的列"
+
+msgid "INVALID_DATE_FORMAT"
+msgstr "Excel中存在无效的日期格式"
 
 msgid "TRADE_TYPE_NOT_RECOGNIZED"
 msgstr "交易类型\"%(value)s\"无法识别，请使用模板提供的下拉选项。"

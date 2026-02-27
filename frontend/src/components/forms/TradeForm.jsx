@@ -42,6 +42,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
     // 用于管理 EventSource 连接，以便随时关闭
     const eventSourceRef = useRef(null);
 
+    const fileInputRef = useRef(null);
     const {getEnumOptions} = useEnumTranslation();
     const typeOptions = useMemo(() => getEnumOptions('TradeTypeEnum'), [getEnumOptions]);
     const dividendTypeOptions = useMemo(() => getEnumOptions('DividendTypeEnum'), [getEnumOptions]);
@@ -499,20 +500,24 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
 
             <div className="flex justify-end space-x-2 pt-2">
                 <input
-                    id="trade-upload"
+                    ref={fileInputRef}
                     type="file"
                     accept="image/*"
                     disabled={uploading}
                     onChange={handleUpload}
                     className="hidden"
+                    style={{display: 'none'}}
                 />
-                <label
-                    htmlFor="trade-upload"
+                <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
                     className={`btn-ai ${uploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                 >
                     <CameraIcon className="w-4 h-4" />
                     {t('button_upload_image')}
-                </label>
+                </button>
+
                 <button
                     type="button"
                     className="btn-secondary"

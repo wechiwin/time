@@ -261,6 +261,9 @@ msgstr "Nessun file selezionato"
 msgid "EXCEL_MISSING_REQUIRED_COLUMNS"
 msgstr "Excel manca le colonne richieste"
 
+msgid "INVALID_DATE_FORMAT"
+msgstr "Formato data non valido nel file Excel"
+
 msgid "TRADE_TYPE_NOT_RECOGNIZED"
 msgstr "Tipo di transazione \"%(value)s\" non riconosciuto, per favore usa le opzioni del menu a tendina fornite nel modello."
 

@@ -261,6 +261,9 @@ msgstr "No file selected"
 msgid "EXCEL_MISSING_REQUIRED_COLUMNS"
 msgstr "Excel is missing required columns"
 
+msgid "INVALID_DATE_FORMAT"
+msgstr "Invalid date format in Excel"
+
 msgid "TRADE_TYPE_NOT_RECOGNIZED"
 msgstr "Trade type \"%(value)s\" is not recognized, please use the dropdown options provided in the template."
 

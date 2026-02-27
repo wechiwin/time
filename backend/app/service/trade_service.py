@@ -280,8 +280,6 @@ class TradeService:
                 # 5. 按时间顺序处理该基金的每一笔新交易
                 for trade in to_iterate_trades:
                     trade_shares = Decimal(str(trade.tr_shares))
-                    if isinstance(trade.tr_date, str):
-                        trade.tr_date = str_to_date(trade.tr_date)
 
                     if trade.tr_type == TradeTypeEnum.SELL.value and (
                             current_shares.is_zero() or trade_shares > current_shares):

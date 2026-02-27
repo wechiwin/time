@@ -300,9 +300,11 @@ def import_trade():
     if not all(col in df.columns for col in required_columns):
         raise BizException(msg=gettext("EXCEL_MISSING_REQUIRED_COLUMNS"))
 
-    # 转换日期列为字符串格式
+    # 转换日期列为 datetime 类型
     df[gettext('COL_TR_DATE')] = pd.to_datetime(df[gettext('COL_TR_DATE')], errors='coerce')
-    df[gettext('COL_TR_DATE')] = df[gettext('COL_TR_DATE')].dt.strftime('%Y-%m-%d')  # 处理Timestamp类型
+    # 检查是否存在无效日期
+    if df[gettext('COL_TR_DATE')].isna().any():
+        raise BizException(msg=gettext("INVALID_DATE_FORMAT"))
 
     # 转换数值列为float（防止整数被识别为其他类型）
     numeric_cols = [
@@ -320,7 +322,7 @@ def import_trade():
         transaction = Trade(
             ho_code=str(row[gettext('COL_HO_CODE')]),
             tr_type=map_trade_type(row[gettext('COL_TR_TYPE')]),
-            tr_date=str(row[gettext('COL_TR_DATE')]),
+            tr_date=row[gettext('COL_TR_DATE')].date(),
             tr_nav_per_unit=float(row[gettext('COL_TR_NAV_PER_UNIT')]),
             tr_shares=float(row[gettext('COL_TR_SHARES')]),
             tr_amount=float(row[gettext('COL_TR_AMOUNT')]),
