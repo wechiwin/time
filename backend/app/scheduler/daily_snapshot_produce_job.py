@@ -20,8 +20,9 @@ def produce_async_tasks():
                 user_id=user.id,
                 task_name=f"{prev_date} daily job: generating holding snapshots",
                 module_path="app.service.task_service",
+                class_name="TaskService",
                 method_name="generate_yesterday_snapshot",
-                kwargs={"user_id": user.id, "start_date": str(prev_date), "end_date": str(prev_date)},
+                args=[user.id],
             )
 
         logger.info("produce_async_tasks finished.")
