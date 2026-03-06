@@ -36,7 +36,7 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
     const {showSuccessToast, showErrorToast} = useToast();
     const {t} = useTranslation()
     const [uploading, setUploading] = useState(false);
-    const {upload_sse} = useTradeList({autoLoad: true,});
+    const {upload_sync} = useTradeList({autoLoad: true,});
 
     const [processingStatus, setProcessingStatus] = useState(''); // 显示 "上传中" 或 "AI分析中"
     // 用于管理 EventSource 连接，以便随时关闭
@@ -179,8 +179,8 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
         }));
     };
 
-    // SSE 上传逻辑
-    const handleUpload = async (e) => {
+    // SSE 上传
+    const handleUploadSSE = async (e) => {
         const file = e.target.files?.[0];
         if (!file || uploading) return;
 
@@ -208,6 +208,51 @@ export default function TradeForm({onSubmit, onClose, initialValues}) {
             setProcessingStatus('');
         } finally {
             // 清空 input，允许重复上传同一张图片
+            e.target.value = '';
+        }
+    };
+
+    /**
+     * 同步上传图片
+     */
+    const handleUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file || uploading) return;
+
+        setUploading(true);
+        setProcessingStatus(t('msg_uploading') || 'Uploading...');
+
+        try {
+            setProcessingStatus(t('msg_ai_analyzing') || 'AI Analyzing...');
+            const res = await upload_sync(file);
+
+            // 填充表单
+            const o = res.parsed_json;
+            setForm(prev => {
+                const isEditMode = !!initialValues?.id;
+                return {
+                    ...prev,
+                    id: o.id ?? prev.id ?? '',
+                    ho_code: isEditMode ? prev.ho_code : (o.ho_code ?? prev.ho_code ?? ''),
+                    ho_id: isEditMode ? prev.ho_id : (o.ho_id ? String(o.ho_id) : (prev.ho_id ?? '')),
+                    ho_short_name: isEditMode ? prev.ho_short_name : (o.ho_short_name ?? prev.ho_short_name ?? ''),
+                    tr_amount: o.tr_amount ?? prev.tr_amount ?? '',
+                    tr_date: o.tr_date ?? prev.tr_date ?? '',
+                    tr_fee: o.tr_fee ?? prev.tr_fee ?? '',
+                    tr_nav_per_unit: o.tr_nav_per_unit ?? prev.tr_nav_per_unit ?? '',
+                    tr_shares: o.tr_shares ?? prev.tr_shares ?? '',
+                    cash_amount: o.cash_amount ?? prev.cash_amount ?? '',
+                    tr_type: o.tr_type ?? prev.tr_type ?? '',
+                };
+            });
+
+            showSuccessToast();
+        } catch (err) {
+            console.error('Upload failed:', err);
+            showErrorToast(err.message || t('msg_upload_failed'));
+        } finally {
+            setUploading(false);
+            setProcessingStatus('');
             e.target.value = '';
         }
     };

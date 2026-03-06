@@ -139,6 +139,18 @@ export default function useTradeList(options = {}) {
         return post(urlPrefix + '/upload_sse', formData, {});
     }, [post]);
 
+    /**
+     * 同步上传图片并解析交易信息（适用于多 worker 生产环境）
+     * @param {File} file - 图片文件
+     * @returns {Promise<{ocr_text: string, parsed_json: object}>}
+     */
+    const upload_sync = useCallback(async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        return post(urlPrefix + '/upload_sync', formData, {});
+    }, [post]);
+
     return {
         data,
         loading,
@@ -153,6 +165,7 @@ export default function useTradeList(options = {}) {
         exportData,
         listByHoId,
         uploadTradeImg,
-        upload_sse
+        upload_sse,
+        upload_sync
     };
 }

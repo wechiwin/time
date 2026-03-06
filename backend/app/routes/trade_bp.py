@@ -462,6 +462,29 @@ def upload_sse():
     return Res.success(result)
 
 
+@trade_bp.route("/upload_sync", methods=["POST"])
+@auth_required
+def upload_sync():
+    """
+    同步上传图片并解析交易信息（不使用 SSE，适用于多 worker 生产环境）
+    """
+    file = request.files.get("file")
+    if not file:
+        raise BizException(msg=gettext("NO_FILE_UPLOADED"))
+
+    file_bytes = file.read()
+
+    try:
+        result = TradeService.process_trade_image_online(file_bytes)
+        return Res.success({
+            "ocr_text": result.get("ocr_text"),
+            "parsed_json": result.get("parsed_json")
+        })
+    except Exception as e:
+        logger.exception(f"OCR processing failed: {e}")
+        raise BizException(msg=ErrorMessageEnum.OPERATION_FAILED.view)
+
+
 @trade_bp.route("/stream/<task_id>")
 @auth_required
 def stream(task_id):
