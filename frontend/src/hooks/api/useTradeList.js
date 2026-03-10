@@ -148,7 +148,9 @@ export default function useTradeList(options = {}) {
         const formData = new FormData();
         formData.append('file', file);
 
-        return post(urlPrefix + '/upload_sync', formData, {});
+        return post(urlPrefix + '/upload_sync', formData, {
+            timeout: 60000  // GLM Vision API 响应较慢，单独设置 60 秒超时
+        });
     }, [post]);
 
     return {

@@ -90,11 +90,17 @@ class TradeService:
             parsed_json = cls._clean_and_parse_json(content)
 
             # 5. 业务数据补全 (关联数据库中的持仓代码)
-            if is_not_blank(parsed_json.get('ho_short_name')) or is_not_blank(parsed_json.get('ho_code')):
-                h = Holding.query.filter(
-                    or_(Holding.ho_short_name.like(f"%{parsed_json['ho_short_name']}%"),
-                        Holding.ho_code.like(f"%{parsed_json['ho_code']}%"))
-                ).first()
+            ho_short_name = parsed_json.get('ho_short_name')
+            ho_code = parsed_json.get('ho_code')
+            if is_not_blank(ho_short_name) or is_not_blank(ho_code):
+                # 只用非空字段构建查询条件
+                conditions = []
+                if is_not_blank(ho_short_name):
+                    conditions.append(Holding.ho_short_name.like(f"%{ho_short_name}%"))
+                if is_not_blank(ho_code):
+                    conditions.append(Holding.ho_code.like(f"%{ho_code}%"))
+
+                h = Holding.query.filter(or_(*conditions)).first()
                 if h:
                     parsed_json['ho_short_name'] = h.ho_short_name
                     parsed_json['ho_code'] = h.ho_code
