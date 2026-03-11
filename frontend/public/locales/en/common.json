@@ -42,6 +42,7 @@
   "last_market_date": "Last Trade Date",
   "first_trade_date": "First Trade Date",
   "last_snapshot_date": "Last Snapshot Date",
+  "recalculate": "Recalculate",
   "yesterday": "Yesterday",
   "tr_type_buy": "Buy",
   "tr_type_sell": "Sell",

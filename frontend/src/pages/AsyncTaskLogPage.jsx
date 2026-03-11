@@ -210,7 +210,7 @@ export default function AsyncTaskLogPage() {
                 className="btn-secondary text-sm inline-flex items-center gap-1.5 px-2.5 py-1.5"
             >
                 <ArrowPathIcon className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`}/>
-                {t('calculate_all')}
+                {t('recalculate')}
             </button>
         </>
     ), [isLoading, isDebounced, t, selectedIds.size, handleBatchDeleteRequest]);
@@ -262,9 +262,9 @@ export default function AsyncTaskLogPage() {
                 isLoading={batchConfirmState.isLoading}
             />
 
-            {/* 重新计算全部模态框 */}
+            {/* 重新计算模态框 */}
             <FormModal
-                title={t('calculate_all')}
+                title={t('recalculate')}
                 show={calculateModal}
                 onClose={() => setCalculateModal(false)}
                 onSubmit={handleCalculateAll}

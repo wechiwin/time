@@ -44,6 +44,7 @@
   "last_market_date": "最近交易日",
   "first_trade_date": "第一个交易日",
   "last_snapshot_date": "上次快照日",
+  "recalculate": "重新计算",
   "yesterday": "昨天",
   "tr_type_buy": "买入",
   "tr_type_sell": "卖出",
