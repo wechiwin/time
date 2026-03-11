@@ -11,6 +11,8 @@ import EmptyState from "../components/common/EmptyState";
 import {ArrowPathIcon, TrashIcon} from '@heroicons/react/16/solid';
 import TableWrapper from "../components/common/TableWrapper";
 import ConfirmationModal from "../components/common/ConfirmationModal";
+import FormModal from "../components/common/FormModal";
+import CalculateAllForm from "../components/forms/CalculateAllForm";
 
 export default function AsyncTaskLogPage() {
     const {t} = useTranslation();
@@ -39,6 +41,9 @@ export default function AsyncTaskLogPage() {
         isLoading: false,
     });
 
+    // 计算全部模态框状态
+    const [calculateModal, setCalculateModal] = useState(false);
+
     const {getEnumOptions} = useEnumTranslation();
     const taskStatusOptions = useMemo(() => getEnumOptions('TaskStatusEnum'), [getEnumOptions]);
 
@@ -58,10 +63,12 @@ export default function AsyncTaskLogPage() {
     };
 
     // Calculate all - dates are optional, backend will use defaults
-    const handleCalculateAll = useCallback(async () => {
+    const handleCalculateAll = useCallback(async (formData) => {
         try {
-            await async_calculate_all();
+            await async_calculate_all(formData.start_date || null, formData.end_date || null);
             showSuccessToast(t('msg_task_started'));
+            setCalculateModal(false);
+            setRefreshKey(p => p + 1);
         } catch (err) {
             console.error('Failed to start calculate_all task:', err);
             showErrorToast(err.message);
@@ -198,7 +205,7 @@ export default function AsyncTaskLogPage() {
                 </button>
             )}
             <button
-                onClick={handleCalculateAll}
+                onClick={() => setCalculateModal(true)}
                 disabled={isDebounced}
                 className="btn-secondary text-sm inline-flex items-center gap-1.5 px-2.5 py-1.5"
             >
@@ -206,7 +213,7 @@ export default function AsyncTaskLogPage() {
                 {t('calculate_all')}
             </button>
         </>
-    ), [isLoading, isDebounced, t, selectedIds.size, handleBatchDeleteRequest, handleCalculateAll]);
+    ), [isLoading, isDebounced, t, selectedIds.size, handleBatchDeleteRequest]);
 
 
     return (
@@ -253,6 +260,16 @@ export default function AsyncTaskLogPage() {
                 title={t('title_delete_confirmation')}
                 description={batchConfirmationDescription}
                 isLoading={batchConfirmState.isLoading}
+            />
+
+            {/* 重新计算全部模态框 */}
+            <FormModal
+                title={t('calculate_all')}
+                show={calculateModal}
+                onClose={() => setCalculateModal(false)}
+                onSubmit={handleCalculateAll}
+                FormComponent={CalculateAllForm}
+                initialValues={{}}
             />
         </div>
     );

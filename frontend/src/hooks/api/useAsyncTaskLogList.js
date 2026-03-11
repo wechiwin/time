@@ -114,5 +114,15 @@ export default function useAsyncTaskLogList({
         return result;
     }, [post]);
 
-    return {data, isLoading, isDebounced, error, redo_all_snapshot, async_calculate_all, redo_yesterday_snapshot, deleteLog, batchDeleteLog};
+    const getDateInfo = useCallback(async () => {
+        try {
+            const result = await get('/task_log/get_calculate_date_info', {});
+            return result;
+        } catch (err) {
+            console.error('Failed to fetch date info:', err);
+            throw err;
+        }
+    }, [get]);
+
+    return {data, isLoading, isDebounced, error, redo_all_snapshot, async_calculate_all, redo_yesterday_snapshot, deleteLog, batchDeleteLog, getDateInfo};
 }

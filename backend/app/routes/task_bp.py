@@ -195,6 +195,35 @@ def batch_del_log():
     return Res.success(result)
 
 
+@task_log_bp.route('/get_calculate_date_info', methods=['GET'])
+@auth_required
+def get_calculate_date_info():
+    """
+    Get date information for calculate_all modal:
+    - first_trade_date: The earliest trade date
+    - last_snapshot_date: The latest snapshot date
+    """
+    from sqlalchemy import func
+    from app.models import Trade, HoldingSnapshot
+
+    user_id = g.user.id
+
+    # Get first trade date
+    earliest_trade = Trade.query.filter(Trade.user_id == user_id).order_by(Trade.tr_date).first()
+    first_trade_date = earliest_trade.tr_date.isoformat() if earliest_trade else None
+
+    # Get last snapshot date
+    last_snapshot = HoldingSnapshot.query.filter(
+        HoldingSnapshot.user_id == user_id
+    ).order_by(HoldingSnapshot.snapshot_date.desc()).first()
+    last_snapshot_date = last_snapshot.snapshot_date.isoformat() if last_snapshot else None
+
+    return Res.success({
+        'first_trade_date': first_trade_date,
+        'last_snapshot_date': last_snapshot_date
+    })
+
+
 @task_log_bp.route('/async_calculate_all', methods=['POST'])
 @auth_required
 def async_calculate_all():
