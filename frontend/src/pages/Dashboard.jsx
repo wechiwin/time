@@ -323,7 +323,7 @@ export default function Dashboard() {
                             {performance ? (
                                 <div className="grid grid-cols-2 gap-3">
                                     <RiskMetric label={t('label_sharpe_ratio')} value={performance.sharpe_ratio?.toFixed(2)} desc={t('hint_sharpe_ratio_optimal')}/>
-                                    <RiskMetric label={t('label_max_drawdown')} value={formatPercent(performance.max_drawdown)} color={getProfitColor(performance.max_drawdown)} desc={t('smaller_is_better')}/>
+                                    <RiskMetric label={t('label_max_drawdown')} value={formatPercent(performance.max_drawdown)} desc={t('smaller_is_better')}/>
                                     <RiskMetric label={t('label_annualized_volatility')} value={formatPercent(performance.volatility)} desc={t('label_risk_level')}/>
                                     <RiskMetric label={t('label_win_rate')} value={formatPercent(performance.win_rate)} desc={t('label_profitable_days_ratio')}/>
                                 </div>
