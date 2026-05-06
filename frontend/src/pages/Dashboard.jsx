@@ -214,7 +214,7 @@ export default function Dashboard() {
                     title={t('cumulative_twrr')}
                     value={formatPercent(overviewData?.twrr_cum)}
                     valueColor={getProfitColor(overviewData?.twrr_cum)}
-                    subValue={`年化 IRR: ${formatPercent(overviewData?.irr_ann)}`}
+                    subValue={`${t('annualized_irr')}: ${formatPercent(overviewData?.irr_ann)}`}
                     subValueColor={getProfitColor(overviewData?.total_pnl_ratio)}
                     icon={<PresentationChartLineIcon className="w-5 h-5 text-orange-500"/>}
                     tooltip={t('twrr_description')}
@@ -275,7 +275,7 @@ export default function Dashboard() {
                     value={formatPercent(performance?.alpha)}
                     valueColor={getProfitColor(performance?.alpha)}
                     // Beta 衡量对市场的敏感度，与 Alpha 成对出现最合适
-                    subValue={`Beta: ${performance?.beta ? formatPercent(performance.beta) : '-'}`}
+                    subValue={`${t('beta')}: ${performance?.beta ? formatPercent(performance.beta) : '-'}`}
                     subValueColor="text-gray-500"
                     icon={<CurrencyDollarIcon className="w-6 h-6 text-orange-500"/>}
                     tooltip={t('alpha_beta_explanation')}

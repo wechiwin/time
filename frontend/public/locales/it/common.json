@@ -101,6 +101,7 @@
   "last_updated_at": "Ultimo aggiornamento",
   "empty_position": "Nessuna posizione",
   "annualized_irr": "IRR annualizzato",
+  "beta": "Beta",
   "twrr_explanation": "Il TWRR misura la performance della strategia (escludendo l’impatto degli afflussi/deflussi di capitale); l’IRR rappresenta il rendimento effettivamente realizzato",
   "excess_return": "Rendimento eccedente",
   "alpha_beta_explanation": "Alpha: rendimento eccedente rispetto al benchmark; Beta: sensibilità alla volatilità del benchmark (>1 indica maggiore volatilità rispetto al benchmark)",

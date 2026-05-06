@@ -101,6 +101,7 @@
   "last_updated_at": "Last updated at",
   "empty_position": "No position",
   "annualized_irr": "Annualized IRR",
+  "beta": "Beta",
   "twrr_explanation": "TWRR measures strategy performance (net of cash inflows/outflows); IRR reflects actual realized return",
   "excess_return": "Excess Return",
   "alpha_beta_explanation": "Alpha: excess return over benchmark; Beta: sensitivity to benchmark volatility (>1 means more volatile than benchmark)",
