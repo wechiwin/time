@@ -42,7 +42,7 @@ def page_history():
     if end_date:
         query = query.filter(FundNavHistory.nav_date <= end_date)
     if keyword:
-        query = query.filter(
+        query = query.join(Holding, FundNavHistory.ho_id == Holding.id).filter(
             or_(
                 Holding.ho_code.ilike(f'%{keyword}%'),
                 Holding.ho_short_name.ilike(f'%{keyword}%')
